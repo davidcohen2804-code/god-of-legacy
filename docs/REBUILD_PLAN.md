@@ -147,3 +147,8 @@ burst big.
   no mind until you hit it** (then it follows you; a boss, and the den's monsters, still see you and come); a plain hit
   pushes it back ≥22 px; **the HP bar shows 2 s** after a hit, with its **level and name over it, coloured by its level
   against yours** (≥5 above red, 2–4 orange, ≥5 below grey, else white). `src/world/Monster.ts`.
+- 31 Oct 11:40 — Phase 9 (world flow), first piece: character creation's look panel adds **the starting clothes'
+  colours** — shirt (white / blue / red), trousers (denim / brown / black), boots (brown / black / red); the pedestal
+  dresses at once and the character starts in them. Phase 7 (the skills) waits for David: the plan's Warrior 1st job
+  (fire-sword buff, sweep, dash, iron body) vs the Warrior chat's approved one (Dash Slash, Rising Slash, Leap Crash,
+  Thunder Circle).

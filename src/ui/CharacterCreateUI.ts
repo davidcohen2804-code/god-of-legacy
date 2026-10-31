@@ -14,6 +14,12 @@ import V3_LOOK from '../data/v3-look.json';
 /** What the new character looks like: body, face, hairstyle and its colour, skin tone, eye colour, the colour of each
  *  starter piece. */
 export type CreateLook = LookData;
+/** The starting clothes' colours, as the base's gear recolours them (c0, c1, c2). */
+const OUTFIT: ['top' | 'pants' | 'shoes', [string, string][]][] = [
+  ['top', [['White', '#eeece6'], ['Blue', '#3f72d4'], ['Red', '#cf4a3e']]],
+  ['pants', [['Denim', '#3c5ea6'], ['Brown', '#7b5434'], ['Black', '#2c2c32']]],
+  ['shoes', [['Brown', '#7a4a23'], ['Black', '#2a2727'], ['Red', '#9f2e2c']]],
+];
 export const FIRST_LOOK: CreateLook = { gender: 'male', face: 0, hair: 0, hairColor: 0, skin: DEFAULT_SKIN, eyeColor: 0, top: 0, pants: 0, shoes: 0, weapon: true };
 /** The male / female signs on the BODY buttons, drawn (♂: circle and arrow; ♀: circle and cross). */
 const SEX_SIGN = {
@@ -94,6 +100,9 @@ const CSS = `
 .gol-cc .lk-sw:hover{transform:scale(1.08)}
 .gol-cc .lk-sw.on{border-color:#e7c47c;box-shadow:0 0 0 3px rgba(231,196,124,.32)}
 .gol-cc .lk-hint{position:absolute;left:28px;right:28px;font:500 13px var(--gl-body);line-height:1.5;color:var(--gl-text2);opacity:.85}
+.gol-cc .lk-grp{display:flex;gap:7px;align-items:center;pointer-events:none}
+.gol-cc .lk-grp + .lk-grp{margin-left:12px;padding-left:14px;border-left:1px solid rgba(255,255,255,.12)}
+.gol-cc .lk-sw.sm{flex:0 0 30px;height:30px}
 `;
 
 export class CharacterCreateUI {
@@ -185,14 +194,14 @@ export class CharacterCreateUI {
       b.addEventListener('click', () => { this.look = { ...this.look, hair: i }; pick(this.hairBtns, i); this.h.onLookChange?.(this.look); });
       this.hairBtns.push(b);
     }
-    const cr = row('Hair colour', 170);
+    const cr = row('Hair colour', 158);
     (V3_HAIR as { name: string; swatch: string }[]).forEach((c, i) => {
       const b = this.el('button', 'lk-sw', cr) as HTMLButtonElement; b.title = c.name; b.style.background = c.swatch;
       b.addEventListener('mousedown', (e) => e.preventDefault());
       b.addEventListener('click', () => { this.look = { ...this.look, hairColor: i }; pick(this.hairColBtns, i); this.h.onLookChange?.(this.look); });
       this.hairColBtns.push(b);
     });
-    const sr = row('Skin', 250);
+    const sr = row('Skin', 228);
     SKIN_TONES.forEach((t, i) => {
       const b = this.el('button', 'lk-sw', sr) as HTMLButtonElement; b.title = t.name; b.style.background = t.swatch;
       b.addEventListener('mousedown', (e) => e.preventDefault());
@@ -200,8 +209,20 @@ export class CharacterCreateUI {
       this.skinBtns.push(b);
     });
     pick(this.hairBtns, this.look.hair); pick(this.hairColBtns, this.look.hairColor); pick(this.skinBtns, this.look.skin);
-    const hint = this.el('div', 'lk-hint', lp); hint.style.top = '332px';
-    hint.textContent = 'You begin as an adventurer with a sword. At level 10 a Master opens your path: Warrior, Book Mage, Archer, Samurai or Gambler.';
+    // the starting clothes' colours (the Beginner's T-shirt, trousers and boots — worn in these colours, removable in the bag)
+    const outfit = row('Shirt · Trousers · Boots', 298);
+    for (const [piece, cols] of OUTFIT) {
+      const g = this.el('div', 'lk-grp', outfit); const btns: HTMLButtonElement[] = [];
+      cols.forEach(([name, sw], i) => {
+        const b = this.el('button', 'lk-sw sm', g) as HTMLButtonElement; b.title = `${piece === 'top' ? 'Shirt' : piece === 'pants' ? 'Trousers' : 'Boots'} — ${name}`; b.style.background = sw;
+        b.addEventListener('mousedown', (e) => e.preventDefault());
+        b.addEventListener('click', () => { this.look = { ...this.look, [piece]: i }; pick(btns, i); this.h.onLookChange?.(this.look); });
+        btns.push(b);
+      });
+      pick(btns, this.look[piece]);
+    }
+    const hint = this.el('div', 'lk-hint', lp); hint.style.top = '364px';
+    hint.textContent = 'You begin with a sword; at level 10 a Master opens your path.';
 
     // The class fan: every class in the game side by side (nothing to pick: a new character starts as the Beginner).
     // The pointer on a card lights up that card's background; its hero and the frame stay as they are.
