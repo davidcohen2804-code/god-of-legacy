@@ -6,12 +6,14 @@ import { toneTexture } from '../characters/Skin';
 import MENU_LOOK from '../data/menu-look.json';
 import { HERO3D } from '../arena3d/hero3dFlag';
 import type { HeroPreview3D } from '../arena3d/HeroPreview3D';
+import { BASE_V3, isV3 } from '../characters/baseSet';
+import V3_MENU from '../data/v3-menu-look.json';
 
 /** The new character on the pedestal, dressed as chosen: back hair, the bare body in its skin tone, the face, the starter
  *  gear it will wear (pants, boots, shirt in their colours, the sword in hand), the forehead between the bangs, the hair
  *  over the head — one image each, all on the menu canvas (tools/base/naked_frames.py). The face and hairstyle
  *  buttons are pictures of this same look, redrawn with every choice. */
-const FIT = MENU_LOOK as Record<string, { fit: number }>;
+const FIT = { ...MENU_LOOK, ...(BASE_V3 ? V3_MENU : {}) } as Record<string, { fit: number }>;   // (the rebuild's base: its own canvas)
 /** The new Beginner, painted like the ready heroes (one picture per body; a body without one still shows the old base). */
 const BEGINNER_ART: Record<string, string> = { male: 'assets/final/heroes/beginner/male.png', female: 'assets/final/heroes/beginner/female.png' };
 
@@ -56,8 +58,8 @@ export class CharacterCreateScene extends Phaser.Scene {
     const apply = (v: number) => {
       if (v !== ver) return; // a newer choice is on its way
       const l = want;
-      if (HERO3D.on) { art.setVisible(false); layers.forEach((im) => im.setVisible(false)); show3D(l.gender); const icons = lookIcons(this, l); if (icons) this.ui?.setIcons(icons); return; }
-      if (this.textures.exists(`beginner.${l.gender}`)) { // the painted Beginner on the pedestal
+      if (HERO3D.on && !isV3(l.gender)) { art.setVisible(false); layers.forEach((im) => im.setVisible(false)); show3D(l.gender); const icons = lookIcons(this, l); if (icons) this.ui?.setIcons(icons); return; }
+      if (this.textures.exists(`beginner.${l.gender}`) && !isV3(l.gender)) { // the painted Beginner on the pedestal (the rebuild's base: its look)
         art.setTexture(`beginner.${l.gender}`).setVisible(true);
         art.setScale((P.height * 0.86) / art.height);
         layers.forEach((im) => im.setVisible(false));

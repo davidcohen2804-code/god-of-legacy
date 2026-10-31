@@ -4,6 +4,10 @@ import { playedClass } from '../skills/Jobs';
 import { CHARACTER_PREVIEWS } from '../config/layout';
 import { lookOf, lookPreviewKey, StoredLook } from './LookArt';
 import type { BaseLook } from '../game/Body';
+import { isV3 } from './baseSet';
+// the rebuild's base: its bare picture in the menus
+for (const g of ['male', 'female'] as const) if (isV3(g) && CHARACTER_PREVIEWS[`base/${g}`])
+  CHARACTER_PREVIEWS[`base/${g}`] = { ...CHARACTER_PREVIEWS[`base/${g}`], key: `base.v3.${g}`, file: `assets/characters/v3/Base_${g === 'male' ? 'Male' : 'Female'}.png` };
 
 export type Gender = 'male' | 'female';
 export const genderOf = (c: { gender?: string } | null | undefined): Gender => (c?.gender === 'female' ? 'female' : 'male');
@@ -18,7 +22,7 @@ export const headLookOf = (c: { gender?: string; look?: StoredLook } | null | un
 /** CHARACTER_PREVIEWS key for menus / portraits. */
 export const previewKeyOf = (c: { classId: string; level: number; gender?: string; appearanceId: string | null; look?: StoredLook }): string => {
   const g = baseLookOf(c);
-  if (g && CHARACTER_PREVIEWS[`beginner/${g}`]) return `beginner/${g}`; // the painted Beginner (no per-character style any more)
+  if (g && !isV3(g) && CHARACTER_PREVIEWS[`beginner/${g}`]) return `beginner/${g}`; // the painted Beginner (no per-character style any more; the rebuild's base: its own look)
   const l = g ? lookOf(c) : null;
   if (l && CHARACTER_PREVIEWS[lookPreviewKey(l)]) return lookPreviewKey(l); // the full style (hair, face, skin, outfit, sword)
   return g ? `base/${g}` : `${c.classId}/${c.appearanceId ?? `${c.classId}_default`}`;

@@ -7,6 +7,9 @@ import Phaser from 'phaser';
 import { CHARACTER_PREVIEWS } from '../config/layout';
 import MENU_LOOK_LIST from '../data/menu-look.json';
 import NAKED_LOOK_LIST from '../data/naked-look.json';
+import V3_MENU_LIST from '../data/v3-menu-look.json';
+import V3_LOOK_LIST from '../data/v3-look.json';
+import { BASE_V3, isV3 } from './baseSet';
 import EYE_LIST from '../data/eye-colors.json';
 import { DEFAULT_SKIN, SKIN_TONES, toneTexture } from './Skin';
 import { GearState, wornLook } from '../items/Gear';
@@ -20,21 +23,21 @@ export const EYE_COLORS = EYE_LIST as { name: string; swatch: string }[];
 type LookOwner = { gender?: string; look?: StoredLook; gear?: GearState };
 /** The menu canvas per gender: size, where the bare figure sits in it (ox, oy), its height (fit), the head (hairstyle
  *  buttons) and the face (face buttons) as [cx, cy, side]. */
-const MENU_LOOK = MENU_LOOK_LIST as Record<string, { w: number; h: number; ox: number; oy: number; fit: number; head: number[]; face?: number[]; gear?: string[] }>;
-const NAKED_LOOK = NAKED_LOOK_LIST as Record<string, { styles: number; colors: number; gaps: boolean[]; faces: number }>;
+const MENU_LOOK = { ...MENU_LOOK_LIST, ...(BASE_V3 ? V3_MENU_LIST : {}) } as Record<string, { w: number; h: number; ox: number; oy: number; fit: number; head: number[]; face?: number[]; gear?: string[] }>;
+const NAKED_LOOK = { ...NAKED_LOOK_LIST, ...(BASE_V3 ? V3_LOOK_LIST : {}) } as Record<string, { styles: number; colors: number; gaps: boolean[]; faces: number }>;   // (the rebuild's base: its own)
 
 const G_ = (g: LookData['gender']) => (g === 'male' ? 'Male' : 'Female');
 /** One layer of a look's picture: [texture key, file, re-shaded with the skin tone]. */
 export type LookLayer = [string, string, boolean];
 /** The layers of a look, bottom to top. noHair: the bare head (face buttons). */
 export function lookFiles(l: LookData, noHair = false): LookLayer[] {
-  const G = G_(l.gender), B = 'assets/characters/base', n = NAKED_LOOK[l.gender];
+  const G = G_(l.gender), B = isV3(l.gender) ? 'assets/characters/v3' : 'assets/characters/base', n = NAKED_LOOK[l.gender];
   const hair = !noHair && l.hair >= 0 && l.hair < (n?.styles ?? 0), out: LookLayer[] = [];
   const gear = MENU_LOOK[l.gender]?.gear ?? [];
   if (hair) out.push([`cc.${G}.h${l.hair}c${l.hairColor}b`, `${B}/hair/${G}_${l.hair}_c${l.hairColor}_back.png`, false]);
   out.push([`cc.${G}.bare`, `${B}/Base_${G}_wide.png`, true]);
   if (l.face > 0 && l.face < (n?.faces ?? 1)) out.push([`cc.${G}.face${l.face}`, `${B}/face/${G}_${l.face}.png`, true]);
-  if (l.eyeColor > 0 && l.eyeColor < EYE_COLORS.length) out.push([`cc.${G}.eyes${l.face}c${l.eyeColor}`, `${B}/eyes/${G}_${l.face}_c${l.eyeColor}.png`, false]);
+  if (l.eyeColor > 0 && l.eyeColor < EYE_COLORS.length && !isV3(l.gender)) out.push([`cc.${G}.eyes${l.face}c${l.eyeColor}`, `${B}/eyes/${G}_${l.face}_c${l.eyeColor}.png`, false]);
   for (const p of ['pants', 'shoes', 'top'] as const) if (l[p] >= 0 && gear.includes(p)) out.push([`cc.${G}.${p}${l[p]}`, `${B}/gear/${G}_${p}_c${l[p]}.png`, false]);
   if (l.weapon && gear.includes('sword')) out.push([`cc.${G}.sword`, `${B}/gear/${G}_sword.png`, false]);
   if (hair && n?.gaps[l.hair]) out.push([`cc.${G}.gap${l.hair}`, `${B}/hair/${G}_${l.hair}_gap.png`, true]);
@@ -105,7 +108,9 @@ export function buildLook(scene: Phaser.Scene, c: LookOwner | null | undefined):
   const key = `base.look.${sigOf(l)}`, base = CHARACTER_PREVIEWS[`base/${l.gender}`], M = MENU_LOOK[l.gender];
   if (!scene.textures.exists(key)) scene.textures.addCanvas(key, cv);
   // portraits: the bare figure's head crop, from the canvas top (the tallest hair has room there)
-  CHARACTER_PREVIEWS[pk] = { ...base, key, file: cv.toDataURL('image/png'), width: cv.width, height: cv.height, crop: { x: base.crop.x + M.ox, y: 0, w: base.crop.w }, fit: M.fit };
+  const [hcx, hcy, hs] = M.head;                               // (the rebuild's base: the head's own square — its hair is taller)
+  const crop = isV3(l.gender) ? { x: Math.round(hcx - hs * 0.5), y: Math.max(0, Math.round(hcy - hs * 0.45)), w: Math.round(hs) } : { x: base.crop.x + M.ox, y: 0, w: base.crop.w };
+  CHARACTER_PREVIEWS[pk] = { ...base, key, file: cv.toDataURL('image/png'), width: cv.width, height: cv.height, crop, fit: M.fit };
   return pk;
 }
 

@@ -208,8 +208,9 @@ import V3_LOOK_LIST from '../data/v3-look.json';
 import V3_BLADES_LIST from '../data/v3-blades.json';
 import EYE_COLORS_LIST from '../data/eye-colors.json';
 /** The rebuild's base character (David 31 Oct 2026, docs/REBUILD_PLAN.md; tools/base/sheets/v3_male.json → body/v3/):
- *  ?base=v3 plays it in place of the clean base while its hair, faces and clothes are made (then it becomes the base). */
-export const BASE_V3 = typeof location !== 'undefined' && new URLSearchParams(location.search).get('base') === 'v3';
+ *  characters/baseSet.ts says when it is drawn in place of the clean base. */
+import { BASE_V3, isV3 } from '../characters/baseSet';
+export { BASE_V3 };
 const withV3 = <T>(a: unknown, b: unknown): T => (BASE_V3 ? { ...(a as object), ...(b as object) } : a) as T;
 const NAKED = withV3<Record<string, Record<string, number>>>(NAKED_LIST, V3_LIST);
 /** Per frame: where the standing head sits [x, y] (cell px from the standing head), and its turn (degrees counter-clockwise
@@ -220,7 +221,7 @@ const NAKED_HEADS = withV3<Record<string, Record<string, number[][]>>>(NAKED_HEA
 const NAKED_BLADES = withV3<Record<string, Record<string, (number[] | null)[]>>>(NAKED_BLADES_LIST, V3_BLADES_LIST);
 const nakedKey = (g: string, anim = 'idle') => `naked-${g}-${anim}`;
 /** Where a gender's base art is: body/naked, or body/v3 (the rebuild's, with ?base=v3). */
-const nakedDir = (g: string) => `assets/final/body/${BASE_V3 && g in (V3_LIST as object) ? 'v3' : 'naked'}/${g}`;
+const nakedDir = (g: string) => `assets/final/body/${isV3(g) ? 'v3' : 'naked'}/${g}`;
 /** The base character's look, drawn as layers on the frame (MapleStory): back hair behind the body, the face, the forehead
  *  between the bangs and the front hair on the head (they move with it: naked-heads.json), the sword arm again where it
  *  passes in front of the head (<move>_o.png); the skin tone re-shades the skin of every layer (characters/Skin.ts). */
@@ -492,7 +493,7 @@ const pick = <T,>(list: T[], p: number): T => list[Math.max(0, Math.min(list.len
 type BodyQuery = Exclude<PoseQuery, { k: 'loop' }> | { k: 'loop'; state: 'idle' | 'walk' | 'run'; t: number; speed: number };
 export function resolvePose(cls: ClassKey, dir: Dir, q: PoseQuery, base = false, gender?: 'male' | 'female', hero = false, layered = false): PoseFrame {
   if (hero && HEROES[cls]) return heroPose(cls, dir, q);
-  if (base && gender && !layered && !(BASE_V3 && gender in (V3_LIST as object)) && HEROES[`beginner_${gender}`]) return heroPose(`beginner_${gender}`, dir, q); // the painted Beginner (male / female) when its body is cut (`layered`: the clean base under its look and gear layers instead — God of Legacy Studio; ?base=v3: the rebuild's base, layered, in the game too)
+  if (base && gender && !layered && !isV3(gender) && HEROES[`beginner_${gender}`]) return heroPose(`beginner_${gender}`, dir, q); // the painted Beginner (male / female) when its body is cut (`layered`: the clean base under its look and gear layers instead — God of Legacy Studio; ?base=v3: the rebuild's base, layered, in the game too)
   BASE_MODE = base && cls === 'warrior';
   try {
     if (BASE_MODE && gender) return nakedPose(cls, dir, gender, q); // the clean base character (its look: ActorView layers)
