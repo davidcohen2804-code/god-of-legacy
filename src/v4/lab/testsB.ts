@@ -5,6 +5,7 @@
 import Phaser from 'phaser';
 import { starterGear } from '../../items/Gear';
 import { B_FRAMES } from '../real/catalogB';
+import { bodyDrive } from '../rig/pose';
 import type { AnimDef } from '../rig/types';
 import { RigCharacter } from '../render/RigCharacter';
 import { frameOf } from '../wardrobe/resolve';
@@ -44,7 +45,8 @@ export async function runTestsB(scene: LabScene, opts: { full: boolean }, progre
     const vx = a.name === 'run' ? 0.9 : 0, steps = Math.round(t * 60);
     for (let i = 0; i < steps; i++) {
       const tt = i / 60, vz = a.name === 'jump' ? Math.max(-1, Math.min(1, 1 - (2 * (tt - 0.08)) / 0.52)) : 0;
-      c.chain.step(1 / 60, vx, a.name === 'jump' && tt > 0.08 && tt < 0.6 ? vz : 0);
+      const drive = i > 0 ? bodyDrive(a, (i - 1) / 60, tt) : 0; // the attack's lunge, as in the lab
+      c.chain.step(1 / 60, Math.max(-1, Math.min(1, vx + drive)), a.name === 'jump' && tt > 0.08 && tt < 0.6 ? vz : 0);
     }
     c.evaluate(a, t);
   };
@@ -222,10 +224,26 @@ export async function runTestsB(scene: LabScene, opts: { full: boolean }, progre
             ch.layout(s); ch.isolate(new Set([front, weaponSlot, ...(back !== undefined ? [back] : [])])); ch.tintAll(0xffffff);
             hz.rt.clear(); hz.rt.draw(ch.container, OX, OY); ch.clearTint();
             const iso = hz.read(0, 0, RW, RH);
+            // a hole is background enclosed by the fist and the handle; the fist's own outline (background reached from
+            // around the hand, which the disc can touch at gameplay size) is not one
+            const solid = (x: number, y: number) => x >= 0 && y >= 0 && x < RW && y < RH && iso[(y * RW + x) * 4 + 3] >= 250;
+            const win = Math.ceil(rg) + 4, n = 2 * win + 1, x0 = Math.round(gx) - win, y0 = Math.round(gy) - win;
+            const outside = new Uint8Array(n * n), queue: number[] = [];
+            for (let i = 0; i < n; i++) for (const [ii, jj] of [[i, 0], [i, n - 1], [0, i], [n - 1, i]]) {
+              if (!outside[jj * n + ii] && !solid(x0 + ii, y0 + jj)) { outside[jj * n + ii] = 1; queue.push(jj * n + ii); }
+            }
+            while (queue.length) {
+              const k = queue.pop()!, ii = k % n, jj = (k - ii) / n;
+              for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+                const a = ii + di, b = jj + dj;
+                if (a < 0 || b < 0 || a >= n || b >= n || outside[b * n + a] || solid(x0 + a, y0 + b)) continue;
+                outside[b * n + a] = 1; queue.push(b * n + a);
+              }
+            }
             for (let dy = -rg; dy <= rg && !bad; dy += 1) for (let dx = -rg; dx <= rg; dx += 1) {
               if (dx * dx + dy * dy > rg * rg) continue;
               const x = Math.round(gx + dx), y = Math.round(gy + dy);
-              if (x >= 0 && y >= 0 && x < RW && y < RH && iso[(y * RW + x) * 4 + 3] < 250) { bad = 'a hole in the fist at the grip'; break; }
+              if (!solid(x, y) && !outside[(y - y0) * n + (x - x0)]) { bad = 'a hole in the fist at the grip'; break; }
             }
           }
           // the whole grip behind another part (the arm passing behind the head or the body)

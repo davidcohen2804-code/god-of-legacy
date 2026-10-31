@@ -3,7 +3,7 @@
 # hair for helmets), a hair layer, one eyes-and-mouth patch per expression, and the helmet, all registered onto the
 # approved head of parts sheet 1 and written at the atlas resolution (B = 512 px) with the neck as the pivot.
 # Usage: build_head.py <expressions sheet> <head sheet> <work dir>
-import json, sys
+import json, os, sys
 import numpy as np
 from PIL import Image, ImageFilter
 from scipy import ndimage
@@ -167,9 +167,31 @@ core = np.isin(lab, [i + 1 for i, v in enumerate(sizes) if v > 60 and low[i] > b
 ys = np.where(core)[0]
 top = np.percentile(ys, 8)  # the forehead line: features never sit above it
 feat = change & inside & (np.arange(a.shape[0])[:, None] > top)
-face = ndimage.binary_fill_holes(ndimage.binary_closing(core | ndimage.binary_dilation(feat, iterations=2), iterations=3)) & inside & (a > 0.05)
-face |= (a > 0.05) & ~inside & skin & (np.arange(a.shape[0])[:, None] > top + 0.35 * (a.shape[0] - top))  # the ear and the neck edge
+
+
+def face_of(feat):
+    f = ndimage.binary_fill_holes(ndimage.binary_closing(core | ndimage.binary_dilation(feat, iterations=2), iterations=3)) & inside & (a > 0.05)
+    return f | ((a > 0.05) & ~inside & skin & (np.arange(a.shape[0])[:, None] > top + 0.35 * (a.shape[0] - top)))  # the ear and the neck edge
+
+
+face0, feat0 = face_of(feat), feat  # the face as approved in Phase 3B (what the face layer showed with the hair on)
+# only the expressions' real features (eyes with brows, mouth): specks where the four drawings' hair differs slightly
+# are not features, and kept stray hair marks in the face
+fl, fn = ndimage.label(feat)
+fsz = ndimage.sum(feat, fl, range(1, fn + 1))
+brow_line = min(np.where(fl == i + 1)[0].min() for i, v in enumerate(fsz) if v >= 25)  # the top of the brows
+ftop = ndimage.minimum(np.arange(a.shape[0])[:, None] * np.ones_like(fl), fl, range(1, fn + 1))
+feat = np.isin(fl, [i + 1 for i, v in enumerate(fsz) if v >= 25 or ftop[i] > brow_line + 20])  # specks up to the eyes only
+face = face_of(feat)
+# the forehead above the brows belongs to the hair layer (the fringe's strands lie on it): with the hair on, the hair
+# layer draws it exactly as approved; under a helmet the face layer shows the bald base's clean skin there
+face &= ~((np.arange(a.shape[0])[:, None] < brow_line) & ~ndimage.binary_dilation(feat, iterations=2))
 hair = (a > 0.05) & ~face
+# where the hair layer took over from the face layer, it also overlaps the face layer by a few px (both draw the
+# approved pixels there), so the layers' resampled edges leave no seam in the approved look
+moved = face0 & ~face
+hair_draw = hair | (ndimage.binary_dilation(moved, iterations=8) & face)
+print('moved to the hair layer', int(moved.sum()), 'px, rows', np.where(moved)[0].min() if moved.any() else -1, '-', np.where(moved)[0].max() if moved.any() else -1, flush=True)
 change = feat
 Image.fromarray((np.dstack([face, hair, change]) * 255).astype(np.uint8)).save(f'{W}/head_masks.png')
 
@@ -196,9 +218,12 @@ brow_f = brow - 1
 rows_ = np.arange(a.shape[0])[:, None]
 keep = face & (skin | ndimage.binary_dilation(feat, iterations=2) | (rows_ >= brow_f + 12))
 face_rgb = np.where(keep[..., None], rgb, BASE[..., :3])
+keep0 = face0 & (skin | ndimage.binary_dilation(feat0, iterations=2) | (rows_ >= brow_f + 12))
+hair_rgb = np.where((hair_draw & face0 & ~keep0)[..., None], BASE[..., :3], rgb)  # as the Phase 3B face layer drew it
 face_a = np.where(face, a, ba * (1 - face))
 emit('head_face', np.dstack([face_rgb, face_a * 255]))
-emit('hair', np.dstack([rgb, hair * a * 255]))
+emit('hair', np.dstack([hair_rgb, hair_draw * a * 255]))
+if os.environ.get('HEAD_REF'): emit('ref_head', np.dstack([rgb, a * 255]))  # the whole approved head, for comparisons
 for k in ('blink', 'angry', 'hurt'):
     emit(f'face_{k}', np.dstack([L[k][..., :3], soft * (L[k][..., 3] / 255.0) * 255]))
 

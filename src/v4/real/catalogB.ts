@@ -43,8 +43,20 @@ export function buildCatalogB(): Catalog {
         part('uparm_B.cap', `b/${look}/uparm_cap`), part('forearm_B.cap', `b/${look}/elbow_cap`), part('forearm_F.cap', `b/${look}/elbow_cap_far`),
       ],
     });
-    put({ id: `b_${look}_bottom`, wslot: 'bottom', name: `${label} trousers`, set, parts: [part('hip.under', `b/${look}/hips`), ...sides((s) => [part(`thigh_${s}.over`, `b/${look}/thigh${far(s)}`)])] });
-    put({ id: `b_${look}_shoes`, wslot: 'shoes', name: `${label} boots`, set, parts: sides((s) => [part(`shin_${s}.over`, `b/${look}/shin${far(s)}`), part(`foot_${s}.over`, `b/${look}/foot${far(s)}`)]) });
+    put({
+      id: `b_${look}_bottom`, wslot: 'bottom', name: `${label} trousers`, set,
+      parts: [
+        part('hip.under', `b/${look}/hips`), ...(look === 'gold' ? [part('hip.tabard', 'b/gold/tabard')] : []),
+        // the trouser legs: the thighs and the cloth below the knee that goes into the boot
+        ...sides((s) => [part(`thigh_${s}.over`, `b/${look}/thigh${far(s)}`), part(`shin_${s}.under`, `b/${look}/shin_under${far(s)}`)]),
+      ],
+    });
+    put({
+      id: `b_${look}_shoes`, wslot: 'shoes', name: `${label} boots`, set,
+      parts: sides((s) => [part(`shin_${s}.over`, `b/${look}/shin${far(s)}`), part(`foot_${s}.over`, `b/${look}/foot${far(s)}`)]),
+      // the greaves cover the trousers' lower legs (the basic boots show them above the cuff)
+      ...(look === 'gold' ? { hides: ['shin_F.under', 'shin_B.under'] } : {}),
+    });
   }
   put({
     id: 'b_gold_gloves', wslot: 'gloves', name: 'Golden Warrior gauntlets', set: 'B',

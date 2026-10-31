@@ -13,15 +13,25 @@ OUT = sys.argv[4] if len(sys.argv) > 4 else os.path.dirname(os.path.abspath(cfg_
 cfg = json.load(open(cfg_path))
 BPX = 512  # atlas resolution: px per B
 
-src = np.array(Image.open(sheet_path).convert('RGB')).astype(np.float32)
-r, g, b = src[..., 0], src[..., 1], src[..., 2]
-m = np.minimum(r, b) - g
-alpha = np.clip(1.0 - (m - 70.0) / 80.0, 0.0, 1.0)
-a3 = alpha[..., None]
-fgc = np.clip(np.where(a3 > 0.02, (src - (1 - a3) * np.array([255.0, 0, 255.0])) / np.maximum(a3, 0.02), 0), 0, 255)
-rgba = np.dstack([fgc, alpha * 255]).astype(np.uint8)
-solid = alpha > 0.5
-lab, n = ndimage.label(ndimage.binary_closing(solid, iterations=2))
+SHEETS = {}
+
+
+def load_sheet(path):
+    """A parts sheet keyed off its magenta background: (RGBA image, component labels). A part may name its own sheet
+    (`sheet`, relative to the config's folder), for pieces redrawn later on a separate sheet."""
+    if path not in SHEETS:
+        src = np.array(Image.open(path).convert('RGB')).astype(np.float32)
+        r, g, b = src[..., 0], src[..., 1], src[..., 2]
+        m = np.minimum(r, b) - g
+        alpha = np.clip(1.0 - (m - 70.0) / 80.0, 0.0, 1.0)
+        a3 = alpha[..., None]
+        fgc = np.clip(np.where(a3 > 0.02, (src - (1 - a3) * np.array([255.0, 0, 255.0])) / np.maximum(a3, 0.02), 0), 0, 255)
+        lab_, _ = ndimage.label(ndimage.binary_closing(alpha > 0.5, iterations=2))
+        SHEETS[path] = (np.dstack([fgc, alpha * 255]).astype(np.uint8), lab_)
+    return SHEETS[path]
+
+
+rgba, lab = load_sheet(sheet_path)
 
 
 def component_at(x, y):
@@ -35,6 +45,7 @@ parts = {}
 whole = {}  # each part before trims: caps are cut from these
 os.makedirs(f'{OUT}/parts_{look}', exist_ok=True)
 for name, p in cfg['parts'].items():
+    rgba, lab = load_sheet(os.path.join(os.path.dirname(os.path.abspath(cfg_path)), p['sheet']) if p.get('sheet') else sheet_path)
     if p.get('from'):  # cut out of another part's region (e.g. the shoulder cap from the torso)
         mask = component_at(*p['from'])
     else:
@@ -44,6 +55,19 @@ for name, p in cfg['parts'].items():
         keep[y0:y1, x0:x1] = False
     if 'only' in p:  # keep only this rectangle
         x0, y0, x1, y1 = p['only']; box = np.zeros_like(keep); box[y0:y1, x0:x1] = True; keep &= box
+    if p.get('keep_warm_above') or p.get('drop_warm'):
+        # split a piece drawn in one (trousers tucked into a boot's cuff) by colour: the leather is warm, the cloth is not
+        f0 = rgba[..., :3].astype(np.float32)
+        warm = ((f0[..., 0] - f0[..., 2]) > 35) & (f0[..., 0] > 70)
+        dark = f0.max(axis=2) < 75
+        if p.get('keep_warm_above'):  # above this row only the leather and the outline along it (the cuff's rim)
+            y_, d_ = p['keep_warm_above']
+            band = np.zeros_like(keep); band[:int(y_)] = True
+            keep &= ~band | warm | (dark & ndimage.binary_dilation(warm, iterations=int(d_)))
+        if p.get('drop_warm'):  # the cloth alone: no leather, and no outline that borders only leather
+            cool = ~warm & ~dark
+            orphan = dark & ndimage.binary_dilation(warm, iterations=3) & ~ndimage.binary_dilation(cool, iterations=3)
+            keep &= ~warm & ~orphan
     ys, xs = np.where(keep)
     x0, y0, x1, y1 = xs.min(), ys.min(), xs.max() + 1, ys.max() + 1
     img = rgba[y0:y1, x0:x1].copy()

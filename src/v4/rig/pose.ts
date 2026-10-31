@@ -142,6 +142,15 @@ export function eventsBetween(anim: AnimDef, t0: number, t1: number): string[] {
   return out;
 }
 
+/** The body's own forward speed in an animation (its hip x keys between two moments, B per second), scaled like the
+ *  running speed (1.2 B/s = 1). Added to the gameplay speed when stepping the spring chains, so an attack's lunge throws
+ *  the cape back and the step back lets it swing in. Looping animations hold the hips in place: 0. */
+export function bodyDrive(anim: AnimDef, t0: number, t1: number): number {
+  const keys = anim.bones.hip?.x;
+  if (!keys || anim.loop || t1 <= t0) return 0;
+  return Math.max(-1, Math.min(1, (sample(keys, t1) - sample(keys, t0)) / (t1 - t0) / 1.2));
+}
+
 /** Spring chains (cape, long hair): each link follows its parent with lag, pushed by the body's speed. Visual only and
  *  driven by motion alone, so every outfit sees the same chain. */
 export class ChainSim {

@@ -38,7 +38,7 @@
     ],
     [
      805,
-     250
+     283
     ],
     [
      858,
@@ -109,22 +109,23 @@
    "far": 0.9
   },
   "thigh": {
+   "sheet": "sheets/b_parts_lower.png",
    "seed": [
-    728,
-    740
+    515,
+    600
    ],
    "pivots": [
     [
-     730.5,
-     644
+     518.9,
+     374.7
     ],
     [
-     727.35,
-     814.11
+     518.9,
+     657.4
     ]
    ],
    "align": true,
-   "scale": 0.000635,
+   "scale": 0.0004878,
    "far": 0.9
   },
   "shin": {
@@ -187,6 +188,46 @@
    ],
    "scale": 0.00133,
    "center_pivot": true
+  },
+  "shin_under": {
+   "sheet": "sheets/b_parts_lower.png",
+   "seed": [
+    515,
+    600
+   ],
+   "only": [
+    420,
+    595,
+    610,
+    700
+   ],
+   "pivots": [
+    [
+     518.9,
+     600
+    ],
+    [
+     518.9,
+     900
+    ]
+   ],
+   "align": true,
+   "scale": 0.000488,
+   "far": 0.9
+  },
+  "tabard": {
+   "sheet": "sheets/b_parts_lower.png",
+   "seed": [
+    1210,
+    500
+   ],
+   "pivots": [
+    [
+     1212,
+     205
+    ]
+   ],
+   "scale": 0.00043
   }
  },
  "caps": {
@@ -209,6 +250,12 @@
    "feather": 0.03,
    "pivot": 1,
    "drop_blue": true
+  }
+ },
+ "trims": {
+  "shin_under": {
+   "top": 0.0,
+   "feather": 0.1
   }
  }
 }

@@ -77,36 +77,36 @@ export const JUMP_B: AnimDef = {
 // The Warrior's basic attack for B, on the same gameplay timings (wind-up 0–0.20, active 0.20–0.45, recovery
 // 0.45–0.65; the hit event at 0.20): an overhead chop. The far arm was posed in world terms (the upper arm, the forearm,
 // the wrist bend, the sword square to the fist) and the legs by their ankles, so the feet stay planted.
-//   anticipation (0–0.19) — the sword rises upright in front of the face, clear of it (0.07); the arm and sword then go
-//                behind the head and the blade tips back over it (0.15–0.19). The body leans back and sinks, the near
-//                fist comes up in guard.
-//   strike (0.19–0.26) — over the top: the fist comes out in front of the face again (0.23, the arm drawn in front from
-//                here), the blade chops forward-down. The front foot steps in.
+//   anticipation (0–0.19) — the sword rises upright in front of the face, clear of it (0.07); then the elbow lifts, the
+//                fist stays beside the head and the blade tips back over it, drawn behind the head (0.15–0.19). The
+//                body leans back and sinks, the near fist comes up in guard.
+//   strike (0.19–0.26) — over the top: the blade swings up past the head (drawn in front again from 0.23, once clear of
+//                it) and chops forward-down. The front foot steps in.
 //   impact (0.26–0.33) — lunge: arm and blade forward-down, the near arm thrown back; held so the hit reads.
 //   follow-through and recovery — the blade carries on down (0.42), then rises back into the combat stance.
-// The arm only changes drawing depth while it is clear of the head and the torso, so nothing pops or passes through.
+// The blade only changes drawing depth while it is clear of the head, so nothing pops or passes through.
 export const ATTACK_B: AnimDef = {
   ...ATTACK,
   bones: {
-    hip: { x: at([[0, -0.0371], [0.07, -0.0451], [0.15, -0.0591], [0.19, -0.0611], [0.23, -0.0271], [0.26, 0.0079], [0.33, 0.0049], [0.42, -0.0021], [0.52, -0.0221], [0.65, -0.0371]]), y: at([[0, 0.0084], [0.07, 0.0124], [0.15, 0.0264], [0.19, 0.0284], [0.23, 0.0304], [0.26, 0.0434], [0.33, 0.0404], [0.42, 0.0344], [0.52, 0.0184], [0.65, 0.0084]]), r: hold(S.hip) },
-    chest: { r: at([[0, S.chest], [0.07, -3], [0.15, -11], [0.19, -12], [0.23, 2, 'in'], [0.26, 18, 'out'], [0.33, 16], [0.42, 13], [0.52, 7], [0.65, S.chest]]) },
+    hip: { x: at([[0, S.dx], [0.07, S.dx - 0.008], [0.15, S.dx - 0.022], [0.19, S.dx - 0.024], [0.23, S.dx + 0.01], [0.26, S.dx + 0.045], [0.33, S.dx + 0.042], [0.42, S.dx + 0.035], [0.52, S.dx + 0.015], [0.65, S.dx]]), y: at([[0, S.dy], [0.07, S.dy + 0.004], [0.15, S.dy + 0.018], [0.19, S.dy + 0.02], [0.23, S.dy + 0.022], [0.26, S.dy + 0.035], [0.33, S.dy + 0.032], [0.42, S.dy + 0.026], [0.52, S.dy + 0.01], [0.65, S.dy]]), r: hold(S.hip) },
+    chest: { r: at([[0, S.chest], [0.07, -3], [0.15, -6], [0.19, -7], [0.23, 2, 'in'], [0.26, 18, 'out'], [0.33, 16], [0.42, 13], [0.52, 7], [0.65, S.chest]]) },
     head: { r: at([[0, S.head], [0.07, -2], [0.15, -6], [0.19, -6], [0.26, 7], [0.33, 6], [0.45, 4], [0.65, S.head]]) },
-    uparm_F: { r: at([[0, S.uparm_F], [0.07, -97.9], [0.15, -159.9], [0.19, -163.9], [0.23, -112.9, 'in'], [0.26, -82.9, 'out'], [0.33, -76.9], [0.42, -45.9], [0.52, -5.9], [0.65, S.uparm_F]]) },
-    forearm_F: { r: at([[0, S.forearm_F], [0.07, -35], [0.15, -5], [0.19, -7], [0.23, -30, 'in'], [0.26, 0, 'out'], [0.33, 0], [0.42, -2], [0.52, -67], [0.65, S.forearm_F]]) },
-    hand_F: { r: at([[0, S.hand_F], [0.07, 35], [0.15, 30], [0.19, 32], [0.23, 40, 'in'], [0.26, 60, 'out'], [0.33, 60], [0.42, 58], [0.52, 40], [0.65, S.hand_F]]) },
+    uparm_F: { r: at([[0, S.uparm_F], [0.07, -95.11], [0.15, -104.11], [0.19, -109.11], [0.23, -105.11, 'in'], [0.26, -80.11, 'out'], [0.33, -74.11], [0.42, -43.11], [0.52, -3.11], [0.65, S.uparm_F]]) },
+    forearm_F: { r: at([[0, S.forearm_F], [0.07, -35], [0.15, -66], [0.19, -67], [0.23, -40, 'in'], [0.26, 0, 'out'], [0.33, 0], [0.42, -2], [0.52, -67], [0.65, S.forearm_F]]) },
+    hand_F: { r: at([[0, S.hand_F], [0.07, 35], [0.15, 30], [0.19, 28], [0.23, 40, 'in'], [0.26, 60, 'out'], [0.33, 60], [0.42, 58], [0.52, 40], [0.65, S.hand_F]]) },
     weapon: { r: at([[0, S.weapon], [0.07, 0], [0.15, 0], [0.19, 0], [0.23, 0, 'in'], [0.26, 14, 'out'], [0.33, 14], [0.42, 10], [0.52, 0], [0.65, S.weapon]]) },
     uparm_B: { r: at([[0, S.uparm_B], [0.07, -10], [0.15, -40], [0.19, -42], [0.23, -10], [0.26, 38], [0.33, 35], [0.45, 25], [0.65, S.uparm_B]]) },
     forearm_B: { r: at([[0, S.forearm_B], [0.15, -45], [0.19, -45], [0.26, -15], [0.33, -18], [0.65, S.forearm_B]]) },
     hand_B: { r: hold(S.hand_B) },
-    thigh_F: { r: at([[0, S.thigh_F], [0.15, -39.3], [0.19, -41], [0.23, -63], [0.26, -52.1], [0.42, -43.4], [0.55, -47.8], [0.65, S.thigh_F]]) },
-    shin_F: { r: at([[0, S.shin_F], [0.15, 35.8], [0.19, 37.7], [0.23, 64.5], [0.26, 47.4], [0.42, 30.6], [0.55, 47.9], [0.65, S.shin_F]]) },
-    foot_F: { r: at([[0, S.foot_F], [0.15, 2.6], [0.19, 2.4], [0.23, 5.6], [0.26, 3.8], [0.42, 11.9], [0.55, 3.9], [0.65, S.foot_F]]) },
-    thigh_B: { r: at([[0, S.thigh_B], [0.15, -14.9], [0.19, -16.8], [0.26, 6.4], [0.42, 5.3], [0.65, S.thigh_B]]) },
-    shin_B: { r: at([[0, S.shin_B], [0.15, 49.8], [0.19, 52.4], [0.26, 42.6], [0.42, 39.2], [0.65, S.shin_B]]) },
-    foot_B: { r: at([[0, S.foot_B], [0.15, -35.9], [0.19, -36.6], [0.26, -58], [0.42, -53.5], [0.65, S.foot_B]]) },
+    thigh_F: { r: at([[0, S.thigh_F], [0.15, -30.77], [0.19, -32.25], [0.23, -50.51], [0.26, -42.14], [0.42, -36.14], [0.55, -37.68], [0.65, S.thigh_F]]) },
+    shin_F: { r: at([[0, S.shin_F], [0.15, 34.85], [0.19, 36.69], [0.23, 62.07], [0.26, 46.68], [0.42, 32.77], [0.55, 46.02], [0.65, S.shin_F]]) },
+    foot_F: { r: at([[0, S.foot_F], [0.15, -2.19], [0.19, -2.56], [0.23, -1.67], [0.26, -2.66], [0.42, 5.26], [0.55, -1.44], [0.65, S.foot_F]]) },
+    thigh_B: { r: at([[0, S.thigh_B], [0.15, -8.05], [0.19, -9.61], [0.26, 9.49], [0.42, 8.59], [0.65, S.thigh_B]]) },
+    shin_B: { r: at([[0, S.shin_B], [0.15, 47.08], [0.19, 49.45], [0.26, 42.65], [0.42, 39.1], [0.65, S.shin_B]]) },
+    foot_B: { r: at([[0, S.foot_B], [0.15, -37.15], [0.19, -37.95], [0.26, -58.25], [0.42, -53.8], [0.65, S.foot_B]]) },
   },
-  // the far forearm, fist and sword behind the whole body while the sword is over and behind the head
-  order: [{ t: 0.07, move: 'group:armF', before: 'group:armFU' }, { t: 0.23, move: 'group:armF', before: null }],
+  // the blade behind the head while it is tipped back over it; the fist and forearm stay in front, beside the head
+  order: [{ t: 0.07, move: 'group:gripF', before: 'group:head' }, { t: 0.23, move: 'group:gripF', before: null }],
 };
 
 export const ANIMS_B: Record<string, AnimDef> = { idle: IDLE_B, run: RUN_B, jump: JUMP_B, attack: ATTACK_B };

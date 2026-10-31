@@ -45,10 +45,15 @@ const slots: SlotDef[] = [
   ...feetFirst(group('legF')),
   ...feetFirst(group('legB')),
   ...group('torso').filter((s) => !s.name.startsWith('hip.')), ...group('torso').filter((s) => s.name.startsWith('hip.')),
+  // the Golden tabard hangs from the belt, over the hips and the tops of the thighs
+  { name: 'hip.tabard', bone: 'hip', group: 'torso', owner: 'bottom' },
   // the near arm, with caps that turn half as far as the limb: the shoulder piece and the elbow piece
   ...after(after(armB, 'uparm_B.over', [cap('uparm_B.cap', 'uparm_B', 'armB')]), 'forearm_B.over', [cap('forearm_B.cap', 'forearm_B', 'armB')]),
   ...group('head'),
-  ...after(armF.filter((s) => !s.name.startsWith('uparm_F.')), 'forearm_F.over', [cap('forearm_F.cap', 'forearm_F', 'armF')]),
+  // the sword hand's palm layer and the sword form one group (gripF), so the blade can go behind the head with the palm
+  // still behind the handle while the fingers stay in front
+  ...after(armF.filter((s) => !s.name.startsWith('uparm_F.')), 'forearm_F.over', [cap('forearm_F.cap', 'forearm_F', 'armF')])
+    .map((s) => (s.name.startsWith('hand_F.back.') || s.name === 'weapon' ? { ...s, group: 'gripF' } : s)),
   ...group('front'),
 ];
 

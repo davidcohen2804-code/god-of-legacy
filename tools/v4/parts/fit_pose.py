@@ -10,7 +10,7 @@ W, look, lineup, box, canon_b, sole_y, out_json, out_png = sys.argv[1], 'basic',
 meta = json.load(open(f'{W}/parts_{look}.json'))
 P, BPX = meta['parts'], meta['bpx']
 S = 420  # check-image resolution: px per B
-HIP = 0.37
+HIP = 0.40  # as pack.py
 CW, CH, OX, OY = int(S * 1.7), int(S * 1.35), int(S * 0.8), int(S * 1.25)  # canvas, ground centre at (OX, OY)
 
 
@@ -37,8 +37,8 @@ REST = {}
 for b, (p, _, r) in BONES.items(): REST[b] = (REST[p] if p else 0) + r
 # draw order (B's rig): far arm, far leg, near leg, torso, hips, head, near arm with the sword under the fist
 ORDER = [('uparm', 'uparm_B', True), ('forearm', 'forearm_B', True), ('fist', 'hand_B', True),
-         ('foot', 'foot_B', True), ('thigh', 'thigh_B', True), ('shin', 'shin_B', True),
-         ('foot', 'foot_F', False), ('thigh', 'thigh_F', False), ('shin', 'shin_F', False),
+         ('foot', 'foot_B', True), ('thigh', 'thigh_B', True), ('shin_under', 'shin_B', True), ('shin', 'shin_B', True),
+         ('foot', 'foot_F', False), ('thigh', 'thigh_F', False), ('shin_under', 'shin_F', False), ('shin', 'shin_F', False),
          ('torso', 'chest', False), ('hips', 'hip', False), ('head', 'head', False),
          ('uparm', 'uparm_F', False), ('forearm', 'forearm_F', False), ('sword', 'weapon', False), ('fist', 'hand_F', False)]
 ANG = ['hip', 'chest', 'head', 'uparm_F', 'forearm_F', 'hand_F', 'weapon', 'uparm_B', 'forearm_B', 'hand_B', 'thigh_F', 'shin_F', 'foot_F', 'thigh_B', 'shin_B', 'foot_B']
@@ -107,8 +107,11 @@ KEY = [  # (bone, point in the bone's space in B, target in lineup px, weight)
     ('uparm_F', (0, 0), (758.5, 466), 1.0), ('forearm_F', (0, 0), (778.5, 538.5), 0.3), ('hand_F', (0, 0), (806, 558.5), 1.0),
     ('weapon', (0, 0), (828.5, 566), 2.0), ('weapon', (0.452, 0), (968.5, 316), 1.0),
     ('uparm_B', (0, 0), (666, 471), 0.5), ('forearm_B', (0, 0), (641, 561), 0.5), ('hand_B', (0, 0), (636, 616), 1.0),
-    ('shin_F', (0, 0), (766, 746), 1.0), ('foot_F', (0, 0), (776, 817), 2.0),
-    ('shin_B', (0, 0), (651, 746), 1.0), ('foot_B', (0, 0), (626, 817), 2.0),
+    # the knees where the trousers bend: the boot cuff's top 0.033 B below the knee (basic) and the knee guard's centre
+    # 0.015 B below it (Golden) land on the illustrations' cuffs and knee guards, split between the two outfits. The
+    # ankles weigh most, so both soles stay on the ground (the near leg is drawn longer than the rig's in the 3/4 view)
+    ('shin_F', (0, 0), (766, 735), 1.0), ('foot_F', (0, 0), (776, 817), 8.0),
+    ('shin_B', (0, 0), (668, 722), 1.0), ('foot_B', (0, 0), (626, 817), 8.0),
 ]
 
 

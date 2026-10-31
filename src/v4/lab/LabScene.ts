@@ -8,6 +8,7 @@ import { JOB_SET, giveItem, starterGear, type GearState } from '../../items/Gear
 import b256Url from '../real/assets/b256.png?inline';
 import b512Url from '../real/assets/b512.png?inline';
 import type { PoseState } from '../rig/pose';
+import { bodyDrive } from '../rig/pose';
 import { JUMP_VZ, LAND_MS, TAKEOFF_MS, rigTime, type RigTime } from '../rig/posemap';
 import { Composite } from '../render/Composite';
 import { RigCharacter } from '../render/RigCharacter';
@@ -54,6 +55,8 @@ export class Actor {
   display: Phaser.GameObjects.Image | null = null;
   readonly shadow: Phaser.GameObjects.Image;
   last: RigTime | null = null;
+  /** The body's own forward motion in the current animation (see bodyDrive), added to the chains' speed. */
+  drive = 0;
   brainT = 0; brainAct = 'idle'; targetX = 0;
   /** Swaps applied to this actor (for the demo and the tests). */
   swaps = 0;
@@ -109,9 +112,11 @@ export class Actor {
 
   /** Gameplay state → PoseQuery (the game's own poseQuery) → rig time → bone pose. */
   pose(dt: number): void {
-    const q = poseQuery(this.snap());
+    const q = poseQuery(this.snap()), prev = this.last;
     this.last = rigTime(q, this.lab.assets.anims);
-    const vxN = this.mode === 'air' ? Math.min(1, Math.abs(this.vx) / 300) : Math.min(1, this.speed / 300);
+    // the body's own motion in the animation (a lunge) pushes the chains as running does
+    this.drive = prev && prev.anim === this.last.anim ? bodyDrive(this.last.anim, prev.t, this.last.t) : 0;
+    const vxN = Math.max(-1, Math.min(1, (this.mode === 'air' ? Math.min(1, Math.abs(this.vx) / 300) : Math.min(1, this.speed / 300)) + this.drive));
     const vzN = this.mode === 'air' ? Math.max(-1, Math.min(1, this.vz / JUMP_VZ)) : 0;
     this.ch.chain.step(dt, vxN, vzN);
     this.ch.evaluate(this.last.anim, this.last.t);
@@ -429,7 +434,7 @@ export class LabScene extends Phaser.Scene {
     // the wardrobe preview: the same avatar, the same clock, enlarged with the sharper atlas
     if (this.previewOn && this.player.last) {
       this.preview.setAvatar(this.player.avatar);
-      this.preview.chain.step(dt, Math.min(1, this.player.speed / 300), this.player.mode === 'air' ? this.player.vz / JUMP_VZ : 0);
+      this.preview.chain.step(dt, Math.max(-1, Math.min(1, Math.min(1, this.player.speed / 300) + this.player.drive)), this.player.mode === 'air' ? this.player.vz / JUMP_VZ : 0);
       this.preview.evaluate(this.player.last.anim, this.player.last.t);
       const ps = composite ? (PREVIEW_B / this.bWorld) * this.sWorld : this.sWorld;
       this.preview.layout(ps);

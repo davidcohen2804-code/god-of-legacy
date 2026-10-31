@@ -5,7 +5,8 @@ import json, sys
 from PIL import Image
 
 D, OUT = sys.argv[1], sys.argv[2]
-HIP = 0.37
+HIP = 0.40  # the hip joint above the soles: the belt and the leg tops at the approved illustration's height
+TABARD = (0.0234, -0.081)  # the Golden tabard's top on the hip bone, B: under the belt, centred on the old tabard
 HAT = (0.01, -0.27)  # the helmet socket on the head bone, B (the rig's hat bone)
 meta = {k: json.load(open(f'{D}/parts_{k}.json')) for k in ('basic', 'gold', 'head', 'hands')}
 BPX = meta['basic']['bpx']
@@ -24,7 +25,7 @@ for part in ('head_face', 'hair', 'face_blink', 'face_angry', 'face_hurt'): add(
 add('head', 'helmet', name='b/helmet', shift=(HAT[0] * meta['head']['bpx'], HAT[1] * meta['head']['bpx']))
 for look in ('basic', 'gold'):
     for part in ('torso', 'hips'): add(look, part)
-    for part in ('uparm', 'forearm', 'thigh', 'shin', 'foot', 'uparm_cap', 'elbow_cap'):
+    for part in ('uparm', 'forearm', 'thigh', 'shin_under', 'shin', 'foot', 'uparm_cap', 'elbow_cap'):
         add(look, part); add(look, part, far=True)
     # the hand standard (build_hands.py): five states, a back layer behind the handle where the grip shows one
     for state in ('relaxed', 'fist', 'grip', 'grip2', 'open'):
@@ -32,6 +33,7 @@ for look in ('basic', 'gold'):
             if f'{look}_{state}{suffix}' in meta['hands']['parts']:
                 for far in (False, True):
                     add('hands', f'{look}_{state}{suffix}', far=far, name=f'b/{look}/hand_{state}{suffix}{"_far" if far else ""}')
+add('gold', 'tabard', shift=(-TABARD[0] * BPX, -TABARD[1] * BPX))  # hangs from the belt over the hips
 add('gold', 'cape')
 add('gold', 'cape_strip')  # the cape upright, drawn as a strip bent along the cape chain
 
