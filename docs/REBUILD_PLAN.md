@@ -138,4 +138,5 @@ burst big.
   Skill Book (K: the points, each skill's level 0–20, LEARN / +1, why a point cannot go in) — actives up to 20 (damage
   55 % → 100 % in the regular game), passives once; the bar locks a skill not learned. The arena, QA and test heroes:
   everything open at full power. `src/game/SkillPoints.ts`, `Character.skills`; numbers in `docs/BALANCE_LOG.md`.
-  Next in Phase 6: prerequisites between skills, skills opening by level inside a job, the Beginner's first levels.
+  Prerequisites: the mechanism is in (`requires: { id, level }` on a skill / passive; the book shows "Needs X Lv N") —
+  each class chat chooses its own. A level-1 Beginner starts on the world's level-1–8 monsters (sprout, puffling…).
