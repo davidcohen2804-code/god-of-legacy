@@ -205,19 +205,21 @@ def gpt_sword_v3(f):
   thin = nd.binary_opening(light & ~wide, iterations=1)
   L, n = nd.label(thin); blade = np.zeros_like(m); ends = []
   YY, XX = np.mgrid[0:m.shape[0], 0:m.shape[1]]
-  ds = nd.distance_transform_edt(~(skin & m))
-  for k in range(1, n + 1):
+  ds = nd.distance_transform_edt(~nd.binary_opening(skin & m, iterations=2))   # (skin, not a warm speck on the blade's edge)
+  wood_ = (R > Gc + 12) & (Gc > B + 6) & (sat > 0.25) & (mx < 210) & ~skin & m     # a sword: its wooden guard / grip at the
+  for k in range(1, n + 1):                                                         #   blade's base (a light hem has none)
     ys, xs = np.nonzero(L == k)
     if len(ys) < 300: continue
     ev, vec = np.linalg.eigh(np.cov(np.vstack([xs, ys])))
     if ev[1] < 8 * max(ev[0], 1e-3) or np.sqrt(ev[1]) < 25: continue
     u = vec[:, 1]; t = (xs - xs.mean()) * u[0] + (ys - ys.mean()) * u[1]
     p0, p1 = np.array([xs[t.argmin()], ys[t.argmin()]], float), np.array([xs[t.argmax()], ys[t.argmax()]], float)
-    hilt, tip = (p0, p1) if ds[int(p0[1]), int(p0[0])] < ds[int(p1[1]), int(p1[0])] else (p1, p0)
+    near = lambda p_: (XX - p_[0]) ** 2 + (YY - p_[1]) ** 2 <= (0.3 * np.sqrt(ev[1]) * 3.46) ** 2
+    w0, w1 = int((wood_ & near(p0)).sum()), int((wood_ & near(p1)).sum())
+    if max(w0, w1) >= 100 and abs(w0 - w1) > 50: hilt, tip = (p0, p1) if w0 > w1 else (p1, p0)   # the wooden end is the hilt;
+    else: hilt, tip = (p0, p1) if ds[int(p0[1]), int(p0[0])] < ds[int(p1[1]), int(p1[0])] else (p1, p0)   # else the fist's end
     ax_ = (hilt - tip) / np.linalg.norm(hilt - tip); w = 2.2 * np.sqrt(max(ev[0], 1.0)) + 3
-    wood_ = (R > Gc + 12) & (Gc > B + 6) & (sat > 0.25) & (mx < 210) & ~skin & m   # a sword: its wooden guard / grip at the
-    near_ = (XX - hilt[0]) ** 2 + (YY - hilt[1]) ** 2 <= (0.3 * np.sqrt(ev[1]) * 3.46) ** 2   #   blade's base (a light hem has none)
-    if (wood_ & near_).sum() < 100: continue
+    if (wood_ & near(hilt)).sum() < 100: continue
     ring_ = nd.binary_dilation(L == k, iterations=3) & ~(L == k) & m       # the shorts' white band: along the light-blue shorts
     if (ring_ & (B > R + 12) & (sat > 0.12)).sum() > 0.12 * max(1, ring_.sum()): continue
     along = (XX - tip[0]) * ax_[0] + (YY - tip[1]) * ax_[1]; perp = np.abs((XX - tip[0]) * ax_[1] - (YY - tip[1]) * ax_[0])
@@ -403,10 +405,12 @@ def track_head(e, fig, ref):
   return ref['ax'] + dx, ref['ay'] + dy, np.roll(np.roll(gm, dy, 0), dx, 1), -best[0]
 
 
-def occluders(e, fig, lab, gm, zone, ay, ref, ax, reach):
+def occluders(e, fig, lab, gm, zone, ay, ref, ax, reach, swx=None):
   """What GPT drew in front of its own head — the sword and the arm holding it — kept in front of the standing head.
   The arm = what is within an arm's length of the sword's hilt, going through the inside of the arm (not across
-  outlines); over GPT's head, only where this frame differs from the same head drawn clean (another frame)."""
+  outlines); over GPT's head, only where this frame differs from the same head drawn clean (another frame).
+  swx: a sword-free twin's frame — the sword of the drawing that has one (where it sticks out past the body: the arm
+  grows from it as from a sword in the frame)."""
   sx0, sy0 = int(round(ax - ref['ax'])), int(round(ay - ref['ay']))
   best = None                                                    # the clean head laid exactly over this one
   for oy in range(-4, 5):
@@ -417,10 +421,11 @@ def occluders(e, fig, lab, gm, zone, ay, ref, ax, reach):
   sh = lambda v: np.roll(np.roll(v, sy0 + best[2], 0), sx0 + best[1], 1)
   xe, xf = sh(ref['e']), sh(ref['fig'])
   sword = fig & (lab == 255)
-  if not sword.any(): return np.zeros((S, S), bool), np.zeros((S, S), bool)
+  seed = sword | (swx & ~fig) if swx is not None else sword
+  if not seed.any(): return np.zeros((S, S), bool), np.zeros((S, S), bool)
   inner = nd.binary_dilation(gm, iterations=1)
   through = fig & ((e.max(-1) >= 140) | sword) & ~inner                                # never through GPT's head
-  arm = sword.copy(); front = arm.copy()
+  arm = seed.copy(); front = arm.copy()
   for _ in range(int(reach * 0.85)):                             # within an arm's length of the sword, inside the arm
     front = nd.binary_dilation(front) & through & ~arm
     if not front.any(): break
@@ -429,7 +434,7 @@ def occluders(e, fig, lab, gm, zone, ay, ref, ax, reach):
   cand = nd.binary_opening(gm & fig & (~xf | (diff > 150)), iterations=2)   # no thin strips (outlines 1-2 px apart)
   L, n = nd.label(cand); near = nd.binary_dilation(arm & ~gm, iterations=2)
   over = np.isin(L, [k for k in range(1, n + 1) if ((L == k) & near).any()])   # over GPT's head: joined to the arm
-  skin = zone & ~inner & arm & ~sword
+  skin = zone & ~inner & arm & ~seed
   occ = skin | over | (sword & zone)
   occ = nd.binary_fill_holes(nd.binary_closing(occ, iterations=2)) & fig & zone          # one solid arm, no see-through
   dark = e.max(-1) < 140                                         # the arm's own outline (not GPT's head outline at its edge)
@@ -472,7 +477,7 @@ def turned_head(e, a, fig, hd, r, ang0, search, span=24, step=2):
   return ang, hd['cx'] + dx, hd['row'] + dy, np.roll(np.roll(hm, dy, 0), dx, 1)
 
 
-def put_head(e, a, fig, lab, hd, r, follow=False, ref=None, search=False, sway=0.0, bob=0, hold=None, track=False, ang=0.0, trim=False):
+def put_head(e, a, fig, lab, hd, r, follow=False, ref=None, search=False, sway=0.0, bob=0, hold=None, track=False, ang=0.0, trim=False, swx=None):
   """GPT's head off, the standing head on (the same drawing), on GPT's neck point; its neck goes behind the body (the
   frame keeps its own neck). follow=False: the head stays near the standing x and the frame moves under it (walk):
   sway = how much of GPT's own head shift is kept (MapleStory: the same head, a little forward / back each step);
@@ -496,12 +501,13 @@ def put_head(e, a, fig, lab, hd, r, follow=False, ref=None, search=False, sway=0
   elif hold is not None:                                         # near the move's mean x, keeping a part of GPT's own shift
     tgt = hold[0] + hold[1] * (ax - hold[0]); dx = int(round(tgt - ax)); hx = int(round(ax + dx - hd['cx']))
   e, a, fig, lab, gm = [np.roll(v, dx, 1) for v in (e, a, fig, lab, gm)]
+  if swx is not None: swx = np.roll(swx, dx, 1)
   ax += dx
   sh = lambda v: np.roll(np.roll(v, dy, 0), hx, 1)
   if ang:                                                        # turned about its neck point
     N_ = (hd['cx'] + hx, hd['row'] + dy); sh0_ = sh; sh = lambda v: _turn(sh0_(v), ang, N_)
   cut = nd.binary_dilation(gm, iterations=2)                                       # GPT's head
-  occ, arm = occluders(e, fig, lab, gm, cut | sh(hd['head']), ay, ref, ax, int(hd['row'] - hd['top'])) if ref else (np.zeros((S, S), bool), np.zeros((S, S), bool))
+  occ, arm = occluders(e, fig, lab, gm, cut | sh(hd['head']), ay, ref, ax, int(hd['row'] - hd['top']), swx) if ref else (np.zeros((S, S), bool), np.zeros((S, S), bool))
   keep = [v.copy() for v in (e, a, lab)]
   e[cut] = 0; a[cut] = 0; fig[cut] = False; lab[cut] = 0
   if ang: (he, ha), hl = _turn((sh0_(hd['e']), sh0_(hd['a'])), ang, N_), sh(hd['lab'])
@@ -967,7 +973,7 @@ for anim, cells in spec['anims'].items():
       e, a, fig, lab, info = put_head(e, a, fig, lab, HEAD, r, follow='feet' in opts or 'follow' in opts,
                                       ref=refs.get(anim), search=bool(samed), sway=sway[0] if sway else 0.0, bob=bob[0] if bob else 0,
                                       hold=(holds[anim], hold[0]) if hold else None, track='track' in opts and c != order[0],
-                                      ang=next((float(o[4:]) for o in opts if str(o).startswith('tilt')), 0.0), trim='trim' in opts)
+                                      ang=next((float(o[4:]) for o in opts if str(o).startswith('tilt')), 0.0), trim='trim' in opts, swx=tw_)
       hfront = info.pop('front'); headm = info.pop('head'); shift[1] += info['dx']
       if tw_ is not None: tw_ = np.roll(tw_, info['dx'], 1)    # (the frame moved under the standing head: its sword too)
       print(' ', anim, c, 'scale', round(sc, 4), 'head', info, 'sword arm over hair', int(hfront.sum())); hxy = [int(info['hx']), int(info['dy'])]
