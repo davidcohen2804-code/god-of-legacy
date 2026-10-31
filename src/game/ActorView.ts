@@ -5,7 +5,7 @@ import Phaser from 'phaser';
 import COS from '../data/cosmetics.json';
 import { Dir } from '../world/collision';
 import { actorDepth } from '../world/WorldGeometry';
-import { ClassKey, PoseFrame, applyPose, heroFrameRect, SHEET_PATH, BASE_GEOM, baseComplete, ensureWeaponMasks, BaseLook, baseLookLayers, hasOver, overKey, NAKED_LOOK, GearLook, GearPiece, gearLayers, helmKey, loadGear, swingTrail } from './Body';
+import { ClassKey, PoseFrame, applyPose, heroFrameRect, SHEET_PATH, BASE_GEOM, baseComplete, ensureWeaponMasks, BaseLook, baseLookLayers, hasOver, overKey, NAKED_LOOK, GearLook, GearPiece, gearLayers, helmKey, loadGear, exprKey, swingTrail } from './Body';
 /** Name plates sit above the world (props in front included), like MapleStory's. */
 export const NAME_DEPTH = 90000;
 /** The ring under a fighter's feet (in a battle: the class colour). */
@@ -296,7 +296,9 @@ export class ActorView {
    *  back hair behind the body, then on the head (moving with it) the face, the forehead between the bangs and the front
    *  hair, and the sword arm again where it passes in front of the head. */
   private look: BaseLook | null = null;
-  private lookParts: { b: Phaser.GameObjects.Image; face: Phaser.GameObjects.Image; eyes: Phaser.GameObjects.Image; gap: Phaser.GameObjects.Image; f: Phaser.GameObjects.Image; helm: Phaser.GameObjects.Image; over: Phaser.GameObjects.Sprite } | null = null;
+  private lookParts: { b: Phaser.GameObjects.Image; face: Phaser.GameObjects.Image; expr: Phaser.GameObjects.Image; eyes: Phaser.GameObjects.Image; gap: Phaser.GameObjects.Image; f: Phaser.GameObjects.Image; helm: Phaser.GameObjects.Image; over: Phaser.GameObjects.Sprite } | null = null;
+  /** The next blink (scene ms): MapleStory's face blinks every few seconds. */
+  private blinkAt = 0;
   /** Worn gear (equipment): the clothes and the sword drawn on every frame of the base character. */
   private gearW: GearLook | null = null;
   private gearParts: Partial<Record<GearPiece, Phaser.GameObjects.Sprite>> = {};
@@ -313,7 +315,7 @@ export class ActorView {
   private ensureLookParts(): void {
     if (this.lookParts) return;
     const im = () => this.scene.add.image(0, 0, '__DEFAULT').setVisible(false);
-    this.lookParts = { b: im(), face: im(), eyes: im(), gap: im(), f: im(), helm: im(), over: this.scene.add.sprite(0, 0, '__DEFAULT').setVisible(false) };
+    this.lookParts = { b: im(), face: im(), expr: im(), eyes: im(), gap: im(), f: im(), helm: im(), over: this.scene.add.sprite(0, 0, '__DEFAULT').setVisible(false) };
   }
   setBaseLook(l: BaseLook | null, gender: 'male' | 'female' = 'male'): void {
     this.look = l ? { ...l } : null;
@@ -610,7 +612,18 @@ export class ActorView {
     const tone = (k: string | null) => (k ? toneTexture(this.scene, k, skin) : null);
     put(P.b, has(L.b), hx, hy, -0.005, undefined, true);
     put(P.face, tone(has(L.face)), hx, hy, 0.003, undefined, true);
-    put(P.eyes, has(L.eyes), hx, hy, 0.0035, undefined, true); // the eye colour: the irises over the face (not skin: not re-shaded)
+    // the face's expression (MapleStory): the pose's (a wince when hit, the eyes shut when defeated), else a blink every
+    // 2.5–5 s for 0.13 s; over the face, the eye colour hidden under it
+    const xs = NAKED_LOOK[nk.g]?.expr ?? [], now = this.scene.time.now;
+    let ex = nk.expr && xs.includes(nk.expr) ? nk.expr : null;
+    if (!ex && xs.includes('blink')) {
+      if (!this.blinkAt) this.blinkAt = now + 2500 + Math.random() * 2500;
+      if (now >= this.blinkAt + 130) this.blinkAt = now + 2500 + Math.random() * 2500;
+      else if (now >= this.blinkAt) ex = 'blink';
+    }
+    const exk = ex && this.scene.textures.exists(exprKey(nk.g, ex)) ? exprKey(nk.g, ex) : null;
+    put(P.expr, exk ? tone(exk) : null, hx, hy, 0.0032, undefined, true);
+    put(P.eyes, exk ? null : has(L.eyes), hx, hy, 0.0035, undefined, true); // the eye colour: the irises over the face (not skin: not re-shaded)
     put(P.gap, tone(has(L.gap)), hx, hy, 0.004, undefined, true);
     put(P.f, has(L.f), hx, hy, 0.006, undefined, true);
     const hk = this.gearW?.helm ? helmKey(nk.g, this.gearW.helm) : null; // a head piece over the hair (it moves with the head)

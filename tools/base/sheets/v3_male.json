@@ -189,6 +189,14 @@
    ]
   ]
  ],
+ "expr_src": "v3/expr_male.png",
+ "expressions": [
+  "blink",
+  "hurt",
+  "happy",
+  "angry",
+  "surprised"
+ ],
  "breathe": [
   0,
   1,

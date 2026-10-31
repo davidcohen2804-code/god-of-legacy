@@ -843,6 +843,9 @@ os.makedirs(OUT + 'face', exist_ok=True)
 for old in [OUT + 'face/' + f_ for f_ in os.listdir(OUT + 'face')]: os.remove(old)
 for k_ in range(1, NFACE):
   save_cell(layer_to_cell(np.asarray(Image.open(FACED + f'/{gender}_{k_}.png').convert('RGBA')), IDLE_GEOM), OUT + f'face/f{k_}.png')
+EXPR = [x_ for x_ in spec.get('expressions', []) if os.path.exists(FACED + f'/{gender}_x_{x_}.png')]   # the face's expressions
+for x_ in EXPR:                                                #   (v3/expressions.py): a blink, a wince… — layers over the face
+  save_cell(layer_to_cell(np.asarray(Image.open(FACED + f'/{gender}_x_{x_}.png').convert('RGBA')), IDLE_GEOM), OUT + f'face/x_{x_}.png')
 ostrips = {}                                                   # per move: the sword arm where it is in front of the head
 gcells = {}                                                    # per move, per piece: the worn gear on each frame (cell, straight RGBA)
 GEARHAVE = {p_: [] for p_ in GEAR_PIECES + ('topo', 'sword')} # per piece: the moves it is drawn in (topo: the shirt again,
@@ -1114,7 +1117,7 @@ print(gender, NSTY, 'hairstyles x', NCOL, 'colours,', NFACE, 'faces; sword arm o
 np_ = DATA + 'look.json'                            # per gender: hairstyles (with a forehead layer?), hair colours, faces,
 nh = json.load(open(np_)) if os.path.exists(np_) else {}        #   moves with a sword-arm strip
 nh[gender] = dict(styles=NSTY, colors=NCOL, gaps=GAPS, faces=NFACE, over=OVER, gear={k: v for k, v in GEARHAVE.items() if v}, swordCell=SWORD_W,
-                 neck=[round(float(HEAD['cx']), 1), int(HEAD['row'])])   # the standing head's neck point: a tilted frame's head turns about it
+                 neck=[round(float(HEAD['cx']), 1), int(HEAD['row'])], **({'expr': EXPR} if EXPR else {}))   # the standing head's neck point: a tilted frame's head turns about it
 json.dump(nh, open(np_, 'w'), indent=1)
 # what each gender has (the game draws standing for the rest)
 lp = DATA + 'anims.json'

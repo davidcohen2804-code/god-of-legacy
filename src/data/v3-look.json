@@ -31,6 +31,13 @@
   "neck": [
    170.0,
    201
+  ],
+  "expr": [
+   "blink",
+   "hurt",
+   "happy",
+   "angry",
+   "surprised"
   ]
  }
 }

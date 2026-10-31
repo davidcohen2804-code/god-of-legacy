@@ -166,7 +166,8 @@ export interface PoseFrame {
   head?: number[] | null;
   /** The clean base character's frame: its move, and where the head sits (cell px from the standing head) for the look layers;
    *  bare = no sword in hand (a skill played with the hand free); swing = a regular attack's swing (the sword leaves its afterimage). */
-  naked?: { g: string; anim: string; frame: number; hx: number; hy: number; /** the head turned (deg, counter-clockwise as seen) */ ha?: number; bare?: boolean; swing?: boolean };
+  naked?: { g: string; anim: string; frame: number; hx: number; hy: number; /** the head turned (deg, counter-clockwise as seen) */ ha?: number; bare?: boolean; swing?: boolean;
+    /** the face's expression this pose asks for (hurt: hit, thrown, lying; blink: the eyes shut) — none: the view's own blinking */ expr?: string };
   /** A ready hero standing still: its cape / robe sways in the wind (ActorView), the body stays put. */
   cloth?: boolean;
 }
@@ -228,7 +229,7 @@ export interface BaseLook { hair: number; hairColor: number; skin: number; face:
 const EYE_N = EYE_COLORS_LIST.length;
 /** Per gender: hairstyles (and which have a forehead layer), hair colours, faces (0 = the head's own), moves with a
  *  sword-arm strip (tools/base/naked_frames.py). */
-export const NAKED_LOOK = withV3<Record<string, { styles: number; colors: number; gaps: boolean[]; faces: number; over: string[]; gear?: Partial<Record<GearPiece, string[]>>; swordCell?: number; /** the standing head's neck point (cell px): a tilted frame's head layers turn about it */ neck?: number[] }>>(NAKED_LOOK_LIST, V3_LOOK_LIST);
+export const NAKED_LOOK = withV3<Record<string, { styles: number; colors: number; gaps: boolean[]; faces: number; over: string[]; gear?: Partial<Record<GearPiece, string[]>>; swordCell?: number; /** the standing head's neck point (cell px): a tilted frame's head layers turn about it */ neck?: number[]; /** the face's expressions (naked/<g>/face/x_<name>.png: a blink, a wince…) */ expr?: string[] }>>(NAKED_LOOK_LIST, V3_LOOK_LIST);
 /** Worn gear drawn on the base character, per move (tools/base/naked_frames.py: naked/<g>/gear/<move>_<piece>[_c<colour>].png,
  *  same frames as the body strip): the clothes in their colour, the sword in hand; 'topo' = the shirt again over the sword
  *  arm where that arm is drawn over the hair (<move>_o.png). naked-look.json lists the moves each has. */
@@ -290,11 +291,14 @@ export function baseLookLayers(g: string, l: BaseLook): { b?: [string, string]; 
   if (l.eyeColor > 0 && l.eyeColor < EYE_N && l.face >= 0 && l.face < (NAKED_LOOK[g]?.faces ?? 1)) out.eyes = [eyeLayerKey(g, l), `${D}/eyes/f${l.face}c${l.eyeColor}.png`];
   return out;
 }
+/** A face expression's layer (over the face, moved and turned with the head like it). */
+export const exprKey = (g: string, x: string) => `nx-${g}-${x}`;
 /** Queue a look's layers (in a preload, or now with start = true); until they arrive the base shows without them. */
 export function loadBaseLook(scene: Phaser.Scene, g: string, l: BaseLook | null, start = false): void {
   if (!l) return;
   let queued = false;
   for (const kf of Object.values(baseLookLayers(g, l))) if (kf && !scene.textures.exists(kf[0]) && !pending(scene, kf[0])) { scene.load.image(kf[0], kf[1]); queued = true; }
+  for (const x of NAKED_LOOK[g]?.expr ?? []) if (!scene.textures.exists(exprKey(g, x)) && !pending(scene, exprKey(g, x))) { scene.load.image(exprKey(g, x), `${nakedDir(g)}/face/x_${x}.png`); queued = true; }
   if (queued && start && !scene.load.isLoading()) scene.load.start();
 }
 const NAKED_HEAD_DROP = 10; // his bald head top sits this much (cell px) lower than the beginner's hair top
@@ -383,7 +387,9 @@ function nakedPose(cls: string, dir: Dir, g: 'male' | 'female', q: PoseQuery): P
   const bare = q.k === 'skill' && NB_BARE.has(q.id); // no sword in hand
   const bl = bare ? null : NAKED_BLADES[g]?.[anim]?.[frame], blade = bl ? bl.map((v, i) => v * SHEET_SCALE * (i % 2 === 0 ? fx : 1)) : null; // (mirrored with the frame)
   const swing = q.k === 'skill' && q.id === 'warrior_basic';
-  return { ...f, key, frame, wkey: `${key}-w`, blade, bladeBehind: false, hair: null, head: null, naked: { g, anim, frame, hx, hy, ha, bare, swing },
+  // MapleStory's faces: a wince when hit (thrown, lying, getting up — its first half), the eyes shut when defeated
+  const expr = q.k === 'hurt' || q.k === 'stunned' || q.k === 'launched' || q.k === 'down' || ((q.k === 'getup' || q.k === 'quickrise') && q.p < 0.5) ? 'hurt' : q.k === 'death' ? 'blink' : undefined;
+  return { ...f, key, frame, wkey: `${key}-w`, blade, bladeBehind: false, hair: null, head: null, naked: { g, anim, frame, hx, hy, ha, bare, swing, expr },
     anchor: f.anchor ? f.anchor.map((v, i) => (i % 2 === 0 ? v + hx * fx * SHEET_SCALE : v + (hy + (i === 1 ? NAKED_HEAD_DROP : 0)) * SHEET_SCALE)) : null };
 }
 /** The sword's afterimage between two frames of a regular attack's swing (MapleStory: a thin trail of light behind the

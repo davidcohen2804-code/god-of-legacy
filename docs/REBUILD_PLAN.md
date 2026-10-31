@@ -103,3 +103,6 @@ burst big.
   standing figure: `tools/base/gpt/v3/hair_male.png` → `hair_extract.py --spec=sheets/v3_male.json`); the swords GPT drew
   in the attack frames are found and become the sword layer (any weapon can take their place); with `?base=v3` the
   game's Beginner is the new base (layered: its hair and clothes as layers), not the painted Beginner.
+- 31 Oct 04:10 — faces: 5 expressions (blink, hurt, happy, angry, surprised: `tools/base/gpt/v3/expr_male.png` →
+  `tools/base/v3/expressions.py` → `body/v3/male/face/x_<name>.png`, a layer over the face that turns with the head). The
+  game blinks every 2.5–5 s (0.13 s), winces when hit / thrown / lying / getting up, shuts the eyes when defeated.
