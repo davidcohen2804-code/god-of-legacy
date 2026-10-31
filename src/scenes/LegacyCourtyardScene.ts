@@ -2022,7 +2022,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       const c = (lo: number, hi: number) => Math.round(255 - (255 - lo) * w * (hi / 255));
       tint = (255 << 16) | (c(0xe0, 255) << 8) | c(0xa0, 255);
     }
-    if (this.simMs < this.hitBlinkUntil && this.dead < 0) alpha = Math.floor((this.hitBlinkUntil - this.simMs) / HIT_BLINK) % 2 ? 0.3 : 1; // hit: blinking while untouchable
+    if (this.simMs < this.hitBlinkUntil && this.dead < 0 && Math.floor((this.hitBlinkUntil - this.simMs) / HIT_BLINK) % 2) { tint = 0x6c6c78; fill = false; } // hit: untouchable 2 s, blinking dark (MapleStory's flicker is the body's brightness, never see-through: the rebuild's feel)
     if (this.arena && this.dead < 0 && this.body.ghost(this.simMs)) alpha = Math.floor(this.simMs / 70) % 2 ? 0.4 : 0.75; // the arena: guarded (wake-up / BREAK), see-through blinking
     const jx = this.simMs < this.selfShakeUntil ? (Math.random() - 0.5) * 6 : 0; // hit: the body shudders
     if (this.dead >= 0) { alpha = 1 - (1 - P6.deathAlpha) * Math.min(1, this.dead / P6.deathFadeMs); tint = null; fill = false; } // the body just fades; the ghost rises (DeathFx)

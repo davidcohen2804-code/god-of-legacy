@@ -132,7 +132,8 @@ burst big.
 - 31 Oct 08:00 — Phase 3 (feel) checked against what is in: the landing has no frame of its own already (the new base
   shows its stance on touching down), the alert stance and the blink are in, quick start / stop is ≈0.1 s. The quicker jump
   (≈0.6 s in the air, same height) would make two Sky Path gaps running-only: asked Maps on the board to narrow them first.
-  The hit hop + 2 s flicker belongs to the monsters' touch (Phase 8).
+  A monster's hit: 2 s untouchable as before, the blink now dark / normal (brightness, never see-through); the small
+  hop back on a hit waits for the quicker jump's gravity (the same arc).
 - 31 Oct 10:30 — Phase 6 (progression), first step: **skill points.** New characters start at level 1 (the basic attack
   only); the Masters' 1st job at 10 (as before); from it 3 points a level; every job skill is learned with them in the
   Skill Book (K: the points, each skill's level 0–20, LEARN / +1, why a point cannot go in) — actives up to 20 (damage
