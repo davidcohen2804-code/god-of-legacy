@@ -508,14 +508,14 @@
   ],
   "run": [
    [
-    "v3/sheet_run2.png",
+    "v3/sheet_run3.png",
     0,
     "asd:walk",
     "follow",
     "trim"
    ],
    [
-    "v3/sheet_run2.png",
+    "v3/sheet_run3.png",
     1,
     "asd:walk",
     "follow",
@@ -524,20 +524,20 @@
     "lift23"
    ],
    [
-    "v3/sheet_run2.png",
+    "v3/sheet_run3.png",
     2,
     "asd:walk",
     "follow",
     "trim"
    ],
    [
-    "v3/sheet_run2.png",
+    "v3/sheet_run3.png",
     3,
     "asd:walk",
     "follow",
     "trim",
     "air0",
-    "lift19"
+    "lift23"
    ]
   ]
  },
@@ -580,12 +580,12 @@
     235
    ],
    [
-    215,
-    225
+    145,
+    239
    ],
    [
-    220,
-    217
+    152,
+    235
    ]
   ],
   "alert": [
@@ -621,9 +621,9 @@
   ],
   "run": [
    150,
+   152,
    150,
-   35,
-   35
+   152
   ],
   "jump": [
    125
@@ -643,8 +643,8 @@
   "run": [
    true,
    true,
-   false,
-   false
+   true,
+   true
   ],
   "jump": [
    true

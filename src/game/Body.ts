@@ -350,6 +350,7 @@ function nakedSkillBeat(q: Extract<PoseQuery, { k: 'skill' }>): string | null {
   if (e < s + act) return pick(plan.ac, (e - s) / act);
   return pick(plan.rc, (e - s - act) / Math.max(1, r - (act - a)));
 }
+const ATTACK_FACE = new Set(['swing1', 'swing2', 'swing3', 'stab1', 'stab2']); // (the frames of a blow)
 function nakedPose(cls: string, dir: Dir, g: 'male' | 'female', q: PoseQuery): PoseFrame {
   let f = sheetPose(cls, dir, { k: 'loop', state: 'idle', t: 0, speed: 0 }); // the standing beginner's anchors (head, chest)
   const has = NAKED[g] ?? {};
@@ -388,8 +389,10 @@ function nakedPose(cls: string, dir: Dir, g: 'male' | 'female', q: PoseQuery): P
   const bare = q.k === 'skill' && NB_BARE.has(q.id); // no sword in hand
   const bl = bare ? null : NAKED_BLADES[g]?.[anim]?.[frame], blade = bl ? bl.map((v, i) => v * SHEET_SCALE * (i % 2 === 0 ? fx : 1)) : null; // (mirrored with the frame)
   const swing = q.k === 'skill' && q.id === 'warrior_basic';
-  // MapleStory's faces: a wince when hit (thrown, lying, getting up — its first half), the eyes shut when defeated
-  const expr = q.k === 'hurt' || q.k === 'stunned' || q.k === 'launched' || q.k === 'down' || ((q.k === 'getup' || q.k === 'quickrise') && q.p < 0.5) ? 'hurt' : q.k === 'death' ? 'blink' : undefined;
+  // MapleStory's faces: a wince when hit (thrown, lying, getting up — its first half), the eyes shut when defeated; a set,
+  // fierce face while he swings or thrusts (the head takes part in the blow — David 31 Oct 11:55: "the head stays stuck")
+  const expr = q.k === 'hurt' || q.k === 'stunned' || q.k === 'launched' || q.k === 'down' || ((q.k === 'getup' || q.k === 'quickrise') && q.p < 0.5) ? 'hurt' : q.k === 'death' ? 'blink'
+    : q.k === 'skill' && ATTACK_FACE.has(anim) ? 'angry' : undefined;
   const Z = BASE_SIZE; // (the new base's size in the world: every length of the frame grows with it)
   return { ...f, key, frame, wkey: `${key}-w`, blade: blade ? blade.map((v) => v * Z) : null, bladeBehind: false, hair: null, head: null, naked: { g, anim, frame, hx, hy, ha, bare, swing, expr },
     scale: f.scale * Z, anchor: f.anchor ? f.anchor.map((v, i) => Z * (i % 2 === 0 ? v + hx * fx * SHEET_SCALE : v + (hy + (i === 1 ? NAKED_HEAD_DROP : 0)) * SHEET_SCALE)) : null };
@@ -484,11 +487,12 @@ export type PoseQuery =
   | { k: 'skill'; id: string; stage: number; elapsed: number; startup: number; active: number; recovery: number; seed?: number };
 
 /** Beginner base body locomotion: 4 key poses per cycle (contact, passing, contact, passing — legs one after the other);
- *  the run plays the same legs faster, leaning forward, the strides off the ground. contact = the frames a foot lands
- *  (dust puffs): the run lands on the passing frames. */
+ *  the run: contact, flight, contact (the other leg), flight — the sword arm back, the sword trailing. contact = the
+ *  frames a foot lands (dust puffs). */
 export const baseLoop = (state: 'walk' | 'run', speed: number): { n: number; fps: number; contact: number[] } => state === 'walk'
   ? { n: 4, fps: 7 * Math.max(0.7, Math.min(1.2, speed / 188)), contact: [0, 2] }
-  : { n: 4, fps: 6 * Math.max(0.75, Math.min(1.15, speed / 270)), contact: [1, 3] }; // calm strides (~150 ms a frame at full run)
+  : { n: 4, fps: 9 * Math.max(0.75, Math.min(1.15, speed / 270)), contact: [0, 2] }; // a brisk stride: ~110 ms a frame at
+    // full run (the planted foot slides little under him)
 
 const pick = <T,>(list: T[], p: number): T => list[Math.max(0, Math.min(list.length - 1, Math.floor(p * list.length)))];
 
