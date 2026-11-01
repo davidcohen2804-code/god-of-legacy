@@ -15,7 +15,7 @@ export interface Item {
   wslot: WardrobeSlot;
   name: string;
   /** Lab grouping: A = cloth set, B = plate set, X = oversized / rule tests, base = the body itself. */
-  set: 'A' | 'B' | 'X' | 'base';
+  set: 'A' | 'B' | 'C' | 'X' | 'base';
   parts: ItemPart[];
   /** Rig slots (or `w:<wardrobe slot>`) this item hides while worn — only from the allow-list in resolve.ts. */
   hides?: string[];

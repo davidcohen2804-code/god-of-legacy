@@ -1,5 +1,5 @@
 // The lab's control rail (plain DOM beside the game canvas): art, motion, wardrobe, view, crowd, tests and benchmark.
-import { GOLD_SET_B } from '../real/catalogB';
+import { EMBER_SET_B, GOLD_SET_B } from '../real/catalogB';
 import type { BenchResult } from './bench';
 import type { Forced, LabScene, RenderMode } from './LabScene';
 import type { TestResult } from './tests';
@@ -35,11 +35,11 @@ function segmented(host: HTMLElement | null, options: [string, string][], curren
 }
 
 const INTRO: Record<Art, string> = {
-  b: 'Phase 4: candidate B (Refined Chibi) with optional hip attachment chains. The Golden tabard now hangs on the trousers\' own chain: unchanged at rest, it sways when running, lifts over a raised knee and floats in a fall. A plain coat-tail stand-in (set X: a rule test, not a design) hangs on the top\'s chain, to test two chains worn together. Nothing on this page changes the game.',
+  b: 'Phase 5: candidate B with the second premium set, the Ember Duelist: a long split coat whose loose pieces (the near and far front panels, the split back tails, the sash end and the scarf end) each swing on their own chain, a half-cape on the near shoulder, slim trousers, riding boots and fingerless gloves. The Golden tabard keeps the trousers\' own chain, so the Ember coat can be worn over the Golden trousers. Nothing on this page changes the game.',
   placeholder: 'Phase 1 technical prototype with placeholder art: one rig, swappable outfits, two renderers. Nothing on this page changes the game.',
 };
 const HINT: Record<Art, string> = {
-  b: 'A = basic clothing, B = Golden Warrior set and the test helmet, X = the coat-tail stand-in (rule test). Cosmetics beat gear looks; gear keeps its stats. Job gear shows the Golden top, trousers and boots, and the job helmet shows the test helmet.',
+  b: 'A = basic clothing, B = Golden Warrior set and the test helmet, C = Ember Duelist set, X = the plain coat stand-in (rule test). Cosmetics beat gear looks; gear keeps its stats. Job gear shows the Golden top, trousers and boots, and the job helmet shows the test helmet.',
   placeholder: 'A = cloth set, B = plate set, X = oversized and rule tests. Cosmetics beat gear looks; gear keeps its stats.',
 };
 
@@ -47,10 +47,11 @@ export function buildUI(scene: LabScene, api: { runTests: (full: boolean) => Pro
   // ---- art ----
   const status = $('test-status'), table = $('test-results'), btable = $('bench-results');
   const syncArt = () => {
-    const intro = $('lab-intro'), hint = $('wardrobe-hint'), gold = $('btn-gold');
+    const intro = $('lab-intro'), hint = $('wardrobe-hint'), gold = $('btn-gold'), ember = $('btn-ember');
     if (intro) intro.textContent = INTRO[scene.art];
     if (hint) hint.textContent = HINT[scene.art];
     if (gold) gold.hidden = scene.art !== 'b';
+    if (ember) ember.hidden = scene.art !== 'b';
     const tests = $('tests-note');
     if (tests) tests.textContent = scene.art === 'b' ? 'Real-art tests of candidate B (switch to the placeholder for the Phase 1 tests).' : 'Phase 1 tests on the placeholder art.';
   };
@@ -112,6 +113,8 @@ export function buildUI(scene: LabScene, api: { runTests: (full: boolean) => Pro
   });
   $('btn-clear')?.addEventListener('click', () => { for (const slot of ['hair', ...WEARABLE] as WardrobeSlot[]) scene.equip(slot, null); });
   $('btn-gold')?.addEventListener('click', () => { for (const [slot, id] of Object.entries(GOLD_SET_B)) scene.equip(slot as WardrobeSlot, id); });
+  // the Ember set has no cape: its coat has its own tails and the scarf
+  $('btn-ember')?.addEventListener('click', () => { scene.equip('back', null); for (const [slot, id] of Object.entries(EMBER_SET_B)) scene.equip(slot as WardrobeSlot, id); });
   const setGearSeg = segmented($('seg-gear'), [['starter', 'Starter gear'], ['job', 'Warrior job gear']], 'starter', (v) => scene.setGear(v as 'starter' | 'job'));
 
   // ---- view ----

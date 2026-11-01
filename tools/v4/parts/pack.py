@@ -7,7 +7,7 @@ from PIL import Image
 D, OUT = sys.argv[1], sys.argv[2]
 HIP = 0.40  # the hip joint above the soles: the belt and the leg tops at the approved illustration's height
 HAT = (0.01, -0.27)  # the helmet socket on the head bone, B (the rig's hat bone)
-meta = {k: json.load(open(f'{D}/parts_{k}.json')) for k in ('basic', 'gold', 'head', 'hands', 'test')}
+meta = {k: json.load(open(f'{D}/parts_{k}.json')) for k in ('basic', 'gold', 'ember', 'head', 'hands', 'test')}
 BPX = meta['basic']['bpx']
 
 frames = []  # (name, image, pivot)
@@ -37,6 +37,16 @@ for look in ('basic', 'gold'):
 add('gold', 'tabard')  # a strip bent along the trousers' hip chain (pivot: its top centre, the chain's anchor)
 add('gold', 'cape')
 add('gold', 'cape_strip')  # the cape upright, drawn as a strip bent along the cape chain
+# the Ember Duelist (second premium set): the coat's body, sleeves, trousers and riding boots (sheet 1), the half-cape,
+# the waist piece and the pieces hung on the coat's chains (sheet 2)
+for part in ('torso', 'hips', 'halfcape', 'waist', 'scarf_end', 'panel_near', 'panel_far', 'sash_end', 'tails'): add('ember', part)
+for part in ('uparm', 'forearm', 'thigh', 'shin_under', 'shin', 'foot', 'elbow_cap'): add('ember', part); add('ember', part, far=True)
+# ... and the fingerless gloves in the hand standard's five states (sheet 3, cut with the hands)
+for state in ('relaxed', 'fist', 'grip', 'grip2', 'open'):
+    for suffix in ('', '_back'):
+        if f'ember_{state}{suffix}' in meta['hands']['parts']:
+            for far in (False, True):
+                add('hands', f'ember_{state}{suffix}', far=far, name=f'b/ember/hand_{state}{suffix}{"_far" if far else ""}')
 for part in ('coat_tail', 'coat_panel_near', 'coat_panel_far', 'sash_end', 'scarf_end', 'waist_sash'):  # lab-only stand-ins for rule tests (test_standins.py), not designs
     add('test', part, name=f'b/test/{part}')
 

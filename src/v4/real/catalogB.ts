@@ -16,9 +16,9 @@ const far = (side: 'F' | 'B') => (side === 'F' ? '_far' : '');
 const part = (slot: string, frame: string): ItemPart => ({ slot, frame });
 const HAND_STATES = ['relaxed', 'fist', 'grip', 'grip2', 'open'] as const;
 /** A hand in every state (the corrective channel picks one); the grips also get the layer behind the handle. */
-const hands = (look: 'basic' | 'gold', layer: 'skin' | 'glove') => sides((s) => [
+const hands = (look: 'basic' | 'gold' | 'ember', layer: 'skin' | 'glove') => sides((s) => [
   { slot: `hand_${s}.front.${layer}`, variants: Object.fromEntries(HAND_STATES.map((st) => [st, `b/${look}/hand_${st}${far(s)}`])) },
-  { slot: `hand_${s}.back.${layer}`, variants: Object.fromEntries((look === 'gold' ? ['grip', 'grip2'] : ['grip2']).map((st) => [st, `b/${look}/hand_${st}_back${far(s)}`])) },
+  { slot: `hand_${s}.back.${layer}`, variants: Object.fromEntries((look === 'basic' ? ['grip2'] : ['grip', 'grip2']).map((st) => [st, `b/${look}/hand_${st}_back${far(s)}`])) },
 ]);
 const sides = (fn: (side: 'F' | 'B') => ItemPart[]): ItemPart[] => [...fn('B'), ...fn('F')];
 
@@ -44,6 +44,18 @@ export const COAT_TEST_PIECES: AttachSpec[] = [
   { chain: 'hipD', at: [0.075, -0.055], rest: 86, lens: [0.11, 0.11], k: 90, c: 11, gainV: [12, 7], gainZ: [8, 5], limit: 40, hang: 0.4, gravity: 0.6, clearOf: ['thigh_F'], margin: 10 },
   { chain: 'sashE', at: [0.07, -0.072], rest: 72, lens: [0.08, 0.1], k: 60, c: 7, gainV: [20, 12], gainZ: [10, 6], limit: 50, hang: 0.35, gravity: 0.8, clearOf: ['thigh_F'], margin: 16 },
   { chain: 'neckA', at: [-0.03, -0.19], rest: 165, lens: [0.075, 0.08], k: 50, c: 6, gainV: [30, 15], gainZ: [-20, -10], limit: 60, hang: 0.35, gravity: 0.3 },
+];
+
+/** The Ember Duelist's coat (the second premium set, concept v2): five pieces on their own chains, each with its anchor,
+ *  rest angle (measured on the concept), springs and layer. The near front panel flares back over the near leg and is
+ *  lifted by the near knee; the far panel hangs between the legs, clear of the far thigh; the split back tails hang
+ *  behind the legs and trail furthest; the sash end hangs from the knot; the scarf's loose end flies back from the neck. */
+export const EMBER_ATTACH: AttachSpec[] = [
+  { chain: 'hipB', at: [-0.05, -0.05], rest: 96, lens: [0.13, 0.15], k: 70, c: 9, gainV: [22, 14], gainZ: [-14, -9], limit: 50, hang: 0.3, gravity: 0.7 },
+  { chain: 'hipC', at: [-0.03, -0.055], rest: 120, lens: [0.13, 0.15], k: 85, c: 10, gainV: [14, 8], gainZ: [8, 5], limit: 40, hang: 0.4, gravity: 0.6, clearOf: ['thigh_B'], margin: 20 },
+  { chain: 'hipD', at: [0.075, -0.045], rest: 82, lens: [0.11, 0.12], k: 85, c: 10, gainV: [12, 7], gainZ: [8, 5], limit: 40, hang: 0.4, gravity: 0.6, clearOf: ['thigh_F'], margin: 10 },
+  { chain: 'sashE', at: [0.095, -0.07], rest: 67, lens: [0.1, 0.12], k: 60, c: 7, gainV: [18, 11], gainZ: [10, 6], limit: 45, hang: 0.35, gravity: 0.8, clearOf: ['thigh_F'], margin: 18 },
+  { chain: 'neckA', at: [-0.088, -0.2], rest: 172, lens: [0.1, 0.12], k: 50, c: 6, gainV: [26, 14], gainZ: [-18, -10], limit: 55, hang: 0.35, gravity: 0.3 },
 ];
 
 export function buildCatalogB(): Catalog {
@@ -105,6 +117,37 @@ export function buildCatalogB(): Catalog {
     attach: COAT_TEST_PIECES,
   });
   put({ id: 'b_sun_sword', wslot: 'weapon', name: 'Sun-guard longsword', set: 'A', family: 'sword', parts: [part('weapon', 'b/sword')] });
+  // the Ember Duelist (set C): a long split coat over slim trousers, riding boots, fingerless gloves
+  put({
+    id: 'b_ember_top', wslot: 'top', name: 'Ember Duelist coat', set: 'C',
+    parts: [
+      part('torso.over', 'b/ember/torso'), ...sides((s) => [part(`uparm_${s}.over`, `b/ember/uparm${far(s)}`)]),
+      // the half-cape: a shoulder piece on the near shoulder's cap (turns half as far as the upper arm), never a cape
+      part('uparm_B.cap', 'b/ember/halfcape'),
+      // the elbow caps: the sleeve's elbow bracer, turned half as far as the forearm, over the crook of a bent arm
+      part('forearm_B.cap', 'b/ember/elbow_cap'), part('forearm_F.cap', 'b/ember/elbow_cap_far'),
+      // worn over the trousers: the sash, belt, ring, pouch and front flap
+      part('hip.over', 'b/ember/waist'),
+      part('hipB.back', 'b/ember/tails'), part('hipC.front', 'b/ember/panel_near'), part('hipD.mid', 'b/ember/panel_far'),
+      part('sashE.front', 'b/ember/sash_end'), part('neckA.scarf', 'b/ember/scarf_end'),
+    ],
+    attach: EMBER_ATTACH,
+  });
+  put({
+    id: 'b_ember_bottom', wslot: 'bottom', name: 'Ember Duelist trousers', set: 'C',
+    parts: [part('hip.under', 'b/ember/hips'), ...sides((s) => [part(`thigh_${s}.over`, `b/ember/thigh${far(s)}`), part(`shin_${s}.under`, `b/ember/shin_under${far(s)}`)])],
+  });
+  put({
+    id: 'b_ember_shoes', wslot: 'shoes', name: 'Ember Duelist riding boots', set: 'C',
+    parts: sides((s) => [part(`shin_${s}.over`, `b/ember/shin${far(s)}`), part(`foot_${s}.over`, `b/ember/foot${far(s)}`)]),
+  });
+  put({
+    id: 'b_ember_gloves', wslot: 'gloves', name: 'Ember Duelist gloves', set: 'C',
+    // the bare forearm from the elbow to the wrist strap replaces the body's wrapped one; the fingerless gloves in the
+    // hand standard's five states replace the bare hands
+    parts: [...sides((s) => [part(`forearm_${s}.over`, `b/ember/forearm${far(s)}`)]), ...hands('ember', 'glove')],
+    hides: ['forearm_F.skin', 'forearm_B.skin', 'hand_F.front.skin', 'hand_B.front.skin', 'hand_F.back.skin', 'hand_B.back.skin'],
+  });
   return { items, art: new Map(), base: { body, face } };
 }
 
@@ -118,3 +161,6 @@ export const GEAR_LOOKS_B: Record<string, Partial<Record<WardrobeSlot, string>>>
 
 /** The full Golden Warrior set as cosmetics. */
 export const GOLD_SET_B: Partial<Record<WardrobeSlot, string>> = { top: 'b_gold_top', bottom: 'b_gold_bottom', gloves: 'b_gold_gloves', shoes: 'b_gold_shoes', back: 'b_gold_cape' };
+
+/** The full Ember Duelist set as cosmetics (no cape: the coat has its own tails and the scarf). */
+export const EMBER_SET_B: Partial<Record<WardrobeSlot, string>> = { top: 'b_ember_top', bottom: 'b_ember_bottom', gloves: 'b_ember_gloves', shoes: 'b_ember_shoes' };

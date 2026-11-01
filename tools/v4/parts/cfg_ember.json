@@ -1,0 +1,422 @@
+{
+ "parts": {
+  "torso": {
+   "seed": [
+    520,
+    300
+   ],
+   "pivots": [
+    [
+     528,
+     364
+    ],
+    [
+     527,
+     164
+    ],
+    [
+     600,
+     214
+    ],
+    [
+     455,
+     209
+    ]
+   ],
+   "scale": 0.00104
+  },
+  "hips": {
+   "seed": [
+    795,
+    300
+   ],
+   "pivots": [
+    [
+     795,
+     334
+    ],
+    [
+     795,
+     239
+    ],
+    [
+     848,
+     334
+    ],
+    [
+     742,
+     334
+    ]
+   ],
+   "scale": 0.00091,
+   "cut_below": [
+    366,
+    6
+   ]
+  },
+  "uparm": {
+   "seed": [
+    117,
+    680
+   ],
+   "pivots": [
+    [
+     131.1,
+     564.6
+    ],
+    [
+     118.0,
+     790.7
+    ]
+   ],
+   "align": true,
+   "scale": 0.000574,
+   "far": 0.9,
+   "recolor": [
+    [
+     50,
+     515,
+     185,
+     580,
+     [
+      236,
+      190,
+      150
+     ],
+     [
+      150,
+      38,
+      44
+     ]
+    ]
+   ]
+  },
+  "forearm": {
+   "seed": [
+    345,
+    700
+   ],
+   "pivots": [
+    [
+     342.1,
+     572.9
+    ],
+    [
+     345.7,
+     798.9
+    ]
+   ],
+   "align": true,
+   "scale": 0.0004871,
+   "far": 0.9,
+   "fill_rows": [
+    [
+     566,
+     664,
+     690
+    ]
+   ],
+   "skin_to": [
+    253,
+    208,
+    157
+   ],
+   "end_disc": {
+    "pivot": 0,
+    "r": 0.025
+   }
+  },
+  "thigh": {
+   "seed": [
+    773,
+    680
+   ],
+   "pivots": [
+    [
+     777.0,
+     554.0
+    ],
+    [
+     771.2,
+     812.0
+    ]
+   ],
+   "align": true,
+   "scale": 0.0005344,
+   "far": 0.9,
+   "recolor": [
+    [
+     705,
+     780,
+     845,
+     845,
+     [
+      236,
+      190,
+      150
+     ],
+     [
+      58,
+      52,
+      54
+     ]
+    ],
+    [
+     705,
+     515,
+     845,
+     590,
+     [
+      236,
+      190,
+      150
+     ],
+     [
+      58,
+      52,
+      54
+     ]
+    ]
+   ],
+   "end_disc": {
+    "pivot": 1,
+    "r": 0.03
+   }
+  },
+  "shin": {
+   "seed": [
+    1014,
+    690
+   ],
+   "pivots": [
+    [
+     1017.4,
+     567.0
+    ],
+    [
+     1017.6,
+     811.0
+    ]
+   ],
+   "align": true,
+   "scale": 0.0006205,
+   "far": 0.9,
+   "recolor": [
+    [
+     966,
+     531,
+     1069,
+     583,
+     [
+      236,
+      190,
+      150
+     ],
+     [
+      58,
+      52,
+      54
+     ],
+     "ellipse"
+    ],
+    [
+     973,
+     793,
+     1063,
+     838,
+     [
+      236,
+      190,
+      150
+     ],
+     [
+      118,
+      70,
+      42
+     ],
+     "ellipse"
+    ]
+   ],
+   "erase_lines": [
+    [
+     960,
+     784,
+     1075,
+     815
+    ]
+   ],
+   "sheet": "sheets/b_parts_ember_boot.png"
+  },
+  "foot": {
+   "seed": [
+    1300,
+    760
+   ],
+   "pivots": [
+    [
+     1252.3,
+     656.2
+    ]
+   ],
+   "scale": 0.000682,
+   "far": 0.9,
+   "fill_rows_rgb": [
+    [
+     626,
+     690,
+     697
+    ]
+   ]
+  },
+  "halfcape": {
+   "sheet": "sheets/b_parts_ember2.png",
+   "seed": [
+    240,
+    150
+   ],
+   "pivots": [
+    [
+     267.3,
+     95.3
+    ]
+   ],
+   "scale": 0.000855
+  },
+  "waist": {
+   "sheet": "sheets/b_parts_ember2.png",
+   "seed": [
+    620,
+    160
+   ],
+   "pivots": [
+    [
+     613.1,
+     231.5
+    ]
+   ],
+   "scale": 0.000855
+  },
+  "shin_under": {
+   "sheet": "sheets/b_parts_ember2.png",
+   "seed": [
+    898,
+    180
+   ],
+   "pivots": [
+    [
+     898,
+     75
+    ],
+    [
+     898,
+     252
+    ]
+   ],
+   "align": true,
+   "scale": 0.000855,
+   "far": 0.9
+  },
+  "scarf_end": {
+   "sheet": "sheets/b_parts_ember2.png",
+   "seed": [
+    1159,
+    200
+   ],
+   "pivots": [
+    [
+     1163.5,
+     72.0
+    ]
+   ],
+   "scale": 0.000855,
+   "center_pivot": true
+  },
+  "panel_near": {
+   "sheet": "sheets/b_parts_ember2.png",
+   "seed": [
+    290,
+    700
+   ],
+   "pivots": [
+    [
+     293.0,
+     523.0
+    ]
+   ],
+   "scale": 0.000855,
+   "center_pivot": true
+  },
+  "panel_far": {
+   "sheet": "sheets/b_parts_ember2.png",
+   "seed": [
+    514,
+    650
+   ],
+   "pivots": [
+    [
+     522.5,
+     523.0
+    ]
+   ],
+   "scale": 0.000855,
+   "center_pivot": true
+  },
+  "sash_end": {
+   "sheet": "sheets/b_parts_ember2.png",
+   "seed": [
+    713,
+    650
+   ],
+   "pivots": [
+    [
+     705.5,
+     523.0
+    ]
+   ],
+   "scale": 0.000855,
+   "center_pivot": true
+  },
+  "tails": {
+   "sheet": "sheets/b_parts_ember2.png",
+   "seed": [
+    1107,
+    700
+   ],
+   "pivots": [
+    [
+     1107.0,
+     523.0
+    ]
+   ],
+   "scale": 0.000855,
+   "center_pivot": true
+  }
+ },
+ "trims": {
+  "forearm": {
+   "top": 0.02,
+   "feather": 0.07
+  },
+  "shin_under": {
+   "top": 0.0,
+   "feather": 0.1,
+   "bottom": 0.757,
+   "bottom_feather": 0.04
+  },
+  "shin": {
+   "bottom": 0.93,
+   "bottom_feather": 0.05
+  }
+ },
+ "caps": {
+  "elbow_cap": {
+   "from": "uparm",
+   "band": [
+    0.645,
+    0.95
+   ],
+   "feather": 0.06,
+   "pivot": 1
+  }
+ }
+}

@@ -13,7 +13,9 @@ const ALLOWED_HIDES: Partial<Record<WardrobeSlot, (t: string) => boolean>> = {
   head: (t) => t.startsWith('hair.') || t === 'w:eyeacc' || t === 'w:faceacc' || t === 'w:earring',
   // boots: the bare foot under them; greaves also cover the trousers' lower legs (the lower-leg cloth under a boot)
   shoes: (t) => /^foot_[FB]\.skin$/.test(t) || /^shin_[FB]\.under$/.test(t),
-  gloves: (t) => /^hand_[FB]\.(back|front)\.skin$/.test(t),
+  // gloves: the bare hand under them; a glove that draws the whole forearm (a bare one under a short sleeve, or a long
+  // bracer) also replaces the body's forearm
+  gloves: (t) => /^hand_[FB]\.(back|front)\.skin$/.test(t) || /^forearm_[FB]\.skin$/.test(t),
 };
 
 export class Wardrobe {

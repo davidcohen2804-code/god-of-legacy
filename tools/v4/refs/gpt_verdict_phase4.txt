@@ -1,0 +1,24 @@
+GPT verdict on Phase 4 (2026-11-01, chat 6ae5e23b-a664-83eb-992f-9278fb304fd3) — key lines, verbatim where quoted:
+
+"Phase 4 is accepted in the lab."
+1) Step 1 — hip attachment chains: Approved. "Keep the system exactly in the direction shown: Chain A = owned by the trousers,
+   Chain B = owned by the top, both optional, independent, and separate from the neck cape / scarf logic."
+   Golden tabard: approved at rest, in idle / run / jump / attack, in the extreme-pose tests; the hips cleanup fix is approved.
+   "keep the Golden tabard on chain A and keep the cleanup that removes the painted-in short tabard from the Golden hips art."
+2) Ember Duelist concept v2: "Approved as the concept basis." Reads on the canonical 3.0-head body, same character,
+   distinct enough from the Golden Warrior at gameplay size. "concept v2 is approved for sheet production."
+3) Rig additions before drawing the Ember sheets: "Approved with the following structure."
+   Rigid on the body (body-driven, not free-swinging): coat body, high collar, scarf wrap around the neck, half-cape on the
+   near shoulder, sun brooch, sleeves / bracers, fingerless gloves, sash / belt / pouch / waist body, slim trousers, boots.
+   Swinging pieces (cut as separate moving parts):
+   - near front coat panel: own hip chain, in front of the near leg;
+   - far front coat panel: own hip chain, between the legs / clear of the far thigh;
+   - sash end: short chain from the sash knot;
+   - back split coat tails: on top chain B, behind the legs;
+   - scarf loose end: short neck chain, separate from the half-cape.
+   "Important constraint: Do not turn the half-cape into a full free cape system. It should remain a shoulder piece:
+   attached to the near shoulder, moving in a limited way with the torso / upper arm, readable as a short asymmetric
+   shoulder cape, not as a second full cape."
+Final call: Phase 4 lab work approved; hip-chain Step 1 approved; Ember Duelist concept v2 approved; coat rig additions
+approved as above. "You can proceed to the next lab step: draw and cut the Ember Duelist sheets using this approved rig
+plan." "Still: no merge / no deploy until the Ember Duelist sheets and motion tests are accepted."

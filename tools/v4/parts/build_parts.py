@@ -122,6 +122,17 @@ for name, p in cfg['parts'].items():
     else:
         mask = component_at(*p['seed'])
     keep = mask.copy()
+    if p.get('fill_rows'):
+        # rebuild a band of the part from one of its own rows (sheet px): [y0, y1, y_ref] replaces rows y0..y1 with row
+        # y_ref, outline and width included (a bare forearm continued up over a sleeve end drawn on it)
+        rgba = rgba.copy()
+        for (fy0, fy1, fyr) in p['fill_rows']:
+            rgba[fy0:fy1] = rgba[fyr]; keep[fy0:fy1] = keep[fyr]
+    if p.get('fill_rows_rgb'):
+        # the same, colours only: the band keeps its own shape (a joint dome painted with the leather of the row below it)
+        rgba = rgba.copy()
+        for (fy0, fy1, fyr) in p['fill_rows_rgb']:
+            rgba[fy0:fy1, :, :3] = rgba[fyr, :, :3]
     for (x0, y0, x1, y1) in p.get('clear', []):  # remove rectangles (sheet px)
         keep[y0:y1, x0:x1] = False
     if 'only' in p:  # keep only this rectangle
@@ -139,19 +150,60 @@ for name, p in cfg['parts'].items():
             cool = ~warm & ~dark
             orphan = dark & ndimage.binary_dilation(warm, iterations=3) & ~ndimage.binary_dilation(cool, iterations=3)
             keep &= ~warm & ~orphan
+    if p.get('keep_hue') or p.get('drop_hue'):
+        # split a piece drawn in one by colour (a sleeve's end on a forearm): `keep_hue` keeps only that colour and the
+        # outline along it, `drop_hue` removes it and any outline that borders only it
+        f0 = rgba[..., :3].astype(np.float32)
+        def hue_mask(h):
+            R_, G_, B_ = f0[..., 0], f0[..., 1], f0[..., 2]
+            if h == 'crimson': return (R_ > 95) & (R_ > G_ + 45) & (R_ > B_ + 35) & (G_ < 110)
+            raise SystemExit(f'unknown hue {h}')
+        dark = f0.max(axis=2) < 75
+        if p.get('keep_hue'):
+            hm = hue_mask(p['keep_hue']); keep &= hm | (dark & ndimage.binary_dilation(hm, iterations=3))
+        if p.get('drop_hue'):
+            hm = hue_mask(p['drop_hue']); other = ~hm & ~dark
+            orphan = dark & ndimage.binary_dilation(hm, iterations=3) & ~ndimage.binary_dilation(other, iterations=3)
+            keep &= ~hm & ~orphan
+        lb, nb = ndimage.label(keep); szs = ndimage.sum(keep, lb, range(1, nb + 1))  # drop specks the split left
+        keep &= np.isin(lb, [i + 1 for i, z in enumerate(szs) if z >= 40])
     ys, xs = np.where(keep)
     x0, y0, x1, y1 = xs.min(), ys.min(), xs.max() + 1, ys.max() + 1
     img = rgba[y0:y1, x0:x1].copy()
     img[..., 3] = (img[..., 3] * keep[y0:y1, x0:x1]).astype(np.uint8)
     f = img[..., :3].astype(np.float32)
-    for (rx0, ry0, rx1, ry1, scol, tcol) in p.get('recolor', []):  # skin-coloured 'doll joint' caps -> cloth colour
+    for rc in p.get('recolor', []):  # skin-coloured 'doll joint' caps -> cloth colour (in a rectangle, or the ellipse in it)
+        (rx0, ry0, rx1, ry1, scol, tcol), shape = rc[:6], (rc[6] if len(rc) > 6 else 'rect')
         sub = f[max(0, ry0 - y0):max(0, ry1 - y0), max(0, rx0 - x0):max(0, rx1 - x0)]
         R, G, Bc = sub[..., 0], sub[..., 1], sub[..., 2]
         skin = (R > 140) & (R > G) & (G > Bc) & ((R - Bc) > 55)
+        if shape == 'ellipse':  # only inside the ellipse inscribed in the rectangle (a dome beside leather of a similar hue)
+            yy, xx = np.mgrid[max(0, ry0 - y0):max(0, ry1 - y0), max(0, rx0 - x0):max(0, rx1 - x0)].astype(np.float32)
+            cx_, cy_, ax_, ay_ = (rx0 + rx1) / 2 - x0, (ry0 + ry1) / 2 - y0, (rx1 - rx0) / 2, (ry1 - ry0) / 2
+            skin &= ((xx - cx_) / ax_) ** 2 + ((yy - cy_) / ay_) ** 2 <= 1.0
         lum = lambda c: 0.299 * c[..., 0] + 0.587 * c[..., 1] + 0.114 * c[..., 2]
         ls = lum(np.array(scol, np.float32)[None])[0]
         k = (lum(sub) / ls)[..., None]
         sub[skin] = np.clip(np.array(tcol, np.float32)[None] * k[skin], 0, 255)
+    if p.get('skin_to'):  # match a part's skin to the body's (the hands' median skin colour), shading kept
+        R, G, Bc = f[..., 0], f[..., 1], f[..., 2]
+        sk = (R > 190) & (R > G + 12) & (G > Bc + 12)
+        if sk.any():
+            f[sk] = np.clip(f[sk] * (np.array(p['skin_to'], np.float32) / np.median(f[sk], axis=0))[None], 0, 255)
+    if p.get('erase_lines'):
+        # remove inner outline strokes inside rectangles (sheet px), e.g. a joint dome's rim once the dome is recoloured
+        # to the boot: dark pixels at least 3 px inside the part are painted over from the colours around them
+        inside = ndimage.binary_erosion(img[..., 3] > 127, iterations=3)
+        hole = np.zeros(inside.shape, np.uint8)
+        for (ex0, ey0, ex1, ey1) in p['erase_lines']:
+            box = np.zeros(inside.shape, bool); box[max(0, ey0 - y0):max(0, ey1 - y0), max(0, ex0 - x0):max(0, ex1 - x0)] = True
+            hole |= (box & inside & (f.max(axis=2) < 85)).astype(np.uint8)
+        hole = ndimage.binary_dilation(hole, iterations=1).astype(np.uint8) * (inside > 0)
+        f = cv2.inpaint(np.clip(f, 0, 255).astype(np.uint8), hole.astype(np.uint8), 4, cv2.INPAINT_TELEA).astype(np.float32)
+    if p.get('cut_below'):  # fade the part out below a row (sheet px): [y, feather px]
+        cy0, cfe = p['cut_below']
+        rows = np.arange(y0, y1)[:, None].astype(np.float32)
+        img[..., 3] = (img[..., 3] * np.clip((cy0 + cfe - rows) / cfe, 0, 1)).astype(np.uint8)
     if p.get('drop_navy'):  # keep a cap cut from the torso without the vest around it
         R, G, Bc = f[..., 0], f[..., 1], f[..., 2]
         navy = (Bc > R + 8) & ((R + G + Bc) / 3 < 150)
@@ -189,13 +241,39 @@ for name, p in cfg['parts'].items():
         half = math.ceil(max(piv[0][0], im.width - piv[0][0]))
         pad = Image.new('RGBA', (2 * half, im.height), (0, 0, 0, 0)); pad.alpha_composite(im, (round(half - piv[0][0]), 0))
         piv = [(q[0] + round(half - piv[0][0]), q[1]) for q in piv]; im = pad
+    if p.get('end_disc'):
+        # a round joint end under the part (a short cap drawn on the sheet that a bent knee would open): a disc of the
+        # part's own cloth (the median colour just above the joint, darker towards its rim) and outline, centred on the
+        # joint pivot, added only where the part is transparent
+        ed = p['end_disc']; q = piv[ed.get('pivot', 1)]; r = ed['r'] * BPX
+        a = np.array(im).astype(np.float32)
+        H0, W0 = a.shape[:2]; padB = max(0, int(math.ceil(q[1] + r + 2)) - H0); padS = max(0, int(math.ceil(r + 2 - min(q[0], W0 - q[0]))))
+        if padB or padS:
+            a2 = np.zeros((H0 + padB, W0 + 2 * padS, 4), np.float32); a2[:H0, padS:padS + W0] = a; a = a2
+            piv = [(x + padS, y) for x, y in piv]; q = piv[ed.get('pivot', 1)]
+        yy, xx = np.mgrid[0:a.shape[0], 0:a.shape[1]].astype(np.float32)
+        dist = np.hypot(xx - q[0], yy - q[1])
+        band = (a[..., 3] > 200) & (yy < q[1]) & (yy > q[1] - 0.6 * r) & (dist < r) & (a[..., :3].max(axis=2) > 40)
+        col = np.median(a[band][:, :3], axis=0) if band.any() else np.array([60, 55, 58], np.float32)
+        shade = (1.0 - 0.22 * np.clip(dist / r, 0, 1) ** 2)[..., None]
+        disc = np.zeros_like(a); disc[..., :3] = col * shade; disc[..., 3] = np.clip(r - dist + 0.5, 0, 1) * 255
+        ring = np.clip(1.0 - np.abs(dist - (r - 1.0)) / 1.0, 0, 1)
+        disc[..., :3] = disc[..., :3] * (1 - ring[..., None]) + np.array([26, 22, 28], np.float32) * ring[..., None]
+        top = a[..., 3:] / 255.0  # the part over its disc
+        out = a.copy(); out[..., :3] = a[..., :3] * top + disc[..., :3] * (1 - top)
+        out[..., 3] = 255 * (top[..., 0] + disc[..., 3] / 255 * (1 - top[..., 0]))
+        im = Image.fromarray(out.clip(0, 255).astype(np.uint8))
     whole[name] = (im.copy(), piv, p.get('far'))
     trim = cfg.get('trims', {}).get(name)
-    if trim:  # cut a joint end away (a skin-coloured dome that would show over the neighbouring part)
+    if trim:  # cut a joint end away (a skin-coloured dome that would show over the neighbouring part), top and/or bottom
         a = np.array(im).astype(np.float32)
-        h = a.shape[0]; t0, fe = trim['top'] * h, max(1.0, trim.get('feather', 0.02) * h)
-        ramp = np.clip((np.arange(h) - t0) / fe, 0, 1)[:, None]
-        a[..., 3] *= ramp
+        h = a.shape[0]; rows = np.arange(h)
+        if 'top' in trim:
+            t0, fe = trim['top'] * h, max(1.0, trim.get('feather', 0.02) * h)
+            a[..., 3] *= np.clip((rows - t0) / fe, 0, 1)[:, None]
+        if 'bottom' in trim:  # the part fades out over `bottom_feather` (fractions of the height) ending at `bottom`
+            b0, fe = trim['bottom'] * h, max(1.0, trim.get('bottom_feather', 0.02) * h)
+            a[..., 3] *= np.clip((b0 - rows) / fe, 0, 1)[:, None]
         im = Image.fromarray(a.clip(0, 255).astype(np.uint8))
     im.save(f'{OUT}/parts_{look}/{name}.png')
     parts[name] = {'w': im.width, 'h': im.height, 'pivots': [[round(q[0], 2), round(q[1], 2)] for q in piv], 'angle': round(ang, 2)}

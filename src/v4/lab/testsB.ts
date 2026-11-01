@@ -16,15 +16,27 @@ import type { LabScene } from './LabScene';
 import { Harness, idColor, idOf, yieldFrame, type TestResult } from './tests';
 import { CELL, MASTER_B } from './world';
 
-/** Per wardrobe slot, B's two choices (null = nothing: no gloves, no cape, the sword hidden). */
+/** Per wardrobe slot, B's choices (null = nothing: no gloves, no cape, the sword hidden): the basic clothing, the Golden
+ *  Warrior set and the Ember Duelist set (top, trousers, boots, gloves; it has no cape or helmet of its own). */
 const CHOICES: [WardrobeSlot, (string | null)[]][] = [
-  ['top', ['b_basic_top', 'b_gold_top']], ['bottom', ['b_basic_bottom', 'b_gold_bottom']], ['shoes', ['b_basic_shoes', 'b_gold_shoes']],
-  ['gloves', [null, 'b_gold_gloves']], ['back', [null, 'b_gold_cape']], ['weapon', ['b_sun_sword', null]], ['head', [null, 'b_gold_helm']],
+  ['top', ['b_basic_top', 'b_gold_top', 'b_ember_top']], ['bottom', ['b_basic_bottom', 'b_gold_bottom', 'b_ember_bottom']],
+  ['shoes', ['b_basic_shoes', 'b_gold_shoes', 'b_ember_shoes']], ['gloves', [null, 'b_gold_gloves', 'b_ember_gloves']],
+  ['back', [null, 'b_gold_cape']], ['weapon', ['b_sun_sword', null]], ['head', [null, 'b_gold_helm']],
 ];
 type Mix = Partial<Record<WardrobeSlot, string | null>>;
-/** All 2^7 = 128 mixes. */
-const MIXES: Mix[] = Array.from({ length: 1 << CHOICES.length }, (_, m) => Object.fromEntries(CHOICES.map(([slot, opts], j) => [slot, opts[(m >> j) & 1]])));
+/** Every mix: 3^4 × 2^3 = 648 (the first option of each slot varies fastest). */
+const MIXES: Mix[] = (() => {
+  const out: Mix[] = [];
+  const total = CHOICES.reduce((n, [, o]) => n * o.length, 1);
+  for (let m = 0; m < total; m++) { let r = m; out.push(Object.fromEntries(CHOICES.map(([slot, opts]) => { const v = opts[r % opts.length]; r = Math.floor(r / opts.length); return [slot, v]; }))); }
+  return out;
+})();
 const mixName = (x: Mix) => CHOICES.map(([slot]) => `${slot}:${(x[slot] ?? 'none').replace(/^b_/, '')}`).join(' ');
+/** A named mix: the basic clothing with the sword, then the pieces given. */
+const mixOf = (m: Mix): Mix => ({ ...MIXES[0], ...m });
+const GOLD_MIX = mixOf({ top: 'b_gold_top', bottom: 'b_gold_bottom', shoes: 'b_gold_shoes', gloves: 'b_gold_gloves', back: 'b_gold_cape' });
+const EMBER_MIX = mixOf({ top: 'b_ember_top', bottom: 'b_ember_bottom', shoes: 'b_ember_shoes', gloves: 'b_ember_gloves' });
+const indexOf = (m: Mix) => MIXES.findIndex((x) => CHOICES.every(([slot]) => (x[slot] ?? null) === (m[slot] ?? null)));
 
 export async function runTestsB(scene: LabScene, opts: { full: boolean; only?: string[] }, progress: (msg: string) => void = () => {}): Promise<TestResult[]> {
   /** `only`: run just the tests whose ids start with one of these (e.g. ['B7', 'B8']). */
@@ -87,8 +99,8 @@ export async function runTestsB(scene: LabScene, opts: { full: boolean; only?: s
       for (const [slot, id] of Object.entries(mix)) if (id && av.items[slot as WardrobeSlot]?.id !== id) { refused++; if (notes.length < 6) notes.push(`${mixName(mix)}: ${slot} shows ${av.items[slot as WardrobeSlot]?.id ?? 'nothing'}`); }
       parts += av.parts.filter(Boolean).length;
     }
-    results.push({ id: 'B2', name: 'Every basic / Golden mix is shown as chosen', pass: refused === 0,
-      detail: `${MIXES.length} mixes (top, trousers, boots: basic or Golden; gauntlets, cape, helmet: off or on; sword: shown or hidden): ${refused} with a refusal or a wrong piece; ${(parts / MIXES.length).toFixed(1)} parts drawn on average${notes.length ? ` — ${notes.join(' | ')}` : ''}` });
+    results.push({ id: 'B2', name: 'Every basic / Golden / Ember mix is shown as chosen', pass: refused === 0,
+      detail: `${MIXES.length} mixes (top, trousers, boots: basic, Golden or Ember; gloves: none, Golden or Ember; cape, helmet: off or on; sword: shown or hidden): ${refused} with a refusal or a wrong piece; ${(parts / MIXES.length).toFixed(1)} parts drawn on average${notes.length ? ` — ${notes.join(' | ')}` : ''}` });
   }
 
   // ---- B3: motion never depends on the outfit; swaps mid-animation are atomic and leave the clock alone ----
@@ -119,7 +131,7 @@ export async function runTestsB(scene: LabScene, opts: { full: boolean; only?: s
           const t = f / 60, tt = a.loop ? t : t % a.dur;
           if (withSwaps && f % 5 === 2) {
             const [slot, opts] = CHOICES[rng.between(0, CHOICES.length - 1)];
-            mix = { ...mix, [slot]: opts[rng.between(0, 1)] };
+            mix = { ...mix, [slot]: opts[rng.between(0, opts.length - 1)] };
             ch.setAvatar(wardrobe.resolve(input(mix))); swaps++;
           }
           ch.chain.step(1 / 60, 0, 0);
@@ -140,13 +152,16 @@ export async function runTestsB(scene: LabScene, opts: { full: boolean; only?: s
       for (let i = 0; i < plain.length; i++) if (plain[i] !== swapped[i]) timingDiffs++;
     }
     results.push({ id: 'B3', name: 'Motion, clock and swaps are independent of the outfit', pass: maxBone === 0 && mismatches === 0 && timingDiffs === 0,
-      detail: `${checks} mix × pose comparisons: largest difference in the body's ${rig.bones.length - nAtt} bones ${maxBone}; ${swaps} basic ↔ Golden swaps over ${frames} frames of the four animations: ${mismatches} frames showed a stale or missing part, ${timingDiffs} frames differed in time, phase, draw order or bones` });
+      detail: `${checks} mix × pose comparisons: largest difference in the body's ${rig.bones.length - nAtt} bones ${maxBone}; ${swaps} basic / Golden / Ember swaps over ${frames} frames of the four animations: ${mismatches} frames showed a stale or missing part, ${timingDiffs} frames differed in time, phase, draw order or bones` });
   }
 
   // ---- B4: joints covered, sword gripped, the composite cell holds every pose ----
-  // quick run: 16 mixes picked at random (seeded), always with all-basic (0) and the full Golden set with the sword,
-  // without (31) and with (95) the helmet
-  const quick = (() => { const r = new Phaser.Math.RandomDataGenerator(['b4']), ids = r.shuffle([...MIXES.keys()].filter((i) => i !== 0 && i !== 31 && i !== 95)).slice(0, 13); return [0, 31, 95, ...ids].sort((p, q) => p - q); })();
+  // quick run: always all-basic, the full Golden set with the sword without and with the helmet, the full Ember set
+  // without and with the helmet, and the Ember coat over the Golden trousers (the two chains' pieces together); plus 14
+  // mixes picked at random (seeded)
+  const named = [MIXES[0], GOLD_MIX, { ...GOLD_MIX, head: 'b_gold_helm' }, EMBER_MIX, { ...EMBER_MIX, head: 'b_gold_helm' },
+    { ...GOLD_MIX, top: 'b_ember_top', back: null }].map(indexOf);
+  const quick = (() => { const r = new Phaser.Math.RandomDataGenerator(['b4']), ids = r.shuffle([...MIXES.keys()].filter((i) => !named.includes(i))).slice(0, 14); return [...named, ...ids].sort((p, q) => p - q); })();
   const list = opts.full ? MIXES : quick.map((i) => MIXES[i]);
   if (want('B4')) {
   progress(`B4 ${list.length} mixes × 32 poses`);
@@ -207,14 +222,21 @@ export async function runTestsB(scene: LabScene, opts: { full: boolean; only?: s
               open[jj * n + ii] = 1; queue.push(jj * n + ii);
             }
           }
-          let gap = false;
+          let gap = false, where = '';
           for (let dy = -rp; dy <= rp && !gap; dy += 1) for (let dx = -rp; dx <= rp; dx += 1) {
             if (dx * dx + dy * dy > rp * rp) continue;
             const x = Math.round(cx + dx), y = Math.round(cy + dy);
             if (opaque(x, y)) continue;
-            if (!open[(y - y0) * n + (x - x0)] || (closed2(x, y) && !shallow(x, y))) { gap = true; break; }
+            if (!open[(y - y0) * n + (x - x0)] || (closed2(x, y) && !shallow(x, y))) {
+              gap = true;
+              // where: the gap pixel against the joint, and the joint's window (# opaque, . open background, o enclosed or crack)
+              const rows: string[] = [];
+              for (let j = 0; j < n; j++) { let r = ''; for (let i = 0; i < n; i++) { const xx = x0 + i, yy = y0 + j; r += xx === x && yy === y ? 'X' : opaque(xx, yy) ? '#' : open[j * n + i] && !(closed2(xx, yy) && !shallow(xx, yy)) ? '.' : 'o'; } rows.push(r); }
+              where = ` at (${(x - cx).toFixed(1)}, ${(y - cy).toFixed(1)}) px from the joint: ${!open[(y - y0) * n + (x - x0)] ? 'enclosed' : 'crack'} | ${rows.join('/')}`;
+              break;
+            }
           }
-          if (gap) { seamFails++; const k = `${label} ${bone.slice(-1)}`; seamBy[k] = (seamBy[k] ?? 0) + 1; if (samples.length < 40) samples.push({ mix: mixName(list[c]), anim: a.name, t, what: `gap at the ${label} (${bone})` }); }
+          if (gap) { seamFails++; const k = `${label} ${bone.slice(-1)}`; seamBy[k] = (seamBy[k] ?? 0) + 1; if (samples.length < 40) samples.push({ mix: mixName(list[c]), anim: a.name, t, what: `gap at the ${label} (${bone})${where}` }); }
         }
         if (!av.unarmed && (ch.state.swaps.handF === 'grip' || ch.state.swaps.handF === 'grip2')) {
           gripChecks++;
@@ -264,18 +286,18 @@ export async function runTestsB(scene: LabScene, opts: { full: boolean; only?: s
     }
     // the widest reach (the sword and the cape): every frame at 60 Hz, with and without the Golden set
     const dense: [AnimDef, number][] = ANIM_LIST.flatMap((a) => Array.from({ length: Math.round(a.dur * 60) + 1 }, (_, i) => [a, Math.min(a.dur, i / 60)] as [AnimDef, number]));
-    for (const mix of [MIXES[95], { top: 'b_basic_top', bottom: 'b_basic_bottom', shoes: 'b_basic_shoes', back: 'b_gold_cape', weapon: 'b_sun_sword' }] as Mix[]) {
+    for (const mix of [{ ...GOLD_MIX, head: 'b_gold_helm' }, { top: 'b_basic_top', bottom: 'b_basic_bottom', shoes: 'b_basic_shoes', back: 'b_gold_cape', weapon: 'b_sun_sword' }, EMBER_MIX] as Mix[]) {
       ch.setAvatar(wardrobe.resolve(input(mix)));
       for (const [a, t] of dense) { poseAt(ch, a, t); reach(hz.render(ch, s, OX, OY, RW, RH, 'alpha'), 2); }
       await yieldFrame();
     }
     const tag = `${list.length} mixes × 32 poses = ${renders} renders at B = ${B} px`;
-    results.push({ id: 'B4a', name: 'No gaps at any joint (every basic / Golden mix)', pass: seamFails === 0,
+    results.push({ id: 'B4a', name: 'No gaps at any joint (every basic / Golden / Ember mix)', pass: seamFails === 0,
       detail: `${tag}; joint gaps: ${seamFails}${seamFails ? ` (${Object.entries(seamBy).map(([k, v]) => `${k} ${v}`).join(', ')})` : ''}`, data: samples.filter((x) => x.what.startsWith('gap')).slice(0, 16) });
     results.push({ id: 'B4b', name: 'Sword held: the handle between the palm and the fingers', pass: gripFails === 0, detail: `${gripChecks} armed frames checked, ${gripFails} with the handle not held (drawn over the fingers or behind the palm layer, or a hole in the fist at the grip); ${gripHidden} with the grip behind the head or body (the attack's wind-up)`, data: samples.filter((x) => x.what.startsWith('handle')).slice(0, 8) });
     const fits = maxUp <= CELL.rootY - 0.02 && maxDown <= CELL.h - CELL.rootY - 0.02 && maxL <= CELL.rootX - 0.02 && maxR <= CELL.w - CELL.rootX - 0.02;
     results.push({ id: 'B4c', name: 'Composite cell holds every pose', pass: edgeHits === 0 && fits,
-      detail: `reach from the feet, in B (every mix in its 32 poses, plus the sword and cape on every frame at 60 Hz): up ${maxUp.toFixed(2)}, down ${maxDown.toFixed(2)}, back ${maxL.toFixed(2)}, forward ${maxR.toFixed(2)}; the cell is ${CELL.w} × ${CELL.h} B with the feet at (${CELL.rootX}, ${CELL.rootY}) → ${fits ? 'fits' : 'does NOT fit'}; test-region edge hits ${edgeHits}` });
+      detail: `reach from the feet, in B (every mix in its 32 poses, plus the sword, the cape and the Ember coat on every frame at 60 Hz): up ${maxUp.toFixed(2)}, down ${maxDown.toFixed(2)}, back ${maxL.toFixed(2)}, forward ${maxR.toFixed(2)}; the cell is ${CELL.w} × ${CELL.h} B with the feet at (${CELL.rootX}, ${CELL.rootY}) → ${fits ? 'fits' : 'does NOT fit'}; test-region edge hits ${edgeHits}` });
   }
 
   // ---- B5: the wardrobe preview (512 atlas) matches gameplay (256 atlas) ----
@@ -306,7 +328,7 @@ export async function runTestsB(scene: LabScene, opts: { full: boolean; only?: s
       }
       return inter / Math.max(1, uni);
     };
-    for (const mix of [MIXES[0], MIXES[31], MIXES[21], MIXES[42]]) {
+    for (const mix of [MIXES[0], GOLD_MIX, mixOf({ top: 'b_gold_top', shoes: 'b_gold_shoes', back: 'b_gold_cape' }), mixOf({ bottom: 'b_gold_bottom', gloves: 'b_gold_gloves', weapon: null }), EMBER_MIX, mixOf({ top: 'b_ember_top', bottom: 'b_gold_bottom', shoes: 'b_gold_shoes', gloves: 'b_ember_gloves' })]) {
       const av = wardrobe.resolve(input(mix));
       ch.setAvatar(av); ch512.setAvatar(av);
       for (const a of ANIM_LIST) for (const t of times(a, 3)) {
@@ -344,12 +366,15 @@ export async function runTestsB(scene: LabScene, opts: { full: boolean; only?: s
   }
 
   // ---- B7: the optional hip attachment chains, for every item that hangs a piece on one ----
-  // Each such item is checked in its home outfit (the Golden set with that item); every pair of items on different
+  // Each such item is checked in its home outfit (its own set, else the Golden set, with that item); every pair of items on different
   // chains is worn together. Front pieces (clearOf) must never end up behind the most forward thigh; later links must
   // not fold back on the link above; the chains must not affect each other or the body; and worn together, neither
   // piece may be hidden by the other.
   progress('B7 hip attachment chains');
   const gold: Mix = { top: 'b_gold_top', bottom: 'b_gold_bottom', gloves: 'b_gold_gloves', shoes: 'b_gold_shoes', back: 'b_gold_cape', weapon: 'b_sun_sword' };
+  const ember: Mix = { top: 'b_ember_top', bottom: 'b_ember_bottom', gloves: 'b_ember_gloves', shoes: 'b_ember_shoes', weapon: 'b_sun_sword' };
+  /** An item's home outfit: its own set (the Ember coat in the Ember set), else the Golden set, with the item. */
+  const homeOf = (it: { id: string; wslot: WardrobeSlot; set: string }): Mix => ({ ...(it.set === 'C' ? ember : gold), [it.wslot]: it.id });
   const attItems = [...A.catalog.items.values()].filter((it) => it.attach?.length);
   const deg = (i: number) => pose.rotation(ch.state, i);
   const wrapD = (d: number) => d - 360 * Math.round(d / 360);
@@ -390,8 +415,7 @@ export async function runTestsB(scene: LabScene, opts: { full: boolean; only?: s
     const lines: string[] = [];
     let restDev = 0, pass = true;
     for (const it of attItems) {
-      const home: Mix = { ...gold, [it.wslot]: it.id };
-      ch.setAvatar(wardrobe.resolve(input(home)));
+      ch.setAvatar(wardrobe.resolve(input(homeOf(it))));
       // (a) at rest every link hangs at its rest angle (the approved idle silhouette for the Golden tabard)
       let dev = 0;
       for (const t of times(A.anims.idle, 8)) {
@@ -488,7 +512,7 @@ export async function runTestsB(scene: LabScene, opts: { full: boolean; only?: s
     const lines: string[] = [];
     let pass = true;
     for (const it of attItems) {
-      ch.setAvatar(wardrobe.resolve(input({ ...gold, [it.wslot]: it.id })));
+      ch.setAvatar(wardrobe.resolve(input(homeOf(it))));
       const st = chainStats();
       for (const e of EXTREMES) {
         // settle from a run into the held pose (the springs come in moving), then hold it for a second
