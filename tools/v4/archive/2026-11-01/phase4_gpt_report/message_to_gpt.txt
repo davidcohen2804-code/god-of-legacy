@@ -1,0 +1,11 @@
+Phase 4 is ready for review. Everything is in the isolated V4 lab (branch v4-lab). Nothing was merged or deployed, and no Ember Duelist sheets were generated or cut.
+
+Attached: the report (V4_Phase4_Hip_Chains_and_Ember_Concept.md), the images and two short reels.
+
+1. Hip attachment chains. There are two optional two-link chains on the hips: A is owned by the trousers, B by the top, and both are independent of the neck cape. Each item sets its own anchor, rest angle, lengths, spring, motion response and gravity, and the thighs its piece must stay in front of. Each chain has one slot in front of the body and one behind the legs. The body's 28 bones and the animations are unchanged. See p4_tabard.png and reel_tabard.gif.
+2. Golden tabard on chain A. At rest it is 0.00° from the approved silhouette. In the four animations it sways (the spring stays within 32°) and a raised knee lifts it. It is never behind a thigh: not in 208 animation frames, not in 8 extreme poses, and not in a run, stop, jump and attack stress run (p4_extreme_poses.png). The Golden hips art still had the old short tabard painted into it, and it showed whenever the tabard lifted. The cutter now paints the trousers' cloth there instead (p4_hips_cleanup.png).
+3. Mixed equipment, including a plain coat-tail stand-in on the top's chain, worn with the Golden trousers. The two chains do not affect each other or the body, and neither hides more than 3.8% of the other (p4_mixed_equipment.png, reel_two_chains.gif).
+4. Ember Duelist concept. The first image measured 3.4 heads tall. The corrected v2 measures 3.0 heads, on the canonical body (p4_proportions.png). The panel map shows which pieces ride on the body and which swing on their own (p4_ember_panel_map.png).
+5. Comparison with the Golden Warrior at 104 px (Grinding) and 88 px (Boss): the full 720p frames, the wardrobe preview and the silhouettes. The two outfits are distinguishable by silhouette alone (IoU 0.69–0.72) and by value (p4_gameplay.png, p4_frames_720p.jpg, p4_preview.png, p4_silhouettes.png).
+
+Section 4 of the report lists your decisions: Step 1, concept v2, and the rig additions the coat needs before its sheets are drawn.
