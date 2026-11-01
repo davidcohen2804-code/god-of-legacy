@@ -1,0 +1,48 @@
+<title>Character Studio</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --ink: #0c1017; --panel: #131a25; --raise: #1a2331; --rule: #2a3548; --fg: #ece5d6; --muted: #9ea7b8;
+    --gold: #e2b45c; --gold-ink: #2a1c05; --focus: #8fc2ff;
+    --display: 'Cinzel', Georgia, serif; --body: 'Inter', system-ui, sans-serif; --mono: 'JetBrains Mono', ui-monospace, monospace;
+    color-scheme: dark;
+  }
+  html, body { background: var(--ink); color: var(--fg); }
+  body { font: 14px/1.45 var(--body); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 14px 28px; }
+  h1 { font: 700 22px/1.1 var(--display); letter-spacing: .06em; margin: 0 0 4px; color: var(--gold); }
+  .sub { margin: 0 0 12px; color: var(--muted); max-width: 80ch; }
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 14px; align-items: start; }
+  @media (max-width: 1100px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+  .stage { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #05070b; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; }
+  .stage canvas { display: block; }
+  .rail { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .card { background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; padding: 12px; display: grid; gap: 10px; }
+  .card h2 { font: 600 11px/1 var(--body); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 0; }
+  .seg { display: flex; flex-wrap: wrap; gap: 4px; }
+  button { font: 500 13px/1 var(--body); color: var(--fg); background: var(--raise); border: 1px solid var(--rule); border-radius: 5px; padding: 7px 10px; cursor: pointer; }
+  button:hover { border-color: var(--gold); }
+  button[aria-pressed="true"] { background: var(--gold); border-color: var(--gold); color: var(--gold-ink); font-weight: 600; }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+  label.check { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  input[type="checkbox"] { accent-color: var(--gold); width: 16px; height: 16px; margin: 0; }
+  #clock { font: 500 12.5px/1.3 var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+</style>
+
+<h1>Character Studio</h1>
+<p class="sub">Body template t1: the base body and the base outfit, cut from drawings in the template's source pose. Left: large view. Right: gameplay size.</p>
+<div class="layout">
+  <div class="stage" id="stage"></div>
+  <div class="rail">
+    <div class="card"><h2>Animation</h2><div class="seg" id="anims"></div></div>
+    <div class="card"><h2>Clock</h2>
+      <div class="seg"><button id="play">Pause</button><button id="back" aria-label="One frame back">◀ frame</button><button id="fwd" aria-label="One frame forward">frame ▶</button><button id="speed">Speed</button></div>
+      <div id="clock"></div>
+    </div>
+    <div class="card"><h2>Worn</h2><div id="wear"></div></div>
+    <div class="card"><h2>Overlays</h2><div id="overlays"></div></div>
+  </div>
+</div>
+<script type="module" src="./assets/studio.js"></script>

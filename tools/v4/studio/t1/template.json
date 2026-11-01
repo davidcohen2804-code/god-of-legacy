@@ -1,0 +1,87 @@
+{
+ "id": "t1",
+ "note": "Body template 1: the base body drawn by the art director in the template's source pose (body.png). Everything here is measured on that drawing, so the drawn joints are the skeleton's joints. Coordinates are drawing px (y down); lengths in B (sole to skull top) at bpx px per B. Every item of a supported type is drawn on this same body, at this same place, and cut with these same numbers.",
+ "body": "body.png",
+ "canvas": [1024, 1536],
+ "bpx": 983,
+ "ground": 1303,
+ "atlas_bpx": 512,
+ "joints": {
+  "neck": [514, 603],
+  "waist": [519, 810],
+  "pelvis": [519.5, 895],
+  "shoulder_B": [430, 662],
+  "elbow_B": [388, 778],
+  "wrist_B": [361, 877],
+  "shoulder_F": [561, 668],
+  "elbow_F": [614, 786],
+  "wrist_F": [658, 882],
+  "hip_B": [477, 895],
+  "knee_B": [443, 1060],
+  "ankle_B": [414, 1233],
+  "hip_F": [562, 895],
+  "knee_F": [565, 1060],
+  "ankle_F": [574, 1235]
+ },
+ "head": {
+  "note": "The head standard (face, expressions, hair) replaces the drawn head: fitted to the drawn head, its neck-top pivot lands on the neck joint at this scale (head standard px per drawing px / 512 px per B).",
+  "scale": 1.92
+ },
+ "hands": {
+  "note": "The hand standard (five states) scaled to the drawn hands; the wrist is the hand's pivot.",
+  "scale": 1.2
+ },
+ "limbs": {
+  "arm_B": {"joints": ["shoulder_B", "elbow_B", "wrist_B"], "top": 0.045, "bottom": 0.03, "bend": 0.028, "width": 0.12, "end_cap": 0.03},
+  "arm_F": {"joints": ["shoulder_F", "elbow_F", "wrist_F"], "top": 0.045, "bottom": 0.03, "bend": 0.028, "width": 0.12, "end_cap": 0.03},
+  "leg_B": {"joints": ["hip_B", "knee_B", "ankle_B"], "top": 0.06, "bottom": 0.035, "bend": 0.04, "width": 0.13, "end_cap": 0.04},
+  "leg_F": {"joints": ["hip_F", "knee_F", "ankle_F"], "top": 0.06, "bottom": 0.035, "bend": 0.04, "width": 0.13, "end_cap": 0.04}
+ },
+ "drawings": {
+  "body.png": {
+   "note": "the base body: seeds per part (the watershed grows them out to the drawn outlines), front to back for shared outlines",
+   "seeds": {
+    "head": [[[480, 480], [560, 470]], [[350, 420], [450, 330], [600, 360]], [[430, 530]], [[520, 575]], [[445, 590], [458, 582]]],
+    "torso": [[[510, 700], [505, 790]], [[505, 615], [520, 622]], [[460, 642]], [[560, 646]], [[470, 760], [555, 770]]],
+    "arm_B": [[[418, 682], [406, 722], [394, 760], [380, 800], [370, 840], [362, 868]]],
+    "hand_B": [[[350, 915], [362, 940]]],
+    "arm_F": [[[582, 700]], [[590, 735]], [[604, 775], [622, 818], [640, 855], [655, 876]]],
+    "hand_F": [[[665, 915], [672, 940]]],
+    "pelvis": [[[515, 865], [480, 880], [560, 880]], [[515, 900]]],
+    "leg_B": [[[465, 940], [455, 1000], [443, 1060], [428, 1130], [418, 1200]]],
+    "leg_F": [[[565, 940], [566, 1000], [566, 1060], [570, 1130], [573, 1200]]],
+    "foot_B": [[[420, 1265], [400, 1285], [450, 1290]]],
+    "foot_F": [[[585, 1265], [620, 1285], [650, 1290]]]
+   },
+   "front_to_back": ["hand_B", "arm_B", "head", "torso", "pelvis", "hand_F", "arm_F", "leg_B", "foot_B", "leg_F", "foot_F"],
+   "cuts": {"wrist": ["arm", "hand"], "ankle": ["leg", "foot"], "pelvis": ["pelvis", "leg_B", "leg_F"]}
+  },
+  "outfit_base.png": {
+   "note": "the base outfit drawn on the base body (shirt, trousers, ankle boots)",
+   "seeds": {
+    "head": [[[480, 480], [560, 470]], [[350, 420], [450, 330], [600, 360]], [[430, 530]], [[520, 575]], [[445, 590], [458, 582]]],
+    "neck": [[[505, 612], [520, 620]]],
+    "shirt": [[[510, 700], [505, 790]], [[470, 820], [560, 800]], [[490, 652], [545, 655]]],
+    "sleeve_B": [[[400, 680], [385, 730], [375, 745]]],
+    "sleeve_F": [[[588, 700], [600, 735]]],
+    "arm_B": [[[380, 792], [370, 840], [362, 868]]],
+    "arm_F": [[[617, 792], [632, 830], [650, 870]]],
+    "hand_B": [[[350, 915], [362, 940]]],
+    "hand_F": [[[665, 915], [672, 940]]],
+    "trousers": [[[515, 875], [470, 882], [565, 882]]],
+    "trouser_B": [[[455, 960], [440, 1040], [420, 1120], [405, 1200]], [[420, 1210], [445, 1215]]],
+    "trouser_F": [[[565, 960], [565, 1040], [575, 1120], [582, 1200]], [[570, 1210], [600, 1215]]],
+    "boot_B": [[[440, 1262], [420, 1282], [470, 1286]]],
+    "boot_F": [[[600, 1256], [630, 1276], [650, 1290]]]
+   },
+   "front_to_back": ["hand_B", "sleeve_B", "arm_B", "head", "neck", "shirt", "trousers", "hand_F", "sleeve_F", "arm_F", "trouser_B", "boot_B", "trouser_F", "boot_F"],
+   "cuts": {"wrist": ["arm", "hand"], "pelvis": ["trousers", "trouser_B", "trouser_F"]}
+  }
+ },
+ "items": [
+  {"id": "t1_body", "slot": "body", "name": "Base body", "drawing": "body.png", "pieces": [{"part": "torso", "labels": ["torso"], "caps": ["arm_B", "arm_F"], "neck": true}, {"part": "pelvis", "labels": ["pelvis"], "under": "torso", "crotch": ["leg_B", "leg_F"]}, {"part": "arm_B", "labels": ["arm_B"]}, {"part": "arm_F", "labels": ["arm_F"]}, {"part": "leg_B", "labels": ["leg_B"]}, {"part": "leg_F", "labels": ["leg_F"]}, {"part": "foot_B", "labels": ["foot_B"], "ankle_band": true}, {"part": "foot_F", "labels": ["foot_F"], "ankle_band": true}]},
+  {"id": "t1_shirt", "slot": "top", "name": "Base shirt", "drawing": "outfit_base.png", "pieces": [{"part": "torso", "labels": ["shirt"], "caps": ["sleeve_B", "sleeve_F"]}, {"part": "arm_B", "labels": ["sleeve_B"]}, {"part": "arm_F", "labels": ["sleeve_F"]}]},
+  {"id": "t1_trousers", "slot": "bottom", "name": "Base trousers", "drawing": "outfit_base.png", "hides": ["leg_B.skin", "leg_F.skin", "pelvis.skin", "crotch.skin"], "pieces": [{"part": "pelvis", "labels": ["trousers"], "under": "shirt", "crotch": ["trouser_B", "trouser_F"]}, {"part": "leg_B", "labels": ["trouser_B"]}, {"part": "leg_F", "labels": ["trouser_F"]}]},
+  {"id": "t1_boots", "slot": "shoes", "name": "Base ankle boots", "drawing": "outfit_base.png", "pieces": [{"part": "foot_B", "labels": ["boot_B"], "under": "trouser_B"}, {"part": "foot_F", "labels": ["boot_F"], "under": "trouser_F"}]}
+ ]
+}

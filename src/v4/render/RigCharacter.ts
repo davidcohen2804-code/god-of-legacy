@@ -10,6 +10,11 @@ const D2R = Math.PI / 180;
 /** Points along a cloth strip, and scratch buffers for its curve (layout is synchronous, so they are shared). */
 const STRIP_N = 14;
 const CP = new Float64Array(256), CQ = new Float64Array(256);
+/** Points along a limb strip (enough for a smooth bend at the elbow or the knee). */
+const LIMB_N = 40;
+
+/** A limb slot's bones and layout, in rig units (SlotDef.limb). */
+interface LimbLayout { b0: number; b1: number; top: number; bottom: number; bend: number }
 
 /** A placeholder atlas: its texture key and how many rig units one of its pixels covers. */
 export interface Atlas { key: string; unitsPerPx: number }
@@ -33,6 +38,7 @@ export class RigCharacter {
   /** Cloth strips (slots with `strip`): drawn as a rope bent along the chain bones instead of a flat image. */
   private readonly ropes: (Phaser.GameObjects.Rope | null)[];
   private readonly stripBones: (Int16Array | null)[];
+  private readonly limbs: (LimbLayout | null)[];
   private orderId = '\u0000';
 
   constructor(readonly scene: Phaser.Scene, readonly pose: RigPose, private atlas: Atlas, inScene: boolean) {
@@ -46,9 +52,15 @@ export class RigCharacter {
     this.slotParent = new Int16Array(slots.map((_, i) => pose.parent[this.slotBone[i]]));
     this.frames = slots.map(() => null);
     this.stripBones = slots.map((s) => (s.strip ? Int16Array.from(s.strip.map((n) => pose.index.get(n)!)) : null));
+    const B = pose.rig.B;
+    this.limbs = slots.map((s) => (s.limb ? {
+      b0: pose.index.get(s.limb.bones[0])!, b1: pose.index.get(s.limb.bones[1])!,
+      top: s.limb.top * B, bottom: s.limb.bottom * B, bend: s.limb.bend * B,
+    } : null));
     this.ropes = slots.map((s) => {
-      if (!s.strip) return null;
-      const r = new Phaser.GameObjects.Rope(scene, 0, 0, atlas.key, undefined, Array.from({ length: STRIP_N }, (_, j) => ({ x: 0, y: j })), false);
+      if (!s.strip && !s.limb) return null;
+      const n = s.limb ? LIMB_N : STRIP_N;
+      const r = new Phaser.GameObjects.Rope(scene, 0, 0, atlas.key, undefined, Array.from({ length: n }, (_, j) => ({ x: 0, y: j })), false);
       r.setVisible(false);
       return r;
     });
@@ -94,7 +106,7 @@ export class RigCharacter {
       const fr = part ? frameOf(part, slots[i], this.state.swaps, av.unarmed) : undefined;
       const rope = this.ropes[i];
       if (!fr) { if (rope) { if (rope.visible) rope.setVisible(false); } else if (img.visible) img.setVisible(false); continue; }
-      if (rope) { this.layoutStrip(i, rope, fr, s); this.drawn.push(i); continue; }
+      if (rope) { if (this.limbs[i]) this.layoutLimb(i, rope, fr, s); else this.layoutStrip(i, rope, fr, s); this.drawn.push(i); continue; }
       if (this.frames[i] !== fr) { img.setFrame(fr); this.frames[i] = fr; }
       const b = this.slotBone[i], o = b * 6;
       img.x = w[o + 4] * s; img.y = w[o + 5] * s;
@@ -150,6 +162,38 @@ export class RigCharacter {
       while (d > acc + segLen && seg + 2 < m / 2) { acc += segLen; seg++; segLen = Math.hypot(src[seg * 2 + 2] - src[seg * 2], src[seg * 2 + 3] - src[seg * 2 + 1]); }
       const t = segLen > 0 ? (d - acc) / segLen : 0;
       const px = src[seg * 2] + (src[seg * 2 + 2] - src[seg * 2]) * t, py = src[seg * 2 + 1] + (src[seg * 2 + 3] - src[seg * 2 + 1]) * t;
+      pts[j].x = px / u; pts[j].y = py / u;
+    }
+    rope.setScale(u * s);
+    rope.dirty = true;
+    if (!rope.visible) rope.setVisible(true);
+  }
+
+  /** A limb strip (SlotDef.limb): the frame (the limb drawn straight) bent along its two bones — straight along the
+   *  upper one, a smooth turn of radius `bend` about the middle joint, straight along the lower one. The frame's rows are
+   *  tied to the joints (the top joint `top` below its top edge, the others at the bones' lengths), so a sleeve, a
+   *  trouser leg or a boot cut to the same layout bends exactly with the skin under it. The turn takes the rows of the
+   *  corner's two tangent lengths: the inside of the bend is gathered, the outside spread. */
+  private layoutLimb(i: number, rope: Phaser.GameObjects.Rope, fr: string, s: number): void {
+    const u = this.atlas.unitsPerPx, w = this.state.world, L = this.limbs[i]!;
+    if (this.frames[i] !== fr) { rope.setFrame(fr); rope.updateUVs(); this.frames[i] = fr; }
+    const o0 = L.b0 * 6, o1 = L.b1 * 6;
+    const x0 = w[o0 + 4], y0 = w[o0 + 5], ax = w[o0], ay = w[o0 + 1];
+    const x1 = w[o1 + 4], y1 = w[o1 + 5], bx = w[o1], by = w[o1 + 1];
+    const l1 = Math.hypot(x1 - x0, y1 - y0), l2 = this.pose.length(this.state, L.b1) * this.pose.rig.B;
+    const H = rope.frame.height * u;
+    const th = Math.atan2(ax * by - ay * bx, ax * bx + ay * by);
+    const t = Math.min(L.bend * Math.tan(Math.abs(th) / 2), 0.8 * l1, 0.8 * l2);
+    const p0x = x1 - ax * t, p0y = y1 - ay * t, p2x = x1 + bx * t, p2y = y1 + by * t;
+    const pts = rope.points as { x: number; y: number }[], n = pts.length;
+    for (let j = 0; j < n; j++) {
+      const v = (H * j) / (n - 1) - L.top;
+      let px: number, py: number;
+      if (v < l1 - t) { px = x0 + ax * v; py = y0 + ay * v; }
+      else if (v < l1 + t) {
+        const q = (v - (l1 - t)) / (2 * t), a = (1 - q) * (1 - q), b = 2 * (1 - q) * q, c = q * q;
+        px = a * p0x + b * x1 + c * p2x; py = a * p0y + b * y1 + c * p2y;
+      } else { const d = v - l1; px = x1 + bx * d; py = y1 + by * d; }
       pts[j].x = px / u; pts[j].y = py / u;
     }
     rope.setScale(u * s);

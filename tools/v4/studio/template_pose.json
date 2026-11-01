@@ -1,0 +1,13 @@
+{
+ "note": "The body template's source pose (draft for the guide): standing straight, 3/4 view facing right, arms hanging a little away from the body with a slight forward bend at the elbows, legs straight and slightly apart, feet flat. World angles in degrees, clockwise on screen (90 = straight down); B is the near (back) side, F the far (front) side.",
+ "canvas": [1024, 1536],
+ "bpx": 1000,
+ "root": [512, 1300],
+ "world": {
+  "hip": 0, "chest": 0, "head": 0,
+  "uparm_B": 104, "forearm_B": 100, "hand_B": 100,
+  "uparm_F": 76, "forearm_F": 72, "hand_F": 72,
+  "thigh_B": 97, "shin_B": 94, "foot_B": 0,
+  "thigh_F": 83, "shin_F": 87, "foot_F": 0
+ }
+}

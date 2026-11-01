@@ -16,6 +16,8 @@ const ALLOWED_HIDES: Partial<Record<WardrobeSlot, (t: string) => boolean>> = {
   // gloves: the bare hand under them; a glove that draws the whole forearm (a bare one under a short sleeve, or a long
   // bracer) also replaces the body's forearm
   gloves: (t) => /^hand_[FB]\.(back|front)\.skin$/.test(t) || /^forearm_[FB]\.skin$/.test(t),
+  // full trousers (body template rigs): the bare legs, hips and crotch under them
+  bottom: (t) => /^leg_[FB]\.skin$/.test(t) || t === 'pelvis.skin' || t === 'crotch.skin',
 };
 
 export class Wardrobe {

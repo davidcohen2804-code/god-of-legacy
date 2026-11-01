@@ -58,6 +58,12 @@ export interface SlotDef {
   /** A cloth strip: the slot's picture is drawn bent along these chain bones (the first is the slot's bone), top edge
    *  at the bone's origin minus the frame's pivot. Its top follows the parent's rest direction (pinned at the clasps). */
   strip?: string[];
+  /** A limb strip (the body template's arms and legs, and every item drawn on them): the slot's picture is the limb
+   *  drawn straight, top to bottom, bent along two bones: straight along the first, round about the joint between them
+   *  (radius `bend`, B), straight along the second. Rows are tied to the joints: the top joint is `top` B below the
+   *  picture's top edge, the middle and end joints follow at the bones' lengths, and `bottom` B of picture go on past
+   *  the end joint. Every picture on the slot is cut to that same layout, so they all bend the same way. */
+  limb?: { bones: [string, string]; top: number; bottom: number; bend: number };
 }
 
 /** An item's settings for one of the rig's optional attachment chains (a cloth piece that swings on its own: a tabard,

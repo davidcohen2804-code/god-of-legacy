@@ -17,7 +17,9 @@ SHEET, W = sys.argv[1:3]
 EXTRA = [a.split('=', 1) for a in sys.argv[3:]]
 BPX = 512
 STATES = ['relaxed', 'fist', 'grip', 'grip2', 'open']
-OLD_FIST_W = {'basic': 0.057, 'gold': 0.059}  # the approved fists' widths, B
+import os
+# the approved fists' widths, B (HAND_SCALE scales them, e.g. for a body template drawn with bigger hands)
+OLD_FIST_W = {k: v * float(os.environ.get('HAND_SCALE', '1')) for k, v in {'basic': 0.057, 'gold': 0.059}.items()}
 BOX_W, BOX_H, X0, GAP = 280, 440, 12, 28
 ROW_TOP = {'top': 24, 'bottom': 560}
 
