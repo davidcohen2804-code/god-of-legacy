@@ -1,8 +1,10 @@
 // Rig evaluation: bone curves → world transforms, corrective swaps, draw order, events; spring chains for the cape
 // and long hair. Pure TypeScript (no Phaser): the same numbers whatever the outfit.
-import type { AnimDef, Key, RigDef, SwapKey } from './types';
+import type { AnimDef, AttachSpec, Key, RigDef, SwapKey } from './types';
 
 const D2R = Math.PI / 180;
+/** An angle in degrees brought into (−180, 180]. */
+const wrap = (d: number) => d - 360 * Math.round(d / 360);
 
 export function sample(keys: Key[] | undefined, t: number): number {
   if (!keys || keys.length === 0) return 0;
@@ -30,6 +32,15 @@ function swapAt(keys: SwapKey[] | undefined, t: number, dflt: string): string {
   return v;
 }
 
+/** A bone of an attachment chain as the worn item set it up (RigDef.attach, AttachSpec). */
+export interface AttachBone {
+  x: number; y: number; r: number; len: number;
+  /** Links after the first: the share of the link above's turn away from its rest angle that this link swings back. */
+  hang: number;
+  /** First link: bones it stays in front of (the most forward of them, plus `margin` degrees). */
+  clear: Int16Array | null; margin: number;
+}
+
 export interface PoseState {
   /** 6 numbers per bone (a, b, c, d, tx, ty), rig units: x' = a·x + c·y + tx, y' = b·x + d·y + ty. */
   world: Float64Array;
@@ -37,6 +48,8 @@ export interface PoseState {
   /** Slot indices, back to front. */
   order: number[];
   orderId: string;
+  /** Per bone: its attachment-chain set-up from the worn items (null = the rig's own bone values). */
+  att: (AttachBone | null)[];
 }
 
 export interface ChainSpec { bones: string[]; k: number; c: number; gainV: number[]; gainZ: number[]; limit: number }
@@ -74,19 +87,57 @@ export class RigPose {
   newState(): PoseState {
     const swaps: Record<string, string> = {};
     for (const [ch, vals] of Object.entries(this.rig.channels)) swaps[ch] = vals[0];
-    return { world: new Float64Array(this.n * 6), swaps, order: this.defaultOrder, orderId: '' };
+    return { world: new Float64Array(this.n * 6), swaps, order: this.defaultOrder, orderId: '', att: new Array(this.n).fill(null) };
   }
+
+  /** Set up the attachment chains the worn items use (the others go back to the rig's idle values). */
+  attach(state: PoseState, specs: AttachSpec[]): void {
+    state.att.fill(null);
+    for (const sp of specs) {
+      const names = this.rig.attach?.[sp.chain];
+      if (!names) continue;
+      const clear = sp.clearOf ? Int16Array.from(sp.clearOf.map((n) => this.index.get(n) ?? -1).filter((i) => i >= 0)) : null;
+      names.forEach((name, j) => {
+        const i = this.index.get(name);
+        if (i === undefined) return;
+        state.att[i] = {
+          x: j === 0 ? sp.at[0] : sp.lens[j - 1], y: j === 0 ? sp.at[1] : 0, r: j === 0 ? sp.rest : 0,
+          len: sp.lens[j] ?? sp.lens[sp.lens.length - 1], hang: j === 0 ? 0 : sp.hang ?? 0,
+          clear: j === 0 ? clear : null, margin: sp.margin ?? 0,
+        };
+      });
+    }
+  }
+
+  /** A bone's rest rotation against its parent and its length, as the worn items set them up. */
+  restR(state: PoseState, i: number): number { return state.att[i]?.r ?? this.rig.bones[i].r; }
+  length(state: PoseState, i: number): number { return state.att[i]?.len ?? this.rig.bones[i].len; }
 
   /** Evaluate `anim` at `t` seconds (looping animations wrap). `chain` adds the spring offsets of the cape / hair. */
   evaluate(anim: AnimDef, t: number, out: PoseState, chain?: ChainSim): void {
     const tt = anim.loop ? ((t % anim.dur) + anim.dur) % anim.dur : Math.max(0, Math.min(anim.dur, t));
     const B = this.rig.B, w = out.world;
     for (let i = 0; i < this.n; i++) {
-      const b = this.rig.bones[i], tl = anim.bones[b.name];
-      const rot = (b.r + (tl ? sample(tl.r, tt) : 0) + (chain ? chain.offset(i) : 0)) * D2R;
-      const lx = (b.x + (tl ? sample(tl.x, tt) : 0)) * B, ly = (b.y + (tl ? sample(tl.y, tt) : 0)) * B;
-      const la = Math.cos(rot), lb = Math.sin(rot), lc = -lb, ld = la;
+      const b = this.rig.bones[i], tl = anim.bones[b.name], ab = out.att[i];
+      let deg = (ab ? ab.r : b.r) + (tl ? sample(tl.r, tt) : 0) + (chain ? chain.offset(i) : 0);
       const p = this.parent[i], o = i * 6;
+      if (ab && p >= 0) {
+        // an attachment link: later links swing back toward hanging down; the first stays clear of the given bones
+        const pw = Math.atan2(w[p * 6 + 1], w[p * 6]) / D2R, pp = this.parent[p], pa = out.att[p];
+        if (ab.hang && pa && pp >= 0) { // the link above pushed away from its rest angle: swing back by `hang` of that
+          const rest = Math.atan2(w[pp * 6 + 1], w[pp * 6]) / D2R + pa.r;
+          deg += ab.hang * wrap(rest - pw);
+        }
+        if (ab.clear && ab.clear.length) {
+          let front = Infinity;
+          for (const c of ab.clear) front = Math.min(front, Math.atan2(w[c * 6 + 1], w[c * 6]) / D2R);
+          const over = wrap(pw + deg - (front + ab.margin));
+          if (over > 0) deg -= over;
+        }
+      }
+      const rot = deg * D2R;
+      const lx = ((ab ? ab.x : b.x) + (tl ? sample(tl.x, tt) : 0)) * B, ly = ((ab ? ab.y : b.y) + (tl ? sample(tl.y, tt) : 0)) * B;
+      const la = Math.cos(rot), lb = Math.sin(rot), lc = -lb, ld = la;
       if (p < 0) { w[o] = la; w[o + 1] = lb; w[o + 2] = lc; w[o + 3] = ld; w[o + 4] = lx; w[o + 5] = ly; continue; }
       const q = p * 6, pa = w[q], pb = w[q + 1], pc = w[q + 2], pd = w[q + 3];
       w[o] = pa * la + pc * lb; w[o + 1] = pb * la + pd * lb;
@@ -168,11 +219,33 @@ export class ChainSim {
     });
   }
 
+  /** The attachment chains' links, with the springs of the items that use them (replacing the previous set). */
+  private att: { bone: number; k: number; c: number; gv: number; gz: number; limit: number }[] = [];
+  private attKey = '';
+
+  setAttach(pose: RigPose, specs: AttachSpec[]): void {
+    const key = JSON.stringify(specs);
+    if (key === this.attKey) return;
+    this.attKey = key;
+    for (const l of this.att) { this.off[l.bone] = 0; this.vel[l.bone] = 0; }
+    this.att = [];
+    for (const s of specs) (pose.rig.attach?.[s.chain] ?? []).forEach((name, j) => {
+      const bone = pose.index.get(name);
+      if (bone !== undefined) this.att.push({ bone, k: s.k, c: s.c, gv: s.gainV[j] ?? 0, gz: s.gainZ[j] ?? 0, limit: s.limit });
+    });
+  }
+
   reset(): void { this.off.fill(0); this.vel.fill(0); }
 
   /** `vxN`: forward speed, −1..1 (facing direction); `vzN`: vertical speed, −1..1 (up = +). */
   step(dt: number, vxN: number, vzN: number): void {
     const h = Math.min(dt, 1 / 30);
+    for (const l of this.att) {
+      const target = l.gv * vxN + l.gz * vzN;
+      const acc = l.k * (target - this.off[l.bone]) - l.c * this.vel[l.bone];
+      this.vel[l.bone] += acc * h;
+      this.off[l.bone] = Math.max(-l.limit, Math.min(l.limit, this.off[l.bone] + this.vel[l.bone] * h));
+    }
     for (const l of this.links) {
       const target = l.gv * vxN + l.gz * vzN;
       const acc = l.k * (target - this.off[l.bone]) - l.c * this.vel[l.bone];

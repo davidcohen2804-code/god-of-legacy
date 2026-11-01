@@ -60,6 +60,23 @@ export interface SlotDef {
   strip?: string[];
 }
 
+/** An item's settings for one of the rig's optional attachment chains (a cloth piece that swings on its own: a tabard,
+ *  coat tails). The chain's bones exist in the rig; the item that hangs something on them places and tunes them. */
+export interface AttachSpec {
+  /** The rig's attachment chain (RigDef.attach). */
+  chain: string;
+  /** Where the chain hangs from on its parent bone (B units, the parent's rest frame), its rest angle against the parent
+   *  (degrees; 90 = straight down the hips) and its links' lengths (B). */
+  at: [number, number]; rest: number; lens: number[];
+  /** Spring: stiffness, damping, response per link to forward speed and to vertical speed (degrees per unit), limit. */
+  k: number; c: number; gainV: number[]; gainZ: number[]; limit: number;
+  /** How far each link after the first swings back when the one above it is pushed away from its rest angle (0..1). */
+  hang?: number;
+  /** Bones it must stay in front of (e.g. the thighs): the first link is never further back than the most forward of
+   *  them, plus `margin` degrees, so a raised knee lifts the cloth instead of passing through it. */
+  clearOf?: string[]; margin?: number;
+}
+
 export interface RigDef {
   id: string;
   /** Rig units per B. */
@@ -69,4 +86,7 @@ export interface RigDef {
   slots: SlotDef[];
   /** Corrective channels and their allowed values; the first value is the default. */
   channels: Record<string, string[]>;
+  /** Optional attachment chains (name → bones, parent first): idle and rigid unless a worn item hangs a piece on them
+   *  (AttachSpec); they come after the body's bones, so the body's own motion never depends on them. */
+  attach?: Record<string, string[]>;
 }

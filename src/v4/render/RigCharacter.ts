@@ -67,8 +67,14 @@ export class RigCharacter {
     this.frames.fill(null);
   }
 
-  /** A new look: shown from the next layout (call it before layout and it shows in the same frame). */
-  setAvatar(av: Avatar): void { this.avatar = av; }
+  /** A new look: shown from the next layout (call it before layout and it shows in the same frame). The worn items'
+   *  attachment chains (a tabard, coat tails) are set up with their own springs; a chain nobody uses stays idle. */
+  setAvatar(av: Avatar): void {
+    this.avatar = av;
+    const specs = Object.values(av.items).flatMap((it) => it?.attach ?? []);
+    this.pose.attach(this.state, specs);
+    this.chain.setAttach(this.pose, specs);
+  }
 
   evaluate(anim: AnimDef, t: number): void { this.pose.evaluate(anim, t, this.state, this.chain); }
 
@@ -110,18 +116,19 @@ export class RigCharacter {
    *  direction against the body, so the clasps stay on the shoulders; below, the strip follows the chain bones through
    *  a smoothed curve (two rounds of corner cutting), sampled evenly over the frame's own length (never stretched). */
   private layoutStrip(i: number, rope: Phaser.GameObjects.Rope, fr: string, s: number): void {
-    const u = this.atlas.unitsPerPx, w = this.state.world, B = this.pose.rig.B, rig = this.pose.rig.bones;
+    const u = this.atlas.unitsPerPx, w = this.state.world, B = this.pose.rig.B;
     if (this.frames[i] !== fr) { rope.setFrame(fr); rope.updateUVs(); this.frames[i] = fr; }
     const f = rope.frame, L = f.height * u;
     const top = (f.customPivot ? f.pivotY : 0) * L;
     const bs = this.stripBones[i]!, b0 = bs[0], o0 = b0 * 6, par = this.pose.parent[b0];
-    const restA = (par >= 0 ? Math.atan2(w[par * 6 + 1], w[par * 6]) : 0) + rig[b0].r * D2R;
+    const st = this.state, pose = this.pose;
+    const restA = (par >= 0 ? Math.atan2(w[par * 6 + 1], w[par * 6]) : 0) + pose.restR(st, b0) * D2R;
     const rx = Math.cos(restA), ry = Math.sin(restA), x0 = w[o0 + 4], y0 = w[o0 + 5];
     let n = 0;
     const put = (x: number, y: number) => { CP[n++] = x; CP[n++] = y; };
-    put(x0 - rx * top, y0 - ry * top); put(x0, y0); put(x0 + rx * 0.4 * rig[b0].len * B, y0 + ry * 0.4 * rig[b0].len * B);
+    put(x0 - rx * top, y0 - ry * top); put(x0, y0); put(x0 + rx * 0.4 * pose.length(st, b0) * B, y0 + ry * 0.4 * pose.length(st, b0) * B);
     for (let j = 1; j < bs.length; j++) put(w[bs[j] * 6 + 4], w[bs[j] * 6 + 5]);
-    const last = bs[bs.length - 1], ol = last * 6, ll = rig[last].len * B;
+    const last = bs[bs.length - 1], ol = last * 6, ll = pose.length(st, last) * B;
     put(w[ol + 4] + w[ol] * ll, w[ol + 5] + w[ol + 1] * ll);
     // corner cutting (Chaikin), twice, keeping both ends
     let src = CP, dst = CQ, m = n;

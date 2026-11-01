@@ -1,6 +1,6 @@
 // Wardrobe data (proposal section 11): items are sets of part images placed in rig slots; nothing here touches
 // animation data or gameplay numbers.
-import type { WardrobeSlot } from '../rig/types';
+import type { AttachSpec, WardrobeSlot } from '../rig/types';
 
 export type { WardrobeSlot };
 export type HairCover = 'none' | 'cap' | 'helm' | 'full';
@@ -24,6 +24,8 @@ export interface Item {
   bodies: BodyStd[];
   /** Seam classes where it meets other slots (section 11.4): sleeve, cuff, hem, shaft, collar, tails. */
   seams?: Record<string, string>;
+  /** Cloth pieces this item hangs on the rig's attachment chains, with their own spring settings. */
+  attach?: AttachSpec[];
 }
 
 export interface AppearanceInput {

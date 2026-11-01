@@ -227,7 +227,8 @@
      205
     ]
    ],
-   "scale": 0.00043
+   "scale": 0.00043,
+   "center_pivot": true
   }
  },
  "caps": {

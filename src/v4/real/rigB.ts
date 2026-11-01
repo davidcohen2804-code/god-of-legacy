@@ -38,15 +38,27 @@ const feetFirst = (list: SlotDef[]) => [...list.filter((s) => s.name.startsWith(
 const cap = (name: string, bone: string, grp: string): SlotDef => ({ name, bone, group: grp, owner: 'top', blend: 0.5 });
 const armF = group('armF'), armB = group('armB');
 const after = (list: SlotDef[], anchor: string, extra: SlotDef[]) => { const i = list.findIndex((s) => s.name === anchor) + 1; return [...list.slice(0, i), ...extra, ...list.slice(i)]; };
+// Optional attachment chains on the hips (Phase 4): two short two-bone chains, idle and undrawn unless a worn item hangs a
+// cloth piece on them and tunes them (AttachSpec: anchor, rest angle, lengths, spring, staying clear of the thighs).
+// Chain A belongs to the trousers (the Golden tabard), chain B to the top (coat tails), so the two never share a
+// motion curve. Each chain has a slot in front of the body and one behind the legs; the piece picks where it draws.
+// Layering when both are worn: in front, the trousers' piece (hung from the belt) over the top's; behind the legs, the
+// top's coat tails over the trousers' piece.
+const ATTACH_BONES: BoneDef[] = [
+  { name: 'hipA_1', parent: 'hip', x: 0, y: 0, r: 90, len: 0.12 }, { name: 'hipA_2', parent: 'hipA_1', x: 0.12, y: 0, r: 0, len: 0.12 },
+  { name: 'hipB_1', parent: 'hip', x: 0, y: 0, r: 90, len: 0.12 }, { name: 'hipB_2', parent: 'hipB_1', x: 0.12, y: 0, r: 0, len: 0.12 },
+];
+const att = (name: string, chain: 'A' | 'B', grp: string): SlotDef => ({ name, bone: `hip${chain}_1`, group: grp, owner: chain === 'A' ? 'bottom' : 'top', strip: [`hip${chain}_1`, `hip${chain}_2`] });
 const slots: SlotDef[] = [
   // the cape is one picture bent along the three cape bones
   ...group('behind').map((s) => (s.name === 'cape.back.1' ? { ...s, strip: ['cape_1', 'cape_2', 'cape_3'] } : s)),
+  att('hipA.back', 'A', 'behind'), att('hipB.back', 'B', 'behind'),
   ...armF.filter((s) => s.name.startsWith('uparm_F.')).map((s) => ({ ...s, group: 'armFU' })),
   ...feetFirst(group('legF')),
   ...feetFirst(group('legB')),
   ...group('torso').filter((s) => !s.name.startsWith('hip.')), ...group('torso').filter((s) => s.name.startsWith('hip.')),
-  // the Golden tabard hangs from the belt, over the hips and the tops of the thighs
-  { name: 'hip.tabard', bone: 'hip', group: 'torso', owner: 'bottom' },
+  // hung from the belt, over the hips and the tops of the thighs: the top's piece, then the trousers' (the Golden tabard)
+  att('hipB.front', 'B', 'torso'), att('hipA.front', 'A', 'torso'),
   // the near arm, with caps that turn half as far as the limb: the shoulder piece and the elbow piece
   ...after(after(armB, 'uparm_B.over', [cap('uparm_B.cap', 'uparm_B', 'armB')]), 'forearm_B.over', [cap('forearm_B.cap', 'forearm_B', 'armB')]),
   // the fringe's strand tips at the brows differ per expression: that hair slot follows the face channel
@@ -63,6 +75,7 @@ export const RIG_B: RigDef = {
   // the hand standard adds the second hand of a two-handed grip
   channels: { ...GOLDEN_RIG.channels, handF: [...GOLDEN_RIG.channels.handF, 'grip2'], handB: [...GOLDEN_RIG.channels.handB, 'grip2'] },
   id: 'warrior_b_v1',
-  bones: GOLDEN_RIG.bones.map((b) => ({ ...b, ...(MEASURED[b.name] ?? {}) })),
+  bones: [...GOLDEN_RIG.bones.map((b) => ({ ...b, ...(MEASURED[b.name] ?? {}) })), ...ATTACH_BONES],
   slots,
+  attach: { hipA: ['hipA_1', 'hipA_2'], hipB: ['hipB_1', 'hipB_2'] },
 };

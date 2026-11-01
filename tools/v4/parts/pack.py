@@ -6,7 +6,6 @@ from PIL import Image
 
 D, OUT = sys.argv[1], sys.argv[2]
 HIP = 0.40  # the hip joint above the soles: the belt and the leg tops at the approved illustration's height
-TABARD = (0.0234, -0.0692)  # the Golden tabard's top on the hip bone, B: under the belt, centred on the old tabard
 HAT = (0.01, -0.27)  # the helmet socket on the head bone, B (the rig's hat bone)
 meta = {k: json.load(open(f'{D}/parts_{k}.json')) for k in ('basic', 'gold', 'head', 'hands')}
 BPX = meta['basic']['bpx']
@@ -35,7 +34,7 @@ for look in ('basic', 'gold'):
             if f'{look}_{state}{suffix}' in meta['hands']['parts']:
                 for far in (False, True):
                     add('hands', f'{look}_{state}{suffix}', far=far, name=f'b/{look}/hand_{state}{suffix}{"_far" if far else ""}')
-add('gold', 'tabard', shift=(-TABARD[0] * BPX, -TABARD[1] * BPX))  # hangs from the belt over the hips
+add('gold', 'tabard')  # a strip bent along the trousers' hip chain (pivot: its top centre, the chain's anchor)
 add('gold', 'cape')
 add('gold', 'cape_strip')  # the cape upright, drawn as a strip bent along the cape chain
 

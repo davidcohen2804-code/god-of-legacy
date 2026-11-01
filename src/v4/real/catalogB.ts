@@ -3,6 +3,7 @@
 // expressions (face item: blink, angry, hurt over the neutral face) and the hair (hair item, hidden by helmets). The
 // body owns what every outfit shows: the face, the forearms with their leather bracers, and the fists.
 import type { Catalog } from '../wardrobe/catalog';
+import type { AttachSpec } from '../rig/types';
 import type { Item, ItemPart, WardrobeSlot } from '../wardrobe/types';
 import data from './assets/b.json';
 
@@ -20,6 +21,13 @@ const hands = (look: 'basic' | 'gold', layer: 'skin' | 'glove') => sides((s) => 
   { slot: `hand_${s}.back.${layer}`, variants: Object.fromEntries((look === 'gold' ? ['grip', 'grip2'] : ['grip2']).map((st) => [st, `b/${look}/hand_${st}_back${far(s)}`])) },
 ]);
 const sides = (fn: (side: 'F' | 'B') => ItemPart[]): ItemPart[] => [...fn('B'), ...fn('F')];
+
+/** The Golden tabard on the trousers' hip chain: hung under the belt buckle, straight down at rest (the approved
+ *  silhouette); it trails a little when running or lunging, floats a little in a fall, and a raised knee lifts it. */
+export const TABARD_ATTACH: AttachSpec = {
+  chain: 'hipA', at: [0.0234, -0.0692], rest: 90, lens: [0.12, 0.126],
+  k: 110, c: 13, gainV: [10, 6], gainZ: [7, 4], limit: 32, hang: 0.45, clearOf: ['thigh_F', 'thigh_B'], margin: 12,
+};
 
 export function buildCatalogB(): Catalog {
   const items = new Map<string, Item>();
@@ -50,10 +58,11 @@ export function buildCatalogB(): Catalog {
     put({
       id: `b_${look}_bottom`, wslot: 'bottom', name: `${label} trousers`, set,
       parts: [
-        part('hip.under', `b/${look}/hips`), ...(look === 'gold' ? [part('hip.tabard', 'b/gold/tabard')] : []),
+        part('hip.under', `b/${look}/hips`), ...(look === 'gold' ? [part('hipA.front', 'b/gold/tabard')] : []),
         // the trouser legs: the thighs and the cloth below the knee that goes into the boot
         ...sides((s) => [part(`thigh_${s}.over`, `b/${look}/thigh${far(s)}`), part(`shin_${s}.under`, `b/${look}/shin_under${far(s)}`)]),
       ],
+      ...(look === 'gold' ? { attach: [TABARD_ATTACH] } : {}),
     });
     put({
       id: `b_${look}_shoes`, wslot: 'shoes', name: `${label} boots`, set,

@@ -90,6 +90,8 @@ export async function runTestsB(scene: LabScene, opts: { full: boolean }, progre
   // ---- B3: motion never depends on the outfit; swaps mid-animation are atomic and leave the clock alone ----
   progress('B3 motion and swaps');
   {
+    // the body's bones (the optional attachment chains come after them and belong to the items that use them)
+    const nAtt = Object.values(rig.attach ?? {}).reduce((n, b) => n + b.length, 0), bodyLen = (rig.bones.length - nAtt) * 6;
     let maxBone = 0, checks = 0;
     for (const a of ANIM_LIST) for (const t of times(a, 8)) {
       let ref: Float64Array | null = null;
@@ -97,7 +99,7 @@ export async function runTestsB(scene: LabScene, opts: { full: boolean }, progre
         ch.setAvatar(wardrobe.resolve(input(mix)));
         poseAt(ch, a, t);
         if (!ref) { ref = new Float64Array(ch.state.world); continue; }
-        for (let i = 0; i < ref.length; i++) maxBone = Math.max(maxBone, Math.abs(ref[i] - ch.state.world[i]));
+        for (let i = 0; i < bodyLen; i++) maxBone = Math.max(maxBone, Math.abs(ref[i] - ch.state.world[i]));
         checks++;
       }
     }
@@ -134,7 +136,7 @@ export async function runTestsB(scene: LabScene, opts: { full: boolean }, progre
       for (let i = 0; i < plain.length; i++) if (plain[i] !== swapped[i]) timingDiffs++;
     }
     results.push({ id: 'B3', name: 'Motion, clock and swaps are independent of the outfit', pass: maxBone === 0 && mismatches === 0 && timingDiffs === 0,
-      detail: `${checks} mix × pose comparisons: largest bone difference ${maxBone}; ${swaps} basic ↔ Golden swaps over ${frames} frames of the four animations: ${mismatches} frames showed a stale or missing part, ${timingDiffs} frames differed in time, phase, draw order or bones` });
+      detail: `${checks} mix × pose comparisons: largest difference in the body's ${rig.bones.length - nAtt} bones ${maxBone}; ${swaps} basic ↔ Golden swaps over ${frames} frames of the four animations: ${mismatches} frames showed a stale or missing part, ${timingDiffs} frames differed in time, phase, draw order or bones` });
   }
 
   // ---- B4: joints covered, sword gripped, the composite cell holds every pose ----
@@ -335,6 +337,62 @@ export async function runTestsB(scene: LabScene, opts: { full: boolean }, progre
     ms.sort((p, q) => p - q);
     const mean = ms.reduce((p, q) => p + q, 0) / ms.length, p95 = ms[Math.floor(ms.length * 0.95)];
     results.push({ id: 'B6', name: 'Swap cost (resolve + place parts)', pass: p95 < 16, detail: `600 random full-outfit swaps: mean ${mean.toFixed(3)} ms, 95th percentile ${p95.toFixed(3)} ms, max ${ms[ms.length - 1].toFixed(3)} ms (CPU; art preloaded)` });
+  }
+
+  // ---- B7: the optional hip attachment chains (the Golden tabard on the trousers' chain) ----
+  progress('B7 hip attachment chains');
+  {
+    const gold: Mix = { top: 'b_gold_top', bottom: 'b_gold_bottom', gloves: 'b_gold_gloves', shoes: 'b_gold_shoes', back: 'b_gold_cape', weapon: 'b_sun_sword' };
+    const spec = A.catalog.items.get('b_gold_bottom')!.attach![0];
+    const [a1, a2] = (rig.attach![spec.chain]).map((n) => pose.index.get(n)!);
+    const thighs = spec.clearOf!.map((n) => pose.index.get(n)!);
+    const deg = (i: number) => pose.rotation(ch.state, i);
+    const wrapD = (d: number) => d - 360 * Math.round(d / 360);
+    ch.setAvatar(wardrobe.resolve(input(gold)));
+    // (a) at rest the tabard hangs exactly as the rigid piece did: straight down the hips, untouched by the thighs
+    let restDev = 0;
+    for (const t of times(A.anims.idle, 8)) { poseAt(ch, A.anims.idle, t); restDev = Math.max(restDev, Math.abs(wrapD(deg(a1) - (deg(pose.index.get('hip')!) + spec.rest))), Math.abs(wrapD(deg(a2) - deg(a1)))); }
+    // (b) every frame of the four animations at 60 Hz, chains stepped as in the lab: the swing stays within its limit and
+    // the cloth never ends up behind the most forward thigh (a raised knee lifts it)
+    let maxSwing = 0, behind = 0, frames = 0, lifted = 0;
+    for (const a of ANIM_LIST) {
+      ch.chain.reset();
+      const n = Math.round(a.dur * 60);
+      for (let i = 0; i <= n; i++) {
+        const t = i / 60, vz = a.name === 'jump' ? Math.max(-1, Math.min(1, 1 - (2 * (t - 0.08)) / 0.52)) : 0;
+        const drive = i > 0 ? bodyDrive(a, (i - 1) / 60, t) : 0;
+        if (i > 0) ch.chain.step(1 / 60, Math.max(-1, Math.min(1, (a.name === 'run' ? 0.9 : 0) + drive)), a.name === 'jump' && t > 0.08 && t < 0.6 ? vz : 0);
+        ch.evaluate(a, Math.min(a.dur, t));
+        const w1 = deg(a1), rest1 = deg(pose.index.get('hip')!) + spec.rest, front = Math.min(...thighs.map(deg));
+        maxSwing = Math.max(maxSwing, Math.abs(wrapD(w1 - rest1)));
+        if (wrapD(w1 - (front + spec.margin!)) > 0.01) behind++;
+        if (front + spec.margin! < rest1 - 0.5) lifted++;
+        frames++;
+      }
+    }
+    // (c) the chains are independent: a second piece on the top's chain, with other springs, leaves the tabard's motion
+    // exactly as it was, and the body's bones untouched
+    const other = { ...spec, chain: 'hipB', at: [-0.05, -0.06] as [number, number], k: 60, c: 6, gainV: [30, 20], gainZ: [-20, -10], limit: 60, clearOf: undefined };
+    const track = (withB: boolean) => {
+      const out: number[] = [];
+      const av = wardrobe.resolve(input(gold));
+      const it = withB ? { ...av, items: { ...av.items, top: { ...av.items.top!, attach: [other] } } } : av;
+      ch.setAvatar(it); ch.chain.reset();
+      for (const a of ANIM_LIST) for (let i = 0; i <= Math.round(a.dur * 60); i++) {
+        const t = i / 60;
+        if (i > 0) ch.chain.step(1 / 60, a.name === 'run' ? 0.9 : bodyDrive(a, (i - 1) / 60, t), 0);
+        ch.evaluate(a, Math.min(a.dur, t));
+        out.push(deg(a1), deg(a2), ...Array.from(ch.state.world.subarray(0, (rig.bones.length - 4) * 6)));
+      }
+      return out;
+    };
+    const t0 = track(false), t1 = track(true);
+    let coupled = 0;
+    for (let i = 0; i < t0.length; i++) coupled = Math.max(coupled, Math.abs(t0[i] - t1[i]));
+    ch.setAvatar(wardrobe.resolve(input(gold)));
+    const pass = restDev < 0.5 && behind === 0 && coupled < 1e-9;
+    results.push({ id: 'B7', name: 'Hip attachment chains: the Golden tabard swings on its own chain', pass,
+      detail: `at rest (idle, 8 moments) the tabard hangs ${restDev.toFixed(2)}° from the rigid piece's angle; over ${frames} frames of the four animations at 60 Hz its largest swing is ${maxSwing.toFixed(1)}° (spring limit ${spec.limit}°, plus the lift by a raised knee), lifted by a knee in ${lifted} frames, behind the most forward thigh in ${behind}; a second piece on the top's chain with other springs changes the tabard's motion and the body's bones by ${coupled.toExponential(1)}` });
   }
 
   hz.dispose(); ch.destroy(); ch512.destroy();
