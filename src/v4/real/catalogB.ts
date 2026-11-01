@@ -32,7 +32,11 @@ export function buildCatalogB(): Catalog {
     ],
   });
   const face = put({ id: 'b_face', wslot: 'face', name: 'Face (B)', set: 'base', parts: [{ slot: 'head.face', variants: { blink: 'b/face_blink', angry: 'b/face_angry', hurt: 'b/face_hurt' } }] });
-  put({ id: 'b_hair', wslot: 'hair', name: 'Hair (B)', set: 'base', parts: [part('hair.top', 'b/hair')] });
+  put({
+    id: 'b_hair', wslot: 'hair', name: 'Hair (B)', set: 'base',
+    // the hair, and the fringe's strand tips at the brows in each expression (the fringe slot follows the face channel)
+    parts: [part('hair.top', 'b/hair'), { slot: 'hair.fringe', variants: { neutral: 'b/fringe_neutral', blink: 'b/fringe_blink', angry: 'b/fringe_angry', hurt: 'b/fringe_hurt' } }],
+  });
   put({ id: 'b_gold_helm', wslot: 'head', name: 'Golden Warrior helmet (test)', set: 'B', hairCover: 'helm', parts: [part('head.over', 'b/helmet')] });
   for (const [look, set, label] of [['basic', 'A', 'Basic'], ['gold', 'B', 'Golden Warrior']] as const) {
     put({

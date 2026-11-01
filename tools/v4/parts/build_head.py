@@ -190,7 +190,58 @@ hair = (a > 0.05) & ~face
 # where the hair layer took over from the face layer, it also overlaps the face layer by a few px (both draw the
 # approved pixels there), so the layers' resampled edges leave no seam in the approved look
 moved = face0 & ~face
-hair_draw = hair | (ndimage.binary_dilation(moved, iterations=8) & face)
+# pixels the four expressions draw alike: only there may the one hair layer draw over the face and its expressions
+same = np.ones(a.shape, bool)
+for k in ('blink', 'angry', 'hurt'): same &= np.abs(L[k][..., :3] - rgb).max(axis=2) < 40
+# the fringe's strand pieces lying across the brows: light orange-brown strokes (neither skin nor ink) and their small
+# outline specks. Each expression drawing has its own; they belong to the hair: the hair item draws them on its fringe
+# layer, one frame per expression (the slot follows the face channel), and the face and the expression patches get the
+# skin around them instead, so a helmet (which hides the hair) shows clean skin beside the brows
+rows_ = np.arange(a.shape[0])[:, None]
+eye_top = int(np.where((rgb[..., 0] > 215) & (rgb[..., 1] > 215) & (rgb[..., 2] > 200) & feat)[0].min())  # the eye whites
+zone = face & (rows_ >= brow_line - 10) & (rows_ <= eye_top + 22)
+
+
+def skin_t(X):
+    R, G, B = X[..., 0], X[..., 1], X[..., 2]
+    return (R > 200) & (G / np.maximum(R, 1) > 0.76) & (B / np.maximum(R, 1) > 0.58)
+
+
+def strands(X):
+    R, G, B = X[..., 0], X[..., 1], X[..., 2]
+    ink = np.maximum(np.maximum(R, G), B) < 110
+    st = zone & ~ink & ~skin_t(X) & (R > 120) & (G / np.maximum(R, 1) < 0.80)
+    il, inn = ndimage.label(ink & zone)
+    isz = ndimage.sum(ink & zone, il, range(1, inn + 1))
+    small = np.isin(il, [i + 1 for i, v in enumerate(isz) if v < 25])
+    big = np.isin(il, [i + 1 for i, v in enumerate(isz) if v >= 60])  # brows, lids
+    # outline specks: touching a strand, or lying loose on the skin away from the brows and lids
+    return st | (small & (ndimage.binary_dilation(st, iterations=2) | ~ndimage.binary_dilation(big, iterations=3)))
+
+
+def brows(X):
+    """An expression's brows (and lids): the large dark shapes in the brows' band."""
+    ink = (np.maximum(np.maximum(X[..., 0], X[..., 1]), X[..., 2]) < 110) & zone
+    il, inn = ndimage.label(ink)
+    isz = ndimage.sum(ink, il, range(1, inn + 1))
+    return np.isin(il, [i + 1 for i, v in enumerate(isz) if v >= 60])
+
+
+Sk, clean = {}, {}
+for k, X in L.items():
+    x = X[..., :3]
+    s_ = strands(x) & ~ndimage.binary_dilation(brows(x), iterations=1)
+    sk_ = skin_t(x) & face & ~s_
+    w_ = ndimage.gaussian_filter(sk_.astype(np.float32), 3)
+    f_ = np.dstack([ndimage.gaussian_filter(x[..., c] * sk_, 3) for c in range(3)]) / np.maximum(w_, 1e-3)[..., None]
+    f_ = np.where((w_ > 0.05)[..., None], f_, BASE[..., :3])
+    Sk[k], clean[k] = s_, np.where(s_[..., None], f_, x)
+print('strand pieces at the brows', {k: int(v.sum()) for k, v in Sk.items()}, flush=True)
+hair_draw = hair | (ndimage.binary_dilation(moved, iterations=8) & face & same)
+# the overlap fades out over its last px (a hard alpha edge inside the skin rings when the layer is scaled down)
+dist = ndimage.distance_transform_edt(~(hair | moved))
+hair_alpha = np.where(hair | moved, 1.0, np.where(hair_draw, np.clip((8.0 - dist) / 5.0, 0, 1), 0.0))
+if os.environ.get('HEAD_DBG'): np.savez_compressed(os.environ['HEAD_DBG'], rgb=rgb, a=a, face=face, hair=hair, feat=feat, change=change, skin=skin, BASE=BASE, brow_line=brow_line, **{f'L_{k}': L[k] for k in L})
 print('moved to the hair layer', int(moved.sum()), 'px, rows', np.where(moved)[0].min() if moved.any() else -1, '-', np.where(moved)[0].max() if moved.any() else -1, flush=True)
 change = feat
 Image.fromarray((np.dstack([face, hair, change]) * 255).astype(np.uint8)).save(f'{W}/head_masks.png')
@@ -218,14 +269,21 @@ brow_f = brow - 1
 rows_ = np.arange(a.shape[0])[:, None]
 keep = face & (skin | ndimage.binary_dilation(feat, iterations=2) | (rows_ >= brow_f + 12))
 face_rgb = np.where(keep[..., None], rgb, BASE[..., :3])
+face_rgb = np.where(Sk['neutral'][..., None], clean['neutral'], face_rgb)
 keep0 = face0 & (skin | ndimage.binary_dilation(feat0, iterations=2) | (rows_ >= brow_f + 12))
 hair_rgb = np.where((hair_draw & face0 & ~keep0)[..., None], BASE[..., :3], rgb)  # as the Phase 3B face layer drew it
 face_a = np.where(face, a, ba * (1 - face))
 emit('head_face', np.dstack([face_rgb, face_a * 255]))
-emit('hair', np.dstack([hair_rgb, hair_draw * a * 255]))
+emit('hair', np.dstack([hair_rgb, hair_alpha * a * 255]))
 if os.environ.get('HEAD_REF'): emit('ref_head', np.dstack([rgb, a * 255]))  # the whole approved head, for comparisons
 for k in ('blink', 'angry', 'hurt'):
-    emit(f'face_{k}', np.dstack([L[k][..., :3], soft * (L[k][..., 3] / 255.0) * 255]))
+    emit(f'face_{k}', np.dstack([clean[k], soft * (L[k][..., 3] / 255.0) * 255]))
+# the fringe frames: each expression's strand pieces in its own colours, fading out over a few px of the identical
+# pixels around them (no hard edge to ring when scaled)
+for k in L:
+    dk = ndimage.distance_transform_edt(~Sk[k])
+    fa_ = np.where(Sk[k], 1.0, np.clip((4.0 - dk) / 3.0, 0, 1)) * face
+    emit(f'fringe_{k}', np.dstack([L[k][..., :3], fa_ * (L[k][..., 3] / 255.0) * 255]))
 
 # 6. the test helmet (head sheet box 4), drawn for the bald base at the same scale: centred on the skull, its dome
 # just above the skull's top (the steel's thickness), so it covers the scalp and the hair line
@@ -242,5 +300,6 @@ Hp = warp(Himg, s_h, x0 + pad, y0 + pad, shape)[pad:-pad, pad:-pad]
 best = (0, (s_h, x0, y0))
 print('helmet', best[1], flush=True)
 emit('helmet', Hp)
+if os.environ.get('HEAD_DBG'): np.savez_compressed(os.environ['HEAD_DBG'].replace('.npz', '_helm.npz'), Hp=Hp, face_rgb=face_rgb, face_a=face_a)
 json.dump({'bpx': BPX, 'parts': out, 'register': {k: [float(x) for x in v] for k, v in reg.items()}, 'helmet': [float(x) for x in best[1]]}, open(f'{W}/parts_head.json', 'w'), indent=1)
 print(json.dumps({k: (v['w'], v['h'], v['pivots']) for k, v in out.items()}))

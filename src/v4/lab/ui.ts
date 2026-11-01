@@ -35,7 +35,7 @@ function segmented(host: HTMLElement | null, options: [string, string][], curren
 }
 
 const INTRO: Record<Art, string> = {
-  b: 'Phase 3B: candidate B (Refined Chibi) in real art: the idle fitted to the illustration, bending shoulders and elbows, five hand states, a face that blinks, frowns and winces, a helmet that hides the hair, a new Warrior attack and a cape that bends. Nothing on this page changes the game.',
+  b: 'Phase 3C: candidate B (Refined Chibi) in real art on the corrected body: the belt, trousers, boots and Golden tabard at the approved illustration\'s proportions, an attack wind-up with the fist beside the head, a clean forehead under the helmet and a cape that trails in the lunge. Nothing on this page changes the game.',
   placeholder: 'Phase 1 technical prototype with placeholder art: one rig, swappable outfits, two renderers. Nothing on this page changes the game.',
 };
 const HINT: Record<Art, string> = {

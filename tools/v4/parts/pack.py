@@ -6,7 +6,7 @@ from PIL import Image
 
 D, OUT = sys.argv[1], sys.argv[2]
 HIP = 0.40  # the hip joint above the soles: the belt and the leg tops at the approved illustration's height
-TABARD = (0.0234, -0.081)  # the Golden tabard's top on the hip bone, B: under the belt, centred on the old tabard
+TABARD = (0.0234, -0.0692)  # the Golden tabard's top on the hip bone, B: under the belt, centred on the old tabard
 HAT = (0.01, -0.27)  # the helmet socket on the head bone, B (the rig's hat bone)
 meta = {k: json.load(open(f'{D}/parts_{k}.json')) for k in ('basic', 'gold', 'head', 'hands')}
 BPX = meta['basic']['bpx']
@@ -22,6 +22,8 @@ def add(look, part, far=False, name=None, shift=(0.0, 0.0)):
 add('basic', 'sword', name='b/sword')
 # the head standard (build_head.py): face, hair, expression patches; the helmet pivots on the hat socket
 for part in ('head_face', 'hair', 'face_blink', 'face_angry', 'face_hurt'): add('head', part, name=f'b/{part}')
+# the fringe's strand pieces at the brows, one per expression (drawn by the hair, so a helmet hides them)
+for part in ('fringe_neutral', 'fringe_blink', 'fringe_angry', 'fringe_hurt'): add('head', part, name=f'b/{part}')
 add('head', 'helmet', name='b/helmet', shift=(HAT[0] * meta['head']['bpx'], HAT[1] * meta['head']['bpx']))
 for look in ('basic', 'gold'):
     for part in ('torso', 'hips'): add(look, part)
