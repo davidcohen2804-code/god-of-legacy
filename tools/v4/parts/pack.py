@@ -7,7 +7,7 @@ from PIL import Image
 D, OUT = sys.argv[1], sys.argv[2]
 HIP = 0.40  # the hip joint above the soles: the belt and the leg tops at the approved illustration's height
 HAT = (0.01, -0.27)  # the helmet socket on the head bone, B (the rig's hat bone)
-meta = {k: json.load(open(f'{D}/parts_{k}.json')) for k in ('basic', 'gold', 'head', 'hands')}
+meta = {k: json.load(open(f'{D}/parts_{k}.json')) for k in ('basic', 'gold', 'head', 'hands', 'test')}
 BPX = meta['basic']['bpx']
 
 frames = []  # (name, image, pivot)
@@ -37,6 +37,7 @@ for look in ('basic', 'gold'):
 add('gold', 'tabard')  # a strip bent along the trousers' hip chain (pivot: its top centre, the chain's anchor)
 add('gold', 'cape')
 add('gold', 'cape_strip')  # the cape upright, drawn as a strip bent along the cape chain
+add('test', 'coat_tail', name='b/test/coat_tail')  # lab-only stand-in for rule tests (test_standins.py), not a design
 
 
 def pack(scale, size):

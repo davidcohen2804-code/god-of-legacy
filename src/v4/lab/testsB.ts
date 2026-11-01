@@ -4,9 +4,11 @@
 // frames and pivots, joint coverage, the grip, and the composite cell.
 import Phaser from 'phaser';
 import { starterGear } from '../../items/Gear';
+import { STANCE_B } from '../real/animsB';
 import { B_FRAMES } from '../real/catalogB';
+import { hold } from '../rig/anims';
 import { bodyDrive } from '../rig/pose';
-import type { AnimDef } from '../rig/types';
+import type { AnimDef, AttachSpec } from '../rig/types';
 import { RigCharacter } from '../render/RigCharacter';
 import { frameOf } from '../wardrobe/resolve';
 import type { AppearanceInput, WardrobeSlot } from '../wardrobe/types';
@@ -339,22 +341,36 @@ export async function runTestsB(scene: LabScene, opts: { full: boolean }, progre
     results.push({ id: 'B6', name: 'Swap cost (resolve + place parts)', pass: p95 < 16, detail: `600 random full-outfit swaps: mean ${mean.toFixed(3)} ms, 95th percentile ${p95.toFixed(3)} ms, max ${ms[ms.length - 1].toFixed(3)} ms (CPU; art preloaded)` });
   }
 
-  // ---- B7: the optional hip attachment chains (the Golden tabard on the trousers' chain) ----
+  // ---- B7: the optional hip attachment chains, for every item that hangs a piece on one ----
+  // Each such item is checked in its home outfit (the Golden set with that item); every pair of items on different
+  // chains is worn together. Front pieces (clearOf) must never end up behind the most forward thigh; later links must
+  // not fold back on the link above; the chains must not affect each other or the body; and worn together, neither
+  // piece may be hidden by the other.
   progress('B7 hip attachment chains');
-  {
-    const gold: Mix = { top: 'b_gold_top', bottom: 'b_gold_bottom', gloves: 'b_gold_gloves', shoes: 'b_gold_shoes', back: 'b_gold_cape', weapon: 'b_sun_sword' };
-    const spec = A.catalog.items.get('b_gold_bottom')!.attach![0];
-    const [a1, a2] = (rig.attach![spec.chain]).map((n) => pose.index.get(n)!);
-    const thighs = spec.clearOf!.map((n) => pose.index.get(n)!);
-    const deg = (i: number) => pose.rotation(ch.state, i);
-    const wrapD = (d: number) => d - 360 * Math.round(d / 360);
-    ch.setAvatar(wardrobe.resolve(input(gold)));
-    // (a) at rest the tabard hangs exactly as the rigid piece did: straight down the hips, untouched by the thighs
-    let restDev = 0;
-    for (const t of times(A.anims.idle, 8)) { poseAt(ch, A.anims.idle, t); restDev = Math.max(restDev, Math.abs(wrapD(deg(a1) - (deg(pose.index.get('hip')!) + spec.rest))), Math.abs(wrapD(deg(a2) - deg(a1)))); }
-    // (b) every frame of the four animations at 60 Hz, chains stepped as in the lab: the swing stays within its limit and
-    // the cloth never ends up behind the most forward thigh (a raised knee lifts it)
-    let maxSwing = 0, behind = 0, frames = 0, lifted = 0;
+  const gold: Mix = { top: 'b_gold_top', bottom: 'b_gold_bottom', gloves: 'b_gold_gloves', shoes: 'b_gold_shoes', back: 'b_gold_cape', weapon: 'b_sun_sword' };
+  const attItems = [...A.catalog.items.values()].filter((it) => it.attach?.length);
+  const hipBone = pose.index.get('hip')!;
+  const deg = (i: number) => pose.rotation(ch.state, i);
+  const wrapD = (d: number) => d - 360 * Math.round(d / 360);
+  const linksOf = (sp: AttachSpec) => rig.attach![sp.chain].map((n) => pose.index.get(n)!);
+  /** One frame's checks of every piece the worn items hang: swing from rest, front pieces behind a thigh, folds. */
+  const chainStats = () => ({ swing: 0, behind: 0, folds: 0, lifted: 0, maxBend: 0, frames: 0 });
+  const checkFrame = (specs: AttachSpec[], st: ReturnType<typeof chainStats>) => {
+    for (const sp of specs) {
+      const [a1, a2] = linksOf(sp), w1 = deg(a1), rest1 = deg(hipBone) + sp.rest;
+      st.swing = Math.max(st.swing, Math.abs(wrapD(w1 - rest1)));
+      const bend = Math.abs(wrapD(deg(a2) - w1)); st.maxBend = Math.max(st.maxBend, bend);
+      if (bend > 75) st.folds++;
+      if (sp.clearOf?.length) {
+        const front = Math.min(...sp.clearOf.map((n) => deg(pose.index.get(n)!)));
+        if (wrapD(w1 - (front + (sp.margin ?? 0))) > 0.01) st.behind++;
+        if (front + (sp.margin ?? 0) < rest1 - 0.5) st.lifted++;
+      }
+    }
+    st.frames++;
+  };
+  /** The four animations at 60 Hz with the chains stepped as in the lab (run speed, the attack's lunge, the jump). */
+  const dense = (specs: AttachSpec[], st: ReturnType<typeof chainStats>, track?: number[]) => {
     for (const a of ANIM_LIST) {
       ch.chain.reset();
       const n = Math.round(a.dur * 60);
@@ -363,36 +379,127 @@ export async function runTestsB(scene: LabScene, opts: { full: boolean }, progre
         const drive = i > 0 ? bodyDrive(a, (i - 1) / 60, t) : 0;
         if (i > 0) ch.chain.step(1 / 60, Math.max(-1, Math.min(1, (a.name === 'run' ? 0.9 : 0) + drive)), a.name === 'jump' && t > 0.08 && t < 0.6 ? vz : 0);
         ch.evaluate(a, Math.min(a.dur, t));
-        const w1 = deg(a1), rest1 = deg(pose.index.get('hip')!) + spec.rest, front = Math.min(...thighs.map(deg));
-        maxSwing = Math.max(maxSwing, Math.abs(wrapD(w1 - rest1)));
-        if (wrapD(w1 - (front + spec.margin!)) > 0.01) behind++;
-        if (front + spec.margin! < rest1 - 0.5) lifted++;
-        frames++;
+        checkFrame(specs, st);
+        if (track) { for (const sp of specs) for (const l of linksOf(sp)) track.push(deg(l)); track.push(...Array.from(ch.state.world.subarray(0, bodyBones * 6))); }
       }
     }
-    // (c) the chains are independent: a second piece on the top's chain, with other springs, leaves the tabard's motion
-    // exactly as it was, and the body's bones untouched
-    const other = { ...spec, chain: 'hipB', at: [-0.05, -0.06] as [number, number], k: 60, c: 6, gainV: [30, 20], gainZ: [-20, -10], limit: 60, clearOf: undefined };
-    const track = (withB: boolean) => {
-      const out: number[] = [];
-      const av = wardrobe.resolve(input(gold));
-      const it = withB ? { ...av, items: { ...av.items, top: { ...av.items.top!, attach: [other] } } } : av;
-      ch.setAvatar(it); ch.chain.reset();
-      for (const a of ANIM_LIST) for (let i = 0; i <= Math.round(a.dur * 60); i++) {
-        const t = i / 60;
-        if (i > 0) ch.chain.step(1 / 60, a.name === 'run' ? 0.9 : bodyDrive(a, (i - 1) / 60, t), 0);
-        ch.evaluate(a, Math.min(a.dur, t));
-        out.push(deg(a1), deg(a2), ...Array.from(ch.state.world.subarray(0, (rig.bones.length - 4) * 6)));
+  };
+  const bodyBones = rig.bones.length - Object.values(rig.attach ?? {}).reduce((n, b) => n + b.length, 0);
+  {
+    const lines: string[] = [];
+    let restDev = 0, pass = true;
+    for (const it of attItems) {
+      const home: Mix = { ...gold, [it.wslot]: it.id };
+      ch.setAvatar(wardrobe.resolve(input(home)));
+      // (a) at rest every link hangs at its rest angle (the approved idle silhouette for the Golden tabard)
+      let dev = 0;
+      for (const t of times(A.anims.idle, 8)) {
+        poseAt(ch, A.anims.idle, t);
+        for (const sp of it.attach!) { const [a1, a2] = linksOf(sp); dev = Math.max(dev, Math.abs(wrapD(deg(a1) - (deg(hipBone) + sp.rest))), Math.abs(wrapD(deg(a2) - deg(a1)))); }
       }
-      return out;
+      restDev = Math.max(restDev, dev);
+      // (b) every frame of the four animations
+      const st = chainStats(); dense(it.attach!, st);
+      if (dev >= 0.5 || st.behind || st.folds) pass = false;
+      const sp0 = it.attach![0];
+      lines.push(`${it.name} (chain ${sp0.chain.slice(3)}, owner ${it.wslot}): at rest ${dev.toFixed(2)}° from its rest angle; over ${st.frames} frames largest swing ${st.swing.toFixed(1)}° (spring limit ${sp0.limit}°${sp0.clearOf ? ', plus the lift by a raised knee' : ''}), lower link bent up to ${st.maxBend.toFixed(1)}° against the upper (folds over 75°: ${st.folds})${sp0.clearOf ? `, lifted by a knee in ${st.lifted} frames, behind the most forward thigh in ${st.behind}` : ''}`);
+    }
+    // (c) independence: every pair of items on different chains (and different wardrobe slots) worn together; alone,
+    // the other item's slot wears the basic piece
+    const basicFor = (w: string): string | null => ({ top: 'b_basic_top', bottom: 'b_basic_bottom', shoes: 'b_basic_shoes' } as Record<string, string>)[w] ?? null;
+    let coupled = 0, pairs = 0;
+    for (const x of attItems) for (const y of attItems) {
+      if (x === y || x.wslot === y.wslot || x.attach![0].chain === y.attach![0].chain) continue;
+      const alone: Mix = { ...gold, [x.wslot]: x.id, [y.wslot]: basicFor(y.wslot) }, both: Mix = { ...alone, [y.wslot]: y.id };
+      const run = (mix: Mix) => { ch.setAvatar(wardrobe.resolve(input(mix))); const tr: number[] = []; dense(x.attach!, chainStats(), tr); return tr; };
+      const t0 = run(alone), t1 = run(both);
+      for (let i = 0; i < t0.length; i++) coupled = Math.max(coupled, Math.abs(t0[i] - t1[i]));
+      pairs++;
+    }
+    if (coupled >= 1e-9) pass = false;
+    // (d) worn together, neither piece hides the other: each piece's visible share of its own pixels, with and without
+    // the other item (32 poses, gameplay size; no cape, so only the two items and the body can cover them)
+    let worstLoss = 0, worstWhat = '', hiddenPoses = 0, checked = 0;
+    const share = (slot: number) => {
+      const ids = hz.render(ch, s, OX, OY, RW, RH, 'ids');
+      let vis = 0;
+      for (let k = 0; k < RW * RH; k++) if (ids[k * 4 + 3] > 250 && idOf(ids[k * 4], ids[k * 4 + 1], ids[k * 4 + 2]) === slot) vis++;
+      ch.layout(s); ch.isolate(new Set([slot])); ch.tintAll(0xffffff); hz.rt.clear(); hz.rt.draw(ch.container, OX, OY); ch.clearTint();
+      const iso = hz.read(0, 0, RW, RH);
+      let tot = 0;
+      for (let k = 0; k < RW * RH; k++) if (iso[k * 4 + 3] > 127) tot++;
+      return tot ? vis / tot : 1;
     };
-    const t0 = track(false), t1 = track(true);
-    let coupled = 0;
-    for (let i = 0; i < t0.length; i++) coupled = Math.max(coupled, Math.abs(t0[i] - t1[i]));
+    const sharesNote: string[] = [];
+    for (const x of attItems) for (const y of attItems) {
+      if (x === y || x.wslot === y.wslot || x.attach![0].chain === y.attach![0].chain) continue;
+      const slot = rig.slots.findIndex((sl) => x.parts.some((p) => p.slot === sl.name && sl.strip));
+      const alone: Mix = { ...gold, back: null, [x.wslot]: x.id, [y.wslot]: basicFor(y.wslot) }, both: Mix = { ...alone, [y.wslot]: y.id };
+      let sumA = 0, sumB = 0, n = 0;
+      for (const a of ANIM_LIST) for (const t of times(a, 8)) {
+        ch.setAvatar(wardrobe.resolve(input(alone))); poseAt(ch, a, t); const sa = share(slot);
+        ch.setAvatar(wardrobe.resolve(input(both))); poseAt(ch, a, t); const sb = share(slot);
+        const loss = sa - sb;
+        if (loss > worstLoss) { worstLoss = loss; worstWhat = `${x.name} with ${y.name}, ${a.name} at ${t.toFixed(3)} s`; }
+        if (sb === 0) hiddenPoses++;
+        sumA += sa; sumB += sb; n++; checked++;
+      }
+      sharesNote.push(`${x.name}: ${(100 * sumA / n).toFixed(0)}% of it visible on average alone, ${(100 * sumB / n).toFixed(0)}% with ${y.name}`);
+      await yieldFrame();
+    }
+    if (worstLoss > 0.05) pass = false;
     ch.setAvatar(wardrobe.resolve(input(gold)));
-    const pass = restDev < 0.5 && behind === 0 && coupled < 1e-9;
-    results.push({ id: 'B7', name: 'Hip attachment chains: the Golden tabard swings on its own chain', pass,
-      detail: `at rest (idle, 8 moments) the tabard hangs ${restDev.toFixed(2)}° from the rigid piece's angle; over ${frames} frames of the four animations at 60 Hz its largest swing is ${maxSwing.toFixed(1)}° (spring limit ${spec.limit}°, plus the lift by a raised knee), lifted by a knee in ${lifted} frames, behind the most forward thigh in ${behind}; a second piece on the top's chain with other springs changes the tabard's motion and the body's bones by ${coupled.toExponential(1)}` });
+    results.push({ id: 'B7', name: 'Hip attachment chains: every hung piece swings on its own chain', pass,
+      detail: `${lines.join('; ')}. ${pairs} item pairs on different chains worn together: one changes the other's motion and the body's ${bodyBones} bones by ${coupled.toExponential(1)}. Visibility (${checked} poses): ${sharesNote.join('; ')}; the other item hides at most ${(100 * worstLoss).toFixed(1)}% of a piece${worstWhat ? ` (${worstWhat})` : ''}; poses with a piece fully hidden: ${hiddenPoses}` });
+  }
+
+  // ---- B8: extreme poses and a spring stress run ----
+  // Held poses well past the four animations (a knee raised to the hip, a deep lunge, a crouch, a back kick, a split,
+  // the hips tipped forward and back), and a run → sudden stop → jump → attack sequence with the springs carried over.
+  // Front pieces must stay in front of the most forward thigh, lower links must not fold, and the springs stay within
+  // their limits. Every item that hangs a piece, in its home outfit.
+  progress('B8 extreme poses');
+  {
+    const S = STANCE_B, ROT = ['hip', 'chest', 'head', 'uparm_F', 'forearm_F', 'hand_F', 'weapon', 'uparm_B', 'forearm_B', 'hand_B', 'thigh_F', 'shin_F', 'foot_F', 'thigh_B', 'shin_B', 'foot_B'];
+    const still = (name: string, d: Record<string, number>, dy = 0): AnimDef => ({
+      name, dur: 1, loop: true,
+      bones: { ...Object.fromEntries(ROT.map((b) => [b, { r: hold((S[b] ?? 0) + (d[b] ?? 0)) }])), hip: { x: hold(S.dx), y: hold(S.dy + dy), r: hold(S.hip + (d.hip ?? 0)) } },
+    });
+    const EXTREMES: AnimDef[] = [
+      still('far knee to the hip', { thigh_F: -95, shin_F: 105 }, 0.02),
+      still('near knee to the hip', { thigh_B: -110, shin_B: 110 }, 0.02),
+      still('deep lunge', { thigh_F: -60, shin_F: 40, thigh_B: 40, shin_B: 25 }, 0.06),
+      still('crouch', { thigh_F: -80, shin_F: 125, thigh_B: -65, shin_B: 120, chest: 10 }, 0.13),
+      still('back kick', { thigh_B: 75, shin_B: 60 }),
+      still('split', { thigh_F: -75, shin_F: 10, thigh_B: 65, shin_B: 10 }, 0.09),
+      still('hips tipped forward', { hip: 25, chest: -20, thigh_F: -25, thigh_B: -25 }),
+      still('hips tipped back', { hip: -25, chest: 20, thigh_F: 25, thigh_B: 25 }),
+    ];
+    const lines: string[] = [];
+    let pass = true;
+    for (const it of attItems) {
+      ch.setAvatar(wardrobe.resolve(input({ ...gold, [it.wslot]: it.id })));
+      const st = chainStats();
+      for (const e of EXTREMES) {
+        // settle from a run into the held pose (the springs come in moving), then hold it for a second
+        ch.chain.reset();
+        for (let i = 0; i < 30; i++) ch.chain.step(1 / 60, 0.9, 0);
+        for (let i = 0; i < 60; i++) { ch.chain.step(1 / 60, 0, 0); ch.evaluate(e, i / 60); checkFrame(it.attach!, st); }
+      }
+      // run → sudden stop → jump → attack, springs carried over
+      ch.chain.reset();
+      const seq: [AnimDef, number, number][] = [[A.anims.run, 1.0, 0.9], [A.anims.idle, 0.5, 0], [A.anims.jump, A.anims.jump.dur, 0], [A.anims.attack, A.anims.attack.dur, 0]];
+      for (const [a, dur, vx] of seq) for (let i = 0; i <= Math.round(dur * 60); i++) {
+        const t = i / 60, vz = a.name === 'jump' && t > 0.08 && t < 0.6 ? Math.max(-1, Math.min(1, 1 - (2 * (t - 0.08)) / 0.52)) : 0;
+        ch.chain.step(1 / 60, Math.max(-1, Math.min(1, vx + (i > 0 ? bodyDrive(a, (i - 1) / 60, t) : 0))), vz);
+        ch.evaluate(a, a.loop ? t : Math.min(a.dur, t)); checkFrame(it.attach!, st);
+      }
+      if (st.behind || st.folds) pass = false;
+      const sp0 = it.attach![0];
+      lines.push(`${it.name}: ${st.frames} frames (${EXTREMES.length} held poses, then the sequence): largest swing ${st.swing.toFixed(1)}°, lower link bent up to ${st.maxBend.toFixed(1)}° (folds over 75°: ${st.folds})${sp0.clearOf ? `, behind the most forward thigh in ${st.behind}` : ''}`);
+    }
+    ch.setAvatar(wardrobe.resolve(input(gold)));
+    results.push({ id: 'B8', name: 'Extreme poses and a spring stress run', pass, detail: `${EXTREMES.map((e) => e.name).join(', ')}. ${lines.join('; ')}` });
   }
 
   hz.dispose(); ch.destroy(); ch512.destroy();

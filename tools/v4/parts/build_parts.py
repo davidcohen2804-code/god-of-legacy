@@ -4,6 +4,7 @@
 # pivots on the sheet, the sheet scale (B per sheet px), and optional clears, recolours, rotation and far shade.
 # Usage: build_parts.py <sheet.png> <look> <config.json> [work dir = the config's folder]
 import json, math, os, sys
+import cv2
 import numpy as np
 from PIL import Image, ImageDraw
 from scipy import ndimage
@@ -16,19 +17,89 @@ BPX = 512  # atlas resolution: px per B
 SHEETS = {}
 
 
-def load_sheet(path):
+def quad(p, n=400):
+    (ax, ay), (cx, cy), (bx, by) = p; t = np.linspace(0, 1, n)
+    return np.stack([(1 - t) ** 2 * ax + 2 * (1 - t) * t * cx + t ** 2 * bx, (1 - t) ** 2 * ay + 2 * (1 - t) * t * cy + t ** 2 * by], 1)
+
+
+def panel_out(src, c, seed=7):
+    """Take a hanging panel drawn on a piece away (the Golden hips' short tabard, now a separate piece on the hip chain)
+    and paint the trousers' cloth where it was: the panel is found by colour (blue cloth, gold trim and its own outline)
+    inside the polygon `bound` (sheet px); the leg openings' outlines below `openings_below` stay; each row's cloth tone
+    comes from the cloth beside the panel, shaded under the belt (`belt_y`) and beside the tassets (`tasset_edges`),
+    with a seam and folds as soft strokes; below the `crotch` curve the background (the gap between the legs)."""
+    im = src.astype(np.float32); H, W = im.shape[:2]
+    r, g, b = im[..., 0], im[..., 1], im[..., 2]
+    lum = im @ np.array([0.299, 0.587, 0.114], np.float32)
+    bound = np.zeros((H, W), np.uint8); cv2.fillPoly(bound, [np.array(c['bound'], np.int32)], 1); bound = bound.astype(bool)
+    blue = (b > r + 25) & (b > g + 5) & (b > 90)
+    gold = (r > 150) & (g > 100) & (b < 110) & (r - b > 60)
+    core = ndimage.binary_fill_holes(ndimage.binary_closing((blue | gold) & bound, iterations=2)) & bound
+    ink = lum < 60
+    opening = (lum >= 45) & (lum < 82) & (b >= r) & ~core & (np.arange(H)[:, None] >= c['openings_below'])
+    near_open = ndimage.binary_dilation(opening, iterations=2)
+    mask = core | (ndimage.binary_dilation(core, iterations=c.get('ring', 3)) & bound & ~(ink & near_open))
+    sat = (im.max(2) - im.min(2)) / np.maximum(im.max(2), 1)
+    cloth = (lum > 45) & (lum < 125) & (b >= r - 4) & (sat < 0.35) & ~mask
+    ys_, xs_ = np.nonzero(mask); y0, y1 = ys_.min(), ys_.max() + 1; x0, x1 = xs_.min(), xs_.max() + 1
+    L = np.full((H, 3), np.nan, np.float32); R = np.full((H, 3), np.nan, np.float32)
+    for y in range(y0, y1):
+        row = np.nonzero(mask[y])[0]
+        if not len(row): continue
+        a, e = row.min(), row.max()
+        for (lo, hi, dst) in ((max(0, a - 12), a - 1, L), (e + 2, min(W, e + 13), R)):
+            sel = cloth[y, lo:hi]
+            if sel.sum() >= 3: dst[y] = np.median(im[y, lo:hi][sel], axis=0)
+    idx = np.arange(H)
+    for A in (L, R):
+        good = ~np.isnan(A[:, 0])
+        for k in range(3):
+            A[:, k] = np.interp(idx, idx[good], A[good, k]); A[:, k] = cv2.GaussianBlur(A[:, k].reshape(-1, 1), (1, 0), 4).ravel()
+    ys, xs = np.mgrid[0:H, 0:W].astype(np.float32)
+    t = np.clip((xs - x0) / max(1, x1 - x0), 0, 1)[..., None]
+    base = L[:, None, :] * (1 - t) + R[:, None, :] * t
+    bd = c.get('belt_dark', 0.5)
+    base *= (bd + (1 - bd) * np.clip((ys - c['belt_y']) / c.get('belt_soft', 10.0), 0, 1))[..., None]
+    for (ex, ey0, ey1, side) in c.get('tasset_edges', []):
+        k = np.where((ys >= ey0) & (ys <= ey1), 0.72 + 0.28 * np.clip((xs - ex) * side / 7.0, 0, 1), 1.0)
+        base *= cv2.GaussianBlur(k.astype(np.float32), (0, 0), 2.0)[..., None]
+    strokes = np.zeros((H, W), np.float32); hi = np.zeros((H, W), np.float32)
+    def line(a, pts, w): cv2.polylines(a, [np.array(pts, np.int32).reshape(-1, 1, 2)], False, 1.0, thickness=w, lineType=cv2.LINE_AA)
+    line(strokes, c['seam'], 2); line(hi, [[q[0] - 3, q[1]] for q in c['seam']], 2)
+    for f in c.get('folds', []): line(strokes, f, 3)
+    strokes = cv2.GaussianBlur(strokes, (0, 0), 1.3); hi = cv2.GaussianBlur(hi, (0, 0), 1.5)
+    base = base * (1 - 0.25 * strokes[..., None]) + c.get('hi', 6) * hi[..., None]
+    n = cv2.GaussianBlur(np.random.default_rng(seed).normal(0, 1, (H, W)).astype(np.float32), (0, 0), 2.0)
+    base = base + c.get('grain', 2.0) * (n / (n.std() + 1e-6))[..., None]
+    cur = quad(c['crotch'])
+    yb = np.interp(np.arange(W), cur[:, 0], cur[:, 1], left=np.nan, right=np.nan)
+    below = mask & (ys > yb[None, :])
+    edge = np.zeros((H, W), np.float32)
+    cv2.polylines(edge, [np.round(cur * 4).astype(np.int32).reshape(-1, 1, 2)], False, 1.0, thickness=c.get('ink_w', 3), lineType=cv2.LINE_AA, shift=2)
+    soft = cv2.GaussianBlur(mask.astype(np.float32), (0, 0), 0.8); soft = np.where(mask, 1.0, soft * 0.6)
+    comp = im * (1 - soft[..., None]) + base * soft[..., None]
+    inkc = np.array(c.get('ink', [30, 27, 38]), np.float32)
+    comp = comp * (1 - edge[..., None]) + inkc[None, None, :] * edge[..., None]
+    comp[below & (edge < 0.35)] = [255, 0, 255]
+    return np.clip(comp, 0, 255)
+
+
+def load_sheet(path, fix=None):
     """A parts sheet keyed off its magenta background: (RGBA image, component labels). A part may name its own sheet
-    (`sheet`, relative to the config's folder), for pieces redrawn later on a separate sheet."""
-    if path not in SHEETS:
+    (`sheet`, relative to the config's folder), for pieces redrawn later on a separate sheet, and a `panel_out` fix
+    applied to the sheet before it is keyed."""
+    key = path + ('#' + json.dumps(fix, sort_keys=True) if fix else '')
+    if key not in SHEETS:
         src = np.array(Image.open(path).convert('RGB')).astype(np.float32)
+        if fix: src = panel_out(src, fix)
         r, g, b = src[..., 0], src[..., 1], src[..., 2]
         m = np.minimum(r, b) - g
         alpha = np.clip(1.0 - (m - 70.0) / 80.0, 0.0, 1.0)
         a3 = alpha[..., None]
         fgc = np.clip(np.where(a3 > 0.02, (src - (1 - a3) * np.array([255.0, 0, 255.0])) / np.maximum(a3, 0.02), 0), 0, 255)
         lab_, _ = ndimage.label(ndimage.binary_closing(alpha > 0.5, iterations=2))
-        SHEETS[path] = (np.dstack([fgc, alpha * 255]).astype(np.uint8), lab_)
-    return SHEETS[path]
+        SHEETS[key] = (np.dstack([fgc, alpha * 255]).astype(np.uint8), lab_)
+    return SHEETS[key]
 
 
 rgba, lab = load_sheet(sheet_path)
@@ -45,7 +116,7 @@ parts = {}
 whole = {}  # each part before trims: caps are cut from these
 os.makedirs(f'{OUT}/parts_{look}', exist_ok=True)
 for name, p in cfg['parts'].items():
-    rgba, lab = load_sheet(os.path.join(os.path.dirname(os.path.abspath(cfg_path)), p['sheet']) if p.get('sheet') else sheet_path)
+    rgba, lab = load_sheet(os.path.join(os.path.dirname(os.path.abspath(cfg_path)), p['sheet']) if p.get('sheet') else sheet_path, p.get('panel_out'))
     if p.get('from'):  # cut out of another part's region (e.g. the shoulder cap from the torso)
         mask = component_at(*p['from'])
     else:

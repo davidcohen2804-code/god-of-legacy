@@ -39,6 +39,8 @@ export interface AttachBone {
   hang: number;
   /** First link: bones it stays in front of (the most forward of them, plus `margin` degrees). */
   clear: Int16Array | null; margin: number;
+  /** First link: the share of the parent's turn away from `ref` (its stance angle) that the link turns back. */
+  grav: number; ref: number;
 }
 
 export interface PoseState {
@@ -104,6 +106,7 @@ export class RigPose {
           x: j === 0 ? sp.at[0] : sp.lens[j - 1], y: j === 0 ? sp.at[1] : 0, r: j === 0 ? sp.rest : 0,
           len: sp.lens[j] ?? sp.lens[sp.lens.length - 1], hang: j === 0 ? 0 : sp.hang ?? 0,
           clear: j === 0 ? clear : null, margin: sp.margin ?? 0,
+          grav: j === 0 ? sp.gravity ?? 0 : 0, ref: this.rig.attachRef ?? 0,
         };
       });
     }
@@ -122,10 +125,13 @@ export class RigPose {
       let deg = (ab ? ab.r : b.r) + (tl ? sample(tl.r, tt) : 0) + (chain ? chain.offset(i) : 0);
       const p = this.parent[i], o = i * 6;
       if (ab && p >= 0) {
-        // an attachment link: later links swing back toward hanging down; the first stays clear of the given bones
+        // an attachment link: the first keeps some of its stance direction when the hips tip (gravity) and stays clear
+        // of the given bones; later links swing back when the link above is pushed off its rest direction
         const pw = Math.atan2(w[p * 6 + 1], w[p * 6]) / D2R, pp = this.parent[p], pa = out.att[p];
-        if (ab.hang && pa && pp >= 0) { // the link above pushed away from its rest angle: swing back by `hang` of that
-          const rest = Math.atan2(w[pp * 6 + 1], w[pp * 6]) / D2R + pa.r;
+        if (ab.grav) deg -= ab.grav * wrap(pw - ab.ref);
+        if (ab.hang && pa && pp >= 0) { // the link above's rest direction: its parent's angle, its rest, its gravity
+          const ppw = Math.atan2(w[pp * 6 + 1], w[pp * 6]) / D2R;
+          const rest = ppw + pa.r - pa.grav * wrap(ppw - pa.ref);
           deg += ab.hang * wrap(rest - pw);
         }
         if (ab.clear && ab.clear.length) {

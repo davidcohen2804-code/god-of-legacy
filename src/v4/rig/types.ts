@@ -75,6 +75,9 @@ export interface AttachSpec {
   /** Bones it must stay in front of (e.g. the thighs): the first link is never further back than the most forward of
    *  them, plus `margin` degrees, so a raised knee lifts the cloth instead of passing through it. */
   clearOf?: string[]; margin?: number;
+  /** How much the piece keeps the direction it hangs in at the stance when the hips tip (0 = turns with the hips, as a
+   *  rigid piece; 1 = keeps hanging the same way). Measured from the rig's `attachRef`, so the stance itself is untouched. */
+  gravity?: number;
 }
 
 export interface RigDef {
@@ -89,4 +92,6 @@ export interface RigDef {
   /** Optional attachment chains (name → bones, parent first): idle and rigid unless a worn item hangs a piece on them
    *  (AttachSpec); they come after the body's bones, so the body's own motion never depends on them. */
   attach?: Record<string, string[]>;
+  /** The hips' world angle (degrees) in the stance the items' attachment rest angles are drawn for (AttachSpec.gravity). */
+  attachRef?: number;
 }

@@ -4,6 +4,7 @@
 import { GOLDEN_RIG } from '../rig/rig';
 import type { BoneDef, RigDef, SlotDef } from '../rig/types';
 import data from './assets/b.json';
+import stanceData from './assets/b_stance.json';
 
 const G = data.geometry as unknown as Record<string, [number, number]>;
 const L = data.lengths;
@@ -78,4 +79,6 @@ export const RIG_B: RigDef = {
   bones: [...GOLDEN_RIG.bones.map((b) => ({ ...b, ...(MEASURED[b.name] ?? {}) })), ...ATTACH_BONES],
   slots,
   attach: { hipA: ['hipA_1', 'hipA_2'], hipB: ['hipB_1', 'hipB_2'] },
+  // the items' attachment rest angles are drawn for the combat stance's hips (b_stance.json)
+  attachRef: stanceData.pose.hip,
 };

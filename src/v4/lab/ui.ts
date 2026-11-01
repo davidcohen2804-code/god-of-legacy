@@ -35,11 +35,11 @@ function segmented(host: HTMLElement | null, options: [string, string][], curren
 }
 
 const INTRO: Record<Art, string> = {
-  b: 'Phase 3C: candidate B (Refined Chibi) in real art on the corrected body: the belt, trousers, boots and Golden tabard at the approved illustration\'s proportions, an attack wind-up with the fist beside the head, a clean forehead under the helmet and a cape that trails in the lunge. Nothing on this page changes the game.',
+  b: 'Phase 4: candidate B (Refined Chibi) with optional hip attachment chains. The Golden tabard now hangs on the trousers\' own chain: unchanged at rest, it sways when running, lifts over a raised knee and floats in a fall. A plain coat-tail stand-in (set X: a rule test, not a design) hangs on the top\'s chain, to test two chains worn together. Nothing on this page changes the game.',
   placeholder: 'Phase 1 technical prototype with placeholder art: one rig, swappable outfits, two renderers. Nothing on this page changes the game.',
 };
 const HINT: Record<Art, string> = {
-  b: 'A = basic clothing, B = Golden Warrior set and the test helmet. Cosmetics beat gear looks; gear keeps its stats. Job gear shows the Golden top, trousers and boots, and the job helmet shows the test helmet.',
+  b: 'A = basic clothing, B = Golden Warrior set and the test helmet, X = the coat-tail stand-in (rule test). Cosmetics beat gear looks; gear keeps its stats. Job gear shows the Golden top, trousers and boots, and the job helmet shows the test helmet.',
   placeholder: 'A = cloth set, B = plate set, X = oversized and rule tests. Cosmetics beat gear looks; gear keeps its stats.',
 };
 

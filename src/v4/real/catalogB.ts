@@ -23,10 +23,19 @@ const hands = (look: 'basic' | 'gold', layer: 'skin' | 'glove') => sides((s) => 
 const sides = (fn: (side: 'F' | 'B') => ItemPart[]): ItemPart[] => [...fn('B'), ...fn('F')];
 
 /** The Golden tabard on the trousers' hip chain: hung under the belt buckle, straight down at rest (the approved
- *  silhouette); it trails a little when running or lunging, floats a little in a fall, and a raised knee lifts it. */
+ *  silhouette); it trails a little when running or lunging, floats a little in a fall, a raised knee lifts it, and when
+ *  the hips tip it keeps 60 % of its hanging direction (a heavy cloth, not a board). */
 export const TABARD_ATTACH: AttachSpec = {
   chain: 'hipA', at: [0.0234, -0.0692], rest: 90, lens: [0.12, 0.126],
-  k: 110, c: 13, gainV: [10, 6], gainZ: [7, 4], limit: 32, hang: 0.45, clearOf: ['thigh_F', 'thigh_B'], margin: 12,
+  k: 110, c: 13, gainV: [10, 6], gainZ: [7, 4], limit: 32, hang: 0.45, clearOf: ['thigh_F', 'thigh_B'], margin: 12, gravity: 0.6,
+};
+
+/** Lab-only stand-in (test_standins.py, not a design): coat tails on the top's hip chain, behind the legs, so a top's
+ *  chain can be tested worn together with the trousers' chain (the Golden tabard in front). Looser than the tabard: it
+ *  trails further when running and lifts behind in a fall. */
+export const COAT_TEST_ATTACH: AttachSpec = {
+  chain: 'hipB', at: [-0.075, -0.06], rest: 108, lens: [0.13, 0.14],
+  k: 70, c: 9, gainV: [24, 14], gainZ: [-16, -10], limit: 55, hang: 0.3, gravity: 0.7,
 };
 
 export function buildCatalogB(): Catalog {
@@ -77,6 +86,8 @@ export function buildCatalogB(): Catalog {
     hides: ['hand_F.front.skin', 'hand_B.front.skin', 'hand_F.back.skin', 'hand_B.back.skin'],
   });
   put({ id: 'b_gold_cape', wslot: 'back', name: 'Golden Warrior cape', set: 'B', parts: [part('cape.back.1', 'b/gold/cape_strip')] });
+  // rule tests: the basic top with stand-in coat tails on the top's hip chain (set X, lab only)
+  put({ id: 'b_test_coat', wslot: 'top', name: 'Coat-tail stand-in (rule test)', set: 'X', parts: [...items.get('b_basic_top')!.parts, part('hipB.back', 'b/test/coat_tail')], attach: [COAT_TEST_ATTACH] });
   put({ id: 'b_sun_sword', wslot: 'weapon', name: 'Sun-guard longsword', set: 'A', family: 'sword', parts: [part('weapon', 'b/sword')] });
   return { items, art: new Map(), base: { body, face } };
 }
