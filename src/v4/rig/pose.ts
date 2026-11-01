@@ -106,7 +106,7 @@ export class RigPose {
           x: j === 0 ? sp.at[0] : sp.lens[j - 1], y: j === 0 ? sp.at[1] : 0, r: j === 0 ? sp.rest : 0,
           len: sp.lens[j] ?? sp.lens[sp.lens.length - 1], hang: j === 0 ? 0 : sp.hang ?? 0,
           clear: j === 0 ? clear : null, margin: sp.margin ?? 0,
-          grav: j === 0 ? sp.gravity ?? 0 : 0, ref: this.rig.attachRef ?? 0,
+          grav: j === 0 ? sp.gravity ?? 0 : 0, ref: this.rig.attachRef?.[sp.chain] ?? 0,
         };
       });
     }

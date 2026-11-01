@@ -30,13 +30,21 @@ export const TABARD_ATTACH: AttachSpec = {
   k: 110, c: 13, gainV: [10, 6], gainZ: [7, 4], limit: 32, hang: 0.45, clearOf: ['thigh_F', 'thigh_B'], margin: 12, gravity: 0.6,
 };
 
-/** Lab-only stand-in (test_standins.py, not a design): coat tails on the top's hip chain, behind the legs, so a top's
- *  chain can be tested worn together with the trousers' chain (the Golden tabard in front). Looser than the tabard: it
- *  trails further when running and lifts behind in a fall. */
+/** Lab-only stand-ins (test_standins.py, not a design): a plain long coat on every chain a coat uses, so the chains and
+ *  the layering can be tested worn together with the trousers' chain (the Golden tabard) before the coat is drawn.
+ *  Coat tails behind the legs (B), a near front panel clear of the near thigh (C), a far front panel between the legs
+ *  clear of the far thigh (D), a sash end from the knot (E), a scarf end on the chest (N). */
 export const COAT_TEST_ATTACH: AttachSpec = {
   chain: 'hipB', at: [-0.075, -0.06], rest: 108, lens: [0.13, 0.14],
   k: 70, c: 9, gainV: [24, 14], gainZ: [-16, -10], limit: 55, hang: 0.3, gravity: 0.7,
 };
+export const COAT_TEST_PIECES: AttachSpec[] = [
+  COAT_TEST_ATTACH,
+  { chain: 'hipC', at: [-0.03, -0.055], rest: 97, lens: [0.12, 0.13], k: 90, c: 11, gainV: [14, 8], gainZ: [8, 5], limit: 40, hang: 0.4, gravity: 0.6, clearOf: ['thigh_B'], margin: 10 },
+  { chain: 'hipD', at: [0.075, -0.055], rest: 86, lens: [0.11, 0.11], k: 90, c: 11, gainV: [12, 7], gainZ: [8, 5], limit: 40, hang: 0.4, gravity: 0.6, clearOf: ['thigh_F'], margin: 10 },
+  { chain: 'sashE', at: [0.07, -0.072], rest: 72, lens: [0.08, 0.1], k: 60, c: 7, gainV: [20, 12], gainZ: [10, 6], limit: 50, hang: 0.35, gravity: 0.8, clearOf: ['thigh_F'], margin: 16 },
+  { chain: 'neckA', at: [-0.03, -0.19], rest: 165, lens: [0.075, 0.08], k: 50, c: 6, gainV: [30, 15], gainZ: [-20, -10], limit: 60, hang: 0.35, gravity: 0.3 },
+];
 
 export function buildCatalogB(): Catalog {
   const items = new Map<string, Item>();
@@ -86,8 +94,16 @@ export function buildCatalogB(): Catalog {
     hides: ['hand_F.front.skin', 'hand_B.front.skin', 'hand_F.back.skin', 'hand_B.back.skin'],
   });
   put({ id: 'b_gold_cape', wslot: 'back', name: 'Golden Warrior cape', set: 'B', parts: [part('cape.back.1', 'b/gold/cape_strip')] });
-  // rule tests: the basic top with stand-in coat tails on the top's hip chain (set X, lab only)
-  put({ id: 'b_test_coat', wslot: 'top', name: 'Coat-tail stand-in (rule test)', set: 'X', parts: [...items.get('b_basic_top')!.parts, part('hipB.back', 'b/test/coat_tail')], attach: [COAT_TEST_ATTACH] });
+  // rule tests: the basic top with a plain stand-in coat on every coat chain and the waist slot (set X, lab only)
+  put({
+    id: 'b_test_coat', wslot: 'top', name: 'Coat stand-in (rule test)', set: 'X',
+    parts: [
+      ...items.get('b_basic_top')!.parts, part('hip.over', 'b/test/waist_sash'),
+      part('hipB.back', 'b/test/coat_tail'), part('hipC.front', 'b/test/coat_panel_near'), part('hipD.mid', 'b/test/coat_panel_far'),
+      part('sashE.front', 'b/test/sash_end'), part('neckA.scarf', 'b/test/scarf_end'),
+    ],
+    attach: COAT_TEST_PIECES,
+  });
   put({ id: 'b_sun_sword', wslot: 'weapon', name: 'Sun-guard longsword', set: 'A', family: 'sword', parts: [part('weapon', 'b/sword')] });
   return { items, art: new Map(), base: { body, face } };
 }

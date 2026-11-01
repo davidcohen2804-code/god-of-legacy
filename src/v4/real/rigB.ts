@@ -45,23 +45,36 @@ const after = (list: SlotDef[], anchor: string, extra: SlotDef[]) => { const i =
 // motion curve. Each chain has a slot in front of the body and one behind the legs; the piece picks where it draws.
 // Layering when both are worn: in front, the trousers' piece (hung from the belt) over the top's; behind the legs, the
 // top's coat tails over the trousers' piece.
-const ATTACH_BONES: BoneDef[] = [
-  { name: 'hipA_1', parent: 'hip', x: 0, y: 0, r: 90, len: 0.12 }, { name: 'hipA_2', parent: 'hipA_1', x: 0.12, y: 0, r: 0, len: 0.12 },
-  { name: 'hipB_1', parent: 'hip', x: 0, y: 0, r: 90, len: 0.12 }, { name: 'hipB_2', parent: 'hipB_1', x: 0.12, y: 0, r: 0, len: 0.12 },
+// Phase 5 adds the chains a long coat needs (all owned by the top): C, a front panel over the near leg; D, a front
+// panel between the legs (over the far leg, under the near one); E, a sash end hung from the sash knot; and N, a scarf
+// end on the chest (separate from the cape, the half-cape and the hair).
+const link2 = (c: string, parent: string): BoneDef[] => [
+  { name: `${c}_1`, parent, x: 0, y: 0, r: 90, len: 0.12 }, { name: `${c}_2`, parent: `${c}_1`, x: 0.12, y: 0, r: 0, len: 0.12 },
 ];
-const att = (name: string, chain: 'A' | 'B', grp: string): SlotDef => ({ name, bone: `hip${chain}_1`, group: grp, owner: chain === 'A' ? 'bottom' : 'top', strip: [`hip${chain}_1`, `hip${chain}_2`] });
+const CHAINS: [string, string][] = [['hipA', 'hip'], ['hipB', 'hip'], ['hipC', 'hip'], ['hipD', 'hip'], ['sashE', 'hip'], ['neckA', 'chest']];
+const ATTACH_BONES: BoneDef[] = CHAINS.flatMap(([c, parent]) => link2(c, parent));
+const att = (name: string, chain: string, grp: string): SlotDef => ({ name, bone: `${chain}_1`, group: grp, owner: chain === 'hipA' ? 'bottom' : 'top', strip: [`${chain}_1`, `${chain}_2`] });
+const torsoG = group('torso'), hipOver = torsoG.find((s) => s.name === 'hip.over')!;
 const slots: SlotDef[] = [
   // the cape is one picture bent along the three cape bones
   ...group('behind').map((s) => (s.name === 'cape.back.1' ? { ...s, strip: ['cape_1', 'cape_2', 'cape_3'] } : s)),
-  att('hipA.back', 'A', 'behind'), att('hipB.back', 'B', 'behind'),
+  // behind the legs: the trousers' back piece, then the top's coat tails over it
+  att('hipA.back', 'hipA', 'behind'), att('hipB.back', 'hipB', 'behind'),
   ...armF.filter((s) => s.name.startsWith('uparm_F.')).map((s) => ({ ...s, group: 'armFU' })),
   ...feetFirst(group('legF')),
+  // a coat's far front panel: over the far leg, under the near one
+  att('hipD.mid', 'hipD', 'legF'),
   ...feetFirst(group('legB')),
-  ...group('torso').filter((s) => !s.name.startsWith('hip.')), ...group('torso').filter((s) => s.name.startsWith('hip.')),
-  // hung from the belt, over the hips and the tops of the thighs: the top's piece, then the trousers' (the Golden tabard)
-  att('hipB.front', 'B', 'torso'), att('hipA.front', 'A', 'torso'),
+  ...torsoG.filter((s) => !s.name.startsWith('hip.')), ...torsoG.filter((s) => s.name.startsWith('hip.') && s !== hipOver),
+  // hung at the waist, over the hips and the tops of the thighs: the top's front pieces (any, then a coat's near front
+  // panel), then the trousers' belt-hung piece (the Golden tabard) over their inner edges; then the top's waist piece
+  // worn over the trousers (a coat's sash and belt: over the tabard's top), and a sash end hung from its knot
+  att('hipB.front', 'hipB', 'torso'), att('hipC.front', 'hipC', 'torso'), att('hipA.front', 'hipA', 'torso'),
+  hipOver, att('sashE.front', 'sashE', 'torso'),
   // the near arm, with caps that turn half as far as the limb: the shoulder piece and the elbow piece
   ...after(after(armB, 'uparm_B.over', [cap('uparm_B.cap', 'uparm_B', 'armB')]), 'forearm_B.over', [cap('forearm_B.cap', 'forearm_B', 'armB')]),
+  // a scarf's loose end: over the near shoulder (and a half-cape), under the head
+  att('neckA.scarf', 'neckA', 'armB'),
   // the fringe's strand tips at the brows differ per expression: that hair slot follows the face channel
   ...group('head').map((s) => (s.name === 'hair.fringe' ? { ...s, channel: 'face' } : s)),
   // the sword hand's palm layer and the sword form one group (gripF), so the blade can go behind the head with the palm
@@ -78,7 +91,8 @@ export const RIG_B: RigDef = {
   id: 'warrior_b_v1',
   bones: [...GOLDEN_RIG.bones.map((b) => ({ ...b, ...(MEASURED[b.name] ?? {}) })), ...ATTACH_BONES],
   slots,
-  attach: { hipA: ['hipA_1', 'hipA_2'], hipB: ['hipB_1', 'hipB_2'] },
-  // the items' attachment rest angles are drawn for the combat stance's hips (b_stance.json)
-  attachRef: stanceData.pose.hip,
+  attach: Object.fromEntries(CHAINS.map(([c]) => [c, [`${c}_1`, `${c}_2`]])),
+  // the items' attachment rest angles are drawn for the combat stance (b_stance.json): the hips' angle there, and the
+  // chest's for the scarf chain on the chest
+  attachRef: Object.fromEntries(CHAINS.map(([c, parent]) => [c, stanceData.pose.hip + (parent === 'chest' ? stanceData.pose.chest : 0)])),
 };

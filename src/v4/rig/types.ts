@@ -92,6 +92,7 @@ export interface RigDef {
   /** Optional attachment chains (name → bones, parent first): idle and rigid unless a worn item hangs a piece on them
    *  (AttachSpec); they come after the body's bones, so the body's own motion never depends on them. */
   attach?: Record<string, string[]>;
-  /** The hips' world angle (degrees) in the stance the items' attachment rest angles are drawn for (AttachSpec.gravity). */
-  attachRef?: number;
+  /** Per attachment chain: its parent's world angle (degrees) in the stance the items' rest angles are drawn for
+   *  (AttachSpec.gravity). */
+  attachRef?: Record<string, number>;
 }

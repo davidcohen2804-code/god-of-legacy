@@ -1,5 +1,5 @@
 // Drives the built lab in headless Chromium (software WebGL): smoke check, tests, benchmark, screenshots, recordings.
-// Usage: [V4_ART=placeholder|b] node tools/v4/run_lab.mjs <smoke|tests|tests-full|bench|shots|record|reel> [outDir] [part]
+// Usage: [V4_ART=placeholder|b] [V4_ONLY=B7,B8] node tools/v4/run_lab.mjs <smoke|tests|tests-full|bench|shots|record|reel> [outDir] [part]
 //   V4_ART picks the art the lab opens with (default: candidate B's real art; the Phase 1 tests need the placeholder)
 //   shots parts: looks, crowd, debug, sizes, swap (comma-separated) or all (default); record parts: idle | run | jump | attack | all
 // Expects the lab served at http://localhost:4199/ (python3 -m http.server 4199 --directory dist-v4lab).
@@ -46,7 +46,8 @@ try {
     console.log(JSON.stringify({ hud, info }, null, 1));
   }
   if (cmd === 'tests' || cmd === 'tests-full') {
-    const res = await lab((full) => window.__v4lab.runTests(full), cmd === 'tests-full');
+    const only = process.env.V4_ONLY ? process.env.V4_ONLY.split(',') : undefined; // e.g. V4_ONLY=B7,B8
+    const res = await lab(([full, only]) => window.__v4lab.runTests(full, only), [cmd === 'tests-full', only]);
     writeFileSync(`${out}/${cmd}.json`, JSON.stringify(res, null, 2));
     for (const r of res) console.log(`${r.pass ? 'PASS' : 'FAIL'} ${r.id} ${r.name}\n     ${r.detail}`);
   }

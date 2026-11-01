@@ -37,7 +37,8 @@ for look in ('basic', 'gold'):
 add('gold', 'tabard')  # a strip bent along the trousers' hip chain (pivot: its top centre, the chain's anchor)
 add('gold', 'cape')
 add('gold', 'cape_strip')  # the cape upright, drawn as a strip bent along the cape chain
-add('test', 'coat_tail', name='b/test/coat_tail')  # lab-only stand-in for rule tests (test_standins.py), not a design
+for part in ('coat_tail', 'coat_panel_near', 'coat_panel_far', 'sash_end', 'scarf_end', 'waist_sash'):  # lab-only stand-ins for rule tests (test_standins.py), not designs
+    add('test', part, name=f'b/test/{part}')
 
 
 def pack(scale, size):

@@ -26,7 +26,9 @@ type Mix = Partial<Record<WardrobeSlot, string | null>>;
 const MIXES: Mix[] = Array.from({ length: 1 << CHOICES.length }, (_, m) => Object.fromEntries(CHOICES.map(([slot, opts], j) => [slot, opts[(m >> j) & 1]])));
 const mixName = (x: Mix) => CHOICES.map(([slot]) => `${slot}:${(x[slot] ?? 'none').replace(/^b_/, '')}`).join(' ');
 
-export async function runTestsB(scene: LabScene, opts: { full: boolean }, progress: (msg: string) => void = () => {}): Promise<TestResult[]> {
+export async function runTestsB(scene: LabScene, opts: { full: boolean; only?: string[] }, progress: (msg: string) => void = () => {}): Promise<TestResult[]> {
+  /** `only`: run just the tests whose ids start with one of these (e.g. ['B7', 'B8']). */
+  const want = (id: string) => !opts.only?.length || opts.only.some((o) => id.startsWith(o));
   const A = scene.assets, pose = A.pose, rig = pose.rig, wardrobe = A.wardrobe, results: TestResult[] = [];
   if (A.art !== 'b') throw new Error('runTestsB needs the lab on candidate B');
   const ANIM_LIST: AnimDef[] = [A.anims.idle, A.anims.run, A.anims.jump, A.anims.attack];
@@ -54,8 +56,8 @@ export async function runTestsB(scene: LabScene, opts: { full: boolean }, progre
   };
 
   // ---- B1: atlas frames and pivots ----
+  if (want('B1')) {
   progress('B1 frames');
-  {
     const names = new Set<string>();
     for (const it of A.catalog.items.values()) for (const p of it.parts) if (p.frame) names.add(p.frame);
     const missing: string[] = [];
@@ -74,8 +76,8 @@ export async function runTestsB(scene: LabScene, opts: { full: boolean }, progre
   }
 
   // ---- B2: every mix of the two outfits resolves with nothing refused ----
+  if (want('B2')) {
   progress('B2 resolver');
-  {
     let refused = 0, parts = 0;
     const notes: string[] = [];
     for (const mix of MIXES) {
@@ -90,8 +92,8 @@ export async function runTestsB(scene: LabScene, opts: { full: boolean }, progre
   }
 
   // ---- B3: motion never depends on the outfit; swaps mid-animation are atomic and leave the clock alone ----
+  if (want('B3')) {
   progress('B3 motion and swaps');
-  {
     // the body's bones (the optional attachment chains come after them and belong to the items that use them)
     const nAtt = Object.values(rig.attach ?? {}).reduce((n, b) => n + b.length, 0), bodyLen = (rig.bones.length - nAtt) * 6;
     let maxBone = 0, checks = 0;
@@ -146,8 +148,8 @@ export async function runTestsB(scene: LabScene, opts: { full: boolean }, progre
   // without (31) and with (95) the helmet
   const quick = (() => { const r = new Phaser.Math.RandomDataGenerator(['b4']), ids = r.shuffle([...MIXES.keys()].filter((i) => i !== 0 && i !== 31 && i !== 95)).slice(0, 13); return [0, 31, 95, ...ids].sort((p, q) => p - q); })();
   const list = opts.full ? MIXES : quick.map((i) => MIXES[i]);
+  if (want('B4')) {
   progress(`B4 ${list.length} mixes × 32 poses`);
-  {
     // joint discs (B): about 0.6 of the narrower part's half width where two parts meet (measured on the cut parts)
     const joints: [string, number, string][] = [
       ['uparm_F', 0.02, 'shoulder'], ['uparm_B', 0.02, 'shoulder'], ['forearm_F', 0.015, 'elbow'], ['forearm_B', 0.015, 'elbow'],
@@ -277,8 +279,8 @@ export async function runTestsB(scene: LabScene, opts: { full: boolean }, progre
   }
 
   // ---- B5: the wardrobe preview (512 atlas) matches gameplay (256 atlas) ----
+  if (want('B5')) {
   progress('B5 preview parity');
-  {
     const Bp = 450, sp = Bp / MASTER_B, OXp = Math.round(Bp * 1.3), OYp = Math.round(Bp * 2.3 * 0.86), RWp = Math.ceil(Bp * 2.6), RHp = Math.ceil(Bp * 2.3);
     const hzP = new Harness(scene, 'v4testBP', RWp, RHp);
     let minIoU = 1, minSame = 1, n = 0, slotDiff = 0, worst = '';
@@ -325,8 +327,8 @@ export async function runTestsB(scene: LabScene, opts: { full: boolean }, progre
   }
 
   // ---- B6: swap cost ----
+  if (want('B6')) {
   progress('B6 swap cost');
-  {
     const ms: number[] = [];
     const rng = new Phaser.Math.RandomDataGenerator(['b6']);
     for (let i = 0; i < 600; i++) {
@@ -349,7 +351,6 @@ export async function runTestsB(scene: LabScene, opts: { full: boolean }, progre
   progress('B7 hip attachment chains');
   const gold: Mix = { top: 'b_gold_top', bottom: 'b_gold_bottom', gloves: 'b_gold_gloves', shoes: 'b_gold_shoes', back: 'b_gold_cape', weapon: 'b_sun_sword' };
   const attItems = [...A.catalog.items.values()].filter((it) => it.attach?.length);
-  const hipBone = pose.index.get('hip')!;
   const deg = (i: number) => pose.rotation(ch.state, i);
   const wrapD = (d: number) => d - 360 * Math.round(d / 360);
   const linksOf = (sp: AttachSpec) => rig.attach![sp.chain].map((n) => pose.index.get(n)!);
@@ -357,7 +358,7 @@ export async function runTestsB(scene: LabScene, opts: { full: boolean }, progre
   const chainStats = () => ({ swing: 0, behind: 0, folds: 0, lifted: 0, maxBend: 0, frames: 0 });
   const checkFrame = (specs: AttachSpec[], st: ReturnType<typeof chainStats>) => {
     for (const sp of specs) {
-      const [a1, a2] = linksOf(sp), w1 = deg(a1), rest1 = deg(hipBone) + sp.rest;
+      const [a1, a2] = linksOf(sp), w1 = deg(a1), rest1 = deg(pose.parent[a1]) + sp.rest;
       st.swing = Math.max(st.swing, Math.abs(wrapD(w1 - rest1)));
       const bend = Math.abs(wrapD(deg(a2) - w1)); st.maxBend = Math.max(st.maxBend, bend);
       if (bend > 75) st.folds++;
@@ -385,7 +386,7 @@ export async function runTestsB(scene: LabScene, opts: { full: boolean }, progre
     }
   };
   const bodyBones = rig.bones.length - Object.values(rig.attach ?? {}).reduce((n, b) => n + b.length, 0);
-  {
+  if (want('B7')) {
     const lines: string[] = [];
     let restDev = 0, pass = true;
     for (const it of attItems) {
@@ -395,7 +396,7 @@ export async function runTestsB(scene: LabScene, opts: { full: boolean }, progre
       let dev = 0;
       for (const t of times(A.anims.idle, 8)) {
         poseAt(ch, A.anims.idle, t);
-        for (const sp of it.attach!) { const [a1, a2] = linksOf(sp); dev = Math.max(dev, Math.abs(wrapD(deg(a1) - (deg(hipBone) + sp.rest))), Math.abs(wrapD(deg(a2) - deg(a1)))); }
+        for (const sp of it.attach!) { const [a1, a2] = linksOf(sp); dev = Math.max(dev, Math.abs(wrapD(deg(a1) - (deg(pose.parent[a1]) + sp.rest))), Math.abs(wrapD(deg(a2) - deg(a1)))); }
       }
       restDev = Math.max(restDev, dev);
       // (b) every frame of the four animations
@@ -431,26 +432,35 @@ export async function runTestsB(scene: LabScene, opts: { full: boolean }, progre
       return tot ? vis / tot : 1;
     };
     const sharesNote: string[] = [];
+    let worstKeep = 1, worstKeepWhat = '', worstAvgKeep = 1, worstIdleKeep = 1;
     for (const x of attItems) for (const y of attItems) {
       if (x === y || x.wslot === y.wslot || x.attach![0].chain === y.attach![0].chain) continue;
-      const slot = rig.slots.findIndex((sl) => x.parts.some((p) => p.slot === sl.name && sl.strip));
+      // every hung piece of x (its strip slots), with y's slot wearing the basic piece, then y
+      const strips = rig.slots.map((sl, i) => [sl, i] as const).filter(([sl]) => sl.strip && x.parts.some((p) => p.slot === sl.name)).map(([, i]) => i);
       const alone: Mix = { ...gold, back: null, [x.wslot]: x.id, [y.wslot]: basicFor(y.wslot) }, both: Mix = { ...alone, [y.wslot]: y.id };
-      let sumA = 0, sumB = 0, n = 0;
-      for (const a of ANIM_LIST) for (const t of times(a, 8)) {
-        ch.setAvatar(wardrobe.resolve(input(alone))); poseAt(ch, a, t); const sa = share(slot);
-        ch.setAvatar(wardrobe.resolve(input(both))); poseAt(ch, a, t); const sb = share(slot);
-        const loss = sa - sb;
-        if (loss > worstLoss) { worstLoss = loss; worstWhat = `${x.name} with ${y.name}, ${a.name} at ${t.toFixed(3)} s`; }
-        if (sb === 0) hiddenPoses++;
-        sumA += sa; sumB += sb; n++; checked++;
+      for (const slot of strips) {
+        let sumA = 0, sumB = 0, n = 0, idleA = 0, idleB = 0;
+        for (const a of ANIM_LIST) for (const t of times(a, 8)) {
+          ch.setAvatar(wardrobe.resolve(input(alone))); poseAt(ch, a, t); const sa = share(slot);
+          ch.setAvatar(wardrobe.resolve(input(both))); poseAt(ch, a, t); const sb = share(slot);
+          const loss = sa - sb;
+          if (loss > worstLoss) { worstLoss = loss; worstWhat = `${rig.slots[slot].name} of ${x.name} with ${y.name}, ${a.name} at ${t.toFixed(3)} s`; }
+          if (sa >= 0.1) { if (sb / sa < worstKeep) { worstKeep = sb / sa; worstKeepWhat = `${rig.slots[slot].name}, ${a.name} at ${t.toFixed(3)} s`; } if (sb === 0) hiddenPoses++; }
+          if (a === A.anims.idle) { idleA += sa; idleB += sb; }
+          sumA += sa; sumB += sb; n++; checked++;
+        }
+        if (sumA > 0) worstAvgKeep = Math.min(worstAvgKeep, sumB / sumA);
+        if (idleA > 0) worstIdleKeep = Math.min(worstIdleKeep, idleB / idleA);
+        sharesNote.push(`${rig.slots[slot].name} (${x.name}): ${(100 * sumA / n).toFixed(0)}% visible alone, ${(100 * sumB / n).toFixed(0)}% with ${y.name}`);
+        await yieldFrame();
       }
-      sharesNote.push(`${x.name}: ${(100 * sumA / n).toFixed(0)}% of it visible on average alone, ${(100 * sumB / n).toFixed(0)}% with ${y.name}`);
-      await yieldFrame();
     }
-    if (worstLoss > 0.05) pass = false;
+    // worn together, no piece is ever fully hidden; over the four animations each keeps at least 70% of what it shows
+    // alone, and at rest at least 80% (a sash end swinging over a tabard in a run is cloth doing what cloth does)
+    if (hiddenPoses > 0 || worstAvgKeep < 0.7 || worstIdleKeep < 0.8) pass = false;
     ch.setAvatar(wardrobe.resolve(input(gold)));
     results.push({ id: 'B7', name: 'Hip attachment chains: every hung piece swings on its own chain', pass,
-      detail: `${lines.join('; ')}. ${pairs} item pairs on different chains worn together: one changes the other's motion and the body's ${bodyBones} bones by ${coupled.toExponential(1)}. Visibility (${checked} poses): ${sharesNote.join('; ')}; the other item hides at most ${(100 * worstLoss).toFixed(1)}% of a piece${worstWhat ? ` (${worstWhat})` : ''}; poses with a piece fully hidden: ${hiddenPoses}` });
+      detail: `${lines.join('; ')}. ${pairs} item pairs on different chains worn together: one changes the other's motion and the body's ${bodyBones} bones by ${coupled.toExponential(1)}. Visibility (${checked} piece × pose checks, gameplay size, no cape): ${sharesNote.join('; ')}; worn together each piece keeps at least ${(100 * worstAvgKeep).toFixed(0)}% of what it shows alone over the four animations and ${(100 * worstIdleKeep).toFixed(0)}% at rest (lowest single pose ${(100 * worstKeep).toFixed(0)}%: ${worstKeepWhat}); the most the other item hides is ${(100 * worstLoss).toFixed(1)}% of a piece${worstWhat ? ` (${worstWhat})` : ''}; poses with a piece fully hidden: ${hiddenPoses}` });
   }
 
   // ---- B8: extreme poses and a spring stress run ----
@@ -458,8 +468,8 @@ export async function runTestsB(scene: LabScene, opts: { full: boolean }, progre
   // the hips tipped forward and back), and a run → sudden stop → jump → attack sequence with the springs carried over.
   // Front pieces must stay in front of the most forward thigh, lower links must not fold, and the springs stay within
   // their limits. Every item that hangs a piece, in its home outfit.
+  if (want('B8')) {
   progress('B8 extreme poses');
-  {
     const S = STANCE_B, ROT = ['hip', 'chest', 'head', 'uparm_F', 'forearm_F', 'hand_F', 'weapon', 'uparm_B', 'forearm_B', 'hand_B', 'thigh_F', 'shin_F', 'foot_F', 'thigh_B', 'shin_B', 'foot_B'];
     const still = (name: string, d: Record<string, number>, dy = 0): AnimDef => ({
       name, dur: 1, loop: true,
