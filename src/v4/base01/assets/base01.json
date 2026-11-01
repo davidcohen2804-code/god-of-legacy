@@ -1,0 +1,513 @@
+{
+ "id": "base01",
+ "bpx": 512,
+ "frames": [
+  {
+   "name": "base/leg_B",
+   "x": 1,
+   "y": 1,
+   "w": 72,
+   "h": 197,
+   "px": 0.5,
+   "py": 0.12995,
+   "rows": {
+    "top": 25.6,
+    "mid": 113.97,
+    "end": 189.03
+   }
+  },
+  {
+   "name": "bottom01_pants/leg_B",
+   "x": 75,
+   "y": 1,
+   "w": 72,
+   "h": 197,
+   "px": 0.5,
+   "py": 0.12995,
+   "rows": {
+    "top": 25.6,
+    "mid": 113.97,
+    "end": 189.03
+   }
+  },
+  {
+   "name": "shoes01_boots/leg_B",
+   "x": 149,
+   "y": 1,
+   "w": 72,
+   "h": 197,
+   "px": 0.5,
+   "py": 0.12995,
+   "rows": {
+    "top": 25.6,
+    "mid": 113.97,
+    "end": 189.03
+   }
+  },
+  {
+   "name": "base/leg_F",
+   "x": 223,
+   "y": 1,
+   "w": 72,
+   "h": 195,
+   "px": 0.5,
+   "py": 0.13128,
+   "rows": {
+    "top": 25.6,
+    "mid": 112.61,
+    "end": 186.62
+   }
+  },
+  {
+   "name": "bottom01_pants/leg_F",
+   "x": 297,
+   "y": 1,
+   "w": 72,
+   "h": 195,
+   "px": 0.5,
+   "py": 0.13128,
+   "rows": {
+    "top": 25.6,
+    "mid": 112.61,
+    "end": 186.62
+   }
+  },
+  {
+   "name": "shoes01_boots/leg_F",
+   "x": 371,
+   "y": 1,
+   "w": 72,
+   "h": 195,
+   "px": 0.5,
+   "py": 0.13128,
+   "rows": {
+    "top": 25.6,
+    "mid": 112.61,
+    "end": 186.62
+   }
+  },
+  {
+   "name": "base/head",
+   "x": 445,
+   "y": 1,
+   "w": 212,
+   "h": 184,
+   "px": 0.49387,
+   "py": 0.93902
+  },
+  {
+   "name": "base/torso",
+   "x": 659,
+   "y": 1,
+   "w": 114,
+   "h": 159,
+   "px": 0.54114,
+   "py": 0.74333
+  },
+  {
+   "name": "top01_tunic/torso",
+   "x": 775,
+   "y": 1,
+   "w": 118,
+   "h": 148,
+   "px": 0.51432,
+   "py": 0.62291
+  },
+  {
+   "name": "base/arm_F",
+   "x": 895,
+   "y": 1,
+   "w": 59,
+   "h": 130,
+   "px": 0.5,
+   "py": 0.16538,
+   "rows": {
+    "top": 21.5,
+    "mid": 72.38,
+    "end": 122.1
+   }
+  },
+  {
+   "name": "top01_tunic/arm_F",
+   "x": 956,
+   "y": 1,
+   "w": 59,
+   "h": 130,
+   "px": 0.5,
+   "py": 0.16538,
+   "rows": {
+    "top": 21.5,
+    "mid": 72.38,
+    "end": 122.1
+   }
+  },
+  {
+   "name": "base/arm_B",
+   "x": 1,
+   "y": 200,
+   "w": 59,
+   "h": 128,
+   "px": 0.5,
+   "py": 0.16797,
+   "rows": {
+    "top": 21.5,
+    "mid": 72.15,
+    "end": 121.44
+   }
+  },
+  {
+   "name": "top01_tunic/arm_B",
+   "x": 62,
+   "y": 200,
+   "w": 59,
+   "h": 128,
+   "px": 0.5,
+   "py": 0.16797,
+   "rows": {
+    "top": 21.5,
+    "mid": 72.15,
+    "end": 121.44
+   }
+  },
+  {
+   "name": "base/hand_B",
+   "x": 123,
+   "y": 200,
+   "w": 56,
+   "h": 81,
+   "px": 0.51393,
+   "py": 0.10679
+  },
+  {
+   "name": "base/hand_F",
+   "x": 181,
+   "y": 200,
+   "w": 48,
+   "h": 80,
+   "px": 0.45021,
+   "py": 0.10812
+  },
+  {
+   "name": "weapon01_sword/weapon",
+   "x": 231,
+   "y": 200,
+   "w": 254,
+   "h": 72,
+   "px": 0.16402,
+   "py": 0.49042
+  },
+  {
+   "name": "base/hand_F_grip",
+   "x": 487,
+   "y": 200,
+   "w": 55,
+   "h": 59,
+   "px": 0.502,
+   "py": 0.14661
+  },
+  {
+   "name": "base/pelvis",
+   "x": 544,
+   "y": 200,
+   "w": 108,
+   "h": 58,
+   "px": 0.50639,
+   "py": 0.56293
+  },
+  {
+   "name": "base/hand_B_grip",
+   "x": 654,
+   "y": 200,
+   "w": 61,
+   "h": 58,
+   "px": 0.4718,
+   "py": 0.14914
+  },
+  {
+   "name": "bottom01_pants/pelvis",
+   "x": 717,
+   "y": 200,
+   "w": 105,
+   "h": 57,
+   "px": 0.49229,
+   "py": 0.55526
+  },
+  {
+   "name": "base/foot_B",
+   "x": 824,
+   "y": 200,
+   "w": 97,
+   "h": 50,
+   "px": 0.28608,
+   "py": 0.1198
+  },
+  {
+   "name": "shoes01_boots/foot_B",
+   "x": 923,
+   "y": 200,
+   "w": 78,
+   "h": 49,
+   "px": 0.34295,
+   "py": 0.14265
+  },
+  {
+   "name": "base/foot_F",
+   "x": 1,
+   "y": 330,
+   "w": 88,
+   "h": 45,
+   "px": 0.28591,
+   "py": 0.06644
+  },
+  {
+   "name": "shoes01_boots/foot_F",
+   "x": 91,
+   "y": 330,
+   "w": 84,
+   "h": 45,
+   "px": 0.29952,
+   "py": 0.15533
+  }
+ ],
+ "rig": {
+  "bpx_drawing": 1025.0,
+  "root": [
+   611.5,
+   1131.0
+  ],
+  "world": {
+   "hip": 0.0,
+   "chest": 0.0,
+   "head": 0.0,
+   "foot_B": 0.0,
+   "foot_F": 0.0,
+   "uparm_B": 112.011,
+   "forearm_B": 107.7,
+   "uparm_F": 70.498,
+   "forearm_F": 67.557,
+   "thigh_B": 100.421,
+   "shin_B": 99.964,
+   "thigh_F": 87.368,
+   "shin_F": 87.292,
+   "hand_B": 107.7,
+   "hand_F": 67.557
+  },
+  "lengths": {
+   "uparm_B": 0.09892,
+   "forearm_B": 0.09626,
+   "uparm_F": 0.09936,
+   "forearm_F": 0.09711,
+   "thigh_B": 0.1726,
+   "shin_B": 0.1466,
+   "thigh_F": 0.16994,
+   "shin_F": 0.14455
+  },
+  "hand_len": 0.05009,
+  "hand_len_F": 0.0503,
+  "offsets": {
+   "hip": [
+    0.02,
+    -0.40878
+   ],
+   "chest": [
+    -0.0039,
+    -0.06537
+   ],
+   "head": [
+    -0.0078,
+    -0.1922
+   ],
+   "uparm_B": [
+    -0.10146,
+    -0.11415
+   ],
+   "uparm_F": [
+    0.09366,
+    -0.11415
+   ],
+   "thigh_B": [
+    -0.05073,
+    0.01268
+   ],
+   "thigh_F": [
+    0.05268,
+    0.01268
+   ]
+  },
+  "limbs": {
+   "arm_B": {
+    "top": 0.042,
+    "bottom": 0.014,
+    "bend": 0.028
+   },
+   "arm_F": {
+    "top": 0.042,
+    "bottom": 0.014,
+    "bend": 0.028
+   },
+   "leg_B": {
+    "top": 0.05,
+    "bottom": 0.016,
+    "bend": 0.04
+   },
+   "leg_F": {
+    "top": 0.05,
+    "bottom": 0.016,
+    "bend": 0.04
+   }
+  }
+ },
+ "items": [
+  {
+   "id": "base01_body",
+   "slot": "body",
+   "name": "BASE-01 body",
+   "parts": [
+    {
+     "part": "head",
+     "frame": "base/head"
+    },
+    {
+     "part": "torso",
+     "frame": "base/torso"
+    },
+    {
+     "part": "pelvis",
+     "frame": "base/pelvis"
+    },
+    {
+     "part": "arm_B",
+     "frame": "base/arm_B"
+    },
+    {
+     "part": "leg_B",
+     "frame": "base/leg_B"
+    },
+    {
+     "part": "hand_B",
+     "frame": "base/hand_B"
+    },
+    {
+     "part": "foot_B",
+     "frame": "base/foot_B"
+    },
+    {
+     "part": "arm_F",
+     "frame": "base/arm_F"
+    },
+    {
+     "part": "leg_F",
+     "frame": "base/leg_F"
+    },
+    {
+     "part": "hand_F",
+     "frame": "base/hand_F"
+    },
+    {
+     "part": "foot_F",
+     "frame": "base/foot_F"
+    }
+   ]
+  },
+  {
+   "id": "top01_tunic",
+   "slot": "top",
+   "name": "Traveler's Tunic",
+   "parts": [
+    {
+     "part": "torso",
+     "frame": "top01_tunic/torso"
+    },
+    {
+     "part": "arm_B",
+     "frame": "top01_tunic/arm_B"
+    },
+    {
+     "part": "arm_F",
+     "frame": "top01_tunic/arm_F"
+    }
+   ]
+  },
+  {
+   "id": "bottom01_pants",
+   "slot": "bottom",
+   "name": "Wanderer Pants",
+   "parts": [
+    {
+     "part": "pelvis",
+     "frame": "bottom01_pants/pelvis"
+    },
+    {
+     "part": "leg_B",
+     "frame": "bottom01_pants/leg_B"
+    },
+    {
+     "part": "leg_F",
+     "frame": "bottom01_pants/leg_F"
+    }
+   ]
+  },
+  {
+   "id": "shoes01_boots",
+   "slot": "shoes",
+   "name": "Traveler Boots",
+   "parts": [
+    {
+     "part": "leg_B",
+     "frame": "shoes01_boots/leg_B"
+    },
+    {
+     "part": "foot_B",
+     "frame": "shoes01_boots/foot_B"
+    },
+    {
+     "part": "leg_F",
+     "frame": "shoes01_boots/leg_F"
+    },
+    {
+     "part": "foot_F",
+     "frame": "shoes01_boots/foot_F"
+    }
+   ]
+  },
+  {
+   "id": "weapon01_sword",
+   "slot": "weapon",
+   "name": "Knight's Sword",
+   "parts": [
+    {
+     "part": "weapon",
+     "frame": "weapon01_sword/weapon"
+    }
+   ]
+  }
+ ],
+ "report": [
+  {
+   "id": "top01_tunic",
+   "ecc": 0.9921,
+   "median_colour_err_outside": 8.7,
+   "silhouette_mismatch_outside": 0.0083,
+   "accepted": true
+  },
+  {
+   "id": "bottom01_pants",
+   "ecc": 0.9902,
+   "median_colour_err_outside": 10.0,
+   "silhouette_mismatch_outside": 0.0082,
+   "accepted": true
+  },
+  {
+   "id": "shoes01_boots",
+   "ecc": 0.993,
+   "median_colour_err_outside": 10.3,
+   "silhouette_mismatch_outside": 0.0076,
+   "accepted": true
+  },
+  {
+   "id": "weapon01_sword",
+   "scale": 0.526,
+   "accepted": true
+  }
+ ]
+}

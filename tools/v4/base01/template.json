@@ -1,0 +1,260 @@
+{
+ "id": "base01",
+ "version": "v1",
+ "note": "BASE-01 v1, locked by the art director (2 Nov 2026). Every landmark is measured on the full-size master (1254 x 1254 px, y down). B = near side (the character's right, image left, drawn in front of the body); F = far side (image right, behind it). Lengths in B (sole to the top of the hair).",
+ "master": "base01_master.png",
+ "size": [
+  1254,
+  1254
+ ],
+ "ground": 1131,
+ "top": 106,
+ "atlas_bpx": 512,
+ "joints": {
+  "head": [
+   620,
+   448
+  ],
+  "neck": [
+   618,
+   480
+  ],
+  "waist": [
+   628,
+   645
+  ],
+  "pelvis": [
+   632,
+   712
+  ],
+  "shoulder_B": [
+   524,
+   528
+  ],
+  "elbow_B": [
+   486,
+   622
+  ],
+  "wrist_B": [
+   456,
+   716
+  ],
+  "shoulder_F": [
+   724,
+   528
+  ],
+  "elbow_F": [
+   758,
+   624
+  ],
+  "wrist_F": [
+   796,
+   716
+  ],
+  "hip_B": [
+   580,
+   725
+  ],
+  "knee_B": [
+   548,
+   899
+  ],
+  "ankle_B": [
+   522,
+   1047
+  ],
+  "toe_B": [
+   607,
+   1112
+  ],
+  "heel_B": [
+   482,
+   1103
+  ],
+  "hip_F": [
+   686,
+   725
+  ],
+  "knee_F": [
+   694,
+   899
+  ],
+  "ankle_F": [
+   701,
+   1047
+  ],
+  "toe_F": [
+   820,
+   1107
+  ],
+  "heel_F": [
+   662,
+   1099
+  ]
+ },
+ "cuts": {
+  "head": [
+   [
+    300,
+    466
+   ],
+   [
+    590,
+    465
+   ],
+   [
+    610,
+    458
+   ],
+   [
+    640,
+    463
+   ],
+   [
+    680,
+    466
+   ],
+   [
+    716,
+    463
+   ],
+   [
+    760,
+    452
+   ],
+   [
+    950,
+    440
+   ]
+  ],
+  "armpit_B": [
+   547,
+   592
+  ],
+  "armpit_F": [
+   716,
+   612
+  ],
+  "waist": [
+   [
+    400,
+    652
+   ],
+   [
+    900,
+    652
+   ]
+  ],
+  "hips": [
+   [
+    450,
+    738
+   ],
+   [
+    582,
+    744
+   ],
+   [
+    634,
+    758
+   ],
+   [
+    686,
+    744
+   ],
+   [
+    820,
+    738
+   ]
+  ],
+  "crotch": [
+   [
+    634,
+    758
+   ],
+   [
+    638,
+    820
+   ]
+  ]
+ },
+ "limbs": {
+  "arm_B": {
+   "joints": [
+    "shoulder_B",
+    "elbow_B",
+    "wrist_B"
+   ],
+   "top": 0.042,
+   "bottom": 0.014,
+   "bend": 0.028,
+   "width": 0.115
+  },
+  "arm_F": {
+   "joints": [
+    "shoulder_F",
+    "elbow_F",
+    "wrist_F"
+   ],
+   "top": 0.042,
+   "bottom": 0.014,
+   "bend": 0.028,
+   "width": 0.115
+  },
+  "leg_B": {
+   "joints": [
+    "hip_B",
+    "knee_B",
+    "ankle_B"
+   ],
+   "top": 0.05,
+   "bottom": 0.016,
+   "bend": 0.04,
+   "width": 0.14
+  },
+  "leg_F": {
+   "joints": [
+    "hip_F",
+    "knee_F",
+    "ankle_F"
+   ],
+   "top": 0.05,
+   "bottom": 0.016,
+   "bend": 0.04,
+   "width": 0.14
+  }
+ },
+ "hands": {
+  "note": "HANDS-01 (grip): the art director's grip picture; only the fists are taken, scaled to the master (figure height), turned to the master's forearm and seated on the master's wrists.",
+  "picture": "hands01_grip.png",
+  "height": 999,
+  "B": {
+   "wrist": [
+    436,
+    752
+   ],
+   "axis": [
+    -21,
+    50
+   ],
+   "grip": [
+    434,
+    802
+   ]
+  },
+  "F": {
+   "wrist": [
+    795,
+    752
+   ],
+   "axis": [
+    27,
+    50
+   ],
+   "grip": [
+    800,
+    802
+   ]
+  }
+ }
+}

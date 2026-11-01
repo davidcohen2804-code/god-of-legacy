@@ -1,10 +1,8 @@
 // The studio's controls: animation, clock (play / pause / one frame back or forward / speed), the worn pieces, overlays.
 import type { WardrobeSlot } from '../wardrobe/types';
-import { BASE_OUTFIT_T } from './catalogT';
-import type { StudioScene } from './StudioScene';
+import { KIT, type StudioScene } from './StudioScene';
 
 const ANIMS = [['rest', 'Source pose'], ['idle', 'Idle'], ['run', 'Run'], ['jump', 'Jump'], ['attack', 'Attack']] as const;
-const WEAR: [WardrobeSlot, string][] = [['top', 'Shirt'], ['bottom', 'Trousers'], ['shoes', 'Boots'], ['weapon', 'Sword']];
 
 export function buildStudioUI(scene: StudioScene): void {
   const $ = (id: string) => document.getElementById(id)!;
@@ -23,14 +21,24 @@ export function buildStudioUI(scene: StudioScene): void {
   $('back').onclick = () => stepBy(-1);
   $('fwd').onclick = () => stepBy(1);
   $('speed').onclick = () => { scene.speed = scene.speed === 1 ? 0.25 : 1; sync(); };
+  // the wardrobe: per slot, nothing or one of its items (the change shows at once, mid-animation)
   const wear = $('wear');
-  for (const [slot, label] of WEAR) {
-    const l = document.createElement('label'); l.className = 'check';
-    const c = document.createElement('input'); c.type = 'checkbox'; c.checked = true;
-    c.onchange = () => { if (c.checked) scene.worn[slot] = BASE_OUTFIT_T[slot]; else delete scene.worn[slot]; scene.applyLook(); };
-    l.append(c, document.createTextNode(label)); wear.appendChild(l);
+  for (const w of KIT.wear) {
+    const row = document.createElement('div'); row.className = 'slotrow';
+    const t = document.createElement('span'); t.className = 'slotname'; t.textContent = w.label; row.appendChild(t);
+    const opts: { id: string | null; name: string }[] = [{ id: null, name: 'None' }, ...w.items];
+    for (const o of opts) {
+      const b = document.createElement('button'); b.textContent = o.name; b.dataset[`w${w.slot}`] = o.id ?? 'none';
+      b.onclick = () => {
+        if (o.id) scene.worn[w.slot as WardrobeSlot] = o.id; else delete scene.worn[w.slot as WardrobeSlot];
+        scene.applyLook(); press(`w${w.slot}`, o.id ?? 'none');
+      };
+      row.appendChild(b);
+    }
+    wear.appendChild(row);
+    press(`w${w.slot}`, scene.worn[w.slot as WardrobeSlot] ?? 'none');
   }
-  for (const [key, label] of [['joints', 'Skeleton'], ['layers', 'Layers'], ['drawing', 'Source drawing (source pose)']] as const) {
+  for (const [key, label] of [['joints', 'Skeleton'], ['layers', 'Layers']] as const) {
     const l = document.createElement('label'); l.className = 'check';
     const c = document.createElement('input'); c.type = 'checkbox'; c.checked = scene.overlays[key];
     c.onchange = () => { scene.overlays[key] = c.checked; };

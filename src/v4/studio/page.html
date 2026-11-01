@@ -28,11 +28,14 @@
   button:focus-visible, input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
   label.check { display: flex; align-items: center; gap: 6px; cursor: pointer; }
   input[type="checkbox"] { accent-color: var(--gold); width: 16px; height: 16px; margin: 0; }
+  #wear { display: grid; gap: 8px; }
+  .slotrow { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+  .slotname { width: 72px; color: var(--muted); font-size: 12px; letter-spacing: .04em; }
   #clock { font: 500 12.5px/1.3 var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
 </style>
 
 <h1>Character Studio</h1>
-<p class="sub">Body template t1: the base body and the base outfit, cut from drawings in the template's source pose. Left: large view. Right: gameplay size.</p>
+<p class="sub">BASE-01: the base body locked by the art director, and the items drawn on it, all cut by one template. Left: large view. Right: gameplay size. Pick an animation and switch the items while it plays.</p>
 <div class="layout">
   <div class="stage" id="stage"></div>
   <div class="rail">

@@ -1,0 +1,6 @@
+[
+  {"id": "top01_tunic", "slot": "top", "name": "Traveler's Tunic", "picture": "items/top01_tunic_v2.png"},
+  {"id": "bottom01_pants", "slot": "bottom", "name": "Wanderer Pants", "picture": "items/bottom01_pants_v1.png"},
+  {"id": "shoes01_boots", "slot": "shoes", "name": "Traveler Boots", "picture": "items/shoes01_boots_v1.png"},
+  {"id": "weapon01_sword", "slot": "weapon", "name": "Knight's Sword", "picture": "items/weapon01_sword_v1.png", "grip": [303, 625], "grip_thickness": 57, "handle": 30}
+]

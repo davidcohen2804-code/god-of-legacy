@@ -1,6 +1,6 @@
-// The character studio's scene: one character built on body template t1, shown large (for looking at joints, grip and
-// layers up close) and at gameplay size, playing the shared animations with the clock under control (play, pause, step
-// one frame). Overlays: the skeleton (bones and joints), the parts by layer, the template's source drawing at rest.
+// The character studio's scene: one character kit (BASE-01 by default, see kit.ts), shown large (for looking at joints,
+// grip and layers up close) and at gameplay size, playing the shared animations with the clock under control (play,
+// pause, step one frame), its wardrobe switched live. Overlays: the skeleton (bones and joints), the parts by layer.
 // Isolated lab tool: nothing here is used by the game.
 import Phaser from 'phaser';
 import { RigPose } from '../rig/pose';
@@ -8,12 +8,9 @@ import type { AnimDef } from '../rig/types';
 import { RigCharacter, type Atlas } from '../render/RigCharacter';
 import { Wardrobe } from '../wardrobe/resolve';
 import type { AppearanceInput, WardrobeSlot } from '../wardrobe/types';
-import { ANIMS_T } from './animsT';
-import { BASE_OUTFIT_T, T_FRAMES, T_TEXTURE, buildCatalogT } from './catalogT';
-import { RIG_T } from './rigT';
-import t1Url from './assets/t1.png?inline';
-import drawingUrl from './assets/t1_drawing.png?inline';
-import data from './assets/t1.json';
+import { pickKit } from './kit';
+
+export const KIT = pickKit();
 
 export const STUDIO_CANVAS = { w: 1600, h: 900 };
 const MASTER_B = 768;
@@ -21,8 +18,6 @@ const MASTER_B = 768;
 export const BIG = { B: 420, x: 480, y: 790 };
 export const GAME = { B: 150, x: 1260, y: 640 };
 const FPS = 30;
-/** The source drawing is shipped at half size (an overlay for checking the assembly at rest). */
-const DRAWING_SCALE = 0.5;
 const GROUP_COLOURS: Record<string, number> = { armF: 0x6aa7ff, legF: 0x58c48a, legB: 0xf0c75e, torso: 0xe57f6a, head: 0xc89cf0, armB: 0x5fd4e6, gripB: 0xff6fb1, gripF: 0x9f8cff };
 
 const REST: AnimDef = { name: 'rest', dur: 1, loop: true, bones: {} };
@@ -32,41 +27,36 @@ export class StudioScene extends Phaser.Scene {
   wardrobe!: Wardrobe;
   big!: RigCharacter;
   small!: RigCharacter;
-  clips: Record<string, AnimDef> = { rest: REST, ...ANIMS_T };
+  clips: Record<string, AnimDef> = { rest: REST, ...KIT.anims };
   anim: AnimDef = REST;
   t = 0;
   playing = true;
   speed = 1;
-  worn: Partial<Record<WardrobeSlot, string>> = { ...BASE_OUTFIT_T };
-  overlays = { joints: false, layers: false, drawing: false };
+  worn: Partial<Record<WardrobeSlot, string>> = { ...KIT.outfit };
+  overlays = { joints: false, layers: false };
   private gfx!: Phaser.GameObjects.Graphics;
-  private drawing!: Phaser.GameObjects.Image;
 
   constructor() { super('studio'); }
 
   preload(): void {
-    this.load.image(T_TEXTURE, t1Url);
-    this.load.image('t1_body_drawing', drawingUrl);
+    this.load.image(KIT.texKey, KIT.texUrl);
   }
 
   create(): void {
-    const tex = this.textures.get(T_TEXTURE);
-    for (const f of T_FRAMES) {
+    const tex = this.textures.get(KIT.texKey);
+    for (const f of KIT.frames) {
       const fr = tex.add(f.name, 0, f.x, f.y, f.w, f.h)!;
       fr.customPivot = true; fr.pivotX = f.px; fr.pivotY = f.py;
     }
-    this.pose = new RigPose(RIG_T);
-    const cat = buildCatalogT();
-    this.wardrobe = new Wardrobe(RIG_T, cat.items, cat.base);
-    const atlas: Atlas = { key: T_TEXTURE, unitsPerPx: MASTER_B / data.bpx };
+    this.pose = new RigPose(KIT.rig);
+    const cat = KIT.catalog();
+    this.wardrobe = new Wardrobe(KIT.rig, cat.items, cat.base);
+    const atlas: Atlas = { key: KIT.texKey, unitsPerPx: MASTER_B / KIT.bpx };
     // the two panels: a soft floor line each
     const g = this.add.graphics();
     g.fillStyle(0x1a2232, 1).fillRect(0, 0, 960, STUDIO_CANVAS.h);
     g.fillStyle(0x121824, 1).fillRect(960, 0, STUDIO_CANVAS.w - 960, STUDIO_CANVAS.h);
     g.lineStyle(2, 0x2c3850, 1).lineBetween(40, BIG.y, 920, BIG.y).lineBetween(1000, GAME.y, 1560, GAME.y);
-    // the template's source drawing, at the large view's scale, behind the character (shown at rest on request)
-    const k = BIG.B / (data.rig.bpx_drawing as number) / DRAWING_SCALE;
-    this.drawing = this.add.image(BIG.x - data.rig.root[0] * DRAWING_SCALE * k, BIG.y - data.rig.root[1] * DRAWING_SCALE * k, 't1_body_drawing').setOrigin(0, 0).setScale(k).setAlpha(0.45).setVisible(false);
     this.big = new RigCharacter(this, this.pose, atlas, true);
     this.small = new RigCharacter(this, this.pose, atlas, true);
     this.big.container.setPosition(BIG.x, BIG.y);
@@ -78,7 +68,7 @@ export class StudioScene extends Phaser.Scene {
 
   applyLook(): void {
     const input: AppearanceInput = {
-      body: 'male_std', look: { hair: 't1_hair', face: 't1_face' }, gearLooks: {},
+      body: 'male_std', look: { ...KIT.look }, gearLooks: {},
       cosmetics: { equipped: { ...this.worn } }, family: 'sword',
     };
     const av = this.wardrobe.resolve(input);
@@ -102,9 +92,8 @@ export class StudioScene extends Phaser.Scene {
     for (const [ch, B] of [[this.big, BIG.B], [this.small, GAME.B]] as const) {
       ch.evaluate(this.anim, this.t);
       ch.layout(B / MASTER_B);
-      if (this.overlays.layers) ch.tintBySlot((i) => GROUP_COLOURS[RIG_T.slots[i].group] ?? 0xffffff); else ch.clearAllTints();
+      if (this.overlays.layers) ch.tintBySlot((i) => GROUP_COLOURS[KIT.rig.slots[i].group] ?? 0xffffff); else ch.clearAllTints();
     }
-    this.drawing.setVisible(this.overlays.drawing && this.anim === REST);
     this.gfx.clear();
     if (this.overlays.joints) this.drawJoints();
   }
