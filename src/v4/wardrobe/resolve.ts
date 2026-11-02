@@ -10,7 +10,8 @@ const ORDER: WardrobeSlot[] = ['body', 'face', 'hair', ...WEARABLE];
 
 /** Cross-slot hides an item may declare (11.4 rule 3). Anything else is refused and noted. */
 const ALLOWED_HIDES: Partial<Record<WardrobeSlot, (t: string) => boolean>> = {
-  head: (t) => t.startsWith('hair.') || t === 'w:eyeacc' || t === 'w:faceacc' || t === 'w:earring',
+  // (a body whose head piece carries its hair, BASE-01: headwear drawn as the whole head replaces it)
+  head: (t) => t.startsWith('hair.') || t === 'head.skin' || t === 'w:eyeacc' || t === 'w:faceacc' || t === 'w:earring',
   // boots: the bare foot under them; greaves also cover the trousers' lower legs (the lower-leg cloth under a boot)
   shoes: (t) => /^foot_[FB]\.skin$/.test(t) || /^shin_[FB]\.under$/.test(t),
   // gloves: the bare hand under them; a glove that draws the whole forearm (a bare one under a short sleeve, or a long

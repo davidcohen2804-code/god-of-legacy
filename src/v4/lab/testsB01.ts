@@ -9,11 +9,11 @@ import type { AnimDef } from '../rig/types';
 import { RigPose } from '../rig/pose';
 import type { WardrobeSlot } from '../wardrobe/types';
 import type { LabScene } from './LabScene';
+import { B01_WEAR } from '../base01/catalog';
 import { yieldFrame, type TestResult } from './tests';
 
-const CHOICES: [WardrobeSlot, (string | null)[]][] = [
-  ['top', [null, 'top01_tunic', 'top02_armor']], ['bottom', [null, 'bottom01_pants']], ['shoes', [null, 'shoes01_boots']], ['weapon', [null, 'weapon01_sword']],
-];
+// every item in the catalog, and nothing, in every slot (the mixes grow with the catalog)
+const CHOICES: [WardrobeSlot, (string | null)[]][] = B01_WEAR.map((w) => [w.slot, [null, ...w.items.map((i) => i.id)]]);
 type Mix = Partial<Record<WardrobeSlot, string | null>>;
 const MIXES: Mix[] = (() => {
   const out: Mix[] = [];

@@ -15,7 +15,7 @@ export const PIECE_SLOT: Partial<Record<WardrobeSlot, Record<string, string>>> =
   body: { head: 'head.skin', torso: 'torso.skin', pelvis: 'pelvis.skin', arm_B: 'arm_B.skin', arm_F: 'arm_F.skin', leg_B: 'leg_B.skin', leg_F: 'leg_F.skin', foot_B: 'foot_B.skin', foot_F: 'foot_F.skin' },
   top: {
     torso: 'torso.cloth', arm_B: 'arm_B.sleeve', arm_F: 'arm_F.sleeve', uparm_B: 'arm_B.plateU', forearm_B: 'arm_B.plateL', uparm_F: 'arm_F.plateU', forearm_F: 'arm_F.plateL',
-    pauldron_B: 'arm_B.pauldron', pauldron_F: 'arm_F.pauldron',
+    pauldron_B: 'arm_B.pauldron', pauldron_F: 'arm_F.pauldron', tails: 'pelvis.tails',
   },
   bottom: { pelvis: 'pelvis.cloth', pelvis_under: 'pelvis.under', leg_B: 'leg_B.cloth', leg_F: 'leg_F.cloth' },
   shoes: { foot_B: 'foot_B.shoe', foot_F: 'foot_F.shoe', leg_B: 'leg_B.shaft', leg_F: 'leg_F.shaft' },
@@ -27,9 +27,13 @@ const HIDES: Partial<Record<WardrobeSlot, string[]>> = { shoes: ['foot_B.skin', 
 const COVER_HIDES: Partial<Record<WardrobeSlot, Record<string, string>>> = {
   bottom: { pelvis: 'pelvis.skin', leg_B: 'leg_B.skin', leg_F: 'leg_F.skin' },
   shoes: { foot_B: 'foot_B.skin', foot_F: 'foot_F.skin' },
+  // headwear is drawn as the whole head (the hair under it redrawn): the bare head under it goes
+  head: { head: 'head.skin' },
 };
 
-export interface ItemData { id: string; slot: WardrobeSlot | 'hat'; name: string; parts: { part: string; frame: string }[]; grip?: number[]; covers?: string[] }
+export interface ItemData { id: string; slot: WardrobeSlot | 'hat'; name: string; parts: { part: string; frame: string }[]; grip?: number[]; covers?: string[]; loose?: boolean }
+/** A loose bottom's legs (wider than a boot at the ankle) are drawn over the shoes, not tucked into them. */
+const LOOSE: Record<string, string> = { leg_B: 'leg_B.over', leg_F: 'leg_F.over' };
 export const B01_ITEMS = data.items as ItemData[];
 const has = new Set(B01_FRAMES.map((f) => f.name));
 
@@ -45,7 +49,8 @@ export function buildCatalogB01(): Catalog {
     }
     const map = PIECE_SLOT[wslot] ?? {};
     // the waistband's underlap is drawn only under a top (with no top the bare belly shows)
-    const parts: ItemPart[] = it.parts.filter((p) => map[p.part]).map((p) => ({ slot: map[p.part], frame: p.frame, ...(p.part === 'pelvis_under' ? { onlyWith: 'top' as WardrobeSlot } : {}) }));
+    const slotOf = (part: string) => (wslot === 'bottom' && it.loose && LOOSE[part]) || map[part];
+    const parts: ItemPart[] = it.parts.filter((p) => map[p.part]).map((p) => ({ slot: slotOf(p.part), frame: p.frame, ...(p.part === 'pelvis_under' ? { onlyWith: 'top' as WardrobeSlot } : {}) }));
     if (wslot === 'body') {
       for (const s of ['B', 'F']) {
         const v: Record<string, string> = { open: `base/hand_${s}` };

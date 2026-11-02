@@ -160,18 +160,34 @@ def put_rigid(name, layer, pivot):
     return True
 
 
-def strip(limb, layer):
+def strip(limb, layer, width=None):
     lm = LIMBS[limb]
     j0, j1, j2 = (J[n] for n in lm['joints'])
-    top, bottom, bend, width = (lm[k] * BPX for k in ('top', 'bottom', 'bend', 'width'))
+    top, bottom, bend, width0 = (lm[k] * BPX for k in ('top', 'bottom', 'bend', 'width'))
+    width = max(width0, width or 0)
     k2 = 0.5 / K  # sample at twice the atlas resolution, then reduce
     tex, rows = tl.straighten(layer, j0, j1, j2, top, bottom, bend, width, k2)
     tex = tl.round_end(tex, rows['top'], width / k2 * 0.36, up=True)
     return tl.resize_premul(tex, 0.5), {k: v * 0.5 for k, v in rows.items()}
 
 
-def put_strip(name, limb, layer):
-    tex, rows = strip(limb, layer)
+def limb_reach(limb, mask):
+    """How wide a strip an item's limb piece needs (drawing px): twice its farthest pixel from the limb's line (a flared
+    cuff, a wide trouser leg), so nothing of it is cut; the body's own strips keep the template's width."""
+    lm = LIMBS[limb]
+    j0, j1, j2 = (J[n] for n in lm['joints'])
+    ys, xs = np.where(mask)
+    if not len(xs): return 0.0
+    P = np.stack([xs, ys], 1).astype(np.float64)
+    def segd(a, b):
+        ab = b - a; t = np.clip(((P - a) @ ab) / (ab @ ab), 0, 1)
+        return np.linalg.norm(P - (a + t[:, None] * ab), axis=1)
+    d = np.minimum(segd(j0, j1), segd(j1, j2 + (j2 - j1) * 0.35))
+    return 2.0 * float(np.percentile(d, 99.5)) + 6.0
+
+
+def put_strip(name, limb, layer, width=None):
+    tex, rows = strip(limb, layer, width)
     if (tex[..., 3] > 0.05).sum() < 20: return False
     FRAMES[name] = dict(img=tex, pivot=[round(tex.shape[1] / 2, 2), round(rows['top'], 2)], rows={k: round(v, 2) for k, v in rows.items()})
     return True
@@ -224,7 +240,7 @@ def pauldrons(alpha, fg, L):
         in_zone = ndimage.sum(inter & zone, lab, idx)
         in_arm = ndimage.sum(inter & upper, lab, idx)
         keep = idx[(total >= 30) & (in_zone > 0) & (in_arm >= 0.25 * total)]
-        if not len(keep): continue
+        if not len(keep) or total[keep - 1].sum() < 2000: continue   # a plate, not a strap's end or a few stray px
         m = np.isin(lab, keep)
         m |= outline & np.isin(near, keep) & (dist <= 5)
         out[s] = ndimage.binary_fill_holes(m) & item
@@ -244,12 +260,31 @@ def cut_body(prefix, alpha, fg, L, base=True, item_slot=None, rigid=False):
     # carried on under it (inpainted from the chest's own pixels), so a raised arm never shows a second plate nor a hole
     P = pauldrons(alpha, fg, L) if rigid else {s: np.zeros(SH, bool) for s in 'BF'}
     PA = P['B'] | P['F']
+    if rigid:
+        # what a rigid top has on an upper arm besides its shoulder plate is an upper-arm plate only when it reaches
+        # down the arm; a strap's end or a plate's edge at the armpit rides the chest
+        L = dict(L)
+        for s in 'BF':
+            m_ = L[f'arm_{s}'] & ~P[s] & (elbow_side(s) < 4) & (alpha > 0.5)
+            if not m_.any(): continue
+            d_ = unit(J[f'shoulder_{s}'], J[f'elbow_{s}'])
+            reach = float(np.percentile(beyond(J[f'shoulder_{s}'], d_)[m_], 95)) / np.linalg.norm(J[f'elbow_{s}'] - J[f'shoulder_{s}'])
+            if reach < 0.35:
+                L['torso'] = L['torso'] | (L[f'arm_{s}'] & ~P[s] & (elbow_side(s) < 4))
+                L[f'arm_{s}'] = L[f'arm_{s}'] & ~(elbow_side(s) < 4)
     # the torso carries on a little under the head (the neck) and under the hips' piece (the belly): a tilted head or
     # a bent waist never opens a gap
     tl_ = lay(L['torso'] & ~PA)
     if rigid and PA.any():
         known = L['torso'] & ~PA & (alpha > 0.9)
-        tl_ = fill_under(tl_, PA & (L0['torso'] | L['torso']), known)
+        under = PA & (L0['torso'] | L['torso'])
+        # what is under a shoulder plate: where the plate's chest-side border is mostly the item (a chest plate), the
+        # chest plate carries on under all of it; where it is mostly bare body (a harness), only next to the item's own
+        # pixels, and the body shows under the rest
+        ring = ndimage.binary_dilation(PA, iterations=6) & ~PA & L0['torso'] & M0
+        if ring.any() and (ring & known).sum() < 0.5 * ring.sum():
+            under &= ndimage.binary_dilation(known, iterations=int(0.03 * BPX))
+        tl_ = fill_under(tl_, under, known)
     if base:
         neck = (YY > J['head'][1] - 0.035 * BPX) & (YY < J['neck'][1] + 4) & (np.abs(XX - J['neck'][0]) < 0.034 * BPX)
         belly_x = np.where(L['torso'][int(J['waist'][1])])[0]
@@ -273,6 +308,7 @@ def cut_body(prefix, alpha, fg, L, base=True, item_slot=None, rigid=False):
             under = np.zeros(SH + (4,), np.float32); under[up, :3] = col; under[up, 3] = 1.0
             if put_rigid(f'{prefix}/pelvis_under', under, J['pelvis']): made.append(('pelvis_under', f'{prefix}/pelvis_under'))
     if L['pelvis'].any() and put_rigid(f'{prefix}/pelvis', pl, J['pelvis']): made.append(('pelvis', f'{prefix}/pelvis'))
+    if L.get('tails') is not None and L['tails'].any() and put_rigid(f'{prefix}/tails', lay(L['tails']), J['pelvis']): made.append(('tails', f'{prefix}/tails'))
     for s in 'BF':
         if rigid and (L[f'arm_{s}'].any() or P[s].any()):
             # rigid plates: the shoulder plate about the shoulder; the rest of the arm's plates cut at the elbow (square
@@ -285,9 +321,9 @@ def cut_body(prefix, alpha, fg, L, base=True, item_slot=None, rigid=False):
             solid = ndimage.binary_opening(up_ & (alpha > 0.5), structure=disk((3, 3), 3)[:7, :7]).sum()
             if solid > 400 and put_rigid(f'{prefix}/uparm_{s}', lay(up_), J[f'shoulder_{s}']): made.append((f'uparm_{s}', f'{prefix}/uparm_{s}'))
             if lo_.any() and put_rigid(f'{prefix}/forearm_{s}', lay(lo_), J[f'elbow_{s}']): made.append((f'forearm_{s}', f'{prefix}/forearm_{s}'))
-        elif L[f'arm_{s}'].any() and put_strip(f'{prefix}/arm_{s}', f'arm_{s}', limb_layer(f'arm_{s}', L[f'arm_{s}'], {'top': L['torso'], 'end': L[f'hand_{s}']}, alpha, fg)):
+        elif L[f'arm_{s}'].any() and put_strip(f'{prefix}/arm_{s}', f'arm_{s}', limb_layer(f'arm_{s}', L[f'arm_{s}'], {'top': L['torso'], 'end': L[f'hand_{s}']}, alpha, fg), None if base else limb_reach(f'arm_{s}', L[f'arm_{s}'] & (alpha > 0.5))):
             made.append((f'arm_{s}', f'{prefix}/arm_{s}'))
-        if L[f'leg_{s}'].any() and put_strip(f'{prefix}/leg_{s}', f'leg_{s}', limb_layer(f'leg_{s}', L[f'leg_{s}'], {'top': L['pelvis'], 'end': L[f'foot_{s}']}, alpha, fg)):
+        if L[f'leg_{s}'].any() and put_strip(f'{prefix}/leg_{s}', f'leg_{s}', limb_layer(f'leg_{s}', L[f'leg_{s}'], {'top': L['pelvis'], 'end': L[f'foot_{s}']}, alpha, fg), None if base else limb_reach(f'leg_{s}', L[f'leg_{s}'] & (alpha > 0.5))):
             made.append((f'leg_{s}', f'{prefix}/leg_{s}'))
         for p in (f'hand_{s}', f'foot_{s}'):
             if L[p].any() and put_rigid(f'{prefix}/{p}', lay(L[p]), J[PIVOT[p]]): made.append((p, f'{prefix}/{p}'))
@@ -398,7 +434,7 @@ EXPORTER_VERSION = '1.2'
 def load_catalog():
     """The item catalog: one row per item in catalog.csv (id, slot, profile, body, name, picture; profile = cloth,
     rigid or weapon), with exceptional items' extra data in overrides.json (by id). items.json is the older form."""
-    path = os.path.join(HERE, 'catalog.csv')
+    path = os.environ.get('B01_CATALOG') or os.path.join(HERE, 'catalog.csv')   # another catalog for a trial build
     if not os.path.exists(path):
         return json.load(open(os.path.join(HERE, 'items.json')))
     import csv
@@ -407,7 +443,8 @@ def load_catalog():
     for r in csv.DictReader(l for l in open(path) if l.strip() and not l.lstrip().startswith('#')):
         r = {k.strip(): (v or '').strip() for k, v in r.items()}
         if r.get('body', 'base01') != T['id']: continue
-        it = {'id': r['id'], 'slot': r['slot'], 'name': r['name'], 'picture': r['picture'], 'profile': r['profile']}
+        pic = r['picture'] if os.path.isabs(r['picture']) else os.path.join(HERE, r['picture'])
+        it = {'id': r['id'], 'slot': r['slot'], 'name': r['name'], 'picture': pic, 'profile': r['profile']}
         if r['profile'] == 'rigid': it['rigid'] = True
         it.update(over.get(r['id'], {}))
         rows.append(it)
@@ -427,6 +464,9 @@ LAB0 = cv2.cvtColor(MASTER_RGB, cv2.COLOR_RGB2LAB).astype(np.float32)
 SKIN0 = M0 & ~L0['head'] & (alpha0 > 0.95) & (LAB0[..., 0] > 100) & (LAB0[..., 1] > 138)
 SKIN0_W = ndimage.gaussian_filter(SKIN0.astype(np.float32), 6)
 SKIN0_LAB = np.dstack([ndimage.gaussian_filter(LAB0[..., c] * SKIN0, 6) for c in range(3)]) / np.maximum(SKIN0_W, 1e-3)[..., None]
+# the master's face: the head's skin (reddish, opaque, not the hair)
+FACE0 = L0['head'] & (alpha0 > 0.95) & (LAB0[..., 0] > 100) & (LAB0[..., 1] > 138) & (LAB0[..., 2] < 175)
+ITEMS_REJECTED = []
 items_spec = load_catalog()
 SOURCES = {}
 for it in items_spec:
@@ -458,10 +498,10 @@ for it in items_spec:
     allowed = SLOT_PARTS[it['slot']]
     field = label_field(L0, None)
     region = np.any([field[p] for p in allowed], axis=0)
-    if it['slot'] == 'shoes':  # a boot reaches up the shin at most two thirds of the way to the knee
+    if it['slot'] == 'shoes':  # a boot (or a greave) reaches up the shin to just below the knee at most
         for s_ in 'BF':
             d_ = unit(J[f'knee_{s_}'], J[f'ankle_{s_}']); L_ = np.linalg.norm(J[f'ankle_{s_}'] - J[f'knee_{s_}'])
-            region &= ~(field[f'leg_{s_}'] & (beyond(J[f'knee_{s_}'], d_) < L_ * it.get('shaft_from', 0.35)))
+            region &= ~(field[f'leg_{s_}'] & (beyond(J[f'knee_{s_}'], d_) < L_ * it.get('shaft_from', 0.06)))
     cc, warp = align(alpha_i, np.any([L0[p] for p in allowed], axis=0))
     al = cv2.warpAffine(img, warp, (SH[1], SH[0]), flags=cv2.INTER_LINEAR | cv2.WARP_INVERSE_MAP, borderValue=(255, 0, 255))
     # each limb is then lined up on its own (a picture's arm or leg can sit a few px off even when the body fits): a
@@ -518,13 +558,33 @@ for it in items_spec:
         body_ = np.isin(lab_, 1 + np.where(sizes > max(400, 0.04 * sizes.max()))[0])
     item = item & ndimage.binary_dilation(body_, structure=disc_, iterations=1)
     item = ndimage.binary_closing(item, iterations=2)
-    item = ndimage.binary_fill_holes(item) & region
+    # small holes in the cut are filled; a large enclosed area (the bare chest inside a harness, the skin between two
+    # straps) stays body
+    holes = ndimage.binary_fill_holes(item) & ~item
+    hl, hn = ndimage.label(holes)
+    if hn:
+        hs = ndimage.sum(holes, hl, range(1, hn + 1))
+        item |= np.isin(hl, 1 + np.where(hs < it.get('hole_px', 600))[0])
+    item &= region
     # the skin halo: a boot collar or a waistband drawn over the bare body leaves a few skin-coloured pixels along the
     # item's edge; near its edge, a pixel whose colour matches the master's skin around it is body, not item
     edge_band = item & ~ndimage.binary_erosion(item, iterations=6)
     halo = edge_band & (SKIN0_W > 0.05) & (np.sqrt(((lab_a - SKIN0_LAB) ** 2).sum(2)) < it.get('skin_halo', 16))
     item &= ~halo
     item &= ndimage.binary_opening(item, iterations=1) | ~edge_band
+    if it['slot'] == 'hat':
+        # headwear replaces the whole head piece as drawn (the hair under a crown is pressed down, a helmet hides it):
+        # the item is everything opaque in the head's part of the picture, and the bare head under it is hidden. The
+        # face must still be the master's where the headwear leaves it visible.
+        face = FACE0 & (alpha_a > 0.5)
+        dEf = np.sqrt(((lab_a - LAB0) ** 2).sum(2))
+        covered = float((face & (dEf > 25)).sum()) / max(1, face.sum())
+        face_err = float(np.median(dEf[face & (dEf <= 25)])) if (face & (dEf <= 25)).any() else 0.0
+        REPORT[-1].update({'face_covered': round(covered, 3), 'face_err': round(face_err, 1)})
+        if covered < 0.6 and float(np.median(dEf[face])) > it.get('face_max', 18):
+            REPORT[-1].update({'accepted': False, 'reason': f'the face is not the master\'s (median colour error {np.median(dEf[face]):.0f} over the visible face): ask for the headwear again, keeping the face exactly'})
+            ITEMS_REJECTED.append(it['id']); print('REJECTED', it['id'], REPORT[-1]); continue
+        item = (alpha_a > 0.5) & field['head'] & region
     fg_i = fg_a.astype(np.float32)
     # a light garment gets a firmer warm outline and deeper folds (it stays apart from pale floors at gameplay size):
     # its edge band, inside its silhouette, is taken toward a warm dark brown, and its shadow tones are deepened
@@ -545,13 +605,48 @@ for it in items_spec:
         Li[p] = np.zeros(SH, bool)
     for p in allowed:
         Li[remap.get(p, p)] = Li[remap.get(p, p)] | (item & field[p])
+    if it['slot'] == 'top':
+        # a top's tails (a long coat's skirts over the thighs, above the knees): clearly not the master there and
+        # joined to the top; one rigid piece hanging from the hips
+        knee_y = min(J['knee_B'][1], J['knee_F'][1])
+        cand = (field['leg_B'] | field['leg_F']) & (YY < knee_y) & (alpha_a > 0.5) & (dE > 35)
+        lab_t, n_t = ndimage.label(cand | item)
+        ids = np.unique(lab_t[item & (lab_t > 0)])
+        tails = cand & np.isin(lab_t, ids)
+        # cloth panels, not lines: an outline drawn a few px off (a hem, the shorts' edge) is opened away
+        tails = ndimage.binary_opening(tails, structure=disk((5, 5), 5)[:11, :11])
+        if tails.sum() > it.get('tails_px', 6000):
+            tails = ndimage.binary_dilation(tails, structure=disk((5, 5), 5)[:11, :11]) & cand
+            tails = ndimage.binary_closing(tails, iterations=2) & (alpha_a > 0.5)
+            th_, tn_ = ndimage.label(ndimage.binary_fill_holes(tails) & ~tails)
+            if tn_: tails |= np.isin(th_, 1 + np.where(ndimage.sum(th_ > 0, th_, range(1, tn_ + 1)) < 600)[0])
+            Li['tails'] = tails
+            wgt = np.maximum(wgt, np.minimum(alpha_a, ndimage.gaussian_filter(tails.astype(np.float32), 0.7)))
+            REPORT[-1]['tails_px'] = int(tails.sum())
+    if it['slot'] == 'top' and not it.get('rigid'):
+        # a sleeve is a sleeve only when it reaches down the arm: what a sleeveless top has in an arm's part (its edge
+        # at the armhole) rides the chest with the rest of it; a few stray pixels go
+        for s_ in 'BF':
+            m_ = Li[f'arm_{s_}']
+            if not m_.any(): continue
+            d_ = unit(J[f'shoulder_{s_}'], J[f'elbow_{s_}'])
+            reach = float(np.percentile(beyond(J[f'shoulder_{s_}'], d_)[m_], 95)) / np.linalg.norm(J[f'elbow_{s_}'] - J[f'shoulder_{s_}'])
+            REPORT[-1].setdefault('sleeve_reach', {})[s_] = round(reach, 2)
+            if reach < it.get('sleeve_from', 0.35) or m_.sum() < 150:
+                Li['torso'] |= m_ & (m_.sum() >= 150); Li[f'arm_{s_}'] = np.zeros(SH, bool)
     made = cut_body(it['id'], wgt, fg_i / 255.0, Li, base=False, item_slot=it['slot'], rigid=it.get('rigid', False))
     # coverage (the item's coverage metadata): how much of each of the body's parts the item covers in the master's
     # pose; a part it covers almost whole is hidden under it (its bare piece would only peek out at the edges, like the
     # shorts' waistband above a pair of trousers)
     cov = {p: float((item & L0[p] & M0).sum() / max(1, (L0[p] & M0).sum())) for p in PARTS}
     covers = [p for p, c in cov.items() if c >= it.get('cover_from', 0.85)]
-    ITEMS.append({'id': it['id'], 'slot': it['slot'], 'name': it['name'], 'parts': [{'part': p, 'frame': f} for p, f in made], 'covers': covers})
+    entry = {'id': it['id'], 'slot': it['slot'], 'name': it['name'], 'parts': [{'part': p, 'frame': f} for p, f in made], 'covers': covers}
+    if it['slot'] == 'bottom':
+        # loose legs (a hakama, wide trousers: wider than the template's leg by 15% or more) go over the shoes
+        wide = max(limb_reach(f'leg_{s_}', Li[f'leg_{s_}'] & (wgt > 0.5)) for s_ in 'BF') / (LIMBS['leg_B']['width'] * BPX)
+        REPORT[-1]['leg_width'] = round(wide, 2)
+        if it.get('loose', wide >= 1.15): entry['loose'] = True
+    ITEMS.append(entry)
     REPORT[-1].update({'coverage': {p: round(c, 3) for p, c in cov.items() if c > 0.3}, 'skin_halo_px': int(halo.sum()), 'light_outline': bool(Lm > it.get('light_from', 0.72 * 255)) and it['slot'] in ('top', 'bottom') and not it.get('rigid')})
     Image.fromarray(np.dstack([fg_i, wgt * 255]).clip(0, 255).astype(np.uint8), 'RGBA').save(os.path.join(OUT, f"item_{it['id']}.png"))
 

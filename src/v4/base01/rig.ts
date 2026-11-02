@@ -61,13 +61,15 @@ const arm = (s: 'B' | 'F', group: string, grip: string): SlotDef[] => [
   slot(grip, grip, group, 'weapon'),
   slot(`hand_${s}.skin`, `hand_${s}`, group, 'body', { channel: `hand${s}` }),
 ];
-// a leg: the bare foot, the skin strip over it, the trouser leg, the shoe, a boot's shaft over the trouser leg
+// a leg: the bare foot, the skin strip over it, the trouser leg, the shoe, a boot's shaft over the trouser leg, and a
+// loose trouser leg (a hakama, wide trousers) over the boot
 const leg = (s: 'B' | 'F', group: string): SlotDef[] => [
   slot(`foot_${s}.skin`, `foot_${s}`, group, 'body'),
   slot(`leg_${s}.skin`, `thigh_${s}`, group, 'body', { limb: limb(s, 'leg') }),
   slot(`leg_${s}.cloth`, `thigh_${s}`, group, 'bottom', { limb: limb(s, 'leg') }),
   slot(`foot_${s}.shoe`, `foot_${s}`, group, 'shoes'),
   slot(`leg_${s}.shaft`, `thigh_${s}`, group, 'shoes', { limb: limb(s, 'leg') }),
+  slot(`leg_${s}.over`, `thigh_${s}`, group, 'bottom', { limb: limb(s, 'leg') }),
 ];
 
 // Draw order, back to front (the art director's layer order): the far arm, the far leg, the near leg, the hips, the
@@ -82,6 +84,8 @@ const SLOTS: SlotDef[] = [
   slot('pelvis.cloth', 'hip', 'torso', 'bottom'),
   // the trousers' hidden underlap: over the belly, under the top (drawn only while a top is worn)
   slot('pelvis.under', 'hip', 'torso', 'bottom'),
+  // a long top's tails (a coat's skirts) hang from the hips over the legs and the trousers
+  slot('pelvis.tails', 'hip', 'torso', 'top'),
   slot('torso.cloth', 'chest', 'torso', 'top'),
   // the far shoulder plate sits on the chest's far edge: over the chest, though its arm is behind it
   pauldron('F', 'torso'),
