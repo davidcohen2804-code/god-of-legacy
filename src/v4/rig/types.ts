@@ -75,6 +75,16 @@ export interface SlotDef {
    *  picture's top edge, the middle and end joints follow at the bones' lengths, and `bottom` B of picture go on past
    *  the end joint. Every picture on the slot is cut to that same layout, so they all bend the same way. */
   limb?: { bones: [string, string]; top: number; bottom: number; bend: number };
+  /** A skirt (the art director's skirt garment profile): the slot's picture is a skirt's cloth below its waistband, and
+   *  its frame carries the line it hangs from and its hem (frame px, at evenly spaced columns: `customData.skirt`). The
+   *  picture is drawn as one fan of columns, each turning about its own point on the hang line (the waistband never
+   *  moves against the slot's bone): the back edge as far back as the thigh swung furthest back, the front edge as far
+   *  forward as the thigh swung furthest forward, the columns between in proportion, so it answers both thighs and
+   *  never one leg alone. A thigh lifted past `from` degrees lifts its edge `lift` times as much again, and the cloth on
+   *  that side rides up over it by `rise` B per radian (a raised knee carries the cloth over it, not through it; under the
+   *  waistband the rise is hidden). The edges follow through: a thigh pushes its edge out at once, and the cloth falls
+   *  back keeping `lag` of each frame's turn, never more than `lagMax` degrees behind. */
+  skirt?: { thighs: [string, string]; from: number; lift: number; rise: number; lag: number; lagMax: number };
 }
 
 /** An item's settings for one of the rig's optional attachment chains (a cloth piece that swings on its own: a tabard,

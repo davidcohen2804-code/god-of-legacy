@@ -134,6 +134,7 @@ function assetsBase01(scene: Phaser.Scene): LabAssets {
     if (tex.has(f.name)) continue;
     const fr = tex.add(f.name, 0, f.x, f.y, f.w, f.h)!;
     fr.customPivot = true; fr.pivotX = f.px; fr.pivotY = f.py;
+    if (f.skirt) (fr.customData as Record<string, unknown>).skirt = f.skirt;   // a skirt's hang line and hem (its fan)
   }
   const src = tex.getSourceImage() as HTMLImageElement;
   const size: [number, number] = [src.width, src.height];

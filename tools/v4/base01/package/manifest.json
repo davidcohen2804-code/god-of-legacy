@@ -4,7 +4,7 @@
  "body": "base01",
  "versions": {
   "template": "v1",
-  "exporter": "1.6",
+  "exporter": "1.7",
   "master": "4dfe86abe317"
  },
  "items": [
@@ -655,6 +655,11 @@
       -0.3,
       0.0
      ]
+    },
+    "skirt": {
+     "opening_B": 0.0039,
+     "why": "the gap between the legs never opens at once (no hem crosses it)",
+     "skirt": false
     },
     "leg_width": 0.96,
     "coverage": {
@@ -1473,6 +1478,11 @@
       -0.4,
       0.0
      ]
+    },
+    "skirt": {
+     "opening_B": 0.0,
+     "why": "the gap between the legs never opens at once (no hem crosses it)",
+     "skirt": false
     },
     "leg_width": 1.42,
     "coverage": {
@@ -3295,6 +3305,11 @@
       0.0
      ]
     },
+    "skirt": {
+     "opening_B": 0.0059,
+     "why": "the gap between the legs never opens at once (no hem crosses it)",
+     "skirt": false
+    },
     "leg_width": 0.88,
     "coverage": {
      "pelvis": 0.952,
@@ -3473,6 +3488,11 @@
       "filled": true
      }
     ],
+    "skirt": {
+     "opening_B": 0.0039,
+     "why": "the gap between the legs never opens at once (no hem crosses it)",
+     "skirt": false
+    },
     "leg_width": 1.1,
     "coverage": {
      "pelvis": 0.964,
@@ -3639,6 +3659,11 @@
       -0.2,
       0.0
      ]
+    },
+    "skirt": {
+     "opening_B": 0.0029,
+     "why": "the gap between the legs never opens at once (no hem crosses it)",
+     "skirt": false
     },
     "leg_width": 0.98,
     "coverage": {
@@ -3810,6 +3835,11 @@
       -0.1,
       0.0
      ]
+    },
+    "skirt": {
+     "opening_B": 0.0039,
+     "why": "the gap between the legs never opens at once (no hem crosses it)",
+     "skirt": false
     },
     "leg_width": 1.03,
     "coverage": {
@@ -6122,23 +6152,35 @@
      "part": "pelvis",
      "frame": "g5_b03_24/pelvis",
      "size": [
-      114,
-      58
+      93,
+      31
      ],
      "anchor": [
-      57.69,
+      44.69,
       32.65
+     ]
+    },
+    {
+     "part": "skirt",
+     "frame": "g5_b03_24/skirt",
+     "size": [
+      131,
+      107
+     ],
+     "anchor": [
+      65.69,
+      16.65
      ]
     },
     {
      "part": "leg_B",
      "frame": "g5_b03_24/leg_B",
      "size": [
-      74,
+      72,
       197
      ],
      "anchor": [
-      37.0,
+      36.0,
       25.6
      ]
     },
@@ -6249,16 +6291,40 @@
       0.0
      ]
     },
-    "leg_width": 1.04,
+    "skirt": {
+     "opening_B": 0.0322,
+     "opening_y": 876,
+     "cloth_dE": 28.9,
+     "wrap": 0.863,
+     "waistband_dE": 15.3,
+     "waistband": "cut",
+     "columns": [
+      505,
+      757
+     ],
+     "hang_y": [
+      688,
+      707
+     ],
+     "hem_y": [
+      841,
+      888
+     ],
+     "px": 39369,
+     "skirt": true
+    },
+    "leg_width": 0.77,
     "coverage": {
      "pelvis": 0.987,
-     "leg_B": 0.996,
-     "leg_F": 0.993
+     "leg_B": 0.993,
+     "leg_F": 0.988
     },
     "skin_halo_px": 0,
     "light_outline": false
    },
-   "warnings": [],
+   "warnings": [
+    "skirt: one cloth hanging from its waistband, fanning with both thighs; the trousers carried on up under it"
+   ],
    "previews": {
     "150": "previews/g5_b03_24_150.png",
     "600": "previews/g5_b03_24_600.png"
@@ -6441,6 +6507,11 @@
       "filled": true
      }
     ],
+    "skirt": {
+     "opening_B": 0.0039,
+     "why": "the gap between the legs never opens at once (no hem crosses it)",
+     "skirt": false
+    },
     "leg_width": 1.55,
     "coverage": {
      "pelvis": 0.998,
@@ -6606,6 +6677,13 @@
       -0.1,
       0.0
      ]
+    },
+    "skirt": {
+     "opening_B": 0.0205,
+     "opening_y": 876,
+     "cloth_dE": 6.1,
+     "why": "the same cloth goes on below the opening (trouser legs)",
+     "skirt": false
     },
     "leg_width": 1.1,
     "coverage": {

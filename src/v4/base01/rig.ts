@@ -75,8 +75,9 @@ const leg = (s: 'B' | 'F', group: string): SlotDef[] => [
   slot(`leg_${s}.tail`, `thigh_${s}`, group, 'top', { blend: 0.45, lag: 0.75, lagMax: 10 }),
 ];
 
-// Draw order, back to front (the art director's layer order): the far arm, the far leg, the near leg, the hips, the
-// torso (a top's hem over the trousers), the head and hat, then the near arm with the weapon in front of everything.
+// Draw order, back to front (the art director's layer order): the far arm, the far leg, the near leg, the hips (a skirt
+// over both legs, under its waistband), the torso (a top's hem over the trousers), the head and hat, then the near arm
+// with the weapon in front of everything.
 const SLOTS: SlotDef[] = [
   ...arm('F', 'armF', 'offhand'),
   ...leg('F', 'legF'),
@@ -84,6 +85,11 @@ const SLOTS: SlotDef[] = [
   // the bare torso under the hips' piece (the belly carries on under a waistband), the trousers' waist over both, the
   // top over everything (an untucked hem)
   slot('torso.skin', 'chest', 'torso', 'body'), slot('pelvis.skin', 'hip', 'torso', 'body'),
+  // a skirt (the art director's skirt garment profile): over both legs, under its own waistband (the hips' piece). It
+  // hangs from the waistband and fans with both thighs: its edges as far as the thigh swung furthest each way (a thigh
+  // lifted past 30 degrees lifts its edge an eighth as much again, and the cloth on that side rides up over it by 0.03 B
+  // per radian), the cloth falling back a moment after them (75% of each frame's turn kept, at most 11 degrees behind)
+  slot('pelvis.skirt', 'hip', 'torso', 'bottom', { skirt: { thighs: ['thigh_B', 'thigh_F'], from: 30, lift: 0.12, rise: 0.03, lag: 0.75, lagMax: 11 } }),
   slot('pelvis.cloth', 'hip', 'torso', 'bottom'),
   // the trousers' hidden underlap: over the belly, under the top (drawn only while a top is worn)
   slot('pelvis.under', 'hip', 'torso', 'bottom'),

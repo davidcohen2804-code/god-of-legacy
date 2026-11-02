@@ -12,9 +12,20 @@ const STRIP_N = 14;
 const CP = new Float64Array(256), CQ = new Float64Array(256);
 /** Points along a limb strip (enough for a smooth bend at the elbow or the knee). */
 const LIMB_N = 40;
+/** A skirt's fan: its columns (the exporter samples the frame's hang line and hem at as many, evenly spaced), and how far
+ *  each column carries on up past its hang point under the waistband (frame px; hidden, so the waist never shows a seam). */
+export const SKIRT_N = 25;
+const SKIRT_OVER = 2;
 
 /** A limb slot's bones and layout, in rig units (SlotDef.limb). */
 interface LimbLayout { b0: number; b1: number; top: number; bottom: number; bend: number }
+/** A skirt slot's thighs and settings (SlotDef.skirt), angles in radians. */
+interface SkirtLayout { tB: number; tF: number; from: number; lift: number; rise: number; lag: number; lagMax: number }
+/** A skirt frame's own data (the exporter's): the hang line and the hem at each column, frame px from the top. */
+export interface SkirtFrame { hang: number[]; hem: number[] }
+/** The fan as last laid out, per skirt slot (radians against the hips, for the tests): the two edges as shown, where the
+ *  thighs put them (their targets), and each column's turn. */
+export interface SkirtPose { back: number; front: number; backTarget: number; frontTarget: number; riseFront: number; riseBack: number; turns: Float64Array }
 
 /** A placeholder atlas: its texture key and how many rig units one of its pixels covers. */
 export interface Atlas { key: string; unitsPerPx: number }
@@ -43,6 +54,11 @@ export class RigCharacter {
   private readonly ropes: (Phaser.GameObjects.Rope | null)[];
   private readonly stripBones: (Int16Array | null)[];
   private readonly limbs: (LimbLayout | null)[];
+  private readonly skirts: (SkirtLayout | null)[];
+  /** Each skirt slot's two edges as shown last frame (back, front; radians against the hips), for the follow-through. */
+  private readonly skirtShown: Float64Array;
+  /** The fan as last laid out, per skirt slot (read by the tests). */
+  readonly skirtPose: (SkirtPose | null)[];
   private orderId = '\u0000';
 
   constructor(readonly scene: Phaser.Scene, readonly pose: RigPose, private atlas: Atlas, inScene: boolean) {
@@ -64,9 +80,15 @@ export class RigCharacter {
       b0: pose.index.get(s.limb.bones[0])!, b1: pose.index.get(s.limb.bones[1])!,
       top: s.limb.top * B, bottom: s.limb.bottom * B, bend: s.limb.bend * B,
     } : null));
+    this.skirts = slots.map((s) => (s.skirt ? {
+      tB: pose.index.get(s.skirt.thighs[0])!, tF: pose.index.get(s.skirt.thighs[1])!,
+      from: s.skirt.from * D2R, lift: s.skirt.lift, rise: s.skirt.rise, lag: s.skirt.lag, lagMax: s.skirt.lagMax * D2R,
+    } : null));
+    this.skirtShown = new Float64Array(slots.length * 2).fill(NaN);
+    this.skirtPose = slots.map((s) => (s.skirt ? { back: 0, front: 0, backTarget: 0, frontTarget: 0, riseFront: 0, riseBack: 0, turns: new Float64Array(SKIRT_N) } : null));
     this.ropes = slots.map((s) => {
-      if (!s.strip && !s.limb) return null;
-      const n = s.limb ? LIMB_N : STRIP_N;
+      if (!s.strip && !s.limb && !s.skirt) return null;
+      const n = s.limb ? LIMB_N : s.skirt ? SKIRT_N : STRIP_N;
       const r = new Phaser.GameObjects.Rope(scene, 0, 0, atlas.key, undefined, Array.from({ length: n }, (_, j) => ({ x: 0, y: j })), false);
       r.setVisible(false);
       return r;
@@ -97,8 +119,9 @@ export class RigCharacter {
 
   evaluate(anim: AnimDef, t: number, from?: { v: Float64Array; w: number }): void { this.pose.evaluate(anim, t, this.state, this.chain, from); }
 
-  /** Place every part: `s` = output px per rig unit. */
-  layout(s: number): void {
+  /** Place every part: `s` = output px per rig unit. `follow` = false lays the same frame out again (another render of
+   *  it): the follow-through (coat tails, a skirt's edges) keeps what it showed, it does not take another step. */
+  layout(s: number, follow = true): void {
     const av = this.avatar;
     if (!av) return;
     const slots = this.pose.rig.slots, w = this.state.world, rest = this.pose.restWorldRot, k = this.atlas.unitsPerPx * s;
@@ -113,7 +136,10 @@ export class RigCharacter {
       const fr = part ? frameOf(part, slots[i], this.state.swaps, av.unarmed) : undefined;
       const rope = this.ropes[i];
       if (!fr) { if (rope) { if (rope.visible) rope.setVisible(false); } else if (img.visible) img.setVisible(false); continue; }
-      if (rope) { if (this.limbs[i]) this.layoutLimb(i, rope, fr, s); else this.layoutStrip(i, rope, fr, s); this.drawn.push(i); continue; }
+      if (rope) {
+        if (this.limbs[i]) this.layoutLimb(i, rope, fr, s); else if (this.skirts[i]) this.layoutSkirt(i, rope, fr, s, follow); else this.layoutStrip(i, rope, fr, s);
+        this.drawn.push(i); continue;
+      }
       if (this.frames[i] !== fr) { img.setFrame(fr); this.frames[i] = fr; }
       const b = this.slotBone[i], o = b * 6;
       img.x = w[o + 4] * s; img.y = w[o + 5] * s;
@@ -129,7 +155,7 @@ export class RigCharacter {
         const tgt = img.rotation; let sh = this.slotShown[i];
         if (Number.isNaN(sh)) sh = tgt;
         let d = tgt - sh; d = Math.atan2(Math.sin(d), Math.cos(d));
-        sh += d * (1 - this.slotLag[i]);
+        if (follow) sh += d * (1 - this.slotLag[i]);
         let e = sh - tgt; e = Math.atan2(Math.sin(e), Math.cos(e));
         const m = this.slotLagMax[i];
         if (e > m) sh = tgt + m; else if (e < -m) sh = tgt - m;
@@ -217,6 +243,70 @@ export class RigCharacter {
     rope.dirty = true;
     if (!rope.visible) rope.setVisible(true);
   }
+
+  /** A skirt (SlotDef.skirt): the frame drawn as a fan of SKIRT_N columns over the hips. Each column turns about its own
+   *  point on the hang line (the frame's data), so the waistband stays exactly where the rigid hips' piece is; the back
+   *  edge turns as far back as the thigh swung furthest back, the front edge as far forward as the thigh swung furthest
+   *  forward (a thigh lifted past `from` lifts its edge `lift` times as much again, and the cloth on that side rides up
+   *  over it by `rise`), the columns between in proportion: one cloth answering both thighs, never one leg alone, its
+   *  columns never crossing (no split, no twist). A thigh pushes its edge out at once; the cloth falls back keeping
+   *  `lag` of each frame's turn, at most `lagMax` behind. */
+  private layoutSkirt(i: number, rope: Phaser.GameObjects.Rope, fr: string, s: number, follow: boolean): void {
+    const u = this.atlas.unitsPerPx, w = this.state.world, rest = this.pose.restWorldRot, S = this.skirts[i]!, n = SKIRT_N;
+    const fresh = this.frames[i] !== fr;
+    if (fresh) { rope.setFrame(fr); this.frames[i] = fr; }
+    const f = rope.frame, fw = f.width, fh = f.height;
+    const data = (f.customData as { skirt?: SkirtFrame }).skirt;
+    const hangAt = (j: number) => (data ? data.hang[j] : 0);
+    if (fresh) {
+      // each column's texture runs from SKIRT_OVER px above its hang point to the frame's bottom
+      const uv = rope.uv;
+      for (let j = 0; j < n; j++) {
+        const uu = f.u0 + ((f.u1 - f.u0) * j) / (n - 1), top = Math.max(0, hangAt(j) - SKIRT_OVER) / fh;
+        uv[4 * j] = uu; uv[4 * j + 1] = f.v0 + (f.v1 - f.v0) * top; uv[4 * j + 2] = uu; uv[4 * j + 3] = f.v1;
+      }
+    }
+    // the hips' frame (the waistband rides it as the rigid hips' piece does: its pivot on the bone's origin)
+    const hb = this.slotBone[i], o = hb * 6, hx = w[o + 4] / u, hy = w[o + 5] / u;
+    const ht = Math.atan2(w[o + 1], w[o]) - rest[hb] * D2R, hc = Math.cos(ht), hs = Math.sin(ht);
+    const px = f.pivotX * fw, py = f.pivotY * fh;
+    // each thigh's turn against the hips from its rest pose (positive: the knee goes back, image left)
+    const turn = (b: number) => { const d = Math.atan2(w[b * 6 + 1], w[b * 6]) - rest[b] * D2R - ht; return Math.atan2(Math.sin(d), Math.cos(d)); };
+    const tB = turn(S.tB), tF = turn(S.tF);
+    const back = Math.max(0, tB, tF), front = Math.min(0, tB, tF);
+    const aL = back + S.lift * Math.max(0, back - S.from), aR = front - S.lift * Math.max(0, -front - S.from);
+    let sL = this.skirtShown[2 * i], sR = this.skirtShown[2 * i + 1];
+    if (Number.isNaN(sL) || Number.isNaN(sR)) { sL = aL; sR = aR; }
+    if (follow) { sL += (aL - sL) * (1 - S.lag); sR += (aR - sR) * (1 - S.lag); }
+    sL = Math.min(Math.max(sL, aL), aL + S.lagMax); sR = Math.max(Math.min(sR, aR), aR - S.lagMax);
+    this.skirtShown[2 * i] = sL; this.skirtShown[2 * i + 1] = sR;
+    const sp = this.skirtPose[i]!;
+    sp.back = sL; sp.front = sR; sp.backTarget = aL; sp.frontTarget = aR;
+    // the cloth rides up over a lifted thigh: the front columns (the back ones for a thigh lifted behind) rise on the
+    // hips by `rise` B per radian of lift past `from`, the edge most (under the waistband the rise is hidden)
+    const k = (S.rise * this.pose.rig.B) / u;
+    const upF = k * Math.max(0, -front - S.from), upB = k * Math.max(0, back - S.from);
+    sp.riseFront = upF * u; sp.riseBack = upB * u;
+    const V = rope.vertices;
+    for (let j = 0; j < n; j++) {
+      const a = sL + ((sR - sL) * j) / (n - 1), ca = Math.cos(a), sa = Math.sin(a), q = j / (n - 1);
+      sp.turns[j] = a;
+      const x = (fw * j) / (n - 1), y0 = hangAt(j), up = Math.min(SKIRT_OVER, y0), dn = fh - y0, lift = upF * q * q + upB * (1 - q) * (1 - q);
+      // the column about its hang point, in frame px from the frame's pivot, then on the hips
+      const tx = x + up * sa - px, ty = y0 - up * ca - py - lift, bx = x - dn * sa - px, by = y0 + dn * ca - py - lift;
+      V[4 * j] = hx + hc * tx - hs * ty; V[4 * j + 1] = hy + hs * tx + hc * ty;
+      V[4 * j + 2] = hx + hc * bx - hs * by; V[4 * j + 3] = hy + hs * bx + hc * by;
+    }
+    rope.dirty = false;
+    rope.setScale(u * s);
+    if (!rope.visible) rope.setVisible(true);
+  }
+
+  /** Forget every follow-through (coat tails, a skirt's edges): the next layout shows each piece where its bones put it. */
+  resetFollow(): void { this.slotShown.fill(NaN); this.skirtShown.fill(NaN); }
+
+  /** The rope drawing slot `i` (a cloth strip, a limb, a skirt), or null for a flat image (read by the tests). */
+  ropeOf(i: number): Phaser.GameObjects.Rope | null { return this.ropes[i]; }
 
   tintAll(color: number): void { for (const i of this.drawn) this.tintOne(i, color); }
   clearTint(): void { for (const i of this.drawn) this.untintOne(i); }

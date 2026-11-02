@@ -25,6 +25,7 @@ def warnings(r):
     w = []
     if r.get('helmet_scale', 1) > 1: w.append(f"full helmet enlarged {round((r['helmet_scale'] - 1) * 100)}% about the neck")
     if r.get('tails_px'): w.append('split coat: two tail panels on the hips, with follow-through')
+    if (r.get('skirt') or {}).get('skirt'): w.append('skirt: one cloth hanging from its waistband, fanning with both thighs; the trousers carried on up under it')
     if r.get('light_outline'): w.append('light garment: dark outline and deeper folds added')
     if r.get('skin_halo_px', 0) >= 300: w.append(f"{r['skin_halo_px']} px of skin along the edges returned to the body")
     for s, v in (r.get('sleeve_reach') or {}).items():

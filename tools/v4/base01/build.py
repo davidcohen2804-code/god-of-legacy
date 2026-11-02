@@ -331,6 +331,9 @@ def cut_body(prefix, alpha, fg, L, base=True, item_slot=None, rigid=False):
         for s, side in (('B', XX < cx), ('F', XX >= cx)):
             m_ = L['tails'] & side
             if m_.sum() > 1500 and put_rigid(f'{prefix}/tail_{s}', lay(m_), J[f'hip_{s}']): made.append((f'tail_{s}', f'{prefix}/tail_{s}'))
+    # a skirt (the skirt garment profile): one piece hanging from its waistband; the trouser legs under it carried on up
+    skirted = L.get('skirt') is not None and L['skirt'].any()
+    if skirted and put_skirt(f'{prefix}/skirt', lay(L['skirt']), SKIRT_LINES[prefix]): made.append(('skirt', f'{prefix}/skirt'))
     for s in 'BF':
         if rigid and (L[f'arm_{s}'].any() or P[s].any()):
             # rigid plates: the shoulder plate about the shoulder; the rest of the arm's plates cut at the elbow (square
@@ -358,7 +361,12 @@ def cut_body(prefix, alpha, fg, L, base=True, item_slot=None, rigid=False):
             if lo_.any() and put_rigid(f'{prefix}/forearm_{s}', lay(lo_), J[f'elbow_{s}']): made.append((f'forearm_{s}', f'{prefix}/forearm_{s}'))
         elif L[f'arm_{s}'].any() and put_strip(f'{prefix}/arm_{s}', f'arm_{s}', limb_layer(f'arm_{s}', L[f'arm_{s}'], {'top': L['torso'], 'end': L[f'hand_{s}']}, alpha, fg), None if base else limb_reach(f'arm_{s}', L[f'arm_{s}'] & (alpha > 0.5))):
             made.append((f'arm_{s}', f'{prefix}/arm_{s}'))
-        if L[f'leg_{s}'].any() and put_strip(f'{prefix}/leg_{s}', f'leg_{s}', limb_layer(f'leg_{s}', L[f'leg_{s}'], {'top': L['pelvis'], 'end': L[f'foot_{s}']}, alpha, fg), None if base else limb_reach(f'leg_{s}', L[f'leg_{s}'] & (alpha > 0.5))):
+        if skirted and L[f'leg_{s}'].any():
+            # under a skirt the trouser leg takes nothing of the waistband at its top (the skirt and the waistband lie
+            # over it there), and is carried on up to the hips in its own cloth
+            if put_strip_under(f'{prefix}/leg_{s}', f'leg_{s}', limb_layer(f'leg_{s}', L[f'leg_{s}'], {'top': np.zeros(SH, bool), 'end': L[f'foot_{s}']}, alpha, fg), limb_reach(f'leg_{s}', L[f'leg_{s}'] & (alpha > 0.5)), BASE_LEG[s]):
+                made.append((f'leg_{s}', f'{prefix}/leg_{s}'))
+        elif L[f'leg_{s}'].any() and put_strip(f'{prefix}/leg_{s}', f'leg_{s}', limb_layer(f'leg_{s}', L[f'leg_{s}'], {'top': L['pelvis'], 'end': L[f'foot_{s}']}, alpha, fg), None if base else limb_reach(f'leg_{s}', L[f'leg_{s}'] & (alpha > 0.5))):
             made.append((f'leg_{s}', f'{prefix}/leg_{s}'))
         for p in (f'hand_{s}', f'foot_{s}'):
             if L[p].any() and put_rigid(f'{prefix}/{p}', lay(L[p]), J[PIVOT[p]]): made.append((p, f'{prefix}/{p}'))
@@ -372,6 +380,8 @@ M0 = alpha0 > 0.5
 L0 = part_map(M0)
 ITEMS = []
 base_parts = cut_body('base', alpha0, fg0n, L0)
+# the bare legs as the base cuts them: a trouser leg under a skirt is carried on up along their shape
+BASE_LEG = {s: limb_layer(f'leg_{s}', L0[f'leg_{s}'], {'top': L0['pelvis'], 'end': L0[f'foot_{s}']}, alpha0, fg0n) for s in 'BF'}
 # the grip hands, from the hands picture: each fist cut below its wrist, scaled to the master, turned so its forearm
 # lines up with the master's forearm, and seated on the master's wrist; the grip (where a handle passes through the
 # fist) is carried along for the weapon's socket
@@ -535,7 +545,7 @@ def part_shifts(al, item_zone):
     return out
 
 
-EXPORTER_VERSION = '1.6'
+EXPORTER_VERSION = '1.7'
 # a weapon's profile is its motion kit, the art director's motion families (how the body holds and swings it)
 WEAPON_KITS = ('sword_1h', 'dagger_1h', 'staff_2h')
 
@@ -638,6 +648,228 @@ def item_reach(al, alpha_a, zone):
     unlike = (~like).astype(np.float32)
     share = np.asarray(ndimage.mean(unlike, lab, ids))
     return np.isin(lab, ids[share >= 0.6])
+
+
+# ------------------------------------------------------------------ the skirt garment profile (the art director's r9)
+# A bottom whose cloth closes the gap between the thighs down to a hem above the knees, where the gap opens at once onto
+# other cloth (trousers) or the bare legs, is a skirt over them. The skirt is cut on its own: it hangs from its waistband
+# and answers both thighs at runtime (SlotDef.skirt); the trousers keep their legs, carried on up under the skirt; the
+# waistband stays the hips' piece. Side panels (they leave the gap between the legs open) and wide trouser legs (their gap
+# opens gradually, in the same cloth) are not skirts: they stay on the legs, each panel with its own leg.
+SKIRT_OPEN = 0.015      # B: at the hem the gap between the thighs' axes opens by at least this much (kilt 0.037; trousers
+SKIRT_ROWS = 0.006      # at most 0.006, the fitted legs of the asymmetric skirt trousers 0.020) within this many rows (B)
+SKIRT_CLOTH_DE = 12     # and the cloth above the opening is not the cloth below it (median Lab distance, both ways: kilt
+                        # 16 and more, trousers at most 5)
+SKIRT_WRAP = 0.7        # and its cloth covers the thighs from side to side just above the hem (a front apron does not)
+SKIRT_N = 25            # the fan's columns at runtime: the hang line and the hem are given at this many, evenly spaced
+SKIRT_OVER = 3          # drawing px of the waistband the skirt carries on up under it (hidden; no seam at the waist)
+SKIRT_LINES = {}        # per item: the hang line and the hem across the canvas (drawing px), for its frame
+
+
+def kcentres(px, k):
+    """k colour centres (k-means, fixed seed) of N×3 Lab pixels."""
+    px = np.ascontiguousarray(np.asarray(px, np.float32).reshape(-1, 3))
+    k = max(1, min(k, len(px) // 20))
+    cv2.setRNGSeed(12345)
+    _, _, cen = cv2.kmeans(px, k, None, (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_MAX_ITER, 30, 0.5), 3, cv2.KMEANS_PP_CENTERS)
+    return cen
+
+
+def near(lab, cen):
+    """Each pixel's Lab distance to the nearest of the centres."""
+    f = np.asarray(lab, np.float32).reshape(-1, 3)
+    d = np.full(len(f), np.inf, np.float32)
+    for c in cen: d = np.minimum(d, np.sqrt(((f - c) ** 2).sum(1)))
+    return d.reshape(np.asarray(lab).shape[:-1])
+
+
+def axis_x(s, y):
+    """Where the thigh's axis (hip joint to knee) crosses row y."""
+    h, k = J[f'hip_{s}'], J[f'knee_{s}']
+    return h[0] + (np.asarray(y, np.float64) - h[1]) / (k[1] - h[1]) * (k[0] - h[0])
+
+
+def dp_line(gain, step=2):
+    """The line y(x) through gain[y, x] (the score of the line at row y of column x) of the most total score, each
+    column at most `step` rows from the one before (dynamic programming over the columns)."""
+    H_, W_ = gain.shape
+    idx = np.arange(H_)
+    best = gain[:, 0].astype(np.float64).copy(); back = np.zeros((H_, W_), np.int32)
+    for x in range(1, W_):
+        cand = np.full((2 * step + 1, H_), -np.inf)
+        for k_, dy in enumerate(range(-step, step + 1)):
+            src = idx + dy; ok = (src >= 0) & (src < H_)
+            cand[k_, ok] = best[src[ok]]
+        kk = np.argmax(cand, 0)
+        back[:, x] = idx + kk - step
+        best = cand[kk, idx] + gain[:, x]
+    y = np.zeros(W_, np.int32); y[-1] = int(np.argmax(best))
+    for x in range(W_ - 1, 0, -1): y[x - 1] = back[y[x], x]
+    return y
+
+
+def find_skirt(item, alpha_a, lab_a, al_skirt):
+    """A bottom's skirt: (its mask, its hang line and hem across the canvas, the measures), or (None, None, the
+    measures and why not)."""
+    m = {}
+    cy = float(C['crotch'][0][1]); ky = min(J['knee_B'][1], J['knee_F'][1])
+    ys = np.arange(int(cy), int(ky))
+    xb, xf = np.round(axis_x('B', ys)).astype(int), np.round(axis_x('F', ys)).astype(int)
+    # the gap between the thighs' axes, row by row, in the picture's own figure (the item and the body)
+    g = np.array([(alpha_a[y, a:b] < 0.5).sum() for y, a, b in zip(ys, xb, xf)])
+    n = max(2, int(round(SKIRT_ROWS * BPX)))
+    d = g[n:] - g[:-n]
+    i = int(np.argmax(d))
+    m['opening_B'] = round(float(d[i]) / BPX, 4)
+    if d[i] < SKIRT_OPEN * BPX: m['why'] = 'the gap between the legs never opens at once (no hem crosses it)'; return None, None, m
+    yo = int(ys[i] + n // 2); m['opening_y'] = yo
+    # (the hem's own curve opens it over a few rows: closed down to 0.015 B above the opening)
+    if (g[:max(0, i - int(0.015 * BPX))] > 0.004 * BPX).any(): m['why'] = 'the gap between the legs is open above the opening'; return None, None, m
+    xbr, xfr = axis_x('B', YY), axis_x('F', YY)
+    above = item & (XX >= xbr) & (XX <= xfr) & (YY >= yo - 0.03 * BPX) & (YY < yo - 0.006 * BPX)
+    near_axes = (np.abs(XX - xbr) < 0.035 * BPX) | (np.abs(XX - xfr) < 0.035 * BPX)
+    below = (alpha_a > 0.5) & near_axes & (YY >= yo + 0.008 * BPX) & (YY < yo + 0.034 * BPX)
+    if above.sum() < 100 or below.sum() < 100: m['why'] = 'too little cloth around the opening'; return None, None, m
+    ca, cb = kcentres(lab_a[above], 6), kcentres(lab_a[below], 6)
+    de = max(float(np.median(near(lab_a[below], ca))), float(np.median(near(lab_a[above], cb))))
+    m['cloth_dE'] = round(de, 1)
+    if de < SKIRT_CLOTH_DE: m['why'] = 'the same cloth goes on below the opening (trouser legs)'; return None, None, m
+    dA, dB = near(lab_a, ca), near(lab_a, cb)
+    like = item & (dA <= dB)                                   # the skirt's cloth (nearer its colours than the legs')
+    band = (L0['leg_B'] | L0['leg_F']) & M0 & (YY >= yo - 0.03 * BPX) & (YY < yo - 0.006 * BPX)
+    own = item & (dA < 1.5 * SKIRT_CLOTH_DE)                   # (in its own colours, whatever lies below the hem)
+    m['wrap'] = round(float((own & band).sum() / max(1, band.sum())), 3)
+    if m['wrap'] < SKIRT_WRAP: m['why'] = 'its cloth does not cover the thighs from side to side above the opening'; return None, None, m
+    # the skirt's columns: its cloth around the hem's height (specks opened away)
+    core = ndimage.binary_opening(like & (YY >= yo - 0.06 * BPX) & (YY < yo + 0.03 * BPX), iterations=2)
+    cols = np.where(core.any(0))[0]
+    xl, xr = int(cols.min()), int(cols.max())
+    # the hem: below the skirt's cloth, above everything else (the trousers, the legs, the background)
+    y0h, y1h = int(yo - 0.08 * BPX), int(min(SH[0] - 1, yo + 0.08 * BPX))
+    s_ = np.where(like[y0h:y1h, xl:xr + 1], 1.0, -1.0)
+    gain = np.vstack([np.zeros((1, s_.shape[1])), np.cumsum(s_, 0)])
+    hem = dp_line(gain) + y0h
+    # its outline: the dark line just under the cloth goes with the skirt
+    L_ = lab_a[..., 0]
+    for k_, x in enumerate(range(xl, xr + 1)):
+        y = hem[k_]
+        while y < hem[k_] + 0.005 * BPX and y < SH[0] - 1 and item[y, x] and L_[y, x] < 70: y += 1
+        hem[k_] = y
+    # the waistband: the item's top band. A two-colour-model graph cut (GrabCut) between the waistband (seeded by the
+    # item's top rows) and the skirt's cloth (seeded below the crotch) finds its lower edge, the line the skirt hangs from
+    top = int(np.where((item & L0['pelvis']).any(1))[0].min()) if (item & L0['pelvis']).any() else int(J['waist'][1])
+    y1g = int(yo - 0.01 * BPX)
+    sub_it = item[top:y1g, xl:xr + 1]
+    wb = sub_it & (np.arange(y1g - top)[:, None] < 0.012 * BPX)
+    m['waistband_dE'] = round(float(np.median(near(lab_a[top:y1g, xl:xr + 1][wb], ca))), 1) if wb.sum() >= 100 else 0.0
+    hang = None
+    if wb.sum() >= 100 and m['waistband_dE'] >= SKIRT_CLOTH_DE:
+        img_ = np.ascontiguousarray(np.where(sub_it[..., None], al_skirt[top:y1g, xl:xr + 1], np.array([0, 0, 255], np.uint8)))
+        gc_ = np.where(sub_it, cv2.GC_PR_BGD, cv2.GC_BGD).astype(np.uint8)
+        gc_[wb] = cv2.GC_FGD
+        gc_[sub_it & (np.arange(top, y1g)[:, None] >= cy)] = cv2.GC_BGD
+        gc_[sub_it & (np.arange(top, y1g)[:, None] < cy) & (np.arange(top, y1g)[:, None] >= top + 0.012 * BPX)] = cv2.GC_PR_BGD
+        try:
+            cv2.setRNGSeed(12345)
+            cv2.grabCut(img_, gc_, None, np.zeros((1, 65), np.float64), np.zeros((1, 65), np.float64), 5, cv2.GC_INIT_WITH_MASK)
+            belt = sub_it & ((gc_ == cv2.GC_FGD) | (gc_ == cv2.GC_PR_FGD))
+            # the waistband is what of it hangs together from the top rows down
+            lab_w, _ = ndimage.label(belt)
+            belt = np.isin(lab_w, np.unique(lab_w[wb & belt])) & (lab_w > 0)
+            t_ = np.where(~sub_it, 0.0, np.where(belt, 1.0, -1.0))
+            gain = np.vstack([np.zeros((1, t_.shape[1])), np.cumsum(t_, 0)])
+            hang = dp_line(gain, step=1) + top
+            # beyond the waistband's own columns the line holds its last height
+            wcols = np.where(belt.any(0))[0]
+            if len(wcols):
+                hang[:wcols.min()] = hang[wcols.min()]; hang[wcols.max() + 1:] = hang[wcols.max()]
+            m['waistband'] = 'cut'
+        except cv2.error:
+            hang = None
+    if hang is None:
+        # no waistband of its own: the skirt hangs from just below the item's top edge
+        tops = np.array([np.argmax(item[:, x]) if item[:, x].any() else top for x in range(xl, xr + 1)])
+        hang = np.maximum(tops, top) + int(0.012 * BPX)
+        m['waistband'] = 'none (its top edge)'
+    hang = np.minimum(hang, hem - int(0.03 * BPX))
+    xs_ = np.arange(SH[1])
+    hang_f = np.interp(xs_, np.arange(xl, xr + 1), hang); hem_f = np.interp(xs_, np.arange(xl, xr + 1), hem)
+    mask = item & (XX >= xl) & (XX <= xr) & (YY >= hang_f[None, :] - SKIRT_OVER) & (YY < hem_f[None, :])
+    m.update({'columns': [xl, xr], 'hang_y': [int(hang.min()), int(hang.max())], 'hem_y': [int(hem.min()), int(hem.max())], 'px': int(mask.sum())})
+    return mask, (hang_f, hem_f), m
+
+
+def carry_up(tex, base):
+    """A trouser leg carried on up under a skirt (strip space): every row above its visible cloth takes the trousers'
+    own cloth across: one profile from side to side (outline, folds and all: the median of a band of rows just under the
+    hem, each row taken across its own width), laid across the bare leg's width at that row (the trousers' own margins
+    scaled with it, smoothed along the leg), so a thigh swung out from under the skirt shows trousers, never the bare
+    body. The visible cloth stays as drawn, over it."""
+    a, ab = tex[..., 3], base[..., 3]
+    H_, W_ = a.shape
+    def ext(row):
+        c = np.where(row > 0.5)[0]
+        return (float(c.min()), float(c.max())) if len(c) >= 3 else None
+    # the first row where the trousers cover the bare leg from side to side, then a little lower (past the hem's shadow)
+    r0 = next((r for r in range(H_) if ext(ab[r]) and (a[r] > 0.5).sum() >= 0.9 * (ab[r] > 0.5).sum()), None)
+    if r0 is None: return tex
+    ref = min(H_ - 2, r0 + int(round(0.012 * ABPX)))
+    band = max(3, int(round(0.012 * ABPX)))
+    Q = 64
+    q = (np.arange(Q) + 0.5) / Q
+    prof, marg = [], []
+    for r in range(ref, min(H_, ref + band)):
+        et, es = ext(a[r]), ext(ab[r])
+        if not et or not es: continue
+        xs_ = et[0] + q * (et[1] - et[0])
+        x0_ = np.floor(xs_).astype(int); x1_ = np.minimum(W_ - 1, x0_ + 1); fx = (xs_ - x0_)[:, None]
+        prof.append(tex[r, x0_] * (1 - fx) + tex[r, x1_] * fx)
+        marg.append(((et[0] - es[0]) / max(1.0, es[1] - es[0]), (et[1] - es[1]) / max(1.0, es[1] - es[0])))
+    if not prof: return tex
+    prof = np.median(np.stack(prof), 0)                 # Q × 4, premultiplied
+    ml, mr = np.median(np.array(marg), 0)              # the trousers' margins beyond the bare leg, per unit of its width
+    rows_ = [(r, ext(ab[r])) for r in range(ref)]
+    rr = np.array([r for r, e in rows_ if e]); L_ = np.array([e[0] for _, e in rows_ if e]); R_ = np.array([e[1] for _, e in rows_ if e])
+    if not len(rr): return tex
+    k_ = max(1, int(round(0.004 * ABPX)))
+    sm = lambda v: ndimage.uniform_filter1d(v, 2 * k_ + 1, mode='nearest')
+    L_, R_ = sm(L_), sm(R_)
+    fill = np.zeros_like(tex)
+    xs_ = np.arange(W_, dtype=np.float32)
+    for r, l_, r_ in zip(rr, L_, R_):
+        w_ = r_ - l_
+        lt, rt = l_ + ml * w_, r_ + mr * w_
+        if rt - lt < 2: continue
+        qq = (xs_ + 0.5 - lt) / (rt - lt) * Q - 0.5
+        ok = (qq >= -0.5) & (qq <= Q - 0.5)
+        qi = np.clip(qq, 0, Q - 1); q0 = np.floor(qi).astype(int); q1 = np.minimum(Q - 1, q0 + 1); fq = (qi - q0)[:, None]
+        row = prof[q0] * (1 - fq) + prof[q1] * fq
+        fill[r, ok] = row[ok]
+    return tex + (1 - a)[..., None] * fill
+
+
+def put_strip_under(name, limb, layer, width, base_layer):
+    """A trouser leg under a skirt: its strip, carried on up to the hips (carry_up) along the bare leg's own strip."""
+    tex, rows = strip(limb, layer, width)
+    base, _ = strip(limb, base_layer, width)
+    if (tex[..., 3] > 0.05).sum() < 20: return False
+    tex = carry_up(tex, base)
+    FRAMES[name] = dict(img=tex, pivot=[round(tex.shape[1] / 2, 2), round(rows['top'], 2)], rows={k: round(v, 2) for k, v in rows.items()})
+    return True
+
+
+def put_skirt(name, layer, lines):
+    """The skirt's frame: rigid about the pelvis joint (as the hips' piece), with its hang line and hem at SKIRT_N evenly
+    spaced columns across the frame (frame px): the runtime turns each column about its own point on the hang line."""
+    crop, (x0, y0) = tl.crop_alpha(tl.resize_premul(layer, K))
+    if crop.shape[0] < 2: return False
+    xs_ = (x0 + np.linspace(0, crop.shape[1], SKIRT_N)) / K
+    hang, hem = (np.interp(xs_, np.arange(SH[1]), l_) * K - y0 for l_ in lines)
+    FRAMES[name] = dict(img=crop, pivot=[round(J['pelvis'][0] * K - x0, 2), round(J['pelvis'][1] * K - y0, 2)],
+                        skirt={'hang': [round(float(v), 2) for v in hang], 'hem': [round(float(v), 2) for v in hem]})
+    return True
+
+
 ITEMS_REJECTED = []
 items_spec = load_catalog()
 SOURCES = {}
@@ -895,11 +1127,29 @@ for it in items_spec:
             REPORT[-1].setdefault('sleeve_wrap', {})[s_] = round(wrap_, 2)
             if reach < it.get('sleeve_from', 0.35) or wrap_ < it.get('sleeve_wrap', 0.5) or m_.sum() < 150:
                 Li['torso'] |= m_ & (m_.sum() >= 150); Li[f'arm_{s_}'] = np.zeros(SH, bool)
+    sk_mask = None
+    if it['slot'] == 'bottom' and not it.get('rigid'):
+        # the skirt garment profile: a continuous skirt is cut on its own; the waistband stays the hips' piece and the
+        # trouser legs keep what is below the hem
+        sk_mask, sk_lines, sk_m = find_skirt(item, alpha_a, lab_a, al)
+        sk_m['skirt'] = sk_mask is not None
+        REPORT[-1]['skirt'] = sk_m
+        if sk_mask is not None:
+            Li['skirt'] = sk_mask
+            SKIRT_LINES[it['id']] = sk_lines
+            for p in ('pelvis', 'leg_B', 'leg_F'): Li[p] = Li[p] & ~sk_mask
+            wgt = np.maximum(wgt, np.minimum(alpha_a, ndimage.gaussian_filter(sk_mask.astype(np.float32), 0.7)))
     made = cut_body(it['id'], wgt, fg_i / 255.0, Li, base=False, item_slot=it['slot'], rigid=it.get('rigid', False))
     # coverage (the item's coverage metadata): how much of each of the body's parts the item covers in the master's
     # pose; a part it covers almost whole is hidden under it (its bare piece would only peek out at the edges, like the
     # shorts' waistband above a pair of trousers)
     cov = {p: float((item & L0[p] & M0).sum() / max(1, (L0[p] & M0).sum())) for p in PARTS}
+    if sk_mask is not None:
+        # under a skirt a leg is covered by its trousers alone (the skirt swings off it): what they cover below the hem
+        # (above it they are carried on up to the hips)
+        for s_ in 'BF':
+            low = L0[f'leg_{s_}'] & M0 & (YY >= SKIRT_LINES[it['id']][1][None, :])
+            cov[f'leg_{s_}'] = float((Li[f'leg_{s_}'] & low).sum() / max(1, low.sum()))
     covers = [p for p, c in cov.items() if c >= it.get('cover_from', 0.85)]
     if it['slot'] == 'hat' and 'head' not in covers: covers.append('head')   # headwear is the whole head as drawn
     entry = {'id': it['id'], 'slot': it['slot'], 'name': it['name'], 'parts': [{'part': p, 'frame': f} for p, f in made], 'covers': covers}
@@ -917,7 +1167,7 @@ meta = {}
 for name, f in FRAMES.items():
     path = os.path.join(OUT, name + '.png'); os.makedirs(os.path.dirname(path), exist_ok=True)
     tl.to_png(f['img']).save(path)
-    meta[name] = {'w': f['img'].shape[1], 'h': f['img'].shape[0], 'pivot': f['pivot'], **({'rows': f['rows']} if 'rows' in f else {})}
+    meta[name] = {'w': f['img'].shape[1], 'h': f['img'].shape[0], 'pivot': f['pivot'], **{k: f[k] for k in ('rows', 'skirt') if k in f}}
 rig = {
     'bpx_drawing': BPX, 'root': [round(float(v), 1) for v in ROOT],
     'world': {k: round(v, 3) for k, v in WORLD.items()}, 'lengths': {k: round(v, 5) for k, v in LEN.items()},

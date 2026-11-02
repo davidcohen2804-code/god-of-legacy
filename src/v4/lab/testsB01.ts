@@ -6,7 +6,8 @@
 // plays its unarmed animation; R7: the far fist never shows between the legs; R8: a planted foot stays planted
 // through a cross-fade; R9: the staff's far fist stays on the shaft; R10: no wrist bends further than the sword kit's;
 // R11: the two hands stay together through interrupted changes and turns; R12: a weapon swap never shows the previous
-// weapon's art or kit; R13: the impact stays on the game's active moment when the attack's timings are scaled.
+// weapon's art or kit; R13: the impact stays on the game's active moment when the attack's timings are scaled; R17: the
+// skirt garment profile (a skirt hangs still from its waistband, answers both thighs, never shows the body under it).
 import type { AnimDef } from '../rig/types';
 import { RigPose } from '../rig/pose';
 import type { WardrobeSlot } from '../wardrobe/types';
@@ -14,7 +15,9 @@ import { Actor, type Control, type LabScene } from './LabScene';
 import { rigTime } from '../rig/posemap';
 import { B01_WEAR } from '../base01/catalog';
 import { STAFF_SPAN } from '../base01/anims';
-import { yieldFrame, type TestResult } from './tests';
+import { Harness, idColor, idOf, yieldFrame, type TestResult } from './tests';
+import { RigCharacter, SKIRT_N, type SkirtFrame } from '../render/RigCharacter';
+import b01Data from '../base01/assets/base01.json';
 
 // every item in the catalog, and nothing, in every slot (the mixes grow with the catalog)
 const CHOICES: [WardrobeSlot, (string | null)[]][] = B01_WEAR.map((w) => [w.slot, [null, ...w.items.map((i) => i.id)]]);
@@ -345,5 +348,174 @@ export async function runTestsB01(scene: LabScene, progress: (msg: string) => vo
     }
   }
   out.push({ id: 'R13', name: 'Time-scaled attacks: the impact lands on the game\'s active moment, the animation never runs backwards', pass: r13worst < 1e-9 && r13back === 0, detail: `${r13n} timings (every kit; 0.5x to 2x, and phases scaled unevenly): impact, recovery and end marks off by at most ${r13worst.toExponential(1)} s; ${r13back} backward steps` });
+  out.push(await skirtTest(scene, pose, progress));
   return out;
+}
+
+/** R17 (the art director's r9): the skirt garment profile. Every bottom the exporter cut as a skirt, worn on the base
+ *  body, through the six motions the art director named (idle, long-stride run, jump tuck, landing crouch, light attack,
+ *  heavy attack), in every weapon kit and unarmed, at 60 Hz with the cloth's follow-through running:
+ *  (a) the waistband never moves: the hips' piece is rigid on the hips and each column of the skirt hangs from it (its
+ *      hang point where the hips put it: never lower, never to the side; over a lifted thigh only up, under the band);
+ *  (b) one cloth: no column crosses or twists (every quad keeps its turn), the back edge never past the front one, the
+ *      hem one line (one mesh: no split at the crotch), stretched at most 4 times;
+ *  (c) it answers both thighs, never one alone: its edges are where the thigh furthest back and the thigh furthest
+ *      forward push them (swapping the two thighs changes nothing);
+ *  (d) the follow-through: at most lagMax (11 degrees) behind, never inside a thigh's push;
+ *  (e) on screen (B = 300 px, every other frame, the sword kit and unarmed): no pixel of the bare body under it (the
+ *      base's shorts, the bare thighs), no hole at the waist or in the skirt's upper part (a crack between the
+ *      waistband, the skirt and the body), and the upper half of each thigh (under the skirt at rest) at most 20%
+ *      visible beside it.
+ *  The exporter's verdict per bottom is in the detail (why each other bottom is not a skirt). */
+async function skirtTest(scene: LabScene, pose: RigPose, progress: (msg: string) => void): Promise<TestResult> {
+  progress('R17 skirts');
+  const A = scene.assets, U = pose.rig.B;
+  const report = (b01Data as unknown as { report: { id: string; skirt?: { skirt: boolean; why?: string } }[] }).report;
+  const verdicts = report.filter((r) => r.skirt).map((r) => `${r.id}: ${r.skirt!.skirt ? 'skirt' : `not a skirt (${r.skirt!.why})`}`);
+  const sk = pose.slotIndex.get('pelvis.skirt');
+  const items = [...A.catalog.items.values()].filter((it) => it.wslot === 'bottom' && it.parts.some((p) => p.slot === 'pelvis.skirt'));
+  if (sk === undefined || !items.length) return { id: 'R17', name: 'The skirt garment profile', pass: false, detail: `no skirt ${sk === undefined ? 'slot' : 'item'} | ${verdicts.join('; ')}` };
+  const hip = pose.index.get('hip')!, thigh = { B: pose.index.get('thigh_B')!, F: pose.index.get('thigh_F')! };
+  const bare = new Set(['pelvis.skin', 'leg_B.skin', 'leg_F.skin'].map((n) => pose.slotIndex.get(n)!));
+  const cloth = { B: pose.slotIndex.get('leg_B.cloth')!, F: pose.slotIndex.get('leg_F.cloth')! };
+  const keep = new Set([...['legB', 'legF', 'torso'].flatMap((g) => pose.rig.slots.map((s, i) => (s.group === g ? i : -1)).filter((i) => i >= 0))]);
+  const BS = 300, s = BS / U, s150 = 150 / U, RW = 360, RH = 340;
+  const hz = new Harness(scene, 'v4testSkirt', RW, RH);
+  const D = 180 / Math.PI, lagMax = (pose.rig.slots[sk].skirt?.lagMax ?? 11);
+  let drift = 0, rise = 0, folds = 0, order = 0, stretch = 0, edgeOff = 0, lag = 0, inside = 0, spread = 0, frames = 0;
+  let bareMax = 0, holes = 0, pixFrames = 0;
+  const expo: Record<string, number> = {};
+  const worst: string[] = [];
+  const kits: [string, Record<string, AnimDef>][] = [...Object.entries(A.animsByKit ?? { sword_1h: A.anims as Record<string, AnimDef> }), ['unarmed', A.animsBare ?? A.anims]];
+  for (const it of items) {
+    const ch = new RigCharacter(scene, pose, A.atlas512, false);
+    ch.setAvatar(A.wardrobe.resolve({ body: 'male_std', look: { ...A.baseLook }, gearLooks: {}, cosmetics: { equipped: { bottom: it.id }, hidden: [] }, family: 'sword' }));
+    for (const [kit, set] of kits) {
+      const j = set.jump, m = j.marks ?? {};
+      const six: [string, AnimDef, number, number][] = [
+        ['idle', set.idle, 0, set.idle.dur], ['long-stride run', set.run, 0, set.run.dur], ['jump tuck', j, m.air ?? 0, m.land ?? j.dur],
+        ['landing crouch', j, m.land ?? 0, j.dur], ['light attack', set.attack, 0, set.attack.dur], ['heavy attack', set.attack_heavy ?? set.attack, 0, (set.attack_heavy ?? set.attack).dur],
+      ];
+      const pixels = kit === 'sword_1h' || kit === 'unarmed';
+      for (const [motion, anim, t0, t1] of six) {
+        ch.resetFollow();
+        const warm = anim.loop ? 0.25 : Math.min(0.25, t0);
+        let k = 0;
+        for (let t = t0 - warm; t <= t1 + 1e-9; t += 1 / 60, k++) {
+          ch.evaluate(anim, anim.loop ? ((t % anim.dur) + anim.dur) % anim.dur : Math.max(0, t));
+          ch.layout(s);
+          if (t < t0 - 1e-9) continue;
+          frames++;
+          const w = ch.state.world, rope = ch.ropeOf(sk)!, V = rope.vertices, f = rope.frame, sp = ch.skirtPose[sk]!;
+          const data = (f.customData as { skirt?: SkirtFrame }).skirt!;
+          const u = A.atlas512.unitsPerPx, fw = f.width, fh = f.height, px = f.pivotX * fw, py = f.pivotY * fh;
+          const ho = hip * 6, ht = Math.atan2(w[ho + 1], w[ho]), hc = Math.cos(ht), hs = Math.sin(ht);
+          const where = `${it.id} ${kit} ${motion} ${t.toFixed(2)} s`;
+          // (a) each column's hang point against where the hips put it (hips' frame, px at B = 150)
+          const P: [number, number][] = [], H: [number, number][] = [], H0: [number, number][] = [];
+          for (let c = 0; c < SKIRT_N; c++) {
+            const x = (fw * c) / (SKIRT_N - 1), y0 = data.hang[c], up = Math.min(2, y0), dn = fh - y0, e = up / (up + dn);
+            const tx = V[4 * c], ty = V[4 * c + 1], bx = V[4 * c + 2], by = V[4 * c + 3];
+            const ax = tx + (bx - tx) * e, ay = ty + (by - ty) * e;
+            const ex = w[ho + 4] / u + hc * (x - px) - hs * (y0 - py), ey = w[ho + 5] / u + hs * (x - px) + hc * (y0 - py);
+            const dx = (ax - ex) * u * s150, dy = (ay - ey) * u * s150, lx = hc * dx + hs * dy, ly = -hs * dx + hc * dy;
+            if (Math.abs(lx) > drift || ly > drift) { drift = Math.max(drift, Math.abs(lx), ly); if (drift > 0.05 && worst.length < 6) worst.push(`waistband ${drift.toFixed(2)} px at ${where}`); }
+            rise = Math.max(rise, -ly);
+            P.push([ax, ay]);
+            const g = (data.hem[c] - y0) / (up + dn);
+            H.push([ax + (bx - tx) * g, ay + (by - ty) * g]);
+            H0.push([x, data.hem[c]]);
+          }
+          // (b) the columns' order: every quad keeps its turn (as at rest), the hem's stretch
+          for (let c = 0; c + 1 < SKIRT_N; c++) {
+            const T0x = V[4 * c], T0y = V[4 * c + 1], B0x = V[4 * c + 2], B0y = V[4 * c + 3], T1x = V[4 * c + 4], T1y = V[4 * c + 5], B1x = V[4 * c + 6], B1y = V[4 * c + 7];
+            const c1 = (B0x - T0x) * (T1y - T0y) - (B0y - T0y) * (T1x - T0x), c2 = (T1x - B0x) * (B1y - B0y) - (T1y - B0y) * (B1x - B0x);
+            if (!(c1 < 0 && c2 > 0)) { folds++; if (worst.length < 6) worst.push(`fold at column ${c}, ${where}`); }
+            const l = Math.hypot(H[c + 1][0] - H[c][0], H[c + 1][1] - H[c][1]), l0 = Math.hypot(H0[c + 1][0] - H0[c][0], H0[c + 1][1] - H0[c][1]);
+            stretch = Math.max(stretch, l / Math.max(1e-6, l0));
+          }
+          if (sp.back < sp.front - 1e-9) order++;
+          // (c) the edges where both thighs push them (the furthest back, the furthest forward)
+          const turn = (b: number) => { const d = Math.atan2(w[b * 6 + 1], w[b * 6]) - pose.restWorldRot[b] / D - ht; return Math.atan2(Math.sin(d), Math.cos(d)); };
+          const tB = turn(thigh.B), tF = turn(thigh.F), S = pose.rig.slots[sk].skirt!;
+          const bk = Math.max(0, tB, tF), fr = Math.min(0, tB, tF), from = S.from / D;
+          const aL = bk + S.lift * Math.max(0, bk - from), aR = fr - S.lift * Math.max(0, -fr - from);
+          edgeOff = Math.max(edgeOff, Math.abs(aL - sp.backTarget), Math.abs(aR - sp.frontTarget));
+          // (d) the follow-through
+          const lb = (sp.back - sp.backTarget) * D, lf = (sp.frontTarget - sp.front) * D;
+          lag = Math.max(lag, lb, lf);
+          if (lb < -1e-6 || lf < -1e-6) inside++;
+          spread = Math.max(spread, (sp.back - sp.front) * D);
+          // (e) on screen, every other frame, the sword kit and unarmed
+          if (!pixels || k % 2) continue;
+          pixFrames++;
+          const ox = Math.round(RW / 2 - w[ho + 4] * s), oy = Math.round(RH * 0.32 - w[ho + 5] * s);
+          ch.layout(s, false); ch.tintBySlot(idColor); hz.rt.clear(); hz.rt.draw(ch.container, ox, oy); ch.clearTint();
+          const all = hz.read(0, 0, RW, RH);
+          // (a pixel of a piece, with its four neighbours: an edge blending two pieces' colours is no piece's)
+          const id = (q: number) => (all[q * 4 + 3] > 200 ? idOf(all[q * 4], all[q * 4 + 1], all[q * 4 + 2]) : -1);
+          let nb = 0;
+          for (let y = 1; y < RH - 1; y++) for (let x = 1; x < RW - 1; x++) {
+            const q = y * RW + x, v = id(q);
+            if (bare.has(v) && id(q - 1) === v && id(q + 1) === v && id(q - RW) === v && id(q + RW) === v) nb++;
+          }
+          for (const b of bare) if (ch.drawn.includes(b)) nb += 1e6;   // a bare piece drawn at all under the skirt
+          if (nb > bareMax) { bareMax = nb; if (nb > 0 && worst.length < 12) worst.push(`${nb} px of bare body at ${where}`); }
+          // the legs, the hips and the skirt on their own: holes (background enclosed by them) and the thighs' cover
+          ch.layout(s, false); ch.isolate(keep); ch.tintBySlot(idColor); hz.rt.clear(); hz.rt.draw(ch.container, ox, oy); ch.clearTint();
+          const iso = hz.read(0, 0, RW, RH);
+          const open = new Uint8Array(RW * RH), queue: number[] = [];
+          const solid = (q: number) => iso[q * 4 + 3] >= 128;
+          for (let x = 0; x < RW; x++) for (const y of [0, RH - 1]) { const q = y * RW + x; if (!solid(q) && !open[q]) { open[q] = 1; queue.push(q); } }
+          for (let y = 0; y < RH; y++) for (const x of [0, RW - 1]) { const q = y * RW + x; if (!solid(q) && !open[q]) { open[q] = 1; queue.push(q); } }
+          while (queue.length) {
+            const q = queue.pop()!, x = q % RW, y = (q - x) / RW;
+            for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+              const xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= RW || yy >= RH) continue;
+              const r = yy * RW + xx; if (open[r] || solid(r)) continue; open[r] = 1; queue.push(r);
+            }
+          }
+          // (a hole at the waist or in the skirt's upper part, from 0.09 B above the hips to 0.06 B below: a crack between
+          // the waistband, the skirt and the body; lower down, background enclosed by two crossing legs is no hole)
+          let nh = 0, hx = 0, hy = 0;
+          for (let q = 0; q < RW * RH; q++) if (!solid(q) && !open[q]) {
+            const x = q % RW, y = (q - x) / RW, wx = (x - ox) / s - w[ho + 4], wy = (y - oy) / s - w[ho + 5];
+            const lx = (hc * wx + hs * wy) / U, ly = (-hs * wx + hc * wy) / U;
+            if (ly < -0.09 || ly > 0.06) continue;
+            nh++; hx += lx; hy += ly;
+          }
+          if (nh > 2) { holes++; if (worst.length < 12) worst.push(`hole of ${nh} px at (${(hx / nh).toFixed(3)}, ${(hy / nh).toFixed(3)}) B from the hips, ${where}`); }
+          for (const side of ['B', 'F'] as const) {
+            // the upper half of the thigh: within 0.07 B of its axis, from the hip joint to half its length
+            const b = thigh[side], o = b * 6, L = pose.length(ch.state, b) * U * 0.5, R = 0.07 * U;
+            const inU = (x: number, y: number) => {
+              const wx = (x - ox) / s - w[o + 4], wy = (y - oy) / s - w[o + 5], al = wx * w[o] + wy * w[o + 1], ac = -wx * w[o + 1] + wy * w[o];
+              return al >= 0 && al <= L && Math.abs(ac) <= R;
+            };
+            ch.layout(s, false); ch.isolate(new Set([cloth[side]])); ch.tintAll(0xffffff); hz.rt.clear(); hz.rt.draw(ch.container, ox, oy); ch.clearTint();
+            const own = hz.read(0, 0, RW, RH);
+            let total = 0, seen = 0;
+            for (let y = 0; y < RH; y++) for (let x = 0; x < RW; x++) {
+              const q = y * RW + x;
+              if (own[q * 4 + 3] < 200 || !inU(x, y)) continue;
+              total++;
+              if (all[q * 4 + 3] > 200 && idOf(all[q * 4], all[q * 4 + 1], all[q * 4 + 2]) === cloth[side]) seen++;
+            }
+            const share = total ? seen / total : 0, key = `${motion} ${side}`;
+            if (share > (expo[key] ?? 0)) expo[key] = share;
+          }
+        }
+        await yieldFrame();
+      }
+    }
+    ch.destroy();
+  }
+  hz.dispose();
+  const expoMax = Math.max(0, ...Object.values(expo));
+  const pass = drift <= 0.05 && folds === 0 && order === 0 && stretch <= 4 && edgeOff < 1e-9 && lag <= lagMax + 1e-6 && inside === 0 && bareMax === 0 && holes === 0 && expoMax <= 0.2;
+  const ex = Object.entries(expo).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k2, v]) => `${k2} ${(v * 100).toFixed(0)}%`).join(', ');
+  return {
+    id: 'R17', name: 'The skirt garment profile: one cloth from a still waistband, answering both thighs, no bare body, no leg through it', pass,
+    detail: `${items.map((i) => i.id).join(', ')} on the base body, ${frames} frames (${kits.map(([k2]) => k2).join(', ')}: idle, long-stride run, jump tuck, landing crouch, light attack, heavy attack): waistband off by at most ${drift.toFixed(3)} px at B = 150 (rising at most ${rise.toFixed(1)} px under the band over a lifted thigh); ${folds} folded columns, ${order} edges crossed; hem stretched at most ${stretch.toFixed(2)}x; edges ${edgeOff < 1e-9 ? 'exactly' : 'NOT'} where both thighs push them; follow-through at most ${lag.toFixed(1)} deg behind (limit ${lagMax}), ${inside} frames inside a thigh's push; fan at most ${spread.toFixed(0)} deg wide; on screen (${pixFrames} frames at B = 300): bare body ${bareMax} px, ${holes} frames with a hole at the waist, upper thigh visible at most ${(expoMax * 100).toFixed(0)}% (${ex})${worst.length ? ` | ${worst.join(' | ')}` : ''} | exporter: ${verdicts.join('; ')}`,
+  };
 }

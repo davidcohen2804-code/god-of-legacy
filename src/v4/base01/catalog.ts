@@ -6,7 +6,7 @@ import type { Catalog } from '../wardrobe/catalog';
 import type { Item, ItemPart, WardrobeSlot } from '../wardrobe/types';
 import data from './assets/base01.json';
 
-export interface B01Frame { name: string; x: number; y: number; w: number; h: number; px: number; py: number; rows?: Record<string, number> }
+export interface B01Frame { name: string; x: number; y: number; w: number; h: number; px: number; py: number; rows?: Record<string, number>; skirt?: { hang: number[]; hem: number[] } }
 export const B01_FRAMES: B01Frame[] = data.frames as B01Frame[];
 export const B01_TEXTURE = 'v4base01';
 
@@ -17,7 +17,7 @@ export const PIECE_SLOT: Partial<Record<WardrobeSlot, Record<string, string>>> =
     torso: 'torso.cloth', arm_B: 'arm_B.sleeve', arm_F: 'arm_F.sleeve', uparm_B: 'arm_B.plateU', forearm_B: 'arm_B.plateL', uparm_F: 'arm_F.plateU', forearm_F: 'arm_F.plateL',
     pauldron_B: 'arm_B.pauldron', pauldron_F: 'arm_F.pauldron', tail_B: 'leg_B.tail', tail_F: 'leg_F.tail',
   },
-  bottom: { pelvis: 'pelvis.cloth', pelvis_under: 'pelvis.under', leg_B: 'leg_B.cloth', leg_F: 'leg_F.cloth' },
+  bottom: { pelvis: 'pelvis.cloth', pelvis_under: 'pelvis.under', leg_B: 'leg_B.cloth', leg_F: 'leg_F.cloth', skirt: 'pelvis.skirt' },
   shoes: { foot_B: 'foot_B.shoe', foot_F: 'foot_F.shoe', leg_B: 'leg_B.shaft', leg_F: 'leg_F.shaft' },
   head: { head: 'head.hat' },
 };

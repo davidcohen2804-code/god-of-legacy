@@ -58,6 +58,8 @@ export class StudioScene extends Phaser.Scene {
     for (const f of KIT.frames) {
       const fr = tex.add(f.name, 0, f.x, f.y, f.w, f.h)!;
       fr.customPivot = true; fr.pivotX = f.px; fr.pivotY = f.py;
+      const sk = (f as { skirt?: unknown }).skirt;
+      if (sk) (fr.customData as Record<string, unknown>).skirt = sk;   // a skirt's hang line and hem (its fan)
     }
     this.pose = new RigPose(KIT.rig);
     const cat = KIT.catalog();

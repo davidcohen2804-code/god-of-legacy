@@ -26,7 +26,7 @@ so every item bends with the body under it.
    `package/previews/<id>_600.png` and `_150.png` (build outputs, not kept in the repository), and `package/previews.jpg`
    (all of them on one sheet, kept with the manifest).
 
-## The asset contract (BASE-01, template v1, exporter 1.6)
+## The asset contract (BASE-01, template v1, exporter 1.7)
 
 - The skeleton and the anatomy are the master's and never change (`template.json`, versioned); every package records
   the template and exporter versions, the master's hash and each source picture's hash.
@@ -63,7 +63,7 @@ so every item bends with the body under it.
   body height above the near one, solved onto it in every frame (`hold` in the animation), drawn over the shaft.
 - Determinism: an item's cut depends on its own picture only (the colour models start from a fixed seed), so adding,
   removing or rejecting a source changes no other item; a subset built in another order is byte-identical.
-- Regression (the lab's tests R1 to R13) over every mix of the catalog and every animation. The art director's ten
+- Regression (the lab's tests R1 to R13, and R17 for skirts) over every mix of the catalog and every animation. The art director's ten
   stress items (`items/stress/`) are permanent fixtures: every exporter change must still accept them.
 - Rejections, each with its reason in plain words and its check (`check` in the report: catalog row, background,
   orientation, alignment, pose, proportions, body colour, figure, no item, face, weapon orientation): a row with an
@@ -80,6 +80,23 @@ so every item bends with the body under it.
   `items/gate5/invalid/made.json`.
 - Split coats: each tail panel hangs from its hip joint, turns 0.45 of its thigh and swings up to 10 degrees behind it.
   Full helmets drawn smaller than the master's head are enlarged about the neck by up to 8%.
+- Skirts (exporter 1.7, the art director's skirt garment profile): a bottom whose cloth closes the gap between the
+  thighs down to a hem above the knees, where the gap opens at once (by 0.015 B or more within 0.006 B of height) onto
+  other cloth or the bare legs (the cloth above and below the opening differ: median Lab distance 12 or more, both
+  ways) and covers the thighs from side to side above the hem (70% or more), is a skirt. It is cut on its own from the
+  same picture: its waistband (a graph cut between the band's colours and the skirt's) stays the hips' rigid piece,
+  the skirt hangs from the waistband's lower edge, and the trouser legs keep what is below the hem, carried on up to
+  the hips in their own cloth (one profile across the leg, outline and all, laid across the bare leg's width), so a
+  thigh swung out from under the skirt shows trousers, never the body; under a skirt a leg counts as covered by its
+  trousers alone. At runtime (`pelvis.skirt`, `SlotDef.skirt`) the skirt is one fan of 25 columns, each turning about
+  its own point on the hang line: the back edge as far back as the thigh swung furthest back, the front edge as far
+  forward as the thigh swung furthest forward, the columns between in proportion (never one leg alone, never crossing);
+  a thigh lifted past 30 degrees lifts its edge an eighth as much again and the cloth on that side rides up over it
+  (0.03 B per radian, hidden under the waistband); a thigh pushes its edge out at once and the cloth falls back keeping
+  75% of each frame's turn, at most 11 degrees behind. Side panels (they leave the gap between the legs open) and wide
+  trouser legs (their gap opens gradually, in the same cloth) are not skirts: each panel stays on its own leg. The
+  report gives every bottom's measures and, when it is not a skirt, why (`skirt` in the report). The lab's R17 checks
+  every skirt through idle, the long-stride run, the jump tuck, the landing crouch and both attacks.
 
 The exporter lines the picture up with the master (the body outside the item, then each limb on its own), **rejects**
 it when the body outside the item does not match the master (it prints the fit, the colour error and the silhouette

@@ -1,6 +1,6 @@
 # Pack BASE-01 for the studio: every piece the builder cut (the body, the grip hands, each item) on one atlas page at
-# 512 px per B, plus the data the runtime reads (frames with pivots and strip rows, the rig measured on the master, the
-# items with their pieces).
+# 512 px per B, plus the data the runtime reads (frames with pivots, strip rows and a skirt's hang line and hem, the rig
+# measured on the master, the items with their pieces).
 # Usage: pack.py <build dir> <out dir>
 import json, os, sys
 from PIL import Image
@@ -10,7 +10,7 @@ P = json.load(open(os.path.join(BUILD, 'parts.json')))
 frames = []
 for name, f in P['frames'].items():
     im = Image.open(os.path.join(BUILD, name + '.png')).convert('RGBA')
-    frames.append((name, im, f['pivot'], {'rows': f['rows']} if 'rows' in f else {}))
+    frames.append((name, im, f['pivot'], {k: f[k] for k in ('rows', 'skirt') if k in f}))
 
 
 def pack(W):
