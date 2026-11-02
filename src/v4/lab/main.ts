@@ -5,6 +5,7 @@ import { LabScene } from './LabScene';
 import { runTests } from './tests';
 import { runTestsB } from './testsB';
 import { runTestsB01 } from './testsB01';
+import { idMapsB01 } from './fixturesB01';
 import { buildUI } from './ui';
 import { CANVAS } from './world';
 
@@ -30,6 +31,8 @@ window.addEventListener('v4lab-ready', (e) => {
     /** The tests of the art on screen: Phase 1's on the placeholder, the real-art tests on candidate B. */
     runTests: (full = false, only?: string[]) => (scene.art === 'b' ? runTestsB(scene, { full, only }, setStatus) : scene.art === 'base01' ? runTestsB01(scene, setStatus) : runTests(scene, { full }, setStatus)),
     bench: (seconds = 6) => bench(scene, seconds, setStatus),
+    /** R15's renders of one BASE-01 item worn alone (tools/v4/base01/r15.mjs). */
+    idMaps: (itemId: string) => idMapsB01(scene, itemId),
     /** Recording helpers: stop the clock, then advance it by hand one frame at a time. */
     freeze: () => game.loop.sleep(),
     thaw: () => game.loop.wake(),

@@ -69,6 +69,13 @@ so every item bends with the body under it.
   nothing of a rejected source; the package manifest names the same versions and sources) and R16 failure isolation
   (`python3 checks.py r16 <build A> <build B>`, B built from the catalog with every negative fixture mixed in: the same
   items accepted, every accepted piece, check and packed frame identical, no piece of a rejected source anywhere).
+- Visual regression R15 (`node r15.mjs <out>` with the lab served on port 4199, then `python3 r15.py compare <out>`):
+  every item worn alone, in the master's reference pose and seven review motion poses (idle, the run with either knee
+  up, the jump tuck, the landing, both attacks), rendered by the game's runtime as maps of which piece shows at each
+  pixel (B = 300 px), against its approved maps (`fixtures/r15/`, 8-bit): per pose the silhouette, the bare body
+  showing and the boundaries between pieces, pixel by pixel. An item passes when every map is identical; a changed
+  item is shown (approved, now, what changed) and fixed or approved again (`python3 r15.py approve <out> <ids>`, after
+  the art director's review); a new item waits for approval. Renders are deterministic (two runs: 0 pixels differ).
 - Regression (the lab's tests R1 to R13, and R17 for skirts) over every mix of the catalog and every animation. The art director's ten
   stress items (`items/stress/`) are permanent fixtures: every exporter change must still accept them.
 - Rejections, each with its reason in plain words and its check (`check` in the report: catalog row, slot, background,
