@@ -55,6 +55,10 @@ export interface SlotDef {
   /** A joint cap: drawn at the bone's origin, turned by this fraction of the bone's rotation against its parent
    *  (0.5 = half way), so the piece covering a shoulder or an elbow bends less than the limb under it. */
   blend?: number;
+  /** Follow-through: each frame the piece keeps this share of its last turn toward where its bone puts it (0 = none),
+   *  never more than `lagMax` degrees behind (a coat's tail swinging a moment after the leg). */
+  lag?: number;
+  lagMax?: number;
   /** A cloth strip: the slot's picture is drawn bent along these chain bones (the first is the slot's bone), top edge
    *  at the bone's origin minus the frame's pivot. Its top follows the parent's rest direction (pinned at the clasps). */
   strip?: string[];

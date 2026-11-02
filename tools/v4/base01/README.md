@@ -17,7 +17,7 @@ so every item bends with the body under it.
    `node ../build_studio.mjs` (the studio) and `node ../build_lab.mjs` (the lab's game scene). A trial build of another
    catalog: `B01_CATALOG=<file> python3 build.py <out>`.
 
-## The asset contract (BASE-01, template v1, exporter 1.2)
+## The asset contract (BASE-01, template v1, exporter 1.3)
 
 - The skeleton and the anatomy are the master's and never change (`template.json`, versioned); every package records
   the template and exporter versions, the master's hash and each source picture's hash.
@@ -36,7 +36,15 @@ so every item bends with the body under it.
 - Light garments (tops and trousers with a median L* above 72) get a crisp warm dark outline (7 master px) and slightly
   deeper fold shadows, for gameplay size on pale floors.
 - Weapons: scaled so the drawn handle fits the fist (30 master px), pivot at the grip; never animated on their own.
-- Regression (the lab's tests R1 to R8) over every mix of the catalog and every animation.
+- Regression (the lab's tests R1 to R8) over every mix of the catalog and every animation. The art director's ten
+  stress items (`items/stress/`) are permanent fixtures: every exporter change must still accept them.
+- Rejections, each with its reason in plain words: a row with an unknown slot or profile, or a profile that does not
+  fit its slot; a picture that cannot be lined up with the master; a figure whose shape outside the item is not the
+  master's; no item in the picture; a weapon not drawn level; headwear whose face is not the master's (its drawn lines
+  must match at 0.5 or more where the face shows). Negative fixtures: `catalog_negative.csv` (every row rejected but
+  `neg08`, a smaller drawing that is lined up and accepted): `B01_CATALOG=catalog_negative.csv python3 build.py <out>`.
+- Split coats: each tail panel hangs from its hip joint, turns 0.45 of its thigh and swings up to 10 degrees behind it.
+  Full helmets drawn smaller than the master's head are enlarged about the neck by up to 8%.
 
 The exporter lines the picture up with the master (the body outside the item, then each limb on its own), **rejects**
 it when the body outside the item does not match the master (it prints the fit, the colour error and the silhouette

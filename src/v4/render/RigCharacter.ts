@@ -33,6 +33,10 @@ export class RigCharacter {
   private readonly slotBone: Int16Array;
   /** Joint caps: per slot, the share of the bone's turn against its parent (1 = the bone's own rotation). */
   private readonly slotBlend: Float64Array;
+  /** Follow-through per slot (SlotDef.lag), its limit, and the turn each lagging piece showed last frame. */
+  private readonly slotLag: Float64Array;
+  private readonly slotLagMax: Float64Array;
+  private readonly slotShown: Float64Array;
   private readonly slotParent: Int16Array;
   private readonly frames: (string | null)[];
   /** Cloth strips (slots with `strip`): drawn as a rope bent along the chain bones instead of a flat image. */
@@ -49,6 +53,9 @@ export class RigCharacter {
     const slots = pose.rig.slots;
     this.slotBone = new Int16Array(slots.map((s) => pose.index.get(s.bone)!));
     this.slotBlend = new Float64Array(slots.map((s) => s.blend ?? 1));
+    this.slotLag = new Float64Array(slots.map((s) => s.lag ?? 0));
+    this.slotLagMax = new Float64Array(slots.map((s) => ((s.lagMax ?? 10) * Math.PI) / 180));
+    this.slotShown = new Float64Array(slots.length).fill(NaN);
     this.slotParent = new Int16Array(slots.map((_, i) => pose.parent[this.slotBone[i]]));
     this.frames = slots.map(() => null);
     this.stripBones = slots.map((s) => (s.strip ? Int16Array.from(s.strip.map((n) => pose.index.get(n)!)) : null));
@@ -117,6 +124,16 @@ export class RigCharacter {
         const q = p * 6, pt = Math.atan2(w[q + 1], w[q]) - rest[p] * D2R;
         let d = turn - pt; d = Math.atan2(Math.sin(d), Math.cos(d));
         img.rotation = pt + kb * d;
+      }
+      if (this.slotLag[i] > 0) { // follow-through: a moment behind where the bone puts it, never more than lagMax
+        const tgt = img.rotation; let sh = this.slotShown[i];
+        if (Number.isNaN(sh)) sh = tgt;
+        let d = tgt - sh; d = Math.atan2(Math.sin(d), Math.cos(d));
+        sh += d * (1 - this.slotLag[i]);
+        let e = sh - tgt; e = Math.atan2(Math.sin(e), Math.cos(e));
+        const m = this.slotLagMax[i];
+        if (e > m) sh = tgt + m; else if (e < -m) sh = tgt - m;
+        this.slotShown[i] = sh; img.rotation = sh;
       }
       img.setScale(k);
       if (!img.visible) img.setVisible(true);

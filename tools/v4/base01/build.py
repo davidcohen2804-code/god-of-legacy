@@ -283,7 +283,7 @@ def cut_body(prefix, alpha, fg, L, base=True, item_slot=None, rigid=False):
         # pixels, and the body shows under the rest
         ring = ndimage.binary_dilation(PA, iterations=6) & ~PA & L0['torso'] & M0
         if ring.any() and (ring & known).sum() < 0.5 * ring.sum():
-            under &= ndimage.binary_dilation(known, iterations=int(0.03 * BPX))
+            under &= ndimage.binary_dilation(known, iterations=int(0.012 * BPX))   # the strap carries on a little
         tl_ = fill_under(tl_, under, known)
     if base:
         neck = (YY > J['head'][1] - 0.035 * BPX) & (YY < J['neck'][1] + 4) & (np.abs(XX - J['neck'][0]) < 0.034 * BPX)
@@ -308,7 +308,12 @@ def cut_body(prefix, alpha, fg, L, base=True, item_slot=None, rigid=False):
             under = np.zeros(SH + (4,), np.float32); under[up, :3] = col; under[up, 3] = 1.0
             if put_rigid(f'{prefix}/pelvis_under', under, J['pelvis']): made.append(('pelvis_under', f'{prefix}/pelvis_under'))
     if L['pelvis'].any() and put_rigid(f'{prefix}/pelvis', pl, J['pelvis']): made.append(('pelvis', f'{prefix}/pelvis'))
-    if L.get('tails') is not None and L['tails'].any() and put_rigid(f'{prefix}/tails', lay(L['tails']), J['pelvis']): made.append(('tails', f'{prefix}/tails'))
+    if L.get('tails') is not None and L['tails'].any():
+        # a split coat: the panel on each side of the crotch is its own piece, hanging from that side's hip joint
+        cx = float(C['crotch'][0][0])
+        for s, side in (('B', XX < cx), ('F', XX >= cx)):
+            m_ = L['tails'] & side
+            if m_.sum() > 1500 and put_rigid(f'{prefix}/tail_{s}', lay(m_), J[f'hip_{s}']): made.append((f'tail_{s}', f'{prefix}/tail_{s}'))
     for s in 'BF':
         if rigid and (L[f'arm_{s}'].any() or P[s].any()):
             # rigid plates: the shoulder plate about the shoulder; the rest of the arm's plates cut at the elbow (square
@@ -428,7 +433,7 @@ def refine_limbs(al, field):
     return out
 
 
-EXPORTER_VERSION = '1.2'
+EXPORTER_VERSION = '1.3'
 
 
 def load_catalog():
@@ -443,6 +448,12 @@ def load_catalog():
     for r in csv.DictReader(l for l in open(path) if l.strip() and not l.lstrip().startswith('#')):
         r = {k.strip(): (v or '').strip() for k, v in r.items()}
         if r.get('body', 'base01') != T['id']: continue
+        bad = None
+        if r.get('slot') not in list(SLOT_PARTS) + ['weapon']: bad = f"unknown slot '{r.get('slot')}' (top, bottom, shoes, hat, weapon)"
+        elif r.get('profile') not in ('cloth', 'rigid', 'weapon'): bad = f"unknown profile '{r.get('profile')}' (cloth, rigid, weapon)"
+        elif (r['profile'] == 'weapon') != (r['slot'] == 'weapon'): bad = f"profile '{r['profile']}' does not fit slot '{r['slot']}' (a weapon row has slot and profile weapon)"
+        if bad:
+            REPORT.append({'id': r.get('id', '?'), 'accepted': False, 'reason': bad}); print('REJECTED', r.get('id'), bad); continue
         pic = r['picture'] if os.path.isabs(r['picture']) else os.path.join(HERE, r['picture'])
         it = {'id': r['id'], 'slot': r['slot'], 'name': r['name'], 'picture': pic, 'profile': r['profile']}
         if r['profile'] == 'rigid': it['rigid'] = True
@@ -502,7 +513,11 @@ for it in items_spec:
         for s_ in 'BF':
             d_ = unit(J[f'knee_{s_}'], J[f'ankle_{s_}']); L_ = np.linalg.norm(J[f'ankle_{s_}'] - J[f'knee_{s_}'])
             region &= ~(field[f'leg_{s_}'] & (beyond(J[f'knee_{s_}'], d_) < L_ * it.get('shaft_from', 0.06)))
-    cc, warp = align(alpha_i, np.any([L0[p] for p in allowed], axis=0))
+    try:
+        cc, warp = align(alpha_i, np.any([L0[p] for p in allowed], axis=0))
+    except cv2.error:
+        REPORT.append({'id': it['id'], 'accepted': False, 'reason': 'the picture cannot be lined up with the master: it must be an edit of the master (same stance, size and place) on a flat magenta background'})
+        print('REJECTED', it['id'], REPORT[-1]); continue
     al = cv2.warpAffine(img, warp, (SH[1], SH[0]), flags=cv2.INTER_LINEAR | cv2.WARP_INVERSE_MAP, borderValue=(255, 0, 255))
     # each limb is then lined up on its own (a picture's arm or leg can sit a few px off even when the body fits): a
     # rigid fit of the limb's edges, its hand or foot included, piecewise over the limb's part of the canvas
@@ -543,7 +558,11 @@ for it in items_spec:
     # some sure body inside the crop too: the master's own colours where the picture matches them closely
     sub[(sub == cv2.GC_PR_BGD) & (dE[y0_:y1_, x0_:x1_] < 6)] = cv2.GC_BGD
     bgd = np.zeros((1, 65), np.float64); fgd = np.zeros((1, 65), np.float64)
-    cv2.grabCut(np.ascontiguousarray(al[y0_:y1_, x0_:x1_]), sub, None, bgd, fgd, 6, cv2.GC_INIT_WITH_MASK)
+    try:
+        cv2.grabCut(np.ascontiguousarray(al[y0_:y1_, x0_:x1_]), sub, None, bgd, fgd, 6, cv2.GC_INIT_WITH_MASK)
+    except cv2.error:   # nothing in the picture differs from the master (or nothing is the body): no item to cut
+        REPORT[-1].update({'accepted': False, 'reason': 'no item found: the picture is the master itself, or the item is too small to cut'})
+        print('REJECTED', it['id'], REPORT[-1]); continue
     item = np.zeros(SH, bool)
     item[y0_:y1_, x0_:x1_] = (sub == cv2.GC_FGD) | (sub == cv2.GC_PR_FGD)
     item &= region & (alpha_a > 0.5)
@@ -572,6 +591,9 @@ for it in items_spec:
     halo = edge_band & (SKIN0_W > 0.05) & (np.sqrt(((lab_a - SKIN0_LAB) ** 2).sum(2)) < it.get('skin_halo', 16))
     item &= ~halo
     item &= ndimage.binary_opening(item, iterations=1) | ~edge_band
+    if item.sum() < it.get('min_item_px', 800):
+        REPORT[-1].update({'accepted': False, 'reason': 'no item found: the picture is the master itself, or the item is too small to cut'})
+        print('REJECTED', it['id'], REPORT[-1]); continue
     if it['slot'] == 'hat':
         # headwear replaces the whole head piece as drawn (the hair under a crown is pressed down, a helmet hides it):
         # the item is everything opaque in the head's part of the picture, and the bare head under it is hidden. The
@@ -580,11 +602,33 @@ for it in items_spec:
         dEf = np.sqrt(((lab_a - LAB0) ** 2).sum(2))
         covered = float((face & (dEf > 25)).sum()) / max(1, face.sum())
         face_err = float(np.median(dEf[face & (dEf <= 25)])) if (face & (dEf <= 25)).any() else 0.0
-        REPORT[-1].update({'face_covered': round(covered, 3), 'face_err': round(face_err, 1)})
+        # the face's features (its drawn lines) must be the master's where the face shows: edge correlation
+        vis = face & (dEf <= 25)
+        ncc = 1.0
+        if covered < 0.6 and vis.sum() > 500:
+            e0 = edges(MASTER_RGB)[vis]; e1 = edges(al)[vis]
+            e0 = e0 - e0.mean(); e1 = e1 - e1.mean()
+            ncc = float((e0 * e1).sum() / max(1e-6, np.sqrt((e0 * e0).sum() * (e1 * e1).sum())))
+        REPORT[-1].update({'face_covered': round(covered, 3), 'face_err': round(face_err, 1), 'face_lines': round(ncc, 3)})
+        if covered < 0.6 and ncc < it.get('face_lines_min', 0.5):
+            REPORT[-1].update({'accepted': False, 'reason': f'the face is not drawn as the master\'s (its lines match {ncc:.2f}, at least 0.5 needed): ask for the headwear again, keeping the face exactly'})
+            print('REJECTED', it['id'], REPORT[-1]); continue
         if covered < 0.6 and float(np.median(dEf[face])) > it.get('face_max', 18):
             REPORT[-1].update({'accepted': False, 'reason': f'the face is not the master\'s (median colour error {np.median(dEf[face]):.0f} over the visible face): ask for the headwear again, keeping the face exactly'})
             ITEMS_REJECTED.append(it['id']); print('REJECTED', it['id'], REPORT[-1]); continue
         item = (alpha_a > 0.5) & field['head'] & region
+        if covered >= 0.6:
+            # a full helmet keeps the head's established size: drawn smaller than the master's head (the hair's volume
+            # gone), it is enlarged about the neck by up to 8% (never the head or the skeleton)
+            def wid(m):
+                xs_ = np.where(m.any(0))[0]; return float(xs_.max() - xs_.min() + 1) if len(xs_) else 0.0
+            k_h = float(np.clip(0.85 * wid(L0['head'] & M0) / max(1.0, wid(item)), 1.0, it.get('helmet_max_scale', 1.08)))
+            REPORT[-1]['helmet_scale'] = round(k_h, 3)
+            if k_h > 1.001:
+                Mh = cv2.getRotationMatrix2D((float(J['neck'][0]), float(J['neck'][1])), 0, k_h)
+                warp_ = lambda a: cv2.warpAffine(a, Mh, (SH[1], SH[0]), flags=cv2.INTER_LINEAR, borderValue=0)
+                alpha_a = warp_(alpha_a.astype(np.float32)); fg_a = np.dstack([warp_(fg_a[..., c].astype(np.float32)) for c in range(3)])
+                item = warp_(item.astype(np.float32)) > 0.5
     fg_i = fg_a.astype(np.float32)
     # a light garment gets a firmer warm outline and deeper folds (it stays apart from pale floors at gameplay size):
     # its edge band, inside its silhouette, is taken toward a warm dark brown, and its shadow tones are deepened
