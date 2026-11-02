@@ -41,7 +41,9 @@ so every item bends with the body under it.
   shorter, legs as much longer) and X02 (an arm turned 6 degrees) are caught. The report keeps every measure
   (`geometry_px`, `pose_deg`, `limb_fit`, `part_shift`, `reach_px`).
 - Cutting: the item is told apart from the body with a colour model; small holes are filled, a large enclosed area
-  (the bare chest inside a harness) stays body; skin-coloured pixels along its edge that match the master's skin are
+  on the trunk (the bare chest inside a harness, an open vest) stays body, while one inside a top's sleeve or a
+  bottom's trouser leg (or off the master's figure) is the garment itself, coloured like skin (pale cloth over the
+  legs), and is filled; footwear and headwear keep their openings (the skin between a sandal's straps); skin-coloured pixels along its edge that match the master's skin are
   body. It is cut by the same part map as the body, into the same pieces (limb strips widen for a flared sleeve or a
   wide trouser leg). A sleeve is a sleeve only when it reaches a third of the way down the arm and wraps it (covers half
   or more of the arm just below the shoulder); a sleeveless top's armhole edge or side panel rides the chest.

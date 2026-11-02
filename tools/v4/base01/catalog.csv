@@ -39,3 +39,12 @@ g5_b02_15,top,rigid,base01,Crimson Samurai Armor,items/gate5/b02_15_crimson_samu
 g5_b02_16,shoes,cloth,base01,Wanderer Leather Sandals,items/gate5/b02_16_wanderer_sandals_v1.png
 g5_b02_17,shoes,rigid,base01,Knight's High Boots,items/gate5/b02_17_knight_boots_v1.png
 g5_b02_18,shoes,rigid,base01,Titan War Boots,items/gate5/b02_18_titan_boots_v1.png
+# Gate 5, batch 03: complex cloth and leg volume (the art director's designs, each an edit of the locked master)
+g5_b03_19,top,cloth,base01,Moonweaver Mage Robe,items/gate5/b03_19_moonweaver_robe_v1.png
+g5_b03_20,top,cloth,base01,Crimson Duelist Long Coat,items/gate5/b03_20_crimson_duelist_coat_v1.png
+g5_b03_21,top,cloth,base01,Desert Nomad Cloak-Tunic,items/gate5/b03_21_desert_nomad_cloak_v1.png
+g5_b03_22,top,cloth,base01,Royal Scholar Layered Robe,items/gate5/b03_22_royal_scholar_robe_v1.png
+g5_b03_23,top,cloth,base01,Shadow Ranger Hooded Coat,items/gate5/b03_23_shadow_ranger_coat_v1.png
+g5_b03_24,bottom,cloth,base01,Highland Warrior Kilt Trousers,items/gate5/b03_24_highland_kilt_trousers_v1.png
+g5_b03_25,bottom,cloth,base01,Eastern Traveler Baggy Pants,items/gate5/b03_25_eastern_baggy_pants_v1.png
+g5_b03_26,bottom,cloth,base01,Asymmetric Battle Skirt Trousers,items/gate5/b03_26_asymmetric_skirt_trousers_v1.png

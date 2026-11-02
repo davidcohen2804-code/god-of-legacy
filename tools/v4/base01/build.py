@@ -251,6 +251,8 @@ def pauldrons(alpha, fg, L):
     return out
 
 
+HOLE_OFF_FIGURE = 0.05  # a large enclosed area that lies this much outside the master's figure is the item
+HOLE_ON_LIMB = 0.6      # ... and one lying this much over the arms and legs is the sleeve's or the trouser leg's cloth
 ARM_PLATE_WRAP = 0.25   # a rigid plate on the arm covers at least this share of the bare arm where it lies
 PLATE_WRAP = {}
 
@@ -770,8 +772,26 @@ for it in items_spec:
     holes = ndimage.binary_fill_holes(item) & ~item
     hl, hn = ndimage.label(holes)
     if hn:
-        hs = ndimage.sum(holes, hl, range(1, hn + 1))
-        item |= np.isin(hl, 1 + np.where(hs < it.get('hole_px', 600))[0])
+        hs = np.asarray(ndimage.sum(holes, hl, range(1, hn + 1)))
+        fill = hs < it.get('hole_px', 600)
+        # a large enclosed area is body on the trunk (the bare chest inside a harness, an open vest), but inside a
+        # top's sleeve or a bottom's trouser leg it is the garment itself, coloured like skin (pale cloth over the legs): a limb
+        # cannot show through an enclosed opening of its own sleeve or trouser leg, and the filled area rides the same
+        # limb strip anyway. Off the master's figure it is the item too (the body is not there).
+        hole_log = []
+        # (a top's sleeves are over the arms, a bottom's trouser legs over the legs; footwear and headwear keep their
+        # openings: the skin between a sandal's straps is the foot)
+        sleeve_parts = {'top': ('arm_B', 'arm_F'), 'bottom': ('leg_B', 'leg_F')}.get(it['slot'], ())
+        limbs_ = np.any([field[p] for p in sleeve_parts], axis=0) if sleeve_parts else np.zeros(SH, bool)
+        for k in np.where(~fill)[0]:
+            m_ = hl == k + 1
+            off = float((m_ & ~M0).mean())          # share of it outside the master's figure
+            on_limb = float(limbs_[m_].mean())     # share of it over the master's arms and legs
+            err = float(np.median(dE[m_]))          # colour difference to the master inside it (for the record)
+            if off > HOLE_OFF_FIGURE or on_limb >= HOLE_ON_LIMB: fill[k] = True
+            hole_log.append({'px': int(hs[k]), 'off_figure': round(off, 3), 'on_limb': round(on_limb, 2), 'colour_err': round(err, 1), 'filled': bool(fill[k])})
+        if hole_log: REPORT[-1]['large_holes'] = hole_log
+        item |= np.isin(hl, 1 + np.where(fill)[0])
     item &= region
     # the skin halo: a boot collar or a waistband drawn over the bare body leaves a few skin-coloured pixels along the
     # item's edge; near its edge, a pixel whose colour matches the master's skin around it is body, not item
