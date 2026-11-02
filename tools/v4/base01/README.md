@@ -63,6 +63,12 @@ so every item bends with the body under it.
   body height above the near one, solved onto it in every frame (`hold` in the animation), drawn over the shaft.
 - Determinism: an item's cut depends on its own picture only (the colour models start from a fixed seed), so adding,
   removing or rejecting a source changes no other item; a subset built in another order is byte-identical.
+- Pipeline checks (`checks.py`): R14 source integrity (`python3 checks.py r14 <build>`: the build used the repository's
+  template and master; every row's picture is present, at the master's size and the very file the build cut; the
+  game's atlas is exactly what the build generated, frame by frame and pixel by pixel; it holds every accepted item and
+  nothing of a rejected source; the package manifest names the same versions and sources) and R16 failure isolation
+  (`python3 checks.py r16 <build A> <build B>`, B built from the catalog with every negative fixture mixed in: the same
+  items accepted, every accepted piece, check and packed frame identical, no piece of a rejected source anywhere).
 - Regression (the lab's tests R1 to R13, and R17 for skirts) over every mix of the catalog and every animation. The art director's ten
   stress items (`items/stress/`) are permanent fixtures: every exporter change must still accept them.
 - Rejections, each with its reason in plain words and its check (`check` in the report: catalog row, slot, background,

@@ -13,7 +13,7 @@
 # Usage: python3 checks.py r14 <build> [assets dir] [package dir]
 #        python3 checks.py r16 <build A> <build B>
 # Prints PASS or FAIL per check with what it measured; exits 1 when one fails.
-import hashlib, json, os, subprocess, sys, tempfile
+import hashlib, json, os, shutil, subprocess, sys, tempfile
 import numpy as np
 from PIL import Image
 
@@ -146,19 +146,30 @@ def r16(a, b):
             frames += 1
             if PA['frames'][f] != PB['frames'].get(f) or not np.array_equal(frame_png(a, f), frame_png(b, f)): bad.append(f"{f}: the body differs")
     check('R16b', 'Every accepted item\'s pieces (pixels and data) and checks are identical with the bad sources mixed in', not bad, '; '.join(bad[:6]) or f"{frames} frames and {len(accA & accB)} reports identical")
-    # nothing of a rejected source, and the packed atlas identical
+    # nothing of a rejected source, and every accepted item's pieces on the packed atlas identical (the page may place
+    # them elsewhere when a fixture accepted on purpose adds pieces of its own)
     leak = [n for n in PB['frames'] if n.split('/')[0] in rejB]
     pa, pb = pack(a), pack(b)
     ja, jb = json.load(open(os.path.join(pa, 'base01.json'))), json.load(open(os.path.join(pb, 'base01.json')))
-    same_frames = ja['frames'] == jb['frames'] and ja['items'] == jb['items'] and ja['rig'] == jb['rig']
-    ima, imb = np.asarray(Image.open(os.path.join(pa, 'base01.png'))), np.asarray(Image.open(os.path.join(pb, 'base01.png')))
-    same_page = ima.shape == imb.shape and np.array_equal(ima, imb)
-    detail = []
-    if leak: detail.append(f"pieces of rejected sources: {leak[:4]}")
-    if not same_frames: detail.append('the atlas data differ')
-    if not same_page: detail.append('the atlas page differs')
-    check('R16c', 'No piece of a rejected source anywhere; the packed atlas (page and data) identical', not detail, '; '.join(detail) or f"{len(ja['frames'])} frames, page {ima.shape[1]} x {ima.shape[0]}: identical")
-
+    ima, imb = np.asarray(Image.open(os.path.join(pa, 'base01.png')).convert('RGBA')), np.asarray(Image.open(os.path.join(pb, 'base01.png')).convert('RGBA'))
+    fb = {f['name']: f for f in jb['frames']}
+    detail = [f"pieces of rejected sources: {leak[:4]}"] if leak else []
+    packed_leak = [f['name'] for f in jb['frames'] if f['name'].split('/')[0] in rejB]
+    if packed_leak: detail.append(f"rejected pieces on the atlas: {packed_leak[:4]}")
+    extra = sorted({f['name'].split('/')[0] for f in jb['frames']} - {f['name'].split('/')[0] for f in ja['frames']})
+    if set(extra) - neg: detail.append(f"other pieces on the atlas: {extra}")
+    for f in ja['frames']:
+        g = fb.get(f['name'])
+        if g is None: detail.append(f"{f['name']}: missing"); continue
+        if {k: v for k, v in f.items() if k not in ('x', 'y')} != {k: v for k, v in g.items() if k not in ('x', 'y')}: detail.append(f"{f['name']}: data"); continue
+        ra_ = ima[f['y']:f['y'] + f['h'], f['x']:f['x'] + f['w']]; rb_ = imb[g['y']:g['y'] + g['h'], g['x']:g['x'] + g['w']]
+        if not np.array_equal(ra_, rb_): detail.append(f"{f['name']}: pixels")
+    if ja['rig'] != jb['rig']: detail.append('the rig differs')
+    ib_ = {it['id']: it for it in jb['items']}
+    for it in ja['items']:
+        if ib_.get(it['id']) != it: detail.append(f"{it['id']}: its packed entry differs")
+    shutil.rmtree(pa, ignore_errors=True); shutil.rmtree(pb, ignore_errors=True)
+    check('R16c', 'No piece of a rejected source anywhere; every accepted item packed identically (data and pixels)', not detail, '; '.join(detail[:6]) or f"{len(ja['frames'])} frames and {len(ja['items'])} items identical on the atlas; fixtures accepted on purpose add only their own pieces ({', '.join(extra) or 'none'})")
 
 if __name__ == '__main__':
     cmd = sys.argv[1]

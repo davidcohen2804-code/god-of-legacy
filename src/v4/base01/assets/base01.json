@@ -3920,6 +3920,28 @@
    "face_err": 7.9,
    "face_lines": 0.873,
    "face_sharpness": 0.971,
+   "face_features": {
+    "the near eye": {
+     "lines": 0.98,
+     "covered": 0.11
+    },
+    "the far eye": {
+     "lines": 0.989,
+     "covered": 0.07
+    },
+    "the near brow": {
+     "lines": 0.969,
+     "covered": 0.17
+    },
+    "the nose": {
+     "lines": 0.992,
+     "covered": 0.01
+    },
+    "the mouth": {
+     "lines": 0.987,
+     "covered": 0.02
+    }
+   },
    "coverage": {
     "head": 0.964
    },
@@ -4045,6 +4067,28 @@
    "face_err": 20.8,
    "face_lines": 1.0,
    "face_sharpness": 1.0,
+   "face_features": {
+    "the near eye": {
+     "lines": 0.169,
+     "covered": 0.8
+    },
+    "the far eye": {
+     "lines": -0.146,
+     "covered": 0.95
+    },
+    "the near brow": {
+     "lines": -0.028,
+     "covered": 0.87
+    },
+    "the nose": {
+     "lines": 0.267,
+     "covered": 1.0
+    },
+    "the mouth": {
+     "lines": 0.045,
+     "covered": 1.0
+    }
+   },
    "helmet_scale": 1.08,
    "coverage": {
     "head": 0.807
@@ -6740,7 +6784,7 @@
  ],
  "versions": {
   "template": "v1",
-  "exporter": "1.7",
+  "exporter": "1.8",
   "master": "4dfe86abe317",
   "sources": {
    "top01_tunic": "bd98594e85c1",
