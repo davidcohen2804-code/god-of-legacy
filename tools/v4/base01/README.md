@@ -41,7 +41,7 @@ so every item bends with the body under it.
   The profile picks the body's motion kit (idle, run, jump and attack made for that kind of weapon); a new weapon of
   a known kit needs no animation work. A staff is held with both hands: the far fist closes on the shaft 0.167 of the
   body height above the near one, solved onto it in every frame (`hold` in the animation), drawn over the shaft.
-- Regression (the lab's tests R1 to R10) over every mix of the catalog and every animation. The art director's ten
+- Regression (the lab's tests R1 to R13) over every mix of the catalog and every animation. The art director's ten
   stress items (`items/stress/`) are permanent fixtures: every exporter change must still accept them.
 - Rejections, each with its reason in plain words: a row with an unknown slot or profile, or a profile that does not
   fit its slot; a picture that cannot be lined up with the master; a figure whose shape outside the item is not the

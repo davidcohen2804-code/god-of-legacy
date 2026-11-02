@@ -4,11 +4,14 @@
 // weapon never leaves the fist (the grip socket rides the hand at its fixed offset); R4: the cross-fade between any two
 // animations stays finite; R5: rapid, interrupted changes of state never pop; R6: with no weapon in hand every state
 // plays its unarmed animation; R7: the far fist never shows between the legs; R8: a planted foot stays planted
-// through a cross-fade; R9: the staff's far fist stays on the shaft; R10: no wrist bends further than the sword kit's.
+// through a cross-fade; R9: the staff's far fist stays on the shaft; R10: no wrist bends further than the sword kit's;
+// R11: the two hands stay together through interrupted changes and turns; R12: a weapon swap never shows the previous
+// weapon's art or kit; R13: the impact stays on the game's active moment when the attack's timings are scaled.
 import type { AnimDef } from '../rig/types';
 import { RigPose } from '../rig/pose';
 import type { WardrobeSlot } from '../wardrobe/types';
-import type { LabScene } from './LabScene';
+import { Actor, type Control, type LabScene } from './LabScene';
+import { rigTime } from '../rig/posemap';
 import { B01_WEAR } from '../base01/catalog';
 import { STAFF_SPAN } from '../base01/anims';
 import { yieldFrame, type TestResult } from './tests';
@@ -251,5 +254,96 @@ export async function runTestsB01(scene: LabScene, progress: (msg: string) => vo
   const swordMax = wristMax(KITS.sword_1h ?? A.anims, ['idle', 'run', 'jump', 'attack', 'attack_heavy']);
   const kitMax = Object.entries(KITS).filter(([k]) => k !== 'sword_1h').map(([k, set]) => [k, wristMax(set, ['idle', 'run', 'jump', 'attack'])] as [string, number]);
   out.push({ id: 'R10', name: 'No wrist inversion: every weapon kit bends the wrist no more than the approved sword kit', pass: kitMax.length > 0 && kitMax.every(([, m]) => m <= swordMax + 1), detail: `sword kit at most ${swordMax.toFixed(0)}°; ${kitMax.map(([k, m]) => `${k} ${m.toFixed(0)}°`).join(', ')}` });
+
+  // R11-R12 drive a lab actor through the game's own state machine, pose query, cross-fade and evaluation
+  const dressed = (weapon: string | null) => {
+    const equipped: Partial<Record<WardrobeSlot, string>> = { top: 'top01_tunic', bottom: 'bottom01_pants', shoes: 'shoes01_boots' };
+    if (weapon) equipped.weapon = weapon;
+    return { body: 'male_std' as const, look: { ...A.baseLook }, gearLooks: {}, cosmetics: { equipped, hidden: [] }, family: 'sword' as const };
+  };
+  const ctl = (c: Partial<Control>): Control => ({ move: 0, lane: 0, walk: false, jump: false, attack: false, ...c });
+  const DT = 1 / 60, s150 = 150 / U;
+  /** The far fist's distance from the shaft's second grip, on screen (px at B = 150), as the scene mirrors the actor. */
+  const screenDrift = (a: Actor) => {
+    const w = a.ch.state.world, q = sock2 * 6, span = STAFF_SPAN * U, f = a.facing;
+    const tx = w[q + 4] + w[q] * span, ty = w[q + 5] + w[q + 1] * span;
+    return Math.hypot(f * (w[off2 * 6 + 4] - tx) * s150, (w[off2 * 6 + 5] - ty) * s150);
+  };
+
+  // R11: the staff in both hands through rapid, interrupted changes of state (a change arriving mid-fade) and sudden
+  // turns: run, slash, jump mid-slash, slash on landing, turn while running, turn mid-fade, idle
+  progress('R11 two hands under interruptions and turns');
+  const staffId = B01_WEAR.find((w) => w.slot === 'weapon')?.items.find((i) => (A.catalog.items.get(i.id) as { motion?: string } | undefined)?.motion === 'staff_2h')?.id ?? 'item09_staff';
+  const actor = new Actor(scene, 600, 700, dressed(staffId));
+  // (the game lets no input cut a slash or a jump short, so the turns come while standing or running, and the changes
+  // that land mid-fade come from short taps)
+  const script: [number, Partial<Control>][] = [
+    [20, { move: 1 }], [1, { attack: true }], [10, {}], [40, { move: -1 }], [3, { move: 1 }], [3, { move: -1 }], [2, { move: 1 }],
+    [1, { jump: true, move: 1 }], [60, {}], [2, { move: 1 }], [2, {}], [2, { move: -1 }], [2, {}], [1, { attack: true }], [5, { attack: true }],
+    [45, { move: -1 }], [1, { move: 1 }], [1, { move: -1 }], [1, { move: 1 }], [4, { attack: true, move: 1 }], [40, {}],
+  ];
+  let r11 = 0, r11Frames = 0, turns = 0, changes = 0, lastAnim = '', lastFacing = actor.facing;
+  for (const [n, c] of script) for (let i = 0; i < n; i++) {
+    actor.control(ctl(c), DT); actor.pose(DT); r11Frames++;
+    if (actor.facing !== lastFacing) { turns++; lastFacing = actor.facing; }
+    const an = actor.last?.anim.name ?? ''; if (an !== lastAnim) { changes++; lastAnim = an; }
+    r11 = Math.max(r11, screenDrift(actor));
+  }
+  actor.destroy();
+  out.push({ id: 'R11', name: 'The staff in both hands through interrupted changes of state and sudden turns', pass: r11 < 0.5 && turns >= 6 && changes >= 8, detail: `${r11Frames} frames through the lab's state machine and cross-fade, ${changes} changes of animation, ${turns} turns: the far fist at most ${r11.toFixed(2)} px from its grip on the shaft (screen, B = 150 px)` });
+
+  // R12: a weapon swap in a state that allows it (standing or running): the very next frame plays the new weapon's
+  // kit and draws the new weapon's art (never the previous one's); a staff's second hand is on the shaft by the end of
+  // the cross-fade and stays there
+  progress('R12 weapon swaps');
+  const weapons: [string, string | null][] = [['sword', 'weapon01_sword'], ['dagger', 'item10_dagger'], ['staff', staffId], ['none', null]];
+  const wslot = pose.slotIndex.get('weapon')!;
+  const r12bad: string[] = [];
+  let r12cases = 0, r12late = 0;
+  for (const [na, wa] of weapons) for (const [nb, wb] of weapons) for (const st2 of ['idle', 'run'] as const) {
+    if (na === nb) continue;
+    r12cases++;
+    const a = new Actor(scene, 600, 700, dressed(wa));
+    const c = ctl(st2 === 'run' ? { move: 1 } : {});
+    for (let i = 0; i < 30; i++) { a.control(c, DT); a.pose(DT); }
+    a.setLook(dressed(wb));
+    a.control(c, DT); a.pose(DT); a.ch.layout(1);
+    const kit = wb ? (A.catalog.items.get(wb) as { motion?: string } | undefined)?.motion ?? 'sword_1h' : null;
+    const set = kit ? (A.animsByKit?.[kit] ?? A.anims) : (A.animsBare ?? A.anims);
+    if (a.last?.anim !== set[st2]) r12bad.push(`${na}>${nb} ${st2}: plays ${a.last?.anim.name}`);
+    const want = wb ? a.avatar.parts[wslot]?.frame : undefined, shown = a.ch.shown(wslot);
+    if (shown !== want) r12bad.push(`${na}>${nb} ${st2}: weapon shows ${shown ?? 'nothing'}, wants ${want ?? 'nothing'}`);
+    if (wa && shown && (A.catalog.items.get(wa) as { parts?: { frame: string }[] } | undefined)?.parts?.some((p) => p.frame === shown)) r12bad.push(`${na}>${nb} ${st2}: the previous weapon's art`);
+    if (nb === 'staff') {
+      let after = 0;
+      for (let i = 0; i < 12; i++) { a.control(c, DT); a.pose(DT); if (i >= 5) after = Math.max(after, screenDrift(a)); }
+      r12late = Math.max(r12late, after);
+      if (after >= 0.5) r12bad.push(`${na}>${nb} ${st2}: the far fist ${after.toFixed(2)} px off the shaft after the fade`);
+    }
+    a.destroy();
+  }
+  out.push({ id: 'R12', name: 'Weapon swaps: the next frame plays the new kit with the new art; a staff has both hands on it by the end of the fade', pass: r12bad.length === 0, detail: r12bad.length ? r12bad.slice(0, 4).join(' | ') : `${r12cases} swaps (sword, dagger, staff, none; standing and running): new kit and art on the first frame every time; a staff's far fist at most ${r12late.toFixed(2)} px from the shaft from 100 ms after the swap` });
+
+  // R13: the attack's impact (its 140 ms key, the 'active' mark) is on screen exactly when the game's active window
+  // opens, and the animation never runs backwards, however gameplay scales the attack's timings (faster, slower, or
+  // its phases scaled unevenly), in every kit
+  progress('R13 time-scaled attacks');
+  const scales: [number, number, number][] = [[0.5, 0.5, 0.5], [0.75, 0.75, 0.75], [1, 1, 1], [1.25, 1.25, 1.25], [1.5, 1.5, 1.5], [2, 2, 2], [0.6, 1.4, 1], [1.5, 0.7, 0.8]];
+  let r13worst = 0, r13back = 0, r13n = 0;
+  for (const [kit, set] of Object.entries(A.animsByKit ?? { sword_1h: A.anims as Record<string, AnimDef> })) {
+    const atk = set.attack, m = atk.marks!;
+    for (const [fs, fa, fr] of scales) {
+      const S = 200 * fs, Ac = 250 * fa, Rc = 200 * fr;
+      const at = (e: number) => rigTime({ k: 'skill', id: 'warrior_basic', stage: 0, elapsed: e, startup: S, active: Ac, recovery: Rc } as Parameters<typeof rigTime>[0], set);
+      const hit = at(S);
+      if (hit.anim !== atk) r13back++;
+      r13worst = Math.max(r13worst, Math.abs(hit.t - m.active), Math.abs(at(S + Ac).t - m.recovery), Math.abs(at(S + Ac + Rc).t - m.end));
+      let prevT = -1;
+      for (let e = 0; e <= S + Ac + Rc; e += 1) { const t = at(e).t; if (t < prevT - 1e-12) r13back++; prevT = t; }
+      r13n++;
+      void kit;
+    }
+  }
+  out.push({ id: 'R13', name: 'Time-scaled attacks: the impact lands on the game\'s active moment, the animation never runs backwards', pass: r13worst < 1e-9 && r13back === 0, detail: `${r13n} timings (every kit; 0.5x to 2x, and phases scaled unevenly): impact, recovery and end marks off by at most ${r13worst.toExponential(1)} s; ${r13back} backward steps` });
   return out;
 }
