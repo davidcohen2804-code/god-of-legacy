@@ -1,0 +1,9 @@
+# The item catalog: one row per item (one picture, one row). profile: cloth (bends with the body), rigid (plates that
+# do not bend: a shoulder plate on its own, the rest cut at the elbow), weapon (drawn on its own, flat, blade to the
+# right; the grip is found from the drawing). Exceptional items' extra data goes in overrides.json, by id.
+id,slot,profile,body,name,picture
+top01_tunic,top,cloth,base01,Traveler's Tunic,items/top01_tunic_v2.png
+top02_armor,top,rigid,base01,Royal Guard Armor,items/top02_armor_v2.png
+bottom01_pants,bottom,cloth,base01,Wanderer Pants,items/bottom01_pants_v1.png
+shoes01_boots,shoes,cloth,base01,Traveler Boots,items/shoes01_boots_v1.png
+weapon01_sword,weapon,weapon,base01,Knight's Sword,items/weapon01_sword_v1.png

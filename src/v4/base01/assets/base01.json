@@ -227,14 +227,14 @@
    "name": "weapon01_sword/weapon",
    "x": 685,
    "y": 200,
-   "w": 254,
-   "h": 72,
-   "px": 0.16402,
-   "py": 0.49042
+   "w": 250,
+   "h": 71,
+   "px": 0.16184,
+   "py": 0.50155
   },
   {
    "name": "top02_armor/pauldron_F",
-   "x": 941,
+   "x": 937,
    "y": 200,
    "w": 43,
    "h": 68,
@@ -673,8 +673,31 @@
   },
   {
    "id": "weapon01_sword",
-   "scale": 0.526,
+   "grip": [
+    299.8,
+    625.5
+   ],
+   "grip_found": [
+    299.8,
+    625.5
+   ],
+   "handle_px": 58.0,
+   "kind": "hilt",
+   "scale": 0.517,
+   "length_B": 0.488,
    "accepted": true
   }
- ]
+ ],
+ "versions": {
+  "template": "v1",
+  "exporter": "1.2",
+  "master": "4dfe86abe317",
+  "sources": {
+   "top01_tunic": "bd98594e85c1",
+   "top02_armor": "687a1345e26f",
+   "bottom01_pants": "9481d06a0445",
+   "shoes01_boots": "618f8f180311",
+   "weapon01_sword": "0604412a69ed"
+  }
+ }
 }

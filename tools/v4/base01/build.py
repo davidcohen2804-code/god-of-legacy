@@ -22,6 +22,7 @@ sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(HERE, '../studio'))
 import template_lib as tl  # noqa: E402
 from keying import key  # noqa: E402
+from weapon_grip import find_grip  # noqa: E402
 
 OUT = sys.argv[1]
 os.makedirs(OUT, exist_ok=True)
@@ -391,6 +392,33 @@ def refine_limbs(al, field):
     return out
 
 
+EXPORTER_VERSION = '1.2'
+
+
+def load_catalog():
+    """The item catalog: one row per item in catalog.csv (id, slot, profile, body, name, picture; profile = cloth,
+    rigid or weapon), with exceptional items' extra data in overrides.json (by id). items.json is the older form."""
+    path = os.path.join(HERE, 'catalog.csv')
+    if not os.path.exists(path):
+        return json.load(open(os.path.join(HERE, 'items.json')))
+    import csv
+    over = json.load(open(os.path.join(HERE, 'overrides.json'))) if os.path.exists(os.path.join(HERE, 'overrides.json')) else {}
+    rows = []
+    for r in csv.DictReader(l for l in open(path) if l.strip() and not l.lstrip().startswith('#')):
+        r = {k.strip(): (v or '').strip() for k, v in r.items()}
+        if r.get('body', 'base01') != T['id']: continue
+        it = {'id': r['id'], 'slot': r['slot'], 'name': r['name'], 'picture': r['picture'], 'profile': r['profile']}
+        if r['profile'] == 'rigid': it['rigid'] = True
+        it.update(over.get(r['id'], {}))
+        rows.append(it)
+    return rows
+
+
+def sha1(path):
+    import hashlib
+    return hashlib.sha1(open(path, 'rb').read()).hexdigest()[:12]
+
+
 MASTER_RGB = np.asarray(Image.open(os.path.join(HERE, T['master'])).convert('RGB'))
 # the master's skin, as a local colour field (OpenCV Lab: L 0..255, a and b offset by 128): the bare body's opaque,
 # reddish pixels outside the head (not the shorts, not the hair), blurred so every place near skin knows the skin
@@ -399,23 +427,31 @@ LAB0 = cv2.cvtColor(MASTER_RGB, cv2.COLOR_RGB2LAB).astype(np.float32)
 SKIN0 = M0 & ~L0['head'] & (alpha0 > 0.95) & (LAB0[..., 0] > 100) & (LAB0[..., 1] > 138)
 SKIN0_W = ndimage.gaussian_filter(SKIN0.astype(np.float32), 6)
 SKIN0_LAB = np.dstack([ndimage.gaussian_filter(LAB0[..., c] * SKIN0, 6) for c in range(3)]) / np.maximum(SKIN0_W, 1e-3)[..., None]
-items_spec = json.load(open(os.path.join(HERE, 'items.json')))
+items_spec = load_catalog()
+SOURCES = {}
 for it in items_spec:
     path = os.path.join(HERE, it['picture'])
-    if not os.path.exists(path): continue
+    if not os.path.exists(path):
+        REPORT.append({'id': it['id'], 'accepted': False, 'reason': f"no picture at {it['picture']}"}); continue
+    SOURCES[it['id']] = sha1(path)
     if it['slot'] == 'weapon':
         # a weapon is drawn on its own, lying flat, blade to the right: keyed, scaled so its grip fits the fist (the
-        # grip's drawn thickness → the fist's handle size), its pivot at the middle of the grip
+        # grip's drawn thickness → the fist's handle size), its pivot at the middle of the grip. The grip is found
+        # from the drawing (the narrow run left of a guard, or a third of the way up a pole) unless the row gives it.
         aw, fw = key(path)
-        own = component(aw > 0.5, it['grip'])
+        auto, thick, kind, axis = find_grip(aw)
+        grip = it.get('grip', auto); thick = it.get('grip_thickness', thick)
+        if abs(axis[1]) > 0.12:
+            REPORT.append({'id': it['id'], 'accepted': False, 'reason': f'the weapon is not drawn level (its axis turns {math.degrees(math.atan2(axis[1], axis[0])):.1f} deg): redraw it flat, blade to the right'}); continue
+        own = component(aw > 0.5, grip)
         lay = tl.premul(aw, fw / 255.0, (ndimage.binary_dilation(own, iterations=2) & (aw > 0.02)).astype(np.float32))
-        kw = it.get('handle', 30.0) / it['grip_thickness']
+        kw = it.get('handle', 30.0) / thick
         small = tl.resize_premul(lay, K * kw)
         crop, (x0, y0) = tl.crop_alpha(small)
         name = f"{it['id']}/weapon"
-        FRAMES[name] = dict(img=crop, pivot=[round(it['grip'][0] * K * kw - x0, 2), round(it['grip'][1] * K * kw - y0, 2)])
+        FRAMES[name] = dict(img=crop, pivot=[round(grip[0] * K * kw - x0, 2), round(grip[1] * K * kw - y0, 2)])
         ITEMS.append({'id': it['id'], 'slot': 'weapon', 'name': it['name'], 'parts': [{'part': 'weapon', 'frame': name}]})
-        REPORT.append({'id': it['id'], 'scale': round(kw, 3), 'accepted': True})
+        REPORT.append({'id': it['id'], 'grip': grip, 'grip_found': auto, 'handle_px': thick, 'kind': kind, 'scale': round(kw, 3), 'length_B': round(float(crop.shape[1]) / ABPX, 3), 'accepted': True})
         continue
     img = np.asarray(Image.open(path).convert('RGB'))
     alpha_i, _ = key(Image.fromarray(img))
@@ -440,6 +476,10 @@ for it in items_spec:
     ok = err < it.get('max_err', 40) and sil < 0.02
     REPORT.append({'id': it['id'], 'ecc': round(float(cc), 4), 'median_colour_err_outside': round(err, 1), 'silhouette_mismatch_outside': round(sil, 4), 'accepted': ok})
     if not ok:
+        why = []
+        if err >= it.get('max_err', 40): why.append(f'the body outside the item is not the master (median colour error {err:.0f}, the limit is {it.get("max_err", 40)})')
+        if sil >= 0.02: why.append(f'the figure outside the item has another shape than the master ({sil * 100:.1f}% of it differs, the limit is 2%)')
+        REPORT[-1]['reason'] = '; '.join(why) + ': ask for the item again as an edit of the attached master'
         print('REJECTED', it['id'], REPORT[-1]); continue
     # the item's own pixels: inside its region, opaque in the picture, and either off the master's silhouette or
     # clearly different from the master there
@@ -529,7 +569,9 @@ rig = {
     'grip_axis': {s: round(math.degrees(math.atan2(T['hands'][s]['axis'][1], T['hands'][s]['axis'][0])), 3) for s in 'BF'},
     'offsets': GEO, 'limbs': {n: {k: lm[k] for k in ('top', 'bottom', 'bend')} for n, lm in LIMBS.items()},
 }
-json.dump({'bpx': ABPX, 'frames': meta, 'items': ITEMS, 'rig': rig, 'report': REPORT}, open(os.path.join(OUT, 'parts.json'), 'w'), indent=1)
+json.dump({'bpx': ABPX, 'frames': meta, 'items': ITEMS, 'rig': rig, 'report': REPORT,
+           'versions': {'template': T.get('version', T['id']), 'exporter': EXPORTER_VERSION, 'master': sha1(os.path.join(HERE, T['master'])), 'sources': SOURCES}},
+          open(os.path.join(OUT, 'parts.json'), 'w'), indent=1)
 # a check sheet of the part map
 pal = np.array([[0, 0, 0], [200, 120, 230], [230, 120, 100], [240, 200, 90], [90, 210, 230], [110, 150, 250], [255, 110, 180], [160, 140, 255], [250, 210, 90], [100, 210, 140], [255, 160, 80], [150, 230, 120]])
 lab = np.zeros(SH, np.int32)

@@ -35,6 +35,6 @@ for W in (1024, 2048, 4096):
     if page is not None: break
 os.makedirs(OUT, exist_ok=True)
 page.save(os.path.join(OUT, 'base01.png'), optimize=True)
-json.dump({'id': 'base01', 'bpx': P['bpx'], 'frames': out, 'rig': P['rig'], 'items': P['items'], 'report': P.get('report', [])},
+json.dump({'id': 'base01', 'bpx': P['bpx'], 'frames': out, 'rig': P['rig'], 'items': P['items'], 'report': P.get('report', []), 'versions': P.get('versions', {})},
           open(os.path.join(OUT, 'base01.json'), 'w'), indent=1)
 print('frames', len(out), 'page', page.size)
