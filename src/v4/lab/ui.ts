@@ -1,6 +1,6 @@
 // The lab's control rail (plain DOM beside the game canvas): art, motion, wardrobe, view, crowd, tests and benchmark.
 import { EMBER_SET_B, GOLD_SET_B } from '../real/catalogB';
-import type { BenchResult } from './bench';
+import type { BenchReport } from './bench';
 import type { Forced, LabScene, RenderMode } from './LabScene';
 import type { TestResult } from './tests';
 import { WEARABLE } from '../wardrobe/resolve';
@@ -45,7 +45,7 @@ const HINT: Record<Art, string> = {
   placeholder: 'A = cloth set, B = plate set, X = oversized and rule tests. Cosmetics beat gear looks; gear keeps its stats.',
 };
 
-export function buildUI(scene: LabScene, api: { runTests: (full: boolean) => Promise<TestResult[]>; bench: () => Promise<BenchResult[]> }): void {
+export function buildUI(scene: LabScene, api: { runTests: (full: boolean) => Promise<TestResult[]>; bench: () => Promise<BenchReport> }): void {
   // ---- art ----
   const status = $('test-status'), table = $('test-results'), btable = $('bench-results');
   const syncArt = () => {
@@ -167,19 +167,27 @@ export function buildUI(scene: LabScene, api: { runTests: (full: boolean) => Pro
   $('btn-tests')?.addEventListener('click', () => void runT(false));
   $('btn-tests-full')?.addEventListener('click', () => void runT(true));
   $('btn-bench')?.addEventListener('click', async () => {
-    if (status) status.textContent = 'Benchmark running (about 15 s)…';
-    const res = await api.bench();
+    if (status) status.textContent = 'Benchmark running (about 30 s; keep this page on screen)…';
+    const rep = await api.bench();
+    (window as unknown as { __v4bench?: BenchReport }).__v4bench = rep;
     if (crowd) crowd.checked = scene.npcs.length > 0;
+    const ms = (a: number, b: number) => `${a.toFixed(2)} / ${b.toFixed(2)}`;
     if (btable) {
       btable.replaceChildren();
-      for (const r of res) {
+      for (const r of rep.configs) {
         const tr = h('tr');
-        tr.append(h('td', {}, r.mode), h('td', { class: 'num' }, r.fps.toFixed(1)), h('td', { class: 'num' }, `${r.frameMean.toFixed(1)} / ${r.frameP95.toFixed(1)}`),
-          h('td', { class: 'num' }, `${r.updateMean.toFixed(2)} / ${r.updateP95.toFixed(2)}`), h('td', { class: 'num' }, r.compMean ? `${r.compMean.toFixed(2)} / ${r.compP95.toFixed(2)}` : '—'),
-          h('td', { class: 'num' }, `${r.drawCallsMean.toFixed(0)} (max ${r.drawCallsMax})`), h('td', { class: 'num' }, r.textureMiB.toFixed(1)));
+        tr.append(h('td', {}, r.name), h('td', { class: 'num' }, r.fps.toFixed(1)),
+          h('td', { class: 'num' }, `${r.frameP50.toFixed(1)} / ${r.frameP95.toFixed(1)} / ${r.frameP99.toFixed(1)}`),
+          h('td', { class: 'num' }, `${r.over16} / ${r.over33} of ${r.frames}`),
+          h('td', { class: 'num' }, ms(r.poseMean, r.poseP95)), h('td', { class: 'num' }, ms(r.layoutMean, r.layoutP95)),
+          h('td', { class: 'num' }, ms(r.updateMean, r.updateP95) + (r.swapsPerSec ? ` (${r.swapsPerSec.toFixed(0)} swaps/s, ${r.swapMsEach.toFixed(2)} ms each)` : '')),
+          h('td', { class: 'num' }, `${r.drawCallsMean.toFixed(0)} (max ${r.drawCallsMax})`),
+          h('td', { class: 'num' }, r.gpuMean === null ? 'not exposed' : ms(r.gpuMean, r.gpuP95 ?? 0)), h('td', { class: 'num' }, r.textureMiB.toFixed(1)));
         btable.append(tr);
       }
     }
-    if (status) status.textContent = 'Benchmark done: 50 characters, 4 s per renderer, measured on this computer.';
+    const envEl = $('bench-env');
+    if (envEl) envEl.textContent = `${rep.note} ${Object.entries(rep.env).map(([k, v]) => `${k}: ${v}`).join(' · ')}`;
+    if (status) status.textContent = rep.valid ? 'Benchmark done: 50 characters, three configurations, measured on this computer.' : 'Benchmark not valid: the page was not on screen.';
   });
 }

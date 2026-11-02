@@ -154,10 +154,11 @@
   </div>
   <div class="tablewrap">
     <table>
-      <thead><tr><th>Renderer (50 characters)</th><th>Frames / s</th><th>Frame ms mean / p95</th><th>Lab CPU ms mean / p95</th><th>Composite pass ms</th><th>Draw calls</th><th>Texture MiB</th></tr></thead>
+      <thead><tr><th>50 characters, B = 150 px</th><th>Frames / s</th><th>Frame ms p50 / p95 / p99</th><th>Frames over 16.7 / 33.3 ms</th><th>Animation + IK ms mean / p95</th><th>Placing parts ms mean / p95</th><th>Lab CPU ms mean / p95</th><th>Draw calls</th><th>GPU ms mean / p95</th><th>Texture MiB</th></tr></thead>
       <tbody id="bench-results"></tbody>
     </table>
   </div>
+  <p class="hint" id="bench-env"></p>
 </section>
 
 <script type="module" src="assets/lab.js"></script>

@@ -175,6 +175,15 @@ export class LabScene extends Phaser.Scene {
   readonly drawSamples: number[] = [];
   /** CPU time of the composite pass alone (drawing every cell, with or without the outline stamps). */
   readonly compTimes: number[] = [];
+  /** CPU time per frame of every character's animation (pose evaluation, IK included) and of placing their parts. */
+  readonly poseTimes: number[] = [];
+  readonly layoutTimes: number[] = [];
+  /** Benchmark hooks: every character (the player too) on the crowd behaviour, how often the crowd attacks, and a
+   *  per-frame swap step (its CPU time per frame in swapTimes). */
+  benchAll = false;
+  attackShare = 0.23;
+  benchSwap: ((dt: number) => void) | null = null;
+  readonly swapTimes: number[] = [];
   drawCalls = 0;
   private drawCounter = 0;
   private lastFrameAt = 0;
@@ -407,8 +416,9 @@ export class LabScene extends Phaser.Scene {
   private brain(a: Actor, dt: number): Control {
     a.brainT -= dt * 1000;
     if (a.brainT <= 0) {
-      const r = this.rng.frac();
-      a.brainAct = r < 0.35 ? 'run' : r < 0.55 ? 'idle' : r < 0.78 ? 'attack' : 'jump';
+      // run, idle, attack (attackShare of the time, 23% by default), jump
+      const r = this.rng.frac(), k = (1 - this.attackShare) / 0.77;
+      a.brainAct = r < 0.35 * k ? 'run' : r < 0.55 * k ? 'idle' : r < 0.55 * k + this.attackShare ? 'attack' : 'jump';
       a.brainT = a.brainAct === 'attack' ? ATTACK_MS * this.rng.between(1, 2) - 30 : a.brainAct === 'jump' ? 200 : this.rng.between(800, 2000);
       a.targetX = Phaser.Math.Clamp(a.x + this.rng.between(-260, 260), 80, WORLD.w - 80);
     }
@@ -445,14 +455,18 @@ export class LabScene extends Phaser.Scene {
       this.autoSwapAcc += dt * 1000;
       while (this.autoSwapAcc >= this.autoSwapMs) { this.autoSwapAcc -= this.autoSwapMs; this.randomSwap(); }
     }
-    const pc = this.forced ? this.forcedControl(this.player) : this.playerControl();
-    if (this.forced === 'run') { this.player.mode = 'run'; this.player.speed = RUN; this.player.t += dt * 1000; this.player.loopT += dt * 1000; }
+    if (this.benchSwap) { const s0 = performance.now(); this.benchSwap(dt); this.swapTimes.push(performance.now() - s0); if (this.swapTimes.length > 4000) this.swapTimes.shift(); }
+    const pc = this.benchAll ? this.brain(this.player, dt) : this.forced ? this.forcedControl(this.player) : this.playerControl();
+    if (this.forced === 'run' && !this.benchAll) { this.player.mode = 'run'; this.player.speed = RUN; this.player.t += dt * 1000; this.player.loopT += dt * 1000; }
     else this.player.control(pc, dt);
     for (const a of this.npcs) a.control(this.brain(a, dt), dt);
     const composite = this.renderMode !== 'direct';
     const s = composite ? this.sWorld * this.camZoom : this.sWorld;
+    // every character's animation first (pose and IK), then every character's parts (timed apart)
+    const p0 = performance.now();
+    for (const a of this.actors) a.pose(dt);
+    const p1 = performance.now();
     for (const a of this.actors) {
-      a.pose(dt);
       a.ch.layout(s);
       if (composite) {
         a.display?.setPosition(a.x, a.y - a.z).setFlipX(a.facing < 0).setDepth(a.y);
@@ -461,6 +475,8 @@ export class LabScene extends Phaser.Scene {
       }
       a.shadow.setPosition(a.x, a.y).setDepth(a.y - 0.5).setScale((this.bWorld / 131) * (1 - Math.min(0.4, a.z / 400)) * 0.9, (this.bWorld / 131) * 0.9);
     }
+    this.poseTimes.push(p1 - p0); this.layoutTimes.push(performance.now() - p1);
+    if (this.poseTimes.length > 4000) { this.poseTimes.shift(); this.layoutTimes.shift(); }
     if (this.debug.slots) { for (const a of this.actors) a.ch.tintBySlot(slotColor); this.slotTinted = true; }
     else if (this.slotTinted) { for (const a of this.actors) a.ch.clearAllTints(); this.preview.clearAllTints(); this.slotTinted = false; }
     // the wardrobe preview: the same avatar, the same clock, enlarged with the sharper atlas
