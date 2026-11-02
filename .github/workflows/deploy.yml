@@ -74,7 +74,7 @@ jobs:
   qa:
     needs: deploy
     if: needs.deploy.outputs.fresh == '1'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # (ubuntu-latest moved to 26.04, where Playwright 1.56 cannot install its browser: the screenshots failed)
     timeout-minutes: 20
     concurrency:
       group: pages-qa
