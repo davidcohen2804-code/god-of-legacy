@@ -640,6 +640,7 @@ for it in items_spec:
     # shorts' waistband above a pair of trousers)
     cov = {p: float((item & L0[p] & M0).sum() / max(1, (L0[p] & M0).sum())) for p in PARTS}
     covers = [p for p, c in cov.items() if c >= it.get('cover_from', 0.85)]
+    if it['slot'] == 'hat' and 'head' not in covers: covers.append('head')   # headwear is the whole head as drawn
     entry = {'id': it['id'], 'slot': it['slot'], 'name': it['name'], 'parts': [{'part': p, 'frame': f} for p, f in made], 'covers': covers}
     if it['slot'] == 'bottom':
         # loose legs (a hakama, wide trousers: wider than the template's leg by 15% or more) go over the shoes
