@@ -192,14 +192,61 @@ def fill_under(layer, region, known):
     return tl.inpaint_rgba(layer, known, region, radius=6)
 
 
+def elbow_side(s):
+    """Signed distance past the elbow, square to the bend's bisector (negative: the upper arm's side)."""
+    a1 = unit(J[f'shoulder_{s}'], J[f'elbow_{s}']); a2 = unit(J[f'elbow_{s}'], J[f'wrist_{s}'])
+    nb = (a1 + a2) / np.linalg.norm(a1 + a2)
+    return beyond(J[f'elbow_{s}'], nb)
+
+
+def pauldrons(alpha, fg, L):
+    """A rigid top's shoulder plates, each one whole piece: the plates of the picture are the regions its dark outlines
+    enclose; a shoulder plate is one that reaches the shoulder joint and lies a quarter or more on the upper arm (the
+    chest plate and the collar lie on the chest). Each plate takes the outline round it (the outline pixels nearest
+    to it). Rule-based, so every rigid top gets the same treatment."""
+    item = alpha > 0.5
+    lum = (fg[..., :3] * 255.0) @ np.array([0.299, 0.587, 0.114])
+    outline = item & (lum < 75)
+    inter = item & ~outline
+    lab, n = ndimage.label(inter)
+    out = {s: np.zeros(SH, bool) for s in 'BF'}
+    if not n: return out
+    idx = np.arange(1, n + 1)
+    total = ndimage.sum(inter, lab, idx)
+    dist, (iy, ix) = ndimage.distance_transform_edt(~inter, return_indices=True)
+    near = lab[iy, ix]
+    for s in 'BF':
+        zone = disk(J[f'shoulder_{s}'], 0.06 * BPX)
+        upper = L[f'arm_{s}'] & (elbow_side(s) < 0)
+        in_zone = ndimage.sum(inter & zone, lab, idx)
+        in_arm = ndimage.sum(inter & upper, lab, idx)
+        keep = idx[(total >= 30) & (in_zone > 0) & (in_arm >= 0.25 * total)]
+        if not len(keep): continue
+        m = np.isin(lab, keep)
+        m |= outline & np.isin(near, keep) & (dist <= 5)
+        out[s] = ndimage.binary_fill_holes(m) & item
+    both = out['B'] & out['F']
+    if both.any():  # a plate claimed by both sides goes to the nearer shoulder
+        dB = np.hypot(XX - J['shoulder_B'][0], YY - J['shoulder_B'][1]); dF = np.hypot(XX - J['shoulder_F'][0], YY - J['shoulder_F'][1])
+        out['B'] &= ~(both & (dF < dB)); out['F'] &= ~(both & (dB <= dF))
+    return out
+
+
 def cut_body(prefix, alpha, fg, L, base=True, item_slot=None, rigid=False):
     """The pieces of one figure (the base body, or an item's own pixels) cut by the part map L."""
     made = []
     lay = lambda m: tl.premul(alpha, fg, m.astype(np.float32))
     if L['head'].any() and put_rigid(f'{prefix}/head', lay(L['head']), J['head']): made.append(('head', f'{prefix}/head'))
+    # rigid tops: each shoulder plate is its own piece (drawn once, turning part way with the arm); the chest plate is
+    # carried on under it (inpainted from the chest's own pixels), so a raised arm never shows a second plate nor a hole
+    P = pauldrons(alpha, fg, L) if rigid else {s: np.zeros(SH, bool) for s in 'BF'}
+    PA = P['B'] | P['F']
     # the torso carries on a little under the head (the neck) and under the hips' piece (the belly): a tilted head or
     # a bent waist never opens a gap
-    tl_ = lay(L['torso'])
+    tl_ = lay(L['torso'] & ~PA)
+    if rigid and PA.any():
+        known = L['torso'] & ~PA & (alpha > 0.9)
+        tl_ = fill_under(tl_, PA & (L0['torso'] | L['torso']), known)
     if base:
         neck = (YY > J['head'][1] - 0.035 * BPX) & (YY < J['neck'][1] + 4) & (np.abs(XX - J['neck'][0]) < 0.034 * BPX)
         belly_x = np.where(L['torso'][int(J['waist'][1])])[0]
@@ -221,16 +268,16 @@ def cut_body(prefix, alpha, fg, L, base=True, item_slot=None, rigid=False):
             pl[up, :3] = col; pl[up, 3] = 1.0
     if L['pelvis'].any() and put_rigid(f'{prefix}/pelvis', pl, J['pelvis']): made.append(('pelvis', f'{prefix}/pelvis'))
     for s in 'BF':
-        if rigid and L[f'arm_{s}'].any():
-            # rigid plates: cut at the elbow (square to the bend's bisector), a little overlap each way; the upper plate
-            # turns about the shoulder, the lower about the elbow
-            a1 = unit(J[f'shoulder_{s}'], J[f'elbow_{s}']); a2 = unit(J[f'elbow_{s}'], J[f'wrist_{s}'])
-            nb = (a1 + a2) / np.linalg.norm(a1 + a2)
-            side = beyond(J[f'elbow_{s}'], nb)
-            # the upper plate also carries the shoulder plate's part over the chest (a copy: the chest keeps its own)
-            cap = disk(J[f'shoulder_{s}'], LIMBS[f'arm_{s}']['top'] * BPX * 1.25) & L['torso']
-            up_, lo_ = (L[f'arm_{s}'] | cap) & (side < 4), L[f'arm_{s}'] & (side > -4)
-            if up_.any() and put_rigid(f'{prefix}/uparm_{s}', lay(up_), J[f'shoulder_{s}']): made.append((f'uparm_{s}', f'{prefix}/uparm_{s}'))
+        if rigid and (L[f'arm_{s}'].any() or P[s].any()):
+            # rigid plates: the shoulder plate about the shoulder; the rest of the arm's plates cut at the elbow (square
+            # to the bend's bisector), a little overlap each way: the upper one turns about the shoulder, the lower one
+            # about the elbow
+            side = elbow_side(s)
+            if P[s].any() and put_rigid(f'{prefix}/pauldron_{s}', lay(P[s]), J[f'shoulder_{s}']): made.append((f'pauldron_{s}', f'{prefix}/pauldron_{s}'))
+            up_, lo_ = L[f'arm_{s}'] & ~P[s] & (side < 4), L[f'arm_{s}'] & ~P[s] & (side > -4)
+            # an upper-arm plate under the shoulder plate only when there is one (not a few edge pixels left over)
+            solid = ndimage.binary_opening(up_ & (alpha > 0.5), structure=disk((3, 3), 3)[:7, :7]).sum()
+            if solid > 400 and put_rigid(f'{prefix}/uparm_{s}', lay(up_), J[f'shoulder_{s}']): made.append((f'uparm_{s}', f'{prefix}/uparm_{s}'))
             if lo_.any() and put_rigid(f'{prefix}/forearm_{s}', lay(lo_), J[f'elbow_{s}']): made.append((f'forearm_{s}', f'{prefix}/forearm_{s}'))
         elif L[f'arm_{s}'].any() and put_strip(f'{prefix}/arm_{s}', f'arm_{s}', limb_layer(f'arm_{s}', L[f'arm_{s}'], {'top': L['torso'], 'end': L[f'hand_{s}']}, alpha, fg)):
             made.append((f'arm_{s}', f'{prefix}/arm_{s}'))
@@ -340,6 +387,13 @@ def refine_limbs(al, field):
 
 
 MASTER_RGB = np.asarray(Image.open(os.path.join(HERE, T['master'])).convert('RGB'))
+# the master's skin, as a local colour field (OpenCV Lab: L 0..255, a and b offset by 128): the bare body's opaque,
+# reddish pixels outside the head (not the shorts, not the hair), blurred so every place near skin knows the skin
+# tone around it
+LAB0 = cv2.cvtColor(MASTER_RGB, cv2.COLOR_RGB2LAB).astype(np.float32)
+SKIN0 = M0 & ~L0['head'] & (alpha0 > 0.95) & (LAB0[..., 0] > 100) & (LAB0[..., 1] > 138)
+SKIN0_W = ndimage.gaussian_filter(SKIN0.astype(np.float32), 6)
+SKIN0_LAB = np.dstack([ndimage.gaussian_filter(LAB0[..., c] * SKIN0, 6) for c in range(3)]) / np.maximum(SKIN0_W, 1e-3)[..., None]
 items_spec = json.load(open(os.path.join(HERE, 'items.json')))
 for it in items_spec:
     path = os.path.join(HERE, it['picture'])
@@ -420,6 +474,25 @@ for it in items_spec:
     item = item & ndimage.binary_dilation(body_, structure=disc_, iterations=1)
     item = ndimage.binary_closing(item, iterations=2)
     item = ndimage.binary_fill_holes(item) & region
+    # the skin halo: a boot collar or a waistband drawn over the bare body leaves a few skin-coloured pixels along the
+    # item's edge; near its edge, a pixel whose colour matches the master's skin around it is body, not item
+    edge_band = item & ~ndimage.binary_erosion(item, iterations=6)
+    halo = edge_band & (SKIN0_W > 0.05) & (np.sqrt(((lab_a - SKIN0_LAB) ** 2).sum(2)) < it.get('skin_halo', 16))
+    item &= ~halo
+    item &= ndimage.binary_opening(item, iterations=1) | ~edge_band
+    fg_i = fg_a.astype(np.float32)
+    # a light garment gets a firmer warm outline and deeper folds (it stays apart from pale floors at gameplay size):
+    # its edge band, inside its silhouette, is taken toward a warm dark brown, and its shadow tones are deepened
+    Lm = float(np.median(lab_a[..., 0][item])) if item.any() else 0.0
+    if it['slot'] in ('top', 'bottom') and not it.get('rigid') and Lm > it.get('light_from', 0.72 * 255):
+        bw = it.get('outline_px', 7.0)
+        din = ndimage.distance_transform_edt(ndimage.gaussian_filter(item.astype(np.float32), 2.0) > 0.5)  # a smooth contour
+        t_ = np.clip((bw - din) / 2.0 + 0.5, 0, 1) * item          # a crisp band bw px wide, its inner edge 2 px soft
+        dark = np.array([88, 54, 36], np.float32)
+        fg_i = fg_i * (1 - 0.85 * t_[..., None]) + dark * (0.85 * t_[..., None])
+        # the folds: each shadow tone a little deeper, in proportion to how dark it already is (no new shapes)
+        deep = np.clip((Lm - lab_a[..., 0]) / (0.3 * Lm), 0, 1) * (item & (din > bw))
+        fg_i *= (1 - 0.16 * deep)[..., None]
     wgt = np.minimum(alpha_a, ndimage.gaussian_filter(item.astype(np.float32), 0.7) * 1.0)
     Li = {}
     remap = SLOT_REMAP.get(it['slot'], {})
@@ -427,9 +500,10 @@ for it in items_spec:
         Li[p] = np.zeros(SH, bool)
     for p in allowed:
         Li[remap.get(p, p)] = Li[remap.get(p, p)] | (item & field[p])
-    made = cut_body(it['id'], wgt, fg_a / 255.0, Li, base=False, item_slot=it['slot'], rigid=it.get('rigid', False))
+    made = cut_body(it['id'], wgt, fg_i / 255.0, Li, base=False, item_slot=it['slot'], rigid=it.get('rigid', False))
     ITEMS.append({'id': it['id'], 'slot': it['slot'], 'name': it['name'], 'parts': [{'part': p, 'frame': f} for p, f in made]})
-    Image.fromarray(np.dstack([fg_a, wgt * 255]).clip(0, 255).astype(np.uint8), 'RGBA').save(os.path.join(OUT, f"item_{it['id']}.png"))
+    REPORT[-1].update({'skin_halo_px': int(halo.sum()), 'light_outline': bool(Lm > it.get('light_from', 0.72 * 255)) and it['slot'] in ('top', 'bottom') and not it.get('rigid')})
+    Image.fromarray(np.dstack([fg_i, wgt * 255]).clip(0, 255).astype(np.uint8), 'RGBA').save(os.path.join(OUT, f"item_{it['id']}.png"))
 
 # ------------------------------------------------------------------ write
 meta = {}

@@ -3,7 +3,8 @@
 // stays in one piece (each joint where its parent puts it) in every sampled frame of every animation; R3: a held
 // weapon never leaves the fist (the grip socket rides the hand at its fixed offset); R4: the cross-fade between any two
 // animations stays finite; R5: rapid, interrupted changes of state never pop; R6: with no weapon in hand every state
-// plays its unarmed animation.
+// plays its unarmed animation; R7: the far fist never shows between the legs; R8: a planted foot stays planted
+// through a cross-fade.
 import type { AnimDef } from '../rig/types';
 import { RigPose } from '../rig/pose';
 import type { WardrobeSlot } from '../wardrobe/types';
@@ -141,5 +142,65 @@ export async function runTestsB01(scene: LabScene, progress: (msg: string) => vo
   }
   const fb = bare ? runPlan(true, planFor(bare)) : { atSwitch: 0, inside: 0 };
   out.push({ id: 'R6', name: 'No weapon in hand: every state plays its unarmed animation, on the same marks, no pop at changes', pass: wrong.length === 0 && fb.atSwitch <= fb.inside + 2, detail: wrong.length ? wrong.slice(0, 4).join(' | ') : `${MIXES.length} mixes pick the right set; unarmed changes: largest turn ${fb.atSwitch.toFixed(1)}°, its own fastest ${fb.inside.toFixed(1)}°` });
+  // R7: the far fist (drawn behind the body) never shows in the gap between the legs: below the crotch and between
+  // the two legs' edges, in any frame of any animation, armed or not
+  progress('R7 far fist');
+  const U = pose.rig.B, px150 = 150 / U;
+  const ix = (n: string) => pose.index.get(n)!;
+  const org = (i: number): [number, number] => [st.world[i * 6 + 4], st.world[i * 6 + 5]];
+  const all = [...new Set([...Object.values(A.anims), ...Object.values(bare ?? {})])] as AnimDef[];
+  let gapFrames = 0, gapWorst = '', sampled = 0;
+  const legX = (s: 'B' | 'F', y: number): number | null => {
+    const P = [org(ix(`thigh_${s}`)), org(ix(`shin_${s}`)), org(ix(`foot_${s}`))];
+    for (let k = 0; k < 2; k++) {
+      const [x0, y0] = P[k], [x1, y1] = P[k + 1];
+      if ((y - y0) * (y - y1) <= 0 && y1 !== y0) return x0 + ((y - y0) / (y1 - y0)) * (x1 - x0);
+    }
+    return null;
+  };
+  const LEG_HALF = 0.06 * U, FIST = 0.035 * U;
+  for (const a of all) {
+    for (let t = 0; t <= a.dur + 1e-9; t += 1 / 60) {
+      pose.evaluate(a, t, st); sampled++;
+      const h = ix('hand_F'), hl = pose.length(st, h) * U * 0.5;
+      const fx = st.world[h * 6 + 4] + st.world[h * 6] * hl, fy = st.world[h * 6 + 5] + st.world[h * 6 + 1] * hl;
+      const hip = ix('hip'), crotchY = st.world[hip * 6 + 5] + 0.045 * U;
+      if (fy - FIST < crotchY) continue;
+      const xb = legX('B', fy), xf = legX('F', fy);
+      if (xb === null || xf === null) continue;
+      const lo = Math.min(xb, xf) + LEG_HALF, hi = Math.max(xb, xf) - LEG_HALF;
+      if (hi - lo > 2 * FIST && fx > lo + FIST && fx < hi - FIST) { gapFrames++; if (!gapWorst) gapWorst = `${a.name} ${t.toFixed(2)} s`; }
+    }
+    await yieldFrame();
+  }
+  out.push({ id: 'R7', name: 'The far fist never shows between the legs', pass: gapFrames === 0, detail: gapFrames ? `${gapFrames} frames, first: ${gapWorst}` : `${sampled} frames of ${all.length} animations` });
+  // R8: a foot planted in both poses of a change stays planted through the cross-fade (no slide, no sinking): the
+  // game's changes between grounded states, armed and unarmed
+  progress('R8 planted feet');
+  const ground = (s: 'B' | 'F') => org(ix(`foot_${s}`));
+  const sets = [A.anims, ...(bare ? [bare] : [])] as Record<string, AnimDef>[];
+  let slide = 0, sink = 0, checked = 0;
+  for (const S2 of sets) {
+    const tr: [AnimDef, number, AnimDef, number][] = [
+      [S2.idle, 0, S2.attack, 0], [S2.idle, S2.idle.dur / 2, S2.attack, 0], [S2.attack, S2.attack.dur, S2.idle, 0],
+      [S2.jump, S2.jump.dur, S2.idle, 0], [S2.idle, S2.idle.dur / 2, S2.jump, 0], [S2.attack, S2.attack.dur, S2.attack, 0],
+    ];
+    for (const [a, ta, b, tb] of tr) {
+      const snap = pose.localValues(a, ta);
+      pose.evaluate(a, ta, st); const fa = { B: ground('B'), F: ground('F') };
+      pose.evaluate(b, tb + 0.09, st); const fb2 = { B: ground('B'), F: ground('F') };
+      for (const s of ['B', 'F'] as const) {
+        if (Math.abs(fa[s][0] - fb2[s][0]) > 0.01 * U || Math.abs(fa[s][1] - fb2[s][1]) > 0.01 * U) continue; // moves by design
+        checked++;
+        for (let k = 0; k <= 9; k++) {
+          const w = k / 9, e = 1 - (1 - w) * (1 - w);
+          pose.evaluate(b, tb + w * 0.09, st, undefined, { v: snap, w: e });
+          const g = ground(s);
+          slide = Math.max(slide, Math.abs(g[0] - fa[s][0])); sink = Math.max(sink, g[1] - Math.max(fa[s][1], fb2[s][1]));
+        }
+      }
+    }
+  }
+  out.push({ id: 'R8', name: 'A planted foot stays planted through every cross-fade', pass: slide * px150 < 1 && sink * px150 < 1, detail: `${checked} planted feet in the game's changes between grounded states: largest slide ${(slide * px150).toFixed(2)} px, sinking ${(Math.max(0, sink) * px150).toFixed(2)} px at gameplay size (B = 150 px)` });
   return out;
 }

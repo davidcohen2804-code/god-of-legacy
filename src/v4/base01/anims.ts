@@ -197,33 +197,36 @@ const RUN_BARE = build('run_bare', RD, true, [...RUN_ORDER, 'contact' as Phase].
 }), { swaps: FISTS, order: [] });
 
 // The jump: the jump's own legs and body; both arms swing back in the crouch and forward with the takeoff, the far
-// arm reaching up, the near one staying below the chin (in this view it passes in front of the face); they settle
-// for the landing. From and back to the unarmed stand.
+// arm reaching up; the near one stays low, its fist forward and below the chin with a clear gap to the face (in this
+// view the near arm passes in front of the face, the identity anchor at gameplay size). From and back to the stand.
 const STAND_BARE: Pose = { t: 0, hip: [-0.006, 0.008], chest: 1, head: -1, legs: { B: on(-0.1), F: on(0.095) }, arms: { B: [102, 99, 99], F: [80, 84, 86] } };
 const JUMP_BARE = build('jump_bare', 0.95, false, [
   STAND_BARE,
   { t: 0.07, e: 'in', hip: [0, 0.07], chest: 20, head: -9, legs: { B: on(-0.1), F: on(0.095) }, arms: { B: [118, 100, 104], F: [112, 92, 96] } },
-  { t: 0.12, e: 'out', hip: [0.012, -0.035], chest: 4, head: -1, legs: { B: fromHip(-0.04, 0.312, 44), F: fromHip(0.012, 0.306, 34) }, arms: { B: [40, 0, 6], F: [-28, -58, -52] } },
-  { t: 0.28, hip: [0.01, -0.005], chest: 7, head: -3, legs: { B: fromHip(-0.08, 0.27, 34), F: fromHip(0.1, 0.15, 6) }, arms: { B: [52, 14, 20], F: [-8, -35, -30] } },
-  { t: 0.42, hip: [0.01, -0.005], chest: 6, head: -3, legs: { B: fromHip(-0.07, 0.28, 30), F: fromHip(0.11, 0.16, 4) }, arms: { B: [58, 24, 30], F: [8, -22, -16] } },
-  { t: 0.6, e: 'in', hip: [0.005, -0.012], chest: 5, head: -3, legs: { B: fromHip(-0.045, 0.3, 12), F: fromHip(0.05, 0.302, 2) }, arms: { B: [66, 36, 42], F: [30, 0, 6] } },
-  { t: 0.7, e: 'out', hip: [0, 0.012], chest: 10, head: -4, legs: { B: on(-0.1), F: on(0.095) }, arms: { B: [80, 56, 62], F: [62, 36, 42] } },
+  { t: 0.12, e: 'out', hip: [0.012, -0.035], chest: 4, head: -1, legs: { B: fromHip(-0.04, 0.312, 44), F: fromHip(0.012, 0.306, 34) }, arms: { B: [56, 18, 24], F: [-28, -58, -52] } },
+  { t: 0.28, hip: [0.01, -0.005], chest: 7, head: -3, legs: { B: fromHip(-0.08, 0.27, 34), F: fromHip(0.1, 0.15, 6) }, arms: { B: [62, 26, 32], F: [-8, -35, -30] } },
+  { t: 0.42, hip: [0.01, -0.005], chest: 6, head: -3, legs: { B: fromHip(-0.07, 0.28, 30), F: fromHip(0.11, 0.16, 4) }, arms: { B: [66, 32, 38], F: [8, -22, -16] } },
+  { t: 0.6, e: 'in', hip: [0.005, -0.012], chest: 5, head: -3, legs: { B: fromHip(-0.045, 0.3, 12), F: fromHip(0.05, 0.302, 2) }, arms: { B: [72, 42, 48], F: [30, 0, 6] } },
+  { t: 0.7, e: 'out', hip: [0, 0.012], chest: 10, head: -4, legs: { B: on(-0.1), F: on(0.095) }, arms: { B: [82, 58, 64], F: [62, 36, 42] } },
   { t: 0.79, e: 'out', hip: [0, 0.085], chest: 22, head: -10, legs: { B: on(-0.1), F: on(0.095) }, arms: { B: [110, 94, 98], F: [100, 80, 84] } },
   { ...STAND_BARE, t: 0.95 },
 ], { swaps: BARE, marks: { takeoff: 0, air: 0.12, land: 0.7, end: 0.95 } });
 
-// The punch, the light slash's body on the same marks: a straight punch with the lead (far) fist, which in this view
-// reaches clear of the body (the near arm would cross the face). The body loads (hips back, the lead fist chambered at
-// the waist, the near fist up in front of the chest, below the chin), the hips start it (the front foot steps in),
-// the lead arm drives straight out at shoulder height, then the body regains the stand.
+// The punch, on the light slash's marks: a straight punch with the lead (far) fist, which in this view reaches clear of
+// the body (the near arm would cross the face). Three poses (the art director's): guard and load (to 0.06: both fists
+// come up, the near one in front of the chest, the lead shoulder draws back a little), extension and impact (0.06 to
+// 0.16: the lead fist drives straight out at upper-chest height, the shoulder follows, the hips turn and the front
+// foot takes the weight), return (to 0.3: the fist comes straight back into the guard; the front foot steps back to
+// the stand by 0.4). No big wind-up: faster and more direct than the slash.
+const GUARD_BARE: Record<Side, Arm> = { B: [58, -22, -18], F: [100, -60, -56] };
 const ATTACK_BARE = build('attack_bare', 0.4, false, [
   STAND_BARE,
-  { t: 0.07, e: 'out', hip: [-0.028, 0.026], hipR: -6, chest: -6, head: 2, legs: { B: on(-0.1), F: on(0.095, -8, 0.006) }, arms: { B: [58, -22, -18], F: [150, 20, 24] } },
-  { t: 0.105, e: 'in', hip: [0.004, 0.03], hipR: -1, chest: 4, head: -1, legs: { B: on(-0.1, 10, 0.004), F: on(0.155, -10, 0.025) }, arms: { B: [62, -16, -12], F: [60, 10, 14] } },
-  { t: 0.14, e: 'linear', hip: [0.044, 0.04], hipR: 6, chest: 15, head: -6, legs: { B: on(-0.1, 20, 0.012), F: on(0.205) }, arms: { B: [66, -10, -6], F: [-4, -4, -4] } },
-  { t: 0.18, e: 'out', hip: [0.05, 0.044], hipR: 7, chest: 17, head: -7, legs: { B: on(-0.1, 22, 0.014), F: on(0.205) }, arms: { B: [66, -10, -6], F: [-2, -2, -2] } },
-  { t: 0.25, hip: [0.046, 0.042], hipR: 6, chest: 15, head: -6, legs: { B: on(-0.1, 20, 0.012), F: on(0.205) }, arms: { B: [80, 20, 26], F: [30, 20, 24] } },
-  { ...STAND_BARE, t: 0.4 },
+  { t: 0.06, e: 'out', hip: [-0.02, 0.02], hipR: -4, chest: -4, head: 1, legs: { B: on(-0.1), F: on(0.095, -6, 0.004) }, arms: GUARD_BARE },
+  { t: 0.12, e: 'out', hip: [0.044, 0.04], hipR: 6, chest: 14, head: -5, legs: { B: on(-0.1, 20, 0.012), F: on(0.205) }, arms: { B: [64, -14, -10], F: [6, 4, 4] } },
+  { t: 0.16, hip: [0.048, 0.042], hipR: 7, chest: 15, head: -6, legs: { B: on(-0.1, 22, 0.014), F: on(0.205) }, arms: { B: [64, -14, -10], F: [8, 6, 6] } },
+  { t: 0.3, e: 'inout', hip: [0.012, 0.024], hipR: 1, chest: 4, head: -2, legs: { B: on(-0.1, 6, 0.004), F: on(0.135, -6, 0.014) }, arms: GUARD_BARE },
+  // the front foot is back where the stand has it (a cross-fade into the stand never slides a planted foot)
+  { t: 0.4, hip: [-0.004, 0.012], chest: 2, head: -1, legs: { B: on(-0.1), F: on(0.095) }, arms: GUARD_BARE },
 ], { swaps: FISTS, marks: { startup: 0, active: 0.14, recovery: 0.25, end: 0.4 } });
 
 export const ANIMS_B01: Record<string, AnimDef> = {

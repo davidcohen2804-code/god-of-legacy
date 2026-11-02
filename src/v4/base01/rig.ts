@@ -46,13 +46,18 @@ const limb = (s: 'B' | 'F', kind: 'arm' | 'leg') => {
   const L = LIMB[`${kind}_${s}`];
   return { bones: (kind === 'arm' ? [`uparm_${s}`, `forearm_${s}`] : [`thigh_${s}`, `shin_${s}`]) as [string, string], top: L.top, bottom: L.bottom, bend: L.bend };
 };
+// a shoulder plate: one rigid piece on the shoulder joint, turning a little over half as far as the upper arm (it rides
+// the shoulder, the arm moves under it)
+const pauldron = (s: 'B' | 'F', group: string): SlotDef => slot(`arm_${s}.pauldron`, `uparm_${s}`, group, 'top', { blend: 0.55 });
 // an arm: the skin strip, the sleeve strip over it, the held item, the hand in front of the item (a fist round a handle)
 const arm = (s: 'B' | 'F', group: string, grip: string): SlotDef[] => [
   slot(`arm_${s}.skin`, `uparm_${s}`, group, 'body', { limb: limb(s, 'arm') }),
   slot(`arm_${s}.sleeve`, `uparm_${s}`, group, 'top', { limb: limb(s, 'arm') }),
   // rigid plates (armor): the upper one turns with the upper arm, the lower one with the forearm; neither bends
-  slot(`arm_${s}.plateU`, `uparm_${s}`, group, 'top', { blend: 0.75 }),
+  slot(`arm_${s}.plateU`, `uparm_${s}`, group, 'top'),
   slot(`arm_${s}.plateL`, `forearm_${s}`, group, 'top'),
+  // the near shoulder plate over the arm's pieces (the far one is drawn over the chest, see SLOTS)
+  ...(s === 'B' ? [pauldron('B', group)] : []),
   slot(grip, grip, group, 'weapon'),
   slot(`hand_${s}.skin`, `hand_${s}`, group, 'body', { channel: `hand${s}` }),
 ];
@@ -75,6 +80,8 @@ const SLOTS: SlotDef[] = [
   // top over everything (an untucked hem)
   slot('torso.skin', 'chest', 'torso', 'body'), slot('pelvis.skin', 'hip', 'torso', 'body'),
   slot('pelvis.cloth', 'hip', 'torso', 'bottom'), slot('torso.cloth', 'chest', 'torso', 'top'),
+  // the far shoulder plate sits on the chest's far edge: over the chest, though its arm is behind it
+  pauldron('F', 'torso'),
   slot('head.skin', 'head', 'head', 'body'), slot('head.hat', 'head', 'head', 'head'),
   ...arm('B', 'armB', 'weapon'),
 ];
