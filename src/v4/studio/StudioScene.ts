@@ -28,8 +28,15 @@ export class StudioScene extends Phaser.Scene {
   big!: RigCharacter;
   small!: RigCharacter;
   clips: Record<string, AnimDef> = { rest: REST, ...KIT.anims };
+  /** The state picked in the list; `anim` is what it plays with the worn weapon (or none). */
+  animName = 'rest';
   anim: AnimDef = REST;
+  /** No weapon in hand (the kit's unarmed set plays). */
+  unarmed = false;
   t = 0;
+  /** A change of animation by a change of item: a short cross-fade from the pose that was on screen. */
+  private from: Float64Array | null = null;
+  private fadeT = 1;
   playing = true;
   speed = 1;
   worn: Partial<Record<WardrobeSlot, string>> = { ...KIT.outfit };
@@ -73,14 +80,26 @@ export class StudioScene extends Phaser.Scene {
     };
     const av = this.wardrobe.resolve(input);
     this.big.setAvatar(av); this.small.setAvatar(av);
+    this.unarmed = av.unarmed;
+    // taking the weapon off (or putting it on) changes the animation: same moment, faded in from the pose on screen
+    const next = this.pick(this.animName);
+    if (next !== this.anim) {
+      this.from = this.anim === REST ? null : this.pose.localValues(this.anim, this.t);
+      this.fadeT = 0;
+      this.t = next.loop ? this.t % next.dur : Math.min(this.t, next.dur);
+      this.anim = next;
+    }
   }
 
-  setAnim(name: string): void { this.anim = this.clips[name] ?? REST; this.t = 0; this.big.chain.reset(); }
+  private pick(name: string): AnimDef { return name === 'rest' ? REST : KIT.animFor?.(name, this.unarmed) ?? this.clips[name] ?? REST; }
+
+  setAnim(name: string): void { this.animName = name; this.anim = this.pick(name); this.t = 0; this.from = null; this.big.chain.reset(); }
 
   /** Frame `i` of the current animation at 30 frames per second. */
   frameCount(): number { return Math.max(1, Math.round(this.anim.dur * FPS)); }
 
   update(_time: number, delta: number): void {
+    this.fadeT += (delta / 1000) * this.speed;
     if (this.playing) {
       this.t += (delta / 1000) * this.speed;
       if (this.t > this.anim.dur) this.t = this.anim.loop ? this.t % this.anim.dur : 0;
@@ -94,7 +113,8 @@ export class StudioScene extends Phaser.Scene {
     const lift = m && 'air' in m && this.t > m.air && this.t < m.land ? 0.36 * 4 * ((this.t - m.air) / (m.land - m.air)) * (1 - (this.t - m.air) / (m.land - m.air)) : 0;
     this.big.container.y = BIG.y - lift * BIG.B; this.small.container.y = GAME.y - lift * GAME.B;
     for (const [ch, B] of [[this.big, BIG.B], [this.small, GAME.B]] as const) {
-      ch.evaluate(this.anim, this.t);
+      const k = Math.min(1, this.fadeT / 0.09);
+      ch.evaluate(this.anim, this.t, this.from && k < 1 ? { v: this.from, w: 1 - (1 - k) * (1 - k) } : undefined);
       ch.layout(B / MASTER_B);
       if (this.overlays.layers) ch.tintBySlot((i) => GROUP_COLOURS[KIT.rig.slots[i].group] ?? 0xffffff); else ch.clearAllTints();
     }

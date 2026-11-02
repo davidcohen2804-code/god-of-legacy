@@ -3,7 +3,7 @@
 import type { AnimDef, RigDef } from '../rig/types';
 import type { Catalog } from '../wardrobe/catalog';
 import type { WardrobeSlot } from '../wardrobe/types';
-import { ANIMS_B01 } from '../base01/anims';
+import { ANIMS_B01, animFor as animForB01 } from '../base01/anims';
 import { B01_FRAMES, B01_TEXTURE, B01_WEAR, buildCatalogB01 } from '../base01/catalog';
 import { RIG_B01 } from '../base01/rig';
 import b01Url from '../base01/assets/base01.png?inline';
@@ -31,6 +31,8 @@ export interface Kit {
   outfit: Partial<Record<WardrobeSlot, string>>;
   /** The wardrobe's choices per slot. */
   wear: { slot: WardrobeSlot; label: string; items: { id: string; name: string }[] }[];
+  /** The animation a state plays with or without a weapon in hand (a kit with an unarmed set). */
+  animFor?: (name: string, unarmed: boolean) => AnimDef | undefined;
 }
 
 export const KITS: Record<string, () => Kit> = {
@@ -38,7 +40,7 @@ export const KITS: Record<string, () => Kit> = {
     id: 'base01', title: 'BASE-01', rig: RIG_B01, anims: ANIMS_B01, frames: B01_FRAMES, texKey: B01_TEXTURE, texUrl: b01Url,
     bpx: b01Data.bpx, catalog: buildCatalogB01, look: { hair: 'b01_hair', face: 'b01_face' },
     outfit: Object.fromEntries(B01_WEAR.map((w) => [w.slot, w.items[0].id])),
-    wear: B01_WEAR,
+    wear: B01_WEAR, animFor: animForB01,
   }),
   t1: () => ({
     id: 't1', title: 'Template t1 (earlier)', rig: RIG_T, anims: ANIMS_T, frames: T_FRAMES, texKey: T_TEXTURE, texUrl: t1Url,

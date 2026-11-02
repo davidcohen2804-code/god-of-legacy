@@ -2,7 +2,9 @@
 import type { WardrobeSlot } from '../wardrobe/types';
 import { KIT, type StudioScene } from './StudioScene';
 
-const ANIMS = [['rest', 'Source pose'], ['idle', 'Idle'], ['idle_bare', 'Idle (no weapon)'], ['run', 'Run'], ['jump', 'Jump'], ['attack', 'Light slash'], ['attack_heavy', 'Heavy slash']] as const;
+// with no weapon in hand each state plays its unarmed animation (the kit's own set): the light slash becomes the punch
+const ANIMS = [['rest', 'Source pose'], ['idle', 'Idle'], ['run', 'Run'], ['jump', 'Jump'], ['attack', 'Light slash'], ['attack_heavy', 'Heavy slash']] as const;
+const UNARMED_LABEL: Record<string, string> = { attack: 'Punch' };
 
 export function buildStudioUI(scene: StudioScene): void {
   const $ = (id: string) => document.getElementById(id)!;
@@ -14,6 +16,16 @@ export function buildStudioUI(scene: StudioScene): void {
     animBox.appendChild(b);
   }
   press('anim', 'rest');
+  // the list follows the hand: unarmed, the slash reads Punch and the heavy slash (a weapon move) steps aside
+  const labels = () => {
+    const bare = scene.unarmed && !!KIT.animFor;
+    animBox.querySelectorAll<HTMLButtonElement>('button').forEach((b) => {
+      const id = b.dataset.anim!, base = ANIMS.find(([a]) => a === id)![1];
+      b.textContent = bare && UNARMED_LABEL[id] ? UNARMED_LABEL[id] : base;
+      b.hidden = bare && id === 'attack_heavy';
+    });
+    if (bare && scene.animName === 'attack_heavy') { scene.setAnim('attack'); scene.playing = true; press('anim', 'attack'); }
+  };
   const clock = () => { $('clock').textContent = `${scene.anim.name} · frame ${Math.round(scene.t * 30)} / ${scene.frameCount()} · ${scene.playing ? 'playing' : 'paused'} · ×${scene.speed}`; };
   const sync = () => { $('play').textContent = scene.playing ? 'Pause' : 'Play'; clock(); };
   $('play').onclick = () => { scene.playing = !scene.playing; sync(); };
@@ -31,7 +43,7 @@ export function buildStudioUI(scene: StudioScene): void {
       const b = document.createElement('button'); b.textContent = o.name; b.dataset[`w${w.slot}`] = o.id ?? 'none';
       b.onclick = () => {
         if (o.id) scene.worn[w.slot as WardrobeSlot] = o.id; else delete scene.worn[w.slot as WardrobeSlot];
-        scene.applyLook(); press(`w${w.slot}`, o.id ?? 'none');
+        scene.applyLook(); press(`w${w.slot}`, o.id ?? 'none'); labels();
       };
       row.appendChild(b);
     }
@@ -45,5 +57,6 @@ export function buildStudioUI(scene: StudioScene): void {
     l.append(c, document.createTextNode(label)); $('overlays').appendChild(l);
   }
   window.setInterval(clock, 200);
+  labels();
   sync();
 }

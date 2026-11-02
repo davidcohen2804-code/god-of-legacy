@@ -188,4 +188,49 @@ const ATTACK = build('attack', 0.4, false, [
   { t: 0.4, hip: [-0.008, 0.012], chest: 3, head: -2, legs: { B: on(STANCE.B), F: on(STANCE.F) }, arms: GUARD },
 ], { swaps: ARMED, marks: { startup: 0, active: 0.14, recovery: 0.25, end: 0.4 }, order: [{ t: 0.01, move: 'group:armB', before: 'group:head' }, { t: 0.125, move: 'group:armB', before: null }] });
 
-export const ANIMS_B01: Record<string, AnimDef> = { idle: IDLE, idle_bare: IDLE_BARE, run: RUN, jump: JUMP, attack: ATTACK, attack_heavy: ATTACK_HEAVY };
+// ---------- No weapon in hand: the same body motion, the arms free ----------
+// The run: both fists pump against the legs (the near arm half a cycle from the far one).
+const FISTS = { handB: [{ t: 0, v: 'grip' }], handF: [{ t: 0, v: 'grip' }] };
+const RUN_BARE = build('run_bare', RD, true, [...RUN_ORDER, 'contact' as Phase].map((ph, i) => {
+  const b = RUN_BODY[ph], opp = RUN_BODY[RUN_ORDER[(RUN_ORDER.indexOf(ph) + 4) % 8]];
+  return { t: i * Q, e: 'linear' as Ease, hip: [0, b.y] as [number, number], hipR: b.hipR, chest: b.chest, head: b.head, legs: { B: runLeg('B', ph), F: runLeg('F', ph) }, arms: { B: opp.armF, F: b.armF } };
+}), { swaps: FISTS, order: [] });
+
+// The jump: the jump's own legs and body; both arms swing back in the crouch and forward with the takeoff, the far
+// arm reaching up, the near one staying below the chin (in this view it passes in front of the face); they settle
+// for the landing. From and back to the unarmed stand.
+const STAND_BARE: Pose = { t: 0, hip: [-0.006, 0.008], chest: 1, head: -1, legs: { B: on(-0.1), F: on(0.095) }, arms: { B: [102, 99, 99], F: [80, 84, 86] } };
+const JUMP_BARE = build('jump_bare', 0.95, false, [
+  STAND_BARE,
+  { t: 0.07, e: 'in', hip: [0, 0.07], chest: 20, head: -9, legs: { B: on(-0.1), F: on(0.095) }, arms: { B: [118, 100, 104], F: [112, 92, 96] } },
+  { t: 0.12, e: 'out', hip: [0.012, -0.035], chest: 4, head: -1, legs: { B: fromHip(-0.04, 0.312, 44), F: fromHip(0.012, 0.306, 34) }, arms: { B: [40, 0, 6], F: [-28, -58, -52] } },
+  { t: 0.28, hip: [0.01, -0.005], chest: 7, head: -3, legs: { B: fromHip(-0.08, 0.27, 34), F: fromHip(0.1, 0.15, 6) }, arms: { B: [52, 14, 20], F: [-8, -35, -30] } },
+  { t: 0.42, hip: [0.01, -0.005], chest: 6, head: -3, legs: { B: fromHip(-0.07, 0.28, 30), F: fromHip(0.11, 0.16, 4) }, arms: { B: [58, 24, 30], F: [8, -22, -16] } },
+  { t: 0.6, e: 'in', hip: [0.005, -0.012], chest: 5, head: -3, legs: { B: fromHip(-0.045, 0.3, 12), F: fromHip(0.05, 0.302, 2) }, arms: { B: [66, 36, 42], F: [30, 0, 6] } },
+  { t: 0.7, e: 'out', hip: [0, 0.012], chest: 10, head: -4, legs: { B: on(-0.1), F: on(0.095) }, arms: { B: [80, 56, 62], F: [62, 36, 42] } },
+  { t: 0.79, e: 'out', hip: [0, 0.085], chest: 22, head: -10, legs: { B: on(-0.1), F: on(0.095) }, arms: { B: [110, 94, 98], F: [100, 80, 84] } },
+  { ...STAND_BARE, t: 0.95 },
+], { swaps: BARE, marks: { takeoff: 0, air: 0.12, land: 0.7, end: 0.95 } });
+
+// The punch, the light slash's body on the same marks: a straight punch with the lead (far) fist, which in this view
+// reaches clear of the body (the near arm would cross the face). The body loads (hips back, the lead fist chambered at
+// the waist, the near fist up in front of the chest, below the chin), the hips start it (the front foot steps in),
+// the lead arm drives straight out at shoulder height, then the body regains the stand.
+const ATTACK_BARE = build('attack_bare', 0.4, false, [
+  STAND_BARE,
+  { t: 0.07, e: 'out', hip: [-0.028, 0.026], hipR: -6, chest: -6, head: 2, legs: { B: on(-0.1), F: on(0.095, -8, 0.006) }, arms: { B: [58, -22, -18], F: [150, 20, 24] } },
+  { t: 0.105, e: 'in', hip: [0.004, 0.03], hipR: -1, chest: 4, head: -1, legs: { B: on(-0.1, 10, 0.004), F: on(0.155, -10, 0.025) }, arms: { B: [62, -16, -12], F: [60, 10, 14] } },
+  { t: 0.14, e: 'linear', hip: [0.044, 0.04], hipR: 6, chest: 15, head: -6, legs: { B: on(-0.1, 20, 0.012), F: on(0.205) }, arms: { B: [66, -10, -6], F: [-4, -4, -4] } },
+  { t: 0.18, e: 'out', hip: [0.05, 0.044], hipR: 7, chest: 17, head: -7, legs: { B: on(-0.1, 22, 0.014), F: on(0.205) }, arms: { B: [66, -10, -6], F: [-2, -2, -2] } },
+  { t: 0.25, hip: [0.046, 0.042], hipR: 6, chest: 15, head: -6, legs: { B: on(-0.1, 20, 0.012), F: on(0.205) }, arms: { B: [80, 20, 26], F: [30, 20, 24] } },
+  { ...STAND_BARE, t: 0.4 },
+], { swaps: FISTS, marks: { startup: 0, active: 0.14, recovery: 0.25, end: 0.4 } });
+
+export const ANIMS_B01: Record<string, AnimDef> = {
+  idle: IDLE, idle_bare: IDLE_BARE, run: RUN, run_bare: RUN_BARE, jump: JUMP, jump_bare: JUMP_BARE,
+  attack: ATTACK, attack_bare: ATTACK_BARE, attack_heavy: ATTACK_HEAVY,
+};
+/** The set the game plays with no weapon in hand: every state's unarmed animation (the heavy slash becomes the punch). */
+export const ANIMS_B01_BARE: Record<string, AnimDef> = { ...ANIMS_B01, idle: IDLE_BARE, run: RUN_BARE, jump: JUMP_BARE, attack: ATTACK_BARE, attack_heavy: ATTACK_BARE };
+/** The animation a state plays with or without a weapon in hand. */
+export const animFor = (name: string, unarmed: boolean): AnimDef | undefined => (unarmed ? ANIMS_B01_BARE : ANIMS_B01)[name];

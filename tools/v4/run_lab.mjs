@@ -140,13 +140,28 @@ try {
         await outfit(eq, 'starter'); await reset('idle');
         const dir = `${out}/reel_${name}`; rmSync(dir, { recursive: true, force: true }); mkdirSync(dir, { recursive: true });
         let f = 0, at = null;
+        // each frame's animation, game state and attack clock (states.json: where the state changes really are)
+        const states = [];
+        const frame = async () => {
+          await step(2); if (!at) at = await where();
+          states.push(await lab(() => { const p = window.__v4lab.scene.player; return { anim: p.last ? p.last.anim.name : '', mode: p.mode, skillT: Math.round(p.skillT) }; }));
+          await shot(`${dir}/f${String(f++).padStart(4, '0')}.png`);
+        };
         const play = async (anim, seconds) => {
           await set((a) => { const s = window.__v4lab.scene; s.forced = a; }, anim);
-          for (let i = 0; i < Math.round(seconds * 30); i++) { await step(2); if (!at) at = await where(); await shot(`${dir}/f${String(f++).padStart(4, '0')}.png`); }
+          for (let i = 0; i < Math.round(seconds * 30); i++) await frame();
+        };
+        /** Let go of every input, play on until the player is back in idle, then `seconds` more. */
+        const settle = async (seconds) => {
+          await set(() => { window.__v4lab.scene.forced = null; });
+          for (let i = 0; i < 120 && (await lab(() => window.__v4lab.scene.player.mode)) !== 'idle'; i++) await frame();
+          for (let i = 0; i < Math.round(seconds * 30); i++) await frame();
         };
         if (ART === 'base01') { // the transitions the art director asked for: idle → run → slash → slash → jump → land → idle
-          await play('idle', 1.0); await play('run', 1.2); await play('attack', 0.65); await play('attack', 0.65); await play(null, 0.3);
-          await play('jump', 1.0); await play(null, 0.7);
+          // attack held just past the end of the first slash: the second follows it, then the input is released
+          await play('idle', 1.0); await play('run', 1.2); await play('attack', 0.7); await settle(0.3);
+          await play('jump', 0.07); await settle(0.7);
+          writeFileSync(`${dir}/states.json`, JSON.stringify(states));
         } else {
           await play('idle', 1.6); await play('run', 1.4); await play(null, 0.2); await play('jump', 1.0); await play(null, 0.3);
           await play('attack', 0.65); await play(null, 0.25); await play('attack', 0.65); await play(null, 0.6);

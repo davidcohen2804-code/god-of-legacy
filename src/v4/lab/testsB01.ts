@@ -2,7 +2,8 @@
 // worn piece resolves to an atlas frame and the wardrobe refuses nothing; R2: every bone stays finite and the body
 // stays in one piece (each joint where its parent puts it) in every sampled frame of every animation; R3: a held
 // weapon never leaves the fist (the grip socket rides the hand at its fixed offset); R4: the cross-fade between any two
-// animations stays finite.
+// animations stays finite; R5: rapid, interrupted changes of state never pop; R6: with no weapon in hand every state
+// plays its unarmed animation.
 import type { AnimDef } from '../rig/types';
 import { RigPose } from '../rig/pose';
 import type { WardrobeSlot } from '../wardrobe/types';
@@ -87,12 +88,14 @@ export async function runTestsB01(scene: LabScene, progress: (msg: string) => vo
   // R5: rapid state changes, some in the middle of an unfinished cross-fade (run → slash → jump → slash → idle at 60 Hz),
   // with the lab's fade (from the blend on screen): no bone turns more than 30° from one frame to the next
   progress('R5 interrupted fades');
-  const A2 = A.anims as Record<string, AnimDef>;
-  const plan: [AnimDef, number][] = [];
-  const seg = (a: AnimDef, n: number) => { for (let i = 0; i < n; i++) plan.push([a, i / 60]); };
-  seg(A2.run, 20); seg(A2.attack, 3); seg(A2.jump, 2); seg(A2.attack, 12); seg(A2.run, 4); seg(A2.attack, 8); seg(A2.idle, 30);
+  const planFor = (A2: Record<string, AnimDef>) => {
+    const plan: [AnimDef, number][] = [];
+    const seg = (a: AnimDef, n: number) => { for (let i = 0; i < n; i++) plan.push([a, i / 60]); };
+    seg(A2.run, 20); seg(A2.attack, 3); seg(A2.jump, 2); seg(A2.attack, 12); seg(A2.run, 4); seg(A2.attack, 8); seg(A2.idle, 30);
+    return plan;
+  };
   const FADE = 0.09;
-  const runPlan = (fade: boolean) => {
+  const runPlan = (fade: boolean, plan = planFor(A.anims as Record<string, AnimDef>)) => {
     let from: Float64Array | null = null, fadeT = 1, prev: [AnimDef, number] | null = null, last: Float64Array | null = null;
     let atSwitch = 0, inside = 0, sinceSwitch = 99;
     for (const [a, t] of plan) {
@@ -121,5 +124,22 @@ export async function runTestsB01(scene: LabScene, progress: (msg: string) => vo
   // light slash sweeps fast by design)
   const f = runPlan(true), n = runPlan(false);
   out.push({ id: 'R5', name: 'Rapid and interrupted state changes: no pop at any change', pass: f.atSwitch <= f.inside + 2, detail: `largest one-frame turn at a change ${f.atSwitch.toFixed(1)}° (without the cross-fade ${n.atSwitch.toFixed(1)}°); the animations' own fastest ${f.inside.toFixed(1)}°` });
+  // R6: no weapon in hand, every state plays its unarmed animation (and only then), and the same rapid changes stay
+  // free of pops on that set
+  progress('R6 unarmed');
+  const bare = A.animsBare, wrong: string[] = [];
+  if (!bare) wrong.push('no unarmed set');
+  for (const m of MIXES) {
+    const equipped = Object.fromEntries(Object.entries(m).filter(([, v]) => v)) as Partial<Record<WardrobeSlot, string>>;
+    const av = A.wardrobe.resolve({ body: 'male_std', look: { ...A.baseLook }, gearLooks: {}, cosmetics: { equipped, hidden: [] }, family: 'sword' });
+    if (av.unarmed !== !m.weapon) wrong.push(`${name(m)}: unarmed=${av.unarmed}`);
+  }
+  if (bare) for (const st2 of ['idle', 'run', 'jump', 'attack']) {
+    if (bare[st2] === A.anims[st2]) wrong.push(`${st2}: same animation armed and unarmed`);
+    if (bare[st2]?.name !== `${st2}_bare`) wrong.push(`${st2}: plays ${bare[st2]?.name}`);
+    if (st2 === 'jump' || st2 === 'attack') { const a1 = A.anims[st2].marks!, b1 = bare[st2].marks!; for (const k2 of Object.keys(a1)) if (a1[k2] !== b1[k2]) wrong.push(`${st2}: mark ${k2} differs`); }
+  }
+  const fb = bare ? runPlan(true, planFor(bare)) : { atSwitch: 0, inside: 0 };
+  out.push({ id: 'R6', name: 'No weapon in hand: every state plays its unarmed animation, on the same marks, no pop at changes', pass: wrong.length === 0 && fb.atSwitch <= fb.inside + 2, detail: wrong.length ? wrong.slice(0, 4).join(' | ') : `${MIXES.length} mixes pick the right set; unarmed changes: largest turn ${fb.atSwitch.toFixed(1)}°, its own fastest ${fb.inside.toFixed(1)}°` });
   return out;
 }
