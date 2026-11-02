@@ -5,6 +5,8 @@ import { KIT, type StudioScene } from './StudioScene';
 // with no weapon in hand each state plays its unarmed animation (the kit's own set): the light slash becomes the punch
 const ANIMS = [['rest', 'Source pose'], ['idle', 'Idle'], ['run', 'Run'], ['jump', 'Jump'], ['attack', 'Light slash'], ['attack_heavy', 'Heavy slash']] as const;
 const UNARMED_LABEL: Record<string, string> = { attack: 'Punch' };
+// a dagger or a staff has its own attack (its kit's): the slash buttons read as that attack, the heavy one steps aside
+const KIT_LABEL: Record<string, Record<string, string>> = { dagger_1h: { attack: 'Dagger thrust' }, staff_2h: { attack: 'Staff thrust' } };
 
 export function buildStudioUI(scene: StudioScene): void {
   const $ = (id: string) => document.getElementById(id)!;
@@ -19,12 +21,13 @@ export function buildStudioUI(scene: StudioScene): void {
   // the list follows the hand: unarmed, the slash reads Punch and the heavy slash (a weapon move) steps aside
   const labels = () => {
     const bare = scene.unarmed && !!KIT.animFor;
+    const kitL = !bare && KIT.animFor ? KIT_LABEL[scene.weaponKit] : undefined;
     animBox.querySelectorAll<HTMLButtonElement>('button').forEach((b) => {
       const id = b.dataset.anim!, base = ANIMS.find(([a]) => a === id)![1];
-      b.textContent = bare && UNARMED_LABEL[id] ? UNARMED_LABEL[id] : base;
-      b.hidden = bare && id === 'attack_heavy';
+      b.textContent = bare && UNARMED_LABEL[id] ? UNARMED_LABEL[id] : kitL?.[id] ?? base;
+      b.hidden = (bare || !!kitL) && id === 'attack_heavy';
     });
-    if (bare && scene.animName === 'attack_heavy') { scene.setAnim('attack'); scene.playing = true; press('anim', 'attack'); }
+    if ((bare || kitL) && scene.animName === 'attack_heavy') { scene.setAnim('attack'); scene.playing = true; press('anim', 'attack'); }
   };
   const clock = () => { $('clock').textContent = `${scene.anim.name} · frame ${Math.round(scene.t * 30)} / ${scene.frameCount()} · ${scene.playing ? 'playing' : 'paused'} · ×${scene.speed}`; };
   const sync = () => { $('play').textContent = scene.playing ? 'Pause' : 'Play'; clock(); };

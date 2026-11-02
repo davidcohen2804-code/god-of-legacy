@@ -65,6 +65,9 @@ export class RigPose {
   readonly groupSlots = new Map<string, number[]>();
   readonly defaultOrder: number[];
   private orderMemo = new Map<string, number[]>();
+  /** Each bone's local rotation (degrees) and position from the last evaluation (the hold re-solves from them). */
+  private readonly loc: Float64Array;
+  private readonly below = new Map<string, Uint8Array>();
 
   constructor(readonly rig: RigDef) {
     this.n = rig.bones.length;
@@ -84,6 +87,7 @@ export class RigPose {
       g.push(i); this.groupSlots.set(s.group, g);
     });
     this.defaultOrder = rig.slots.map((_, i) => i);
+    this.loc = new Float64Array(this.n * 3);
   }
 
   newState(): PoseState {
@@ -118,14 +122,16 @@ export class RigPose {
 
   /** Evaluate `anim` at `t` seconds (looping animations wrap). `chain` adds the spring offsets of the cape / hair. */
   /** Each bone's animated values (rotation, x, y: the deltas from rest) of `anim` at `t`: a snapshot to blend from
-   *  when one animation hands over to another. */
+   *  when one animation hands over to another. The last value is 1 when the animation holds its weapon in both hands
+   *  (blended like the rest, so a snapshot taken mid-fade carries how far the second hand was on). */
   localValues(anim: AnimDef, t: number, out?: Float64Array): Float64Array {
     const tt = anim.loop ? ((t % anim.dur) + anim.dur) % anim.dur : Math.max(0, Math.min(anim.dur, t));
-    const v = out ?? new Float64Array(this.n * 3);
+    const v = out && out.length === this.n * 3 + 1 ? out : new Float64Array(this.n * 3 + 1);
     for (let i = 0; i < this.n; i++) {
       const tl = anim.bones[this.rig.bones[i].name];
       v[i * 3] = tl ? sample(tl.r, tt) : 0; v[i * 3 + 1] = tl ? sample(tl.x, tt) : 0; v[i * 3 + 2] = tl ? sample(tl.y, tt) : 0;
     }
+    v[this.n * 3] = anim.hold ? 1 : 0;
     return v;
   }
 
@@ -142,7 +148,7 @@ export class RigPose {
         dr = f[i * 3] + d * k; dx = f[i * 3 + 1] + (dx - f[i * 3 + 1]) * k; dy = f[i * 3 + 2] + (dy - f[i * 3 + 2]) * k;
       }
       let deg = (ab ? ab.r : b.r) + dr + (chain ? chain.offset(i) : 0);
-      const p = this.parent[i], o = i * 6;
+      const p = this.parent[i];
       if (ab && p >= 0) {
         // an attachment link: the first keeps some of its stance direction when the hips tip (gravity) and stays clear
         // of the given bones; later links swing back when the link above is pushed off its rest direction
@@ -160,20 +166,69 @@ export class RigPose {
           if (over > 0) deg -= over;
         }
       }
-      const rot = deg * D2R;
       const lx = ((ab ? ab.x : b.x) + dx) * B, ly = ((ab ? ab.y : b.y) + dy) * B;
-      const la = Math.cos(rot), lb = Math.sin(rot), lc = -lb, ld = la;
-      if (p < 0) { w[o] = la; w[o + 1] = lb; w[o + 2] = lc; w[o + 3] = ld; w[o + 4] = lx; w[o + 5] = ly; continue; }
-      const q = p * 6, pa = w[q], pb = w[q + 1], pc = w[q + 2], pd = w[q + 3];
-      w[o] = pa * la + pc * lb; w[o + 1] = pb * la + pd * lb;
-      w[o + 2] = pa * lc + pc * ld; w[o + 3] = pb * lc + pd * ld;
-      w[o + 4] = pa * lx + pc * ly + w[q + 4]; w[o + 5] = pb * lx + pd * ly + w[q + 5];
+      this.loc[i * 3] = deg; this.loc[i * 3 + 1] = lx; this.loc[i * 3 + 2] = ly;
+      this.compose(w, i);
+    }
+    if (anim.hold) {
+      // the second hand comes onto the weapon with the cross-fade when the animation before did not hold it
+      const prev = from && from.w < 1 ? (from.v.length > this.n * 3 ? from.v[this.n * 3] : 0) : 1;
+      this.hold(out, anim.hold, prev + (1 - prev) * (from && from.w < 1 ? from.w : 1));
     }
     for (const [ch, vals] of Object.entries(this.rig.channels)) out.swaps[ch] = swapAt(anim.swaps?.[ch], tt, vals[0]);
     let key: { move: string; before: string | null } | null = null;
     for (const ok of anim.order ?? []) { if (ok.t <= tt) key = ok; else break; }
     const id = key && key.before ? `${key.move}>${key.before}` : '';
     if (id !== out.orderId) { out.order = id ? this.moved(key!.move, key!.before!) : this.defaultOrder; out.orderId = id; }
+  }
+
+  /** A bone's world transform from its parent's and its local rotation and position (this.loc). */
+  private compose(w: Float64Array, i: number): void {
+    const rot = this.loc[i * 3] * D2R, lx = this.loc[i * 3 + 1], ly = this.loc[i * 3 + 2];
+    const la = Math.cos(rot), lb = Math.sin(rot), lc = -lb, ld = la, p = this.parent[i], o = i * 6;
+    if (p < 0) { w[o] = la; w[o + 1] = lb; w[o + 2] = lc; w[o + 3] = ld; w[o + 4] = lx; w[o + 5] = ly; return; }
+    const q = p * 6, pa = w[q], pb = w[q + 1], pc = w[q + 2], pd = w[q + 3];
+    w[o] = pa * la + pc * lb; w[o + 1] = pb * la + pd * lb;
+    w[o + 2] = pa * lc + pc * ld; w[o + 3] = pb * lc + pd * ld;
+    w[o + 4] = pa * lx + pc * ly + w[q + 4]; w[o + 5] = pb * lx + pd * ly + w[q + 5];
+  }
+
+  /** The second hand on the weapon (AnimDef.hold), with weight k (0 = the animation's own arm, 1 = on the weapon):
+   *  two-bone IK from the shoulder to the wrist that puts the grip bone on the weapon's axis, the hand turned along
+   *  the weapon, the elbow on the side the animation bends it. An out-of-reach target leaves the arm straight. */
+  private hold(out: PoseState, h: NonNullable<AnimDef['hold']>, k: number): void {
+    const w = out.world, I = (n: string) => this.index.get(n) ?? -1;
+    const iu = I(h.arm[0]), iF = I(h.arm[1]), ih = I(h.arm[2]), ig = I(h.grip), iw = I(h.weapon);
+    if (iu < 0 || iF < 0 || ih < 0 || ig < 0 || iw < 0 || k <= 0) return;
+    const ang = (i: number) => Math.atan2(w[i * 6 + 1], w[i * 6]) / D2R;
+    const L = this.loc, B = this.rig.B;
+    // the target: the weapon's axis at `at`; the hand turned so its grip bone lies along the weapon
+    const wa = ang(iw), tx = w[iw * 6 + 4] + w[iw * 6] * h.at * B, ty = w[iw * 6 + 5] + w[iw * 6 + 1] * h.at * B;
+    const H = wa - L[ig * 3];
+    const ch = Math.cos(H * D2R), sh = Math.sin(H * D2R), gx = L[ig * 3 + 1], gy = L[ig * 3 + 2];
+    const wx = tx - (ch * gx - sh * gy), wy = ty - (sh * gx + ch * gy);
+    // the shoulder stays; the upper arm and forearm reach the wrist (lengths as the bones place their children)
+    const sx = w[iu * 6 + 4], sy = w[iu * 6 + 5];
+    const L1 = Math.hypot(L[iF * 3 + 1], L[iF * 3 + 2]), L2 = Math.hypot(L[ih * 3 + 1], L[ih * 3 + 2]);
+    let dx = wx - sx, dy = wy - sy, d = Math.hypot(dx, dy);
+    const dmax = (L1 + L2) * 0.9999, dmin = Math.abs(L1 - L2) + 1e-6;
+    if (d > dmax || d < dmin) { const s = (d > dmax ? dmax : dmin) / (d || 1); dx *= s; dy *= s; d *= s; }
+    const phi = Math.atan2(dy, dx) / D2R, a = Math.acos(Math.max(-1, Math.min(1, (L1 * L1 + d * d - L2 * L2) / (2 * L1 * d)))) / D2R;
+    // the elbow on the side the animation's own pose bends it
+    const fu = ang(iu), side = wrap(fu - phi) >= 0 ? 1 : -1, u = phi + side * a;
+    const ex = sx + L1 * Math.cos(u * D2R), ey = sy + L1 * Math.sin(u * D2R);
+    const f = Math.atan2(sy + dy - ey, sx + dx - ex) / D2R;
+    // world angles blended with the animation's own (k), back to local rotations, the arm and what hangs on it rebuilt
+    const fF = ang(iF), fH = ang(ih);
+    const U = fu + wrap(u - fu) * k, F = fF + wrap(f - fF) * k, Hk = fH + wrap(H - fH) * k;
+    L[iu * 3] += wrap(U - fu); L[iF * 3] = F - U; L[ih * 3] = Hk - F;
+    let mark = this.below.get(h.arm[0]);
+    if (!mark) {
+      mark = new Uint8Array(this.n); mark[iu] = 1;
+      for (let j = iu + 1; j < this.n; j++) if (this.parent[j] >= 0 && mark[this.parent[j]]) mark[j] = 1;
+      this.below.set(h.arm[0], mark);
+    }
+    for (let j = iu; j < this.n; j++) if (mark[j]) this.compose(w, j);
   }
 
   private members(ref: string): number[] {

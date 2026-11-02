@@ -25,6 +25,8 @@ export interface Item {
   hides?: string[];
   hairCover?: HairCover;
   family?: Family;
+  /** A weapon's motion kit (how the body holds and swings it): sword_1h, dagger_1h, staff_2h. The skeleton is the same. */
+  motion?: string;
   bodies: BodyStd[];
   /** Seam classes where it meets other slots (section 11.4): sleeve, cuff, hem, shaft, collar, tails. */
   seams?: Record<string, string>;

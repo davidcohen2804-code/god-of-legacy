@@ -1,12 +1,13 @@
 # The item catalog: one row per item (one picture, one row). profile: cloth (bends with the body), rigid (plates that
-# do not bend: a shoulder plate on its own, the rest cut at the elbow), weapon (drawn on its own, flat, blade to the
-# right; the grip is found from the drawing). Exceptional items' extra data goes in overrides.json, by id.
+# do not bend: a shoulder plate on its own, the rest cut at the elbow); a weapon's profile is its motion kit:
+# sword_1h, dagger_1h, staff_2h (drawn on its own, flat, blade or head to the right; the grip is found from the
+# drawing). Exceptional items' extra data goes in overrides.json, by id.
 id,slot,profile,body,name,picture
 top01_tunic,top,cloth,base01,Traveler's Tunic,items/top01_tunic_v2.png
 top02_armor,top,rigid,base01,Royal Guard Armor,items/top02_armor_v2.png
 bottom01_pants,bottom,cloth,base01,Wanderer Pants,items/bottom01_pants_v1.png
 shoes01_boots,shoes,cloth,base01,Traveler Boots,items/shoes01_boots_v1.png
-weapon01_sword,weapon,weapon,base01,Knight's Sword,items/weapon01_sword_v1.png
+weapon01_sword,weapon,sword_1h,base01,Knight's Sword,items/weapon01_sword_v1.png
 # the art director's stress batch (Equipment Factory v1)
 item01_vest,top,cloth,base01,Leather Vest,items/stress/i01_vest_v1.png
 item02_robe,top,cloth,base01,Mage Robe,items/stress/i02_robe_v1.png
@@ -16,5 +17,5 @@ item05_greaves,shoes,cloth,base01,Guardian Greaves,items/stress/i05_greaves_v1.p
 item06_coat,top,cloth,base01,Long Coat,items/stress/i06_coat_v1.png
 item07_hat,hat,cloth,base01,Adventurer Hat,items/stress/i07_hat_v1.png
 item08_helmet,hat,rigid,base01,Knight Helmet,items/stress/i08_helmet_v1.png
-item09_staff,weapon,weapon,base01,Astral Staff,items/stress/i09_staff_v1.png
-item10_dagger,weapon,weapon,base01,Short Dagger,items/stress/i10_dagger_v1.png
+item09_staff,weapon,staff_2h,base01,Astral Staff,items/stress/i09_staff_v1.png
+item10_dagger,weapon,dagger_1h,base01,Short Dagger,items/stress/i10_dagger_v1.png

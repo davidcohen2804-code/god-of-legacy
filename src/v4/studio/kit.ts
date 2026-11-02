@@ -32,7 +32,7 @@ export interface Kit {
   /** The wardrobe's choices per slot. */
   wear: { slot: WardrobeSlot; label: string; items: { id: string; name: string }[] }[];
   /** The animation a state plays with or without a weapon in hand (a kit with an unarmed set). */
-  animFor?: (name: string, unarmed: boolean) => AnimDef | undefined;
+  animFor?: (name: string, unarmed: boolean, kit?: string) => AnimDef | undefined;
 }
 
 export const KITS: Record<string, () => Kit> = {

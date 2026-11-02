@@ -3,8 +3,8 @@ id,slot,profile,body,name,picture
 neg01_master_copy,top,cloth,base01,The master itself,items/negative/neg01_master_copy.png
 neg02_white_background,top,cloth,base01,Vest on white,items/negative/neg02_white_background.png
 neg03_mirrored_figure,top,cloth,base01,Vest mirrored,items/negative/neg03_mirrored_figure.png
-neg04_weapon_upright,weapon,weapon,base01,Sword upright,items/negative/neg04_weapon_upright.png
-neg05_bad_profile,top,weapon,base01,Vest as a weapon,items/stress/i01_vest_v1.png
+neg04_weapon_upright,weapon,sword_1h,base01,Sword upright,items/negative/neg04_weapon_upright.png
+neg05_bad_profile,top,sword_1h,base01,Vest as a weapon,items/stress/i01_vest_v1.png
 neg06_unknown_slot,cape,cloth,base01,Unknown slot,items/stress/i01_vest_v1.png
 neg07_face_changed,hat,cloth,base01,Hat with another face,items/negative/neg07_face_changed.png
 neg08_drawn_smaller,top,cloth,base01,Vest drawn 85% smaller,items/negative/neg08_drawn_smaller.png

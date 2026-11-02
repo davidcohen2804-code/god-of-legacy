@@ -4,12 +4,13 @@
 // weapon never leaves the fist (the grip socket rides the hand at its fixed offset); R4: the cross-fade between any two
 // animations stays finite; R5: rapid, interrupted changes of state never pop; R6: with no weapon in hand every state
 // plays its unarmed animation; R7: the far fist never shows between the legs; R8: a planted foot stays planted
-// through a cross-fade.
+// through a cross-fade; R9: the staff's far fist stays on the shaft; R10: no wrist bends further than the sword kit's.
 import type { AnimDef } from '../rig/types';
 import { RigPose } from '../rig/pose';
 import type { WardrobeSlot } from '../wardrobe/types';
 import type { LabScene } from './LabScene';
 import { B01_WEAR } from '../base01/catalog';
+import { STAFF_SPAN } from '../base01/anims';
 import { yieldFrame, type TestResult } from './tests';
 
 // every item in the catalog, and nothing, in every slot (the mixes grow with the catalog)
@@ -99,6 +100,7 @@ export async function runTestsB01(scene: LabScene, progress: (msg: string) => vo
   const runPlan = (fade: boolean, plan = planFor(A.anims as Record<string, AnimDef>)) => {
     let from: Float64Array | null = null, fadeT = 1, prev: [AnimDef, number] | null = null, last: Float64Array | null = null;
     let atSwitch = 0, inside = 0, sinceSwitch = 99;
+    const switches: number[] = [];
     for (const [a, t] of plan) {
       if (prev && prev[0] !== a) sinceSwitch = 0; else sinceSwitch++;
       if (fade && prev && prev[0] !== a) {
@@ -115,16 +117,21 @@ export async function runTestsB01(scene: LabScene, progress: (msg: string) => vo
       if (last) {
         let step = 0;
         for (let i = 0; i < pose.n; i++) { let d = Math.abs(ang[i] - last[i]); d = Math.min(d, 360 - d); if (!pose.rig.bones[i].name.startsWith('hair') && !pose.rig.bones[i].name.startsWith('cape')) step = Math.max(step, d); }
-        if (sinceSwitch === 0) atSwitch = Math.max(atSwitch, step); else inside = Math.max(inside, step);
+        if (sinceSwitch === 0) { atSwitch = Math.max(atSwitch, step); switches.push(step); } else inside = Math.max(inside, step);
       }
       last = ang; prev = [a, t];
     }
-    return { atSwitch, inside };
+    return { atSwitch, inside, switches };
   };
   // a pop is a frame-to-frame jump at a change of state bigger than what the animations themselves do in one frame (a
   // light slash sweeps fast by design)
-  const f = runPlan(true), n = runPlan(false);
-  out.push({ id: 'R5', name: 'Rapid and interrupted state changes: no pop at any change', pass: f.atSwitch <= f.inside + 2, detail: `largest one-frame turn at a change ${f.atSwitch.toFixed(1)}° (without the cross-fade ${n.atSwitch.toFixed(1)}°); the animations' own fastest ${f.inside.toFixed(1)}°` });
+  // every weapon kit runs the same changes; a kit's change may be as sharp as its own fastest motion or as the same
+  // change in the approved sword kit (the legs go from the run's stride to the attack's stance the same way in every kit)
+  const kits = Object.entries(A.animsByKit ?? { sword_1h: A.anims as Record<string, AnimDef> });
+  const sw = runPlan(true, planFor((A.animsByKit?.sword_1h ?? A.anims) as Record<string, AnimDef>));
+  const fk = kits.map(([kit, set]) => ({ kit, f: runPlan(true, planFor(set)), n: runPlan(false, planFor(set)) }));
+  const r5ok = sw.atSwitch <= sw.inside + 2 && fk.every(({ f }) => f.switches.every((v, i) => v <= Math.max(f.inside, sw.switches[i] ?? 0) + 2));
+  out.push({ id: 'R5', name: 'Rapid and interrupted state changes: no pop at any change (every weapon kit)', pass: r5ok, detail: fk.map(({ kit, f, n }) => `${kit}: largest one-frame turn at a change ${f.atSwitch.toFixed(1)}° (without the cross-fade ${n.atSwitch.toFixed(1)}°), its own fastest ${f.inside.toFixed(1)}°`).join('; ') + `; each kit's change no sharper than its own fastest motion or the sword kit's same change (${sw.switches.map((v) => v.toFixed(0)).join(', ')}°)` });
   // R6: no weapon in hand, every state plays its unarmed animation (and only then), and the same rapid changes stay
   // free of pops on that set
   progress('R6 unarmed');
@@ -178,7 +185,7 @@ export async function runTestsB01(scene: LabScene, progress: (msg: string) => vo
   // game's changes between grounded states, armed and unarmed
   progress('R8 planted feet');
   const ground = (s: 'B' | 'F') => org(ix(`foot_${s}`));
-  const sets = [A.anims, ...(bare ? [bare] : [])] as Record<string, AnimDef>[];
+  const sets = [...Object.values(A.animsByKit ?? { sword_1h: A.anims }), ...(bare ? [bare] : [])] as Record<string, AnimDef>[];
   let slide = 0, sink = 0, checked = 0;
   for (const S2 of sets) {
     const tr: [AnimDef, number, AnimDef, number][] = [
@@ -202,5 +209,47 @@ export async function runTestsB01(scene: LabScene, progress: (msg: string) => vo
     }
   }
   out.push({ id: 'R8', name: 'A planted foot stays planted through every cross-fade', pass: slide * px150 < 1 && sink * px150 < 1, detail: `${checked} planted feet in the game's changes between grounded states: largest slide ${(slide * px150).toFixed(2)} px, sinking ${(Math.max(0, sink) * px150).toFixed(2)} px at gameplay size (B = 150 px)` });
+  // R9: the staff in both hands: the far fist stays on the shaft at its second grip (the same distance up the shaft from
+  // the near fist) in every frame of the staff kit and through every cross-fade between its states, the arm never
+  // stretched (no further than 98% of its length), its wrist bent no more than 70 degrees
+  progress('R9 staff hands');
+  const SK = (A.animsByKit ?? {}).staff_2h;
+  const staffAnims = SK ? [SK.idle, SK.run, SK.jump, SK.attack] : [];
+  let drift = 0, fadeDrift = 0, wristF = 0, reach = 0, sframes = 0, sfades = 0;
+  const sock2 = ix('weapon'), off2 = ix('offhand'), fhand = ix('hand_F'), ffore = ix('forearm_F'), fup = ix('uparm_F');
+  const armLen = (pose.rig.bones[ffore].x + pose.rig.bones[fhand].x) * U;
+  const onShaft = () => {
+    const q = sock2 * 6, span = STAFF_SPAN * U;
+    const tx = st.world[q + 4] + st.world[q] * span, ty = st.world[q + 5] + st.world[q + 1] * span;
+    return Math.hypot(st.world[off2 * 6 + 4] - tx, st.world[off2 * 6 + 5] - ty);
+  };
+  const turn = (i: number) => Math.atan2(st.world[i * 6 + 1], st.world[i * 6]) * 180 / Math.PI;
+  for (const a of staffAnims) {
+    for (let t = 0; t <= a.dur + 1e-9; t += 1 / 60) {
+      pose.evaluate(a, t, st); sframes++;
+      drift = Math.max(drift, onShaft());
+      let dw = turn(fhand) - turn(ffore); dw -= 360 * Math.round(dw / 360); wristF = Math.max(wristF, Math.abs(dw));
+      reach = Math.max(reach, Math.hypot(st.world[fhand * 6 + 4] - st.world[fup * 6 + 4], st.world[fhand * 6 + 5] - st.world[fup * 6 + 5]) / armLen);
+    }
+  }
+  for (const a of staffAnims) for (const b of staffAnims) for (const ta of [0, a.dur * 0.37, a.dur]) {
+    if (a === b && ta !== a.dur) continue;
+    const snap = pose.localValues(a, ta);
+    for (let k = 0; k <= 9; k++) { const w = k / 9; pose.evaluate(b, w * 0.09, st, undefined, { v: snap, w: 1 - (1 - w) * (1 - w) }); fadeDrift = Math.max(fadeDrift, onShaft()); sfades++; }
+  }
+  out.push({ id: 'R9', name: 'The staff in both hands: the far fist stays on the shaft in every frame and cross-fade, the arm never stretched, the wrist natural', pass: staffAnims.length === 4 && drift * px150 < 0.5 && fadeDrift * px150 < 0.5 && reach <= 0.98 && wristF <= 70, detail: `${sframes} frames and ${sfades} cross-fade frames: largest distance from the second grip ${(drift * px150).toFixed(2)} px (cross-fades ${(fadeDrift * px150).toFixed(2)} px) at gameplay size; the arm at most ${(reach * 100).toFixed(0)}% of its length; far wrist bent at most ${wristF.toFixed(0)}°` });
+  // R10: no wrist inversion: the hand holding a weapon bends at the wrist no more than in the art director's approved
+  // sword kit (the fists are hammer grips: the handle across the fist), in every frame of every kit
+  progress('R10 wrists');
+  const nh = ix('hand_B'), nf = ix('forearm_B');
+  const wristMax = (set: Record<string, AnimDef>, names: string[]) => {
+    let m = 0;
+    for (const n2 of names) { const a = set[n2]; if (!a) continue; for (let t = 0; t <= a.dur + 1e-9; t += 1 / 60) { pose.evaluate(a, t, st); let d = turn(nh) - turn(nf); d -= 360 * Math.round(d / 360); m = Math.max(m, Math.abs(d)); } }
+    return m;
+  };
+  const KITS = A.animsByKit ?? {};
+  const swordMax = wristMax(KITS.sword_1h ?? A.anims, ['idle', 'run', 'jump', 'attack', 'attack_heavy']);
+  const kitMax = Object.entries(KITS).filter(([k]) => k !== 'sword_1h').map(([k, set]) => [k, wristMax(set, ['idle', 'run', 'jump', 'attack'])] as [string, number]);
+  out.push({ id: 'R10', name: 'No wrist inversion: every weapon kit bends the wrist no more than the approved sword kit', pass: kitMax.length > 0 && kitMax.every(([, m]) => m <= swordMax + 1), detail: `sword kit at most ${swordMax.toFixed(0)}°; ${kitMax.map(([k, m]) => `${k} ${m.toFixed(0)}°`).join(', ')}` });
   return out;
 }

@@ -27,7 +27,14 @@ export interface AnimDef {
   events?: { t: number; name: string }[];
   /** Named times (segment boundaries) used to fit gameplay phases onto the animation. */
   marks?: Record<string, number>;
+  /** A second hand on a held weapon (a staff in both hands): solved onto the weapon after every evaluation. */
+  hold?: HoldDef;
 }
+
+/** A second grip on a held weapon. The weapon stays a rigid child of its own hand; this arm (upper arm, forearm,
+ *  hand) is solved every frame by two-bone IK so that its grip bone sits on the weapon's axis `at` B units from the
+ *  weapon's own grip, turned along the weapon. The elbow bends the way the animation's keys bend it. */
+export interface HoldDef { arm: [string, string, string]; grip: string; weapon: string; at: number }
 
 export interface BoneDef {
   name: string;

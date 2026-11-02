@@ -134,7 +134,9 @@ try {
       // one continuous clip per look: idle, run, a jump, two attacks (the game's own clock, 60 Hz steps, 30 fps frames)
       const GOLDR = { top: 'b_gold_top', bottom: 'b_gold_bottom', gloves: 'b_gold_gloves', shoes: 'b_gold_shoes', back: 'b_gold_cape' };
       const B01 = { top: 'top01_tunic', bottom: 'bottom01_pants', shoes: 'shoes01_boots', weapon: 'weapon01_sword' };
-      const LOOKS = ART === 'base01' ? [['tunic', B01], ['armor', { ...B01, top: 'top02_armor' }], ['unarmed', { ...B01, weapon: null }]] : [['basic', {}], ['gold', GOLDR]];
+      const LOOKS = ART === 'base01' ? [['tunic', B01], ['armor', { ...B01, top: 'top02_armor' }], ['unarmed', { ...B01, weapon: null }],
+        // the weapon motion kits (dagger_1h, staff_2h): the same moves, the kit picked by the held weapon
+        ['dagger', { ...B01, top: 'item01_vest', weapon: 'item10_dagger' }], ['staff', { ...B01, top: 'item02_robe', weapon: 'item09_staff' }]] : [['basic', {}], ['gold', GOLDR]];
       await set(() => { const s = window.__v4lab.scene; s.zoomPreset = 'grinding'; s.sizeKey = '1.12'; s.renderMode = 'direct'; s.previewOn = true; s.applyView(); });
       for (const [name, eq] of LOOKS.filter(([n]) => !process.env.V4_LOOKS || process.env.V4_LOOKS.split(',').includes(n))) {
         await outfit(eq, 'starter'); await reset('idle');

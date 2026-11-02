@@ -121,7 +121,9 @@ export class Actor {
   pose(dt: number): void {
     const q = poseQuery(this.snap()), prev = this.last, A = this.lab.assets;
     // no weapon in hand: the body's unarmed set, when it has one (taking the weapon off mid-move cross-fades like any change)
-    this.last = rigTime(q, this.avatar.unarmed && A.animsBare ? A.animsBare : A.anims);
+    // a weapon's kit (sword, dagger, staff) picks how the body holds and swings it
+    const kit = this.avatar.items.weapon?.motion ?? 'sword_1h';
+    this.last = rigTime(q, this.avatar.unarmed && A.animsBare ? A.animsBare : (A.animsByKit?.[kit] ?? A.anims));
     // the body's own motion in the animation (a lunge) pushes the chains as running does
     this.drive = prev && prev.anim === this.last.anim ? bodyDrive(this.last.anim, prev.t, this.last.t) : 0;
     const vxN = Math.max(-1, Math.min(1, (this.mode === 'air' ? Math.min(1, Math.abs(this.vx) / 300) : Math.min(1, this.speed / 300)) + this.drive));

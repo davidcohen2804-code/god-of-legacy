@@ -866,7 +866,8 @@
      "part": "weapon",
      "frame": "weapon01_sword/weapon"
     }
-   ]
+   ],
+   "motion": "sword_1h"
   },
   {
    "id": "item01_vest",
@@ -1051,7 +1052,8 @@
      "part": "weapon",
      "frame": "item09_staff/weapon"
     }
-   ]
+   ],
+   "motion": "staff_2h"
   },
   {
    "id": "item10_dagger",
@@ -1062,7 +1064,8 @@
      "part": "weapon",
      "frame": "item10_dagger/weapon"
     }
-   ]
+   ],
+   "motion": "dagger_1h"
   }
  ],
  "report": [
@@ -1309,7 +1312,7 @@
  ],
  "versions": {
   "template": "v1",
-  "exporter": "1.3",
+  "exporter": "1.4",
   "master": "4dfe86abe317",
   "sources": {
    "top01_tunic": "bd98594e85c1",

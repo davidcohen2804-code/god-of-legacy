@@ -31,7 +31,7 @@ const COVER_HIDES: Partial<Record<WardrobeSlot, Record<string, string>>> = {
   head: { head: 'head.skin' },
 };
 
-export interface ItemData { id: string; slot: WardrobeSlot | 'hat'; name: string; parts: { part: string; frame: string }[]; grip?: number[]; covers?: string[]; loose?: boolean }
+export interface ItemData { id: string; slot: WardrobeSlot | 'hat'; name: string; parts: { part: string; frame: string }[]; grip?: number[]; covers?: string[]; loose?: boolean; motion?: string }
 /** A loose bottom's legs (wider than a boot at the ankle) are drawn over the shoes, not tucked into them. */
 const LOOSE: Record<string, string> = { leg_B: 'leg_B.over', leg_F: 'leg_F.over' };
 export const B01_ITEMS = data.items as ItemData[];
@@ -44,7 +44,7 @@ export function buildCatalogB01(): Catalog {
   for (const it of B01_ITEMS) {
     const wslot: WardrobeSlot = it.slot === 'hat' ? 'head' : it.slot;
     if (wslot === 'weapon') {
-      put({ id: it.id, wslot, name: it.name, set: 'A', family: 'sword', parts: it.parts.map((p) => ({ slot: 'weapon', frame: p.frame })) });
+      put({ id: it.id, wslot, name: it.name, set: 'A', family: 'sword', motion: it.motion ?? 'sword_1h', parts: it.parts.map((p) => ({ slot: 'weapon', frame: p.frame })) });
       continue;
     }
     const map = PIECE_SLOT[wslot] ?? {};

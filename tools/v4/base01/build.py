@@ -433,12 +433,14 @@ def refine_limbs(al, field):
     return out
 
 
-EXPORTER_VERSION = '1.3'
+EXPORTER_VERSION = '1.4'
+# a weapon's profile is its motion kit, the art director's motion families (how the body holds and swings it)
+WEAPON_KITS = ('sword_1h', 'dagger_1h', 'staff_2h')
 
 
 def load_catalog():
     """The item catalog: one row per item in catalog.csv (id, slot, profile, body, name, picture; profile = cloth,
-    rigid or weapon), with exceptional items' extra data in overrides.json (by id). items.json is the older form."""
+    rigid, or a weapon's motion kit), with exceptional items' extra data in overrides.json (by id). items.json is the older form."""
     path = os.environ.get('B01_CATALOG') or os.path.join(HERE, 'catalog.csv')   # another catalog for a trial build
     if not os.path.exists(path):
         return json.load(open(os.path.join(HERE, 'items.json')))
@@ -450,8 +452,8 @@ def load_catalog():
         if r.get('body', 'base01') != T['id']: continue
         bad = None
         if r.get('slot') not in list(SLOT_PARTS) + ['weapon']: bad = f"unknown slot '{r.get('slot')}' (top, bottom, shoes, hat, weapon)"
-        elif r.get('profile') not in ('cloth', 'rigid', 'weapon'): bad = f"unknown profile '{r.get('profile')}' (cloth, rigid, weapon)"
-        elif (r['profile'] == 'weapon') != (r['slot'] == 'weapon'): bad = f"profile '{r['profile']}' does not fit slot '{r['slot']}' (a weapon row has slot and profile weapon)"
+        elif r.get('profile') not in ('cloth', 'rigid') + WEAPON_KITS: bad = f"unknown profile '{r.get('profile')}' (cloth, rigid; a weapon: {', '.join(WEAPON_KITS)})"
+        elif (r['profile'] in WEAPON_KITS) != (r['slot'] == 'weapon'): bad = f"profile '{r['profile']}' does not fit slot '{r['slot']}' (a weapon row has its motion kit as profile: {', '.join(WEAPON_KITS)})"
         if bad:
             REPORT.append({'id': r.get('id', '?'), 'accepted': False, 'reason': bad}); print('REJECTED', r.get('id'), bad); continue
         pic = r['picture'] if os.path.isabs(r['picture']) else os.path.join(HERE, r['picture'])
@@ -501,7 +503,7 @@ for it in items_spec:
         crop, (x0, y0) = tl.crop_alpha(small)
         name = f"{it['id']}/weapon"
         FRAMES[name] = dict(img=crop, pivot=[round(grip[0] * K * kw - x0, 2), round(grip[1] * K * kw - y0, 2)])
-        ITEMS.append({'id': it['id'], 'slot': 'weapon', 'name': it['name'], 'parts': [{'part': 'weapon', 'frame': name}]})
+        ITEMS.append({'id': it['id'], 'slot': 'weapon', 'name': it['name'], 'parts': [{'part': 'weapon', 'frame': name}], 'motion': it.get('profile') if it.get('profile') in WEAPON_KITS else 'sword_1h'})
         REPORT.append({'id': it['id'], 'grip': grip, 'grip_found': auto, 'handle_px': thick, 'kind': kind, 'scale': round(kw, 3), 'length_B': round(float(crop.shape[1]) / ABPX, 3), 'accepted': True})
         continue
     img = np.asarray(Image.open(path).convert('RGB'))

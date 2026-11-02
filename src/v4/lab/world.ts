@@ -7,7 +7,7 @@ import { buildAtlas } from '../art/painter';
 import { ANIMS_B } from '../real/animsB';
 import { B_FRAMES, GEAR_LOOKS_B, buildCatalogB, type BFrame } from '../real/catalogB';
 import { RIG_B } from '../real/rigB';
-import { ANIMS_B01, ANIMS_B01_BARE } from '../base01/anims';
+import { ANIMS_B01, ANIMS_B01_BARE, ANIMS_B01_BY_KIT } from '../base01/anims';
 import { B01_FRAMES, B01_TEXTURE, buildCatalogB01 } from '../base01/catalog';
 import { RIG_B01 } from '../base01/rig';
 import b01Data from '../base01/assets/base01.json';
@@ -48,6 +48,8 @@ export interface LabAssets {
   anims: Record<string, AnimDef>;
   /** The same states with no weapon in hand, when the body has its own (BASE-01). */
   animsBare?: Record<string, AnimDef>;
+  /** Each weapon motion kit's set (sword_1h, dagger_1h, staff_2h), picked by the held weapon's kit. */
+  animsByKit?: Record<string, Record<string, AnimDef>>;
   atlasInfo: { frames: number; size256: [number, number]; size512: [number, number]; buildMs: number };
   /** The look a character starts from (character creation): its hairstyle and face. */
   baseLook: { hair: string; face: string };
@@ -138,7 +140,7 @@ function assetsBase01(scene: Phaser.Scene): LabAssets {
   const atlas = { key: B01_TEXTURE, unitsPerPx: MASTER_B / b01Data.bpx };
   const outfit: Partial<Record<WardrobeSlot, string>> = { top: 'top01_tunic', bottom: 'bottom01_pants', shoes: 'shoes01_boots', weapon: 'weapon01_sword' };
   return {
-    art: 'base01', pose: new RigPose(RIG_B01), anims: ANIMS_B01, animsBare: ANIMS_B01_BARE, catalog, wardrobe: new Wardrobe(RIG_B01, catalog.items, catalog.base),
+    art: 'base01', pose: new RigPose(RIG_B01), anims: ANIMS_B01, animsBare: ANIMS_B01_BARE, animsByKit: ANIMS_B01_BY_KIT, catalog, wardrobe: new Wardrobe(RIG_B01, catalog.items, catalog.base),
     atlas256: atlas, atlas512: atlas,
     atlasInfo: { frames: B01_FRAMES.length, size256: size, size512: size, buildMs: performance.now() - t0 },
     baseLook: { hair: 'b01_hair', face: 'b01_face' }, gearLooks: () => ({ ...outfit }),

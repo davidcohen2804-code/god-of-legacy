@@ -33,6 +33,8 @@ export class StudioScene extends Phaser.Scene {
   anim: AnimDef = REST;
   /** No weapon in hand (the kit's unarmed set plays). */
   unarmed = false;
+  /** The held weapon's motion kit (sword, dagger, staff). */
+  weaponKit = 'sword_1h';
   t = 0;
   /** A change of animation by a change of item: a short cross-fade from the pose that was on screen. */
   private from: Float64Array | null = null;
@@ -81,6 +83,7 @@ export class StudioScene extends Phaser.Scene {
     const av = this.wardrobe.resolve(input);
     this.big.setAvatar(av); this.small.setAvatar(av);
     this.unarmed = av.unarmed;
+    this.weaponKit = av.items.weapon?.motion ?? 'sword_1h';
     // taking the weapon off (or putting it on) changes the animation: same moment, faded in from the pose on screen
     const next = this.pick(this.animName);
     if (next !== this.anim) {
@@ -91,7 +94,7 @@ export class StudioScene extends Phaser.Scene {
     }
   }
 
-  private pick(name: string): AnimDef { return name === 'rest' ? REST : KIT.animFor?.(name, this.unarmed) ?? this.clips[name] ?? REST; }
+  private pick(name: string): AnimDef { return name === 'rest' ? REST : KIT.animFor?.(name, this.unarmed, this.weaponKit) ?? this.clips[name] ?? REST; }
 
   setAnim(name: string): void { this.animName = name; this.anim = this.pick(name); this.t = 0; this.from = null; this.big.chain.reset(); }
 
