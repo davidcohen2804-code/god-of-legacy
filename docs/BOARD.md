@@ -45,7 +45,8 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 - **The five heroes filmed end to end (DFO, 2 Nov evening, David 18:43: "every movement and skill perfect, a finished
   product"):** each hero's moves (idle, walk, run, jumps, hit, launched, down, get-up) and every skill of its kit cast on the
   knight in PVP 3D, frame by frame. Fixed: bodies no longer slide into each other (glides, driving dashes and pulls stop at
-  the foe — `docs/BALANCE_LOG.md`); the landing / skid dust a soft puff (it showed as big pixel squares); the painted 3D
+  the foe — `docs/BALANCE_LOG.md`); the landing / skid dust a soft puff drawn as a cloud over the floor (it showed as big pixel squares, then — added
+  as light — glowed white on the planks); the painted 3D
   effect sheets no longer show their square's edge (feathered in `FLIP_FS`); Arcane Bolt's two quick bolts a comet of
   starlight a size up (they read as a thin line); Wind Step's wind trail rises with her leap (along the floor it read as a
   stray beam under her); a trap taken off the floor without going off (a round's reset, its owner down) now ends its

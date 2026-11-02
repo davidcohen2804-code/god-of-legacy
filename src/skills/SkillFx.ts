@@ -1646,7 +1646,7 @@ export class SkillFx {
 
   /** One-shot animated sprite (impacts, bursts). */
   spark(key: string, x: number, y: number, frames: number, size: number, alpha: number, start = 0, depth = TOP + 2, normal = false): void {
-    const img = this.scene.add.image(x, y, key, start).setDepth(depth).setBlendMode(normal ? Phaser.BlendModes.NORMAL : Phaser.BlendModes.ADD).setAlpha(alpha);
+    const img = this.scene.add.image(x, y, key, start).setDepth(depth).setBlendMode(normal || key === IMPACT.dust.key ? Phaser.BlendModes.NORMAL : Phaser.BlendModes.ADD).setAlpha(alpha); // (dust is a cloud over the floor, not light: added, its beige glowed white on the planks)
     img.setDisplaySize(size, size);
     const fr: number[] = [], fms: number[] = [];
     for (let i = start; i < frames; i++) { fr.push(i); fms.push(42); }
