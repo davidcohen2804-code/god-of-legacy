@@ -62,6 +62,7 @@ export class Actor {
   drive = 0;
   /** The last animation's pose when another took over, and the time since (the cross-fade). */
   from: Float64Array | null = null;
+  private tmp: Float64Array | null = null;
   fadeT = 1;
   brainT = 0; brainAct = 'idle'; targetX = 0;
   /** Swaps applied to this actor (for the demo and the tests). */
@@ -125,8 +126,22 @@ export class Actor {
     const vxN = Math.max(-1, Math.min(1, (this.mode === 'air' ? Math.min(1, Math.abs(this.vx) / 300) : Math.min(1, this.speed / 300)) + this.drive));
     const vzN = this.mode === 'air' ? Math.max(-1, Math.min(1, this.vz / JUMP_VZ)) : 0;
     this.ch.chain.step(dt, vxN, vzN);
-    // a new animation takes over in a short cross-fade from where the last one was (no pop between states)
-    if (prev && prev.anim !== this.last.anim) { this.from = this.ch.pose.localValues(prev.anim, prev.t, this.from ?? undefined); this.fadeT = 0; }
+    // a new animation takes over in a short cross-fade from the pose on screen (no pop between states); a change that
+    // comes mid-fade starts from the blend as it stood, not from either animation alone
+    if (prev && prev.anim !== this.last.anim) {
+      const shown = this.ch.pose.localValues(prev.anim, prev.t, this.tmp ?? undefined);
+      this.tmp = shown;
+      const kPrev = Math.min(1, this.fadeT / FADE_S), wPrev = 1 - (1 - kPrev) * (1 - kPrev);
+      if (this.from && wPrev < 1) {
+        for (let i = 0; i < shown.length; i += 3) {
+          let d = shown[i] - this.from[i]; d -= 360 * Math.round(d / 360);
+          shown[i] = this.from[i] + d * wPrev;
+          shown[i + 1] = this.from[i + 1] + (shown[i + 1] - this.from[i + 1]) * wPrev;
+          shown[i + 2] = this.from[i + 2] + (shown[i + 2] - this.from[i + 2]) * wPrev;
+        }
+      }
+      this.tmp = this.from; this.from = shown; this.fadeT = 0;
+    }
     this.fadeT += dt;
     const k = Math.min(1, this.fadeT / FADE_S);
     this.ch.evaluate(this.last.anim, this.last.t, this.from && k < 1 ? { v: this.from, w: 1 - (1 - k) * (1 - k) } : undefined);
