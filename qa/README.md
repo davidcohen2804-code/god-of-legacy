@@ -1,4 +1,4 @@
-# God Of Legacy — automatic screenshots of build 1b69d04 (2026-11-02 16:29 UTC)
+# God Of Legacy — automatic screenshots of build fbab069 (2026-11-02 19:55 UTC)
 
 ### 1920_01_main_menu.jpg
 ![1920_01_main_menu.jpg](1920_01_main_menu.jpg)
@@ -18,20 +18,14 @@
 ### 1920_05b_pvp_select.jpg
 ![1920_05b_pvp_select.jpg](1920_05b_pvp_select.jpg)
 
-### 1920_06_character_select.jpg
-![1920_06_character_select.jpg](1920_06_character_select.jpg)
+### 1920_06_hero_select.jpg
+![1920_06_hero_select.jpg](1920_06_hero_select.jpg)
 
-### 1920_07_slot_selected.jpg
-![1920_07_slot_selected.jpg](1920_07_slot_selected.jpg)
+### 1920_07_hero_samurai.jpg
+![1920_07_hero_samurai.jpg](1920_07_hero_samurai.jpg)
 
-### 1920_08_character_filled_QA_data.jpg
-![1920_08_character_filled_QA_data.jpg](1920_08_character_filled_QA_data.jpg)
-
-### 1920_09_delete_confirm.jpg
-![1920_09_delete_confirm.jpg](1920_09_delete_confirm.jpg)
-
-### 1920_10_create_placeholder.jpg
-![1920_10_create_placeholder.jpg](1920_10_create_placeholder.jpg)
+### 1920_08_hero_gambler.jpg
+![1920_08_hero_gambler.jpg](1920_08_hero_gambler.jpg)
 
 ### 1920_11_qa_panel.jpg
 ![1920_11_qa_panel.jpg](1920_11_qa_panel.jpg)
@@ -54,20 +48,14 @@
 ### 1280_05b_pvp_select.jpg
 ![1280_05b_pvp_select.jpg](1280_05b_pvp_select.jpg)
 
-### 1280_06_character_select.jpg
-![1280_06_character_select.jpg](1280_06_character_select.jpg)
+### 1280_06_hero_select.jpg
+![1280_06_hero_select.jpg](1280_06_hero_select.jpg)
 
-### 1280_07_slot_selected.jpg
-![1280_07_slot_selected.jpg](1280_07_slot_selected.jpg)
+### 1280_07_hero_samurai.jpg
+![1280_07_hero_samurai.jpg](1280_07_hero_samurai.jpg)
 
-### 1280_08_character_filled_QA_data.jpg
-![1280_08_character_filled_QA_data.jpg](1280_08_character_filled_QA_data.jpg)
-
-### 1280_09_delete_confirm.jpg
-![1280_09_delete_confirm.jpg](1280_09_delete_confirm.jpg)
-
-### 1280_10_create_placeholder.jpg
-![1280_10_create_placeholder.jpg](1280_10_create_placeholder.jpg)
+### 1280_08_hero_gambler.jpg
+![1280_08_hero_gambler.jpg](1280_08_hero_gambler.jpg)
 
 ### 1280_11_qa_panel.jpg
 ![1280_11_qa_panel.jpg](1280_11_qa_panel.jpg)
