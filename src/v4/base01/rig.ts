@@ -50,6 +50,9 @@ const limb = (s: 'B' | 'F', kind: 'arm' | 'leg') => {
 const arm = (s: 'B' | 'F', group: string, grip: string): SlotDef[] => [
   slot(`arm_${s}.skin`, `uparm_${s}`, group, 'body', { limb: limb(s, 'arm') }),
   slot(`arm_${s}.sleeve`, `uparm_${s}`, group, 'top', { limb: limb(s, 'arm') }),
+  // rigid plates (armor): the upper one turns with the upper arm, the lower one with the forearm; neither bends
+  slot(`arm_${s}.plateU`, `uparm_${s}`, group, 'top', { blend: 0.75 }),
+  slot(`arm_${s}.plateL`, `forearm_${s}`, group, 'top'),
   slot(grip, grip, group, 'weapon'),
   slot(`hand_${s}.skin`, `hand_${s}`, group, 'body', { channel: `hand${s}` }),
 ];

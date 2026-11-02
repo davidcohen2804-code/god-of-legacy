@@ -9,7 +9,8 @@
   "id": "top02_armor",
   "slot": "top",
   "name": "Royal Guard Armor",
-  "picture": "items/top02_armor_v2.png"
+  "picture": "items/top02_armor_v2.png",
+  "rigid": true
  },
  {
   "id": "bottom01_pants",

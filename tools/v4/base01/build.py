@@ -192,7 +192,7 @@ def fill_under(layer, region, known):
     return tl.inpaint_rgba(layer, known, region, radius=6)
 
 
-def cut_body(prefix, alpha, fg, L, base=True, item_slot=None):
+def cut_body(prefix, alpha, fg, L, base=True, item_slot=None, rigid=False):
     """The pieces of one figure (the base body, or an item's own pixels) cut by the part map L."""
     made = []
     lay = lambda m: tl.premul(alpha, fg, m.astype(np.float32))
@@ -221,7 +221,18 @@ def cut_body(prefix, alpha, fg, L, base=True, item_slot=None):
             pl[up, :3] = col; pl[up, 3] = 1.0
     if L['pelvis'].any() and put_rigid(f'{prefix}/pelvis', pl, J['pelvis']): made.append(('pelvis', f'{prefix}/pelvis'))
     for s in 'BF':
-        if L[f'arm_{s}'].any() and put_strip(f'{prefix}/arm_{s}', f'arm_{s}', limb_layer(f'arm_{s}', L[f'arm_{s}'], {'top': L['torso'], 'end': L[f'hand_{s}']}, alpha, fg)):
+        if rigid and L[f'arm_{s}'].any():
+            # rigid plates: cut at the elbow (square to the bend's bisector), a little overlap each way; the upper plate
+            # turns about the shoulder, the lower about the elbow
+            a1 = unit(J[f'shoulder_{s}'], J[f'elbow_{s}']); a2 = unit(J[f'elbow_{s}'], J[f'wrist_{s}'])
+            nb = (a1 + a2) / np.linalg.norm(a1 + a2)
+            side = beyond(J[f'elbow_{s}'], nb)
+            # the upper plate also carries the shoulder plate's part over the chest (a copy: the chest keeps its own)
+            cap = disk(J[f'shoulder_{s}'], LIMBS[f'arm_{s}']['top'] * BPX * 1.25) & L['torso']
+            up_, lo_ = (L[f'arm_{s}'] | cap) & (side < 4), L[f'arm_{s}'] & (side > -4)
+            if up_.any() and put_rigid(f'{prefix}/uparm_{s}', lay(up_), J[f'shoulder_{s}']): made.append((f'uparm_{s}', f'{prefix}/uparm_{s}'))
+            if lo_.any() and put_rigid(f'{prefix}/forearm_{s}', lay(lo_), J[f'elbow_{s}']): made.append((f'forearm_{s}', f'{prefix}/forearm_{s}'))
+        elif L[f'arm_{s}'].any() and put_strip(f'{prefix}/arm_{s}', f'arm_{s}', limb_layer(f'arm_{s}', L[f'arm_{s}'], {'top': L['torso'], 'end': L[f'hand_{s}']}, alpha, fg)):
             made.append((f'arm_{s}', f'{prefix}/arm_{s}'))
         if L[f'leg_{s}'].any() and put_strip(f'{prefix}/leg_{s}', f'leg_{s}', limb_layer(f'leg_{s}', L[f'leg_{s}'], {'top': L['pelvis'], 'end': L[f'foot_{s}']}, alpha, fg)):
             made.append((f'leg_{s}', f'{prefix}/leg_{s}'))
@@ -416,7 +427,7 @@ for it in items_spec:
         Li[p] = np.zeros(SH, bool)
     for p in allowed:
         Li[remap.get(p, p)] = Li[remap.get(p, p)] | (item & field[p])
-    made = cut_body(it['id'], wgt, fg_a / 255.0, Li, base=False, item_slot=it['slot'])
+    made = cut_body(it['id'], wgt, fg_a / 255.0, Li, base=False, item_slot=it['slot'], rigid=it.get('rigid', False))
     ITEMS.append({'id': it['id'], 'slot': it['slot'], 'name': it['name'], 'parts': [{'part': p, 'frame': f} for p, f in made]})
     Image.fromarray(np.dstack([fg_a, wgt * 255]).clip(0, 255).astype(np.uint8), 'RGBA').save(os.path.join(OUT, f"item_{it['id']}.png"))
 

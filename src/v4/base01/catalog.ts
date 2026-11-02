@@ -13,7 +13,7 @@ export const B01_TEXTURE = 'v4base01';
 /** The rig slot a piece of an item takes: by the item's wardrobe slot and the template part it was cut to. */
 export const PIECE_SLOT: Partial<Record<WardrobeSlot, Record<string, string>>> = {
   body: { head: 'head.skin', torso: 'torso.skin', pelvis: 'pelvis.skin', arm_B: 'arm_B.skin', arm_F: 'arm_F.skin', leg_B: 'leg_B.skin', leg_F: 'leg_F.skin', foot_B: 'foot_B.skin', foot_F: 'foot_F.skin' },
-  top: { torso: 'torso.cloth', arm_B: 'arm_B.sleeve', arm_F: 'arm_F.sleeve' },
+  top: { torso: 'torso.cloth', arm_B: 'arm_B.sleeve', arm_F: 'arm_F.sleeve', uparm_B: 'arm_B.plateU', forearm_B: 'arm_B.plateL', uparm_F: 'arm_F.plateU', forearm_F: 'arm_F.plateL' },
   bottom: { pelvis: 'pelvis.cloth', leg_B: 'leg_B.cloth', leg_F: 'leg_F.cloth' },
   shoes: { foot_B: 'foot_B.shoe', foot_F: 'foot_F.shoe', leg_B: 'leg_B.shaft', leg_F: 'leg_F.shaft' },
   head: { head: 'head.hat' },
