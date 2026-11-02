@@ -55,6 +55,14 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
   Gambler's heavy blows: since 18 Oct (57e51367) the code that grows and fades their painted blast ran inside a comment, so
   every heavy blow's blast stayed on screen whole, for good — after a few skills the floor round the foe was a white-pink
   wall (`GamblerFx.confirmed`). CI screenshots shoot the new hero screen (the job waited for the old slots and failed).
+- **One body size from a move into a skill (DFO, 2 Nov 23:47 — David: "the characters must not get smaller in a move or a
+  skill"):** the skills cut from the GPT sheets (`tools/heroes/cut.py` SPEC) stood smaller than the painted moves
+  (`tools/heroes/motion`: idle, walk, run, jumps, hits, the newer skills) — the Gambler by a seventh, the Samurai and the
+  Archer by 4–12 %, sheet by sheet. Measured on the stance-like frames (the head matched against the stance's, the body's
+  outline against the stance's; their geometric mean), each sheet is now drawn up to the moves' size in the game
+  (`Body.ts SHEET_FIT`, applied in `heroFrame`); the Warrior's sheets already matched, the Book Mage's one sheet row a touch
+  down. **Class chats:** a new sheet cut by cut.py lands at the sheet scale — add its row to `SHEET_FIT` (or re-cut at the
+  moves' size).
 
 ### DFO (31 Oct, David 01:29) — THE REBUILD: the approved base character, MapleStory's method, end to end (`docs/REBUILD_PLAN.md`)
 - David approved the base character (`tools/base/gpt/v3/approved_base.jpg`, `approved_poses.jpg`) and asked DFO to run the whole rebuild end to end: base body art → head / faces / hair → movement feel → clothes → female base → progression (levels, job, skill points) → skills as choreographies + effects (aimed into the depth too) → MapleStory-like monsters → world flow. **Every chat: no work on hero bodies, the base character, skills or progression without reading the plan first; requests go to DFO here.**

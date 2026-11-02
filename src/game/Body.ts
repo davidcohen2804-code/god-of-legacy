@@ -590,6 +590,24 @@ export const HERO_LIFT = HERO_HEIGHT - 124;
 const HERO_FIT: Record<string, number> = { warrior: 0.907, samurai: 1.049, archer: 1.075, book_mage: 1.182, gambler: 0.935 };
 /** A hero drawing's scale in the world (atlas px to world px). */
 const heroScale = (cls: string): number => (HERO_HEIGHT / HEROES[cls].h) * (HERO_FIT[cls] ?? 1);
+/** One body size from a step into a skill (David 2 Nov 23:47: "the characters must not get smaller in a move or a skill —
+ *  the body's form kept"): the skills cut from the GPT sheets (tools/heroes/cut.py SPEC) came out smaller than the painted
+ *  moves (tools/heroes/motion: idle, walk, run, jumps, hits and the newer skills), the Gambler by a seventh — each sheet
+ *  drawn up to the moves' size, measured on its stance-like frames against the stance (head to head and body to body,
+ *  their geometric mean). The warrior's sheets already match. */
+const SHEET_FIT: Record<string, Record<string, number>> = (() => {
+  const by = (groups: [number, string[]][]) => Object.fromEntries(groups.flatMap(([k, acts]) => acts.map((a) => [a, k])));
+  return {
+    gambler: by([[1.145, ['attack', 'charged_deal', 'staff_vault', 'fuse_slam', 'riffle_shuffle', 'rotor_staff', 'coin_flip', 'showdown', 'roulette_old', 'dice_bomb',
+      'kinetic_grab_old', 'ace_in_the_hole', 'lady_luck', 'pickup_52', 'grand_slam', 'kinetic_overload', 'wild_card', 'jackpot', 'all_in', 'triple_down', 'card_swap',
+      'roulette_wheel', 'kinetic_grab', 'cut_jab', 'cut_swing', 'cut_cards', 'cut_rise', 'call_deck', 'grand_swing', 'long_guard', 'staff_flurry', 'light_staff']]]),
+    samurai: by([[1.093, ['attack']], [1.099, ['shadow_step', 'swallow_cut', 'spin_cut']], [1.058, ['iai_strike', 'mirage']], [1.089, ['blossom_storm', 'hundred_cuts', 'tornado_blade']],
+      [1.112, ['falcon_dive', 'dragon_ascension', 'dragon_eclipse']], [1.12, ['kagemusha', 'rising_sun']], [1.096, ['phantom_blades', 'god_of_blades', 'finisher', 'tornado_air']]]),
+    archer: by([[1.081, ['attack']], [1.045, ['rising_arrow', 'multi_shot', 'explosive_arrow']], [1.09, ['retreat_kick', 'vine_trap', 'skyhunters_step']], [1.064, ['rain_of_arrows', 'hunters_roar']],
+      [1.096, ['leaping_arrow', 'spirit_hawk', 'sky_rain']], [1.089, ['tree_of_life', 'hunters_spirit']], [1.031, ['eagle_arrow', 'air_shot']]]),
+    book_mage: { attack: 0.952 }, // (her one sheet row, the strike in the air, a little bigger than her painted moves)
+  };
+})();
 export const isHeroClass = (cls: string): boolean => !!HEROES[cls];
 /** Portrait of a ready hero: the face cut from its card (image w / h, square at x, y of size). */
 /** A hero frame's rectangle and feet anchor in its atlas (for effects fitted to that drawing). */
@@ -745,7 +763,7 @@ function heroFrame(cls: string, dir: Dir, act: string, i: number): PoseFrame {
   const list = h.actions[act] ?? h.actions.stance ?? h.actions.idle;
   const name = h.actions[act] ? act : h.actions.stance ? 'stance' : 'idle';
   const idx = ((Math.floor(i) % list.length) + list.length) % list.length, f = list[idx];
-  const k = heroScale(cls), flip = dir === 'left', b = f[6];
+  const k = heroScale(cls) * (SHEET_FIT[cls]?.[name] ?? 1), flip = dir === 'left', b = f[6];
   // the sword line (Radiant Blade grows its light blade along it), mirrored when facing left
   const blade = b ? [b[0] * k * (flip ? -1 : 1), b[1] * k, b[2] * k * (flip ? -1 : 1), b[3] * k] : null;
   return { key: heroKey(cls), frame: `${name}-${idx}`, wkey: `${heroKey(cls)}-w`, ox: flip ? 1 - f[4] / f[2] : f[4] / f[2], oy: f[5] / f[3], scale: k, flip, anchor: null, top: HERO_HEIGHT, blade }; // Phaser mirrors a flipped frame about its middle, not its origin: the feet point is mirrored with it
