@@ -35,6 +35,10 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 - David saw the base-character + items lab and stopped it ("looks very bad"): the game stays with the five original painted
   fighters (Warrior, Samurai, Book Mage, Archer, Gambler) — no building a character: choose a fighter and play. The rebuild
   below is on hold.
+- **The start screen (DFO, 2 Nov 18:41):** START → CHOOSE YOUR HERO: the five heroes (painted face, name, job · Lv 100), the
+  chosen one on the stage (the Warrior on his throne) → ENTER WORLD / PvP Arena. No slots, no creation, no delete. Each hero
+  keeps its own record by class (gold, bag, gear, quests: `CharacterStore`, `godoflegacy.heroes`); stored characters stay in
+  storage, unused. The Gambler got his stage colours (magenta).
 - PvP "the skills run very fast" → **one pace for every skill, ×1.35** (open game and PvP alike), the foe's reactions in
   step so every combo links as before — `docs/BALANCE_LOG.md` (2 Nov). **Class chats:** effects timed by `r.timings` / the
   run's hits follow by themselves; an effect timed by fixed ms may now lead its slower move — check yours.

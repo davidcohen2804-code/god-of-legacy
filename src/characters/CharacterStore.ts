@@ -39,6 +39,52 @@ function cleanSkills(v: unknown): Record<string, number> | null {
   return Object.keys(out).length ? out : null;
 }
 
+/** A stored character, cleaned (every field checked; a bad one dropped or reset). */
+function cleanCharacter(c: Character): Character {
+  const target: { character: Character } = { character: {
+    id: c.id, name: c.name, classId: c.classId, level: c.level,
+    createdAt: c.createdAt, lastPlayedAt: c.lastPlayedAt, appearanceId: c.appearanceId,
+  } };
+  const ex = (c as unknown as { exp?: unknown }).exp;
+  if (typeof ex === 'number' && Number.isFinite(ex) && ex >= 0) target.character.exp = ex;
+  const jb = (c as unknown as { job?: unknown; trial?: unknown });
+  if (isNonEmpty(jb.job)) target.character.job = jb.job;
+  if (isNonEmpty(jb.trial)) target.character.trial = jb.trial;
+  const sts = (c as unknown as { stats?: unknown }).stats;
+  if (sts && typeof sts === 'object') target.character.stats = cleanStats(sts, c.level);
+  const sk = cleanSkills((c as unknown as { skills?: unknown }).skills);
+  if (sk) target.character.skills = sk;
+  const lt = c as unknown as { gold?: unknown; bag?: unknown; quick?: unknown };
+  target.character.gold = cleanGold(lt.gold);
+  target.character.bag = lt.bag && typeof lt.bag === 'object' ? cleanBag(lt.bag) : { ...STARTER_BAG };
+  target.character.quick = cleanQuick(lt.quick);
+  const sn = (c as unknown as { seen?: unknown }).seen;
+  target.character.seen = Array.isArray(sn) ? sn.filter((x): x is string => typeof x === 'string' && x in ITEMS) : Object.keys(target.character.bag);
+  const gd = (c as unknown as { gender?: unknown }).gender;
+  if (gd === 'male' || gd === 'female') target.character.gender = gd;
+  const lk = (c as unknown as { look?: Record<string, unknown> }).look;
+  const ix = (v: unknown) => (typeof v === 'number' && Number.isInteger(v) && v >= 0 && v < 10 ? v : null);
+  if (lk && typeof lk === 'object' && ['hair', 'top', 'pants', 'shoes'].every((k) => ix(lk[k]) !== null)) {
+    target.character.look = { hair: lk.hair as number, top: lk.top as number, pants: lk.pants as number, shoes: lk.shoes as number };
+    for (const k of ['hairColor', 'skin', 'face', 'eyeColor'] as const) { const v = ix(lk[k]); if (v !== null) target.character.look[k] = v; } // added later: older characters lack them
+  }
+  // equipment: as stored, or the starter set (in the creation colours) for characters stored before it existed
+  target.character.gear = cleanGear((c as unknown as { gear?: unknown }).gear) ?? starterGear(target.character.look);
+  const cos = (c as unknown as { cosmetics?: { owned?: unknown; equipped?: unknown } }).cosmetics;
+  if (cos && Array.isArray(cos.owned) && cos.equipped && typeof cos.equipped === 'object') {
+    target.character.cosmetics = {
+      owned: (cos.owned as unknown[]).filter(isStr),
+      equipped: Object.fromEntries(Object.entries(cos.equipped as Record<string, unknown>).filter(([, v]) => isStr(v))) as Record<string, string>,
+    };
+  }
+  const qs = (c as unknown as { quests?: Record<string, { state?: unknown; progress?: unknown }> }).quests;
+  if (qs && typeof qs === 'object') {
+    const ok = Object.entries(qs).filter(([, q]) => q && (q.state === 'active' || q.state === 'done') && Array.isArray(q.progress) && (q.progress as unknown[]).every((v) => Number.isInteger(v) && (v as number) >= 0));
+    if (ok.length) target.character.quests = Object.fromEntries(ok.map(([id, q]) => [id, { state: q.state as QuestState['state'], progress: [...(q.progress as number[])] }]));
+  }
+  return target.character;
+}
+
 function sanitize(raw: unknown): CharacterSelectData {
   const d = defaults();
   if (!raw || typeof raw !== 'object') return d;
@@ -49,53 +95,22 @@ function sanitize(raw: unknown): CharacterSelectData {
     const so = s as Record<string, unknown>;
     if (!isSlotId(so.slotId)) continue;
     const target = d.slots.find((x) => x.slotId === so.slotId)!;
-    if (validCharacter(so.character)) {
-      const c = so.character;
-      target.character = {
-        id: c.id, name: c.name, classId: c.classId, level: c.level,
-        createdAt: c.createdAt, lastPlayedAt: c.lastPlayedAt, appearanceId: c.appearanceId,
-      };
-      const ex = (c as unknown as { exp?: unknown }).exp;
-      if (typeof ex === 'number' && Number.isFinite(ex) && ex >= 0) target.character.exp = ex;
-      const jb = (c as unknown as { job?: unknown; trial?: unknown });
-      if (isNonEmpty(jb.job)) target.character.job = jb.job;
-      if (isNonEmpty(jb.trial)) target.character.trial = jb.trial;
-      const sts = (c as unknown as { stats?: unknown }).stats;
-      if (sts && typeof sts === 'object') target.character.stats = cleanStats(sts, c.level);
-      const sk = cleanSkills((c as unknown as { skills?: unknown }).skills);
-      if (sk) target.character.skills = sk;
-      const lt = c as unknown as { gold?: unknown; bag?: unknown; quick?: unknown };
-      target.character.gold = cleanGold(lt.gold);
-      target.character.bag = lt.bag && typeof lt.bag === 'object' ? cleanBag(lt.bag) : { ...STARTER_BAG };
-      target.character.quick = cleanQuick(lt.quick);
-      const sn = (c as unknown as { seen?: unknown }).seen;
-      target.character.seen = Array.isArray(sn) ? sn.filter((x): x is string => typeof x === 'string' && x in ITEMS) : Object.keys(target.character.bag);
-      const gd = (c as unknown as { gender?: unknown }).gender;
-      if (gd === 'male' || gd === 'female') target.character.gender = gd;
-      const lk = (c as unknown as { look?: Record<string, unknown> }).look;
-      const ix = (v: unknown) => (typeof v === 'number' && Number.isInteger(v) && v >= 0 && v < 10 ? v : null);
-      if (lk && typeof lk === 'object' && ['hair', 'top', 'pants', 'shoes'].every((k) => ix(lk[k]) !== null)) {
-        target.character.look = { hair: lk.hair as number, top: lk.top as number, pants: lk.pants as number, shoes: lk.shoes as number };
-        for (const k of ['hairColor', 'skin', 'face', 'eyeColor'] as const) { const v = ix(lk[k]); if (v !== null) target.character.look[k] = v; } // added later: older characters lack them
-      }
-      // equipment: as stored, or the starter set (in the creation colours) for characters stored before it existed
-      target.character.gear = cleanGear((c as unknown as { gear?: unknown }).gear) ?? starterGear(target.character.look);
-      const cos = (c as unknown as { cosmetics?: { owned?: unknown; equipped?: unknown } }).cosmetics;
-      if (cos && Array.isArray(cos.owned) && cos.equipped && typeof cos.equipped === 'object') {
-        target.character.cosmetics = {
-          owned: (cos.owned as unknown[]).filter(isStr),
-          equipped: Object.fromEntries(Object.entries(cos.equipped as Record<string, unknown>).filter(([, v]) => isStr(v))) as Record<string, string>,
-        };
-      }
-      const qs = (c as unknown as { quests?: Record<string, { state?: unknown; progress?: unknown }> }).quests;
-      if (qs && typeof qs === 'object') {
-        const ok = Object.entries(qs).filter(([, q]) => q && (q.state === 'active' || q.state === 'done') && Array.isArray(q.progress) && (q.progress as unknown[]).every((v) => Number.isInteger(v) && (v as number) >= 0));
-        if (ok.length) target.character.quests = Object.fromEntries(ok.map(([id, q]) => [id, { state: q.state as QuestState['state'], progress: [...(q.progress as number[])] }]));
-      }
-    }
+    if (validCharacter(so.character)) target.character = cleanCharacter(so.character);
   }
   d.selectedSlotId = isSlotId(o.selectedSlotId) ? o.selectedSlotId : null;
   return d;
+}
+
+/** The ready heroes' own records, by class (David 2 Nov: the game plays its five heroes — none is made from nothing):
+ *  what each one carries from visit to visit (gold, bag, gear, quests, cosmetics, when last played). */
+const HERO_KEY = 'godoflegacy.heroes';
+function loadHeroes(): Record<string, Character> {
+  let raw: unknown = null;
+  try { const s = localStorage.getItem(HERO_KEY); if (s) raw = JSON.parse(s); } catch { raw = null; }
+  if (!raw || typeof raw !== 'object') return {};
+  const out: Record<string, Character> = {};
+  for (const [cls, c] of Object.entries(raw as Record<string, unknown>)) if (validCharacter(c) && c.classId === cls) out[cls] = cleanCharacter(c);
+  return out;
 }
 
 class Store {
@@ -110,9 +125,23 @@ class Store {
   getSlots(): readonly CharacterSlot[] { return this.data.slots; }
   getSlot(id: SlotId): CharacterSlot { return this.data.slots.find((s) => s.slotId === id)!; }
   getSelectedId(): SlotId | null { return this.data.selectedSlotId; }
-  /** START HERO: the ready hero being played (not stored; every setter by id leaves it alone). */
+  /** The ready hero being played (the game's own characters: one per class — David 2 Nov). Its record is kept apart from
+   *  the slots, by class (HERO_KEY): every setter by id finds it, so what it carries stays from visit to visit. */
   private hero: Character | null = null;
-  startHero(classId: string, name: string, level: number): void { this.hero = this.heroOf(classId, name, level); }
+  private heroes: Record<string, Character> = loadHeroes();
+  startHero(classId: string, name: string, level: number): void {
+    const saved = this.heroes[classId], fresh = this.heroOf(classId, name, level);
+    this.hero = saved ? { ...saved, id: fresh.id, name, classId, job: classId, level: Math.max(level, saved.level), hero: true, gender: fresh.gender } : fresh;
+  }
+  /** The hero being played was played now (its "last played"). */
+  touchHero(): void { if (!this.hero) return; this.hero.lastPlayedAt = new Date().toISOString(); this.save(); }
+  /** When a ready hero of this class was last played (null: never). */
+  heroLastPlayed(classId: string): string | null { return this.heroes[classId]?.lastPlayedAt ?? null; }
+  /** A character by id: the hero being played, or a stored one. */
+  private byId(charId: string): Character | null {
+    if (this.hero && this.hero.id === charId) return this.hero;
+    return this.data.slots.find((s) => s.character?.id === charId)?.character ?? null;
+  }
   /** A ready hero as a character (the session's START HERO, the PvP fighter select's fighters); never stored. */
   heroOf(classId: string, name: string, level: number): Character {
     return {
@@ -151,12 +180,12 @@ class Store {
 
   /** Cosmetics of a stored character (ownership API kept abstract for a later backend). */
   getCosmetics(charId: string): { owned: string[]; equipped: Record<string, string> } {
-    const c = this.data.slots.find((s) => s.character?.id === charId)?.character;
+    const c = this.byId(charId);
     return c?.cosmetics ? { owned: [...c.cosmetics.owned], equipped: { ...c.cosmetics.equipped } } : { owned: [], equipped: {} };
   }
 
   setCosmetics(charId: string, v: { owned: string[]; equipped: Record<string, string> }): void {
-    const c = this.data.slots.find((s) => s.character?.id === charId)?.character;
+    const c = this.byId(charId);
     if (!c) return;
     c.cosmetics = { owned: [...new Set(v.owned)], equipped: { ...v.equipped } };
     this.save();
@@ -165,7 +194,7 @@ class Store {
   /** Level + EXP of a stored character. */
   /** Job advancement (a Master): the job, the class played, and the Master's pending trial (null = none). */
   setJob(charId: string, job: string, trial: string | null): void {
-    const c = this.data.slots.find((s) => s.character?.id === charId)?.character;
+    const c = this.byId(charId);
     if (!c) return;
     c.job = job; c.classId = job;
     if (trial) c.trial = trial; else delete c.trial;
@@ -174,7 +203,7 @@ class Store {
 
   /** The stats as placed (AP). */
   setStats(charId: string, s: { str: number; dex: number; int: number; luk: number }): void {
-    const c = this.data.slots.find((x) => x.character?.id === charId)?.character;
+    const c = this.byId(charId);
     if (!c) return;
     c.stats = cleanStats(s, c.level);
     this.save();
@@ -182,7 +211,7 @@ class Store {
 
   /** The skills learned with skill points (id → level). */
   setSkills(charId: string, skills: Record<string, number>): void {
-    const c = this.data.slots.find((x) => x.character?.id === charId)?.character;
+    const c = this.byId(charId);
     if (!c) return;
     const sk = cleanSkills(skills);
     if (sk) c.skills = sk; else delete c.skills;
@@ -191,7 +220,7 @@ class Store {
 
   /** The Master's trial is over (won). */
   clearTrial(charId: string): void {
-    const c = this.data.slots.find((s) => s.character?.id === charId)?.character;
+    const c = this.byId(charId);
     if (!c) return;
     delete c.trial;
     this.save();
@@ -199,14 +228,14 @@ class Store {
 
   /** Gold and potions carried. */
   setLoot(charId: string, gold: number, bag: Record<string, number>, quick?: [string, string], seen?: string[]): void {
-    const c = this.data.slots.find((s) => s.character?.id === charId)?.character;
+    const c = this.byId(charId);
     if (!c) return;
     c.gold = cleanGold(gold); c.bag = cleanBag(bag); if (quick) c.quick = cleanQuick(quick); if (seen) c.seen = seen.filter((x) => x in ITEMS);
     this.save();
   }
 
   setProgress(charId: string, level: number, exp: number): void {
-    const c = this.data.slots.find((s) => s.character?.id === charId)?.character;
+    const c = this.byId(charId);
     if (!c) return;
     c.level = level; c.exp = exp;
     this.save();
@@ -214,12 +243,12 @@ class Store {
 
   /** Quest states of a stored character (none for a new one). */
   getQuests(charId: string): Record<string, QuestState> {
-    const c = this.data.slots.find((s) => s.character?.id === charId)?.character;
+    const c = this.byId(charId);
     return Object.fromEntries(Object.entries(c?.quests ?? {}).map(([id, q]) => [id, { state: q.state, progress: [...q.progress] }]));
   }
 
   setQuests(charId: string, q: Record<string, QuestState>): void {
-    const c = this.data.slots.find((s) => s.character?.id === charId)?.character;
+    const c = this.byId(charId);
     if (!c) return;
     c.quests = Object.fromEntries(Object.entries(q).map(([id, v]) => [id, { state: v.state, progress: [...v.progress] }]));
     this.save();
@@ -227,12 +256,12 @@ class Store {
 
   /** Equipment of a stored character. */
   getGear(charId: string): GearState | null {
-    const g = this.data.slots.find((s) => s.character?.id === charId)?.character?.gear;
+    const g = this.byId(charId)?.gear;
     return g ? { items: g.items.map((i) => ({ ...i })), worn: { ...g.worn } } : null;
   }
 
   setGear(charId: string, g: GearState): void {
-    const c = this.data.slots.find((s) => s.character?.id === charId)?.character;
+    const c = this.byId(charId);
     if (!c) return;
     c.gear = cleanGear(g) ?? c.gear;
     this.save();
@@ -240,6 +269,9 @@ class Store {
 
   private save(): void {
     try { localStorage.setItem(KEY, JSON.stringify(this.data)); } catch { /* storage unavailable */ }
+    if (!this.hero) return;
+    this.heroes[this.hero.classId] = this.hero;
+    try { localStorage.setItem(HERO_KEY, JSON.stringify(this.heroes)); } catch { /* storage unavailable */ }
   }
 }
 

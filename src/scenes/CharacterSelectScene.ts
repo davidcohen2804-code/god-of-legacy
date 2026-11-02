@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { addClothWind } from '../ui/VisualLife';
 import { CHARACTER_PREVIEWS, CLASS_NAMES, CHARACTER_SELECT as L, CHARACTER_SELECT_PREVIEW as PV, COLORS, DESIGN, SELECT_HALO } from '../config/layout';
-import { CharacterSelectUI } from '../ui/CharacterSelectUI';
+import { CharacterSelectUI, HERO_LV } from '../ui/CharacterSelectUI';
 import { CharacterStore } from '../characters/CharacterStore';
 import { previewKeyOf } from '../characters/Look';
 import { buildLook, preloadLooks } from '../characters/LookArt';
@@ -14,10 +14,13 @@ import { genderOf } from '../characters/Look';
 /** Each class's weapon in the 3D Beginner's hand (as Hero3D's CLASS_WEAPON, without loading it here). */
 const CLASS_WEAPON3D: Record<string, 'sword' | 'katana' | 'bow' | 'staff' | 'cane'> = { warrior: 'sword', samurai: 'katana', archer: 'bow', book_mage: 'staff', gambler: 'cane' };
 
-/** START HERO: the ready heroes play at this level (every job and skill open). */
-const HERO_LEVEL = 100;
+/** The heroes play at this level (every job and skill open). */
+const HERO_LEVEL = HERO_LV;
 
+/** The heroes whose painted cards the stage shows. */
+const HERO_CARDS = ['warrior', 'samurai', 'book_mage', 'archer', 'gambler'];
 const classOfKey = (key: string): string | null => {
+  if (key.startsWith('hero.card.')) return key.slice('hero.card.'.length);
   const e = Object.entries(CHARACTER_PREVIEWS).find(([, v]) => v.key === key);
   return e ? e[0].split('/')[0] : null;
 };
@@ -32,6 +35,7 @@ export class CharacterSelectScene extends Phaser.Scene {
 
   preload(): void {
     preloadLife(this); preloadThrone(this);
+    for (const c of HERO_CARDS) if (!this.textures.exists(`hero.card.${c}`)) this.load.image(`hero.card.${c}`, `assets/final/heroes/${c}/card.png`); // the five heroes, painted (the stage shows the chosen one)
     const chars = CharacterStore.getSlots().map((s) => s.character);
     preloadLooks(this, chars); // each character's full style (hair, outfit, colours): its layers load here
     for (const c of chars) { // without a chosen look: the bare base picture
@@ -103,13 +107,9 @@ export class CharacterSelectScene extends Phaser.Scene {
 
     this.ui = new CharacterSelectUI(this.game.canvas.parentElement!, this.game.canvas, {
       onBack: () => this.scene.start('MainMenuScene'),
-      onCreate: () => this.scene.start('CharacterCreateScene'),
-      onEnterWorld: () => { clearPvpFromUrl(); this.scene.start('LegacyCourtyardScene', { pvpRoom: null }); }, // always the world, never the arena (PvP has its own button)
-      onPvp: () => this.scene.start('PvpSelectScene', { mode: 'cpu', p1: CharacterStore.getSelectedCharacter()?.classId }), // the fighter select
-      onHero: (cls, pvp) => {
-        CharacterStore.startHero(cls, CLASS_NAMES[cls] ?? cls, HERO_LEVEL);
-        if (pvp) this.scene.start('PvpSelectScene', { mode: 'cpu', p1: cls }); else { clearPvpFromUrl(); this.scene.start('LegacyCourtyardScene', { pvpRoom: null }); }
-      },
+      onPick: (cls) => CharacterStore.startHero(cls, CLASS_NAMES[cls] ?? cls, HERO_LEVEL), // (the hero played: its own record, kept by class)
+      onEnterWorld: () => { CharacterStore.touchHero(); clearPvpFromUrl(); this.scene.start('LegacyCourtyardScene', { pvpRoom: null }); }, // always the world, never the arena (PvP has its own button)
+      onPvp: () => { CharacterStore.touchHero(); this.scene.start('PvpSelectScene', { mode: 'cpu', p1: CharacterStore.getSelectedCharacter()?.classId }); }, // the fighter select
       onPreview: (key) => {
         if (HERO3D.on) { // the 3D Beginner stands on the pedestal: no painted hero, no throne
           const c = key ? CharacterStore.getSelectedCharacter() : null, cls3 = c ? (key ? classOfKey(key) : null) ?? c.classId : null;

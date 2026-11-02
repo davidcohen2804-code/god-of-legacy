@@ -1,30 +1,23 @@
 // DOM overlay for Character Select: slots, text, buttons, info panel and modal.
-import { ASSET_MANIFEST, CHARACTER_PREVIEWS, CHARACTER_SELECT as L, CLASS_NAMES, COLORS, DESIGN, FONT_FAMILY } from '../config/layout';
+import { CHARACTER_SELECT as L, CLASS_NAMES, COLORS, DESIGN, FONT_FAMILY } from '../config/layout';
 import { CharacterStore } from '../characters/CharacterStore';
-import { Character, SlotId } from '../characters/CharacterTypes';
-import { previewKeyOf } from '../characters/Look';
-import { jobsFor, playedClass } from '../skills/Jobs';
-import { HERO3D } from '../arena3d/hero3dFlag';
-import { art3d } from '../arena3d/heroArt3d';
-import { expToNext } from '../game/Progression';
+import { Character } from '../characters/CharacterTypes';
+import { jobsFor } from '../skills/Jobs';
+import { heroPortrait } from '../game/Body';
 import { ICONS, ensureTheme } from './theme';
 
 export interface CharacterSelectHandlers {
   onBack: () => void;
-  onCreate: () => void;
+  /** A hero chosen: it becomes the character played (its record kept by class: CharacterStore.startHero). */
+  onPick: (classId: string) => void;
   onEnterWorld: () => void;
-  /** PvP arena with the selected character (moved here from the main menu). */
+  /** PvP arena with the chosen hero. */
   onPvp?: () => void;
-  /** Called on every render with the selected character's full-body preview asset key (or null to hide). */
+  /** Called on every render with the chosen hero's full-body picture key (or null to hide). */
   onPreview?: (assetKey: string | null) => void;
-  /** Pointer over a slot: its character's class (null when leaving / empty slot). */
+  /** Pointer over a hero's row: its class (null when leaving). */
   onHover?: (classId: string | null) => void;
-  /** START HERO: play one of the four ready heroes (world or PvP arena), apart from the stored characters. */
-  onHero?: (classId: string, pvp: boolean) => void;
 }
-
-const HERO_CLASSES = ['warrior', 'book_mage', 'archer', 'samurai', 'gambler'] as const;
-const HERO_M = { w: 1360, h: 700, card: { w: 244, h: 548, gap: 22, top: 108 } } as const;
 
 const DASH = '—';
 /** Layout (design px): the roster (2x2 cards) on the left, the info panel and the buttons on the right, the name under the
@@ -198,88 +191,92 @@ export function syncOverlay(root: HTMLElement, host: HTMLElement, canvas: HTMLCa
 }
 
 const className = (id: string) => CLASS_NAMES[id] ?? id;
-const previewFor = (c: Character) => CHARACTER_PREVIEWS[previewKeyOf(c)];
+
+/** The game's heroes on this screen (David 2 Nov: the five original fighters — none is made from nothing), in the fighter
+ *  select's order. */
+const HERO_ORDER = ['warrior', 'samurai', 'book_mage', 'archer', 'gambler'] as const;
+const PICK_KEY = 'godoflegacy.heroPick';
+const HL = { x: K.roster.x + 22, y: 152, w: K.roster.w - 44, h: 118, gap: 14, face: 96 } as const;
+const HERO_CSS = `
+.gol-sel .hrow{position:absolute;pointer-events:auto;cursor:pointer;box-sizing:border-box;border-radius:16px;background:#121b2d;border:1px solid rgba(255,255,255,.08);
+  box-shadow:0 8px 20px rgba(0,0,0,.3);transition:border-color 140ms,box-shadow 140ms,transform 140ms}
+.gol-sel .hrow:hover{border-color:rgba(231,196,124,.45);transform:translateX(3px)}
+.gol-sel .hrow.sel{border-color:var(--gl-gold);box-shadow:0 0 0 3px rgba(231,196,124,.18),0 14px 30px rgba(0,0,0,.45);background:linear-gradient(90deg,#1b2740,#121b2d)}
+.gol-sel .hrow .face{position:absolute;left:11px;top:11px;width:${HL.face}px;height:${HL.face}px;border-radius:12px;background-color:#0b1220;background-repeat:no-repeat;
+  box-shadow:inset 0 0 0 1px rgba(231,196,124,.25)}
+.gol-sel .hrow .nm{position:absolute;left:${HL.face + 30}px;right:16px;top:30px;font:700 22px var(--gl-title);letter-spacing:2px;color:#f3e3bd;white-space:nowrap}
+.gol-sel .hrow.sel .nm{color:var(--gl-gold2)}
+.gol-sel .hrow .jb{position:absolute;left:${HL.face + 30}px;right:16px;top:66px;font:500 14px var(--gl-body);letter-spacing:.4px;color:var(--gl-text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+`;
+const HERO_STYLE_ID = 'gol-charselect-heroes';
 
 export class CharacterSelectUI {
   private root: HTMLDivElement;
-  private slotEls = new Map<SlotId, HTMLDivElement>();
+  private rows = new Map<string, HTMLDivElement>();
   private fields: Record<'name' | 'cls' | 'level' | 'last', HTMLSpanElement>;
   private btnEnter: HTMLButtonElement;
-  private btnDelete: HTMLButtonElement;
-  private btnCreate: HTMLButtonElement;
   private btnPvp?: HTMLButtonElement;
-  private rosterCount!: HTMLElement;
   private jobField!: HTMLSpanElement;
-  private xpBar!: HTMLDivElement;
-  private noneMsg!: HTMLDivElement;
-  private infoRows: HTMLElement[] = [];
   private stage!: HTMLDivElement;
-  private modal?: HTMLDivElement;
   private lastRect = '';
+  private pick: string;
   private readonly onKey = (e: KeyboardEvent) => this.handleKey(e);
 
   constructor(private host: HTMLElement, private canvas: HTMLCanvasElement, private h: CharacterSelectHandlers) {
     ensureCharacterUIStyles();
     ensureSelectKitStyles();
+    if (!document.getElementById(HERO_STYLE_ID)) { const st = document.createElement('style'); st.id = HERO_STYLE_ID; st.textContent = HERO_CSS; document.head.appendChild(st); }
     this.root = this.el('div', 'gol-cs gol-sel');
     host.appendChild(this.root);
 
     this.el('div', 'vign', this.root);
     const ro = this.el('div', 'abs roster', this.root); this.box(ro, K.roster.x, K.roster.y, K.roster.w, K.roster.h);
-    const rh = this.el('div', 'rh', ro); this.el('span', '', rh).textContent = 'Characters'; this.rosterCount = this.el('i', 'gl-badge', rh);
-    const pq = this.el('div', 'abs plq', this.root); this.box(pq, K.plaque.x, K.plaque.y, K.plaque.w, K.plaque.h);
+    const rh = this.el('div', 'rh', ro); this.el('span', '', rh).textContent = 'Heroes'; this.el('i', 'gl-badge', rh).textContent = String(HERO_ORDER.length);
     const t = this.el('div', 'abs title', this.root);
-    t.textContent = L.title.text;
+    t.textContent = 'CHOOSE YOUR HERO';
     Object.assign(t.style, { top: `${L.title.top}px`, fontSize: `${L.title.size}px` });
 
-    // Slots (one reusable frame image).
-    const S = L.slots;
-    CharacterStore.getSlots().forEach((slot, i) => {
-      const d = this.el('div', 'abs slot', this.root);
-      const C = K.card;
-      this.box(d, C.x + (i % 2) * (C.w + C.gx), C.y + Math.floor(i / 2) * (C.h + C.gy), C.w, C.h);
-      this.el('div', 'name', d); this.el('div', 'sub', d); this.el('div', 'portrait', d); this.el('div', 'chip', d); this.el('div', 'plus-hint', d).textContent = 'Create a new hero';
-      d.addEventListener('click', () => this.select(slot.slotId));
-      d.addEventListener('dblclick', () => { const c = CharacterStore.getSlot(slot.slotId).character; if (c) this.enterWorld(); else this.h.onCreate(); });
-      d.addEventListener('mouseenter', () => this.h.onHover?.(CharacterStore.getSlot(slot.slotId).character?.classId ?? null));
+    // The five heroes, one row each: the painted face, the name, the job.
+    HERO_ORDER.forEach((cls, i) => {
+      const d = this.el('div', 'hrow', this.root);
+      this.box(d, HL.x, HL.y + i * (HL.h + HL.gap), HL.w, HL.h);
+      const f = this.el('div', 'face', d), pt = heroPortrait(cls);
+      if (pt) { const k = HL.face / pt.crop.w; Object.assign(f.style, { backgroundImage: `url("${pt.url}")`, backgroundSize: `${pt.crop.imgW * k}px ${pt.crop.imgH * k}px`, backgroundPosition: `${-pt.crop.x * k}px ${-pt.crop.y * k}px` }); }
+      this.el('div', 'nm', d).textContent = className(cls).toUpperCase();
+      this.el('div', 'jb', d).textContent = `${topJob(cls)}  ·  Lv ${HERO_LV}`;
+      d.addEventListener('click', () => this.select(cls));
+      d.addEventListener('dblclick', () => { this.select(cls); this.enterWorld(); });
+      d.addEventListener('mouseenter', () => this.h.onHover?.(cls));
       d.addEventListener('mouseleave', () => this.h.onHover?.(null));
-      this.slotEls.set(slot.slotId, d);
+      this.rows.set(cls, d);
     });
 
     // Info panel.
     const info = this.el('div', 'abs panel info', this.root);
     this.box(info, K.info.x, K.info.y, K.info.w, K.info.h);
-    const h2 = this.el('h2', '', info); h2.textContent = 'Character';
+    const h2 = this.el('h2', '', info); h2.textContent = 'Hero';
     const mk = (i: number, label: string) => {
-      const f = this.el('div', 'row', info); f.style.top = `${[52, 88, 124, 178, 214][i]}px`;
+      const f = this.el('div', 'row', info); f.style.top = `${[52, 88, 124, 160, 196][i]}px`;
       this.el('b', '', f).textContent = label;
       return this.el('span', '', f) as HTMLSpanElement;
     };
     this.fields = { name: mk(0, 'Name'), cls: mk(1, 'Class'), level: mk(2, 'Level'), last: mk(4, 'Last played') };
     this.jobField = mk(3, 'Job');
-    info.querySelectorAll('.row')[2]?.classList.add('lv');
-    this.xpBar = this.el('div', 'xpb', info); this.xpBar.style.top = '162px'; this.el('i', '', this.xpBar);
-    this.noneMsg = this.el('div', 'none', info);
-    this.infoRows = [...info.querySelectorAll<HTMLElement>('.row')];
-    // name + job under the character on the stage
+    // name + job under the hero on the stage
     this.stage = this.el('div', 'stagename', this.root); this.box(this.stage, K.stageName.cx - K.stageName.w / 2, K.stageName.y, K.stageName.w, 70);
     this.el('div', 'n', this.stage); this.el('div', 'j', this.stage);
-    this.el('div', 'hint', this.root).textContent = 'Double-click a character to play  ·  Enter: enter the world  ·  Arrow keys: choose';
+    this.el('div', 'hint', this.root).textContent = 'Double-click a hero to play  ·  Enter: enter the world  ·  Arrow keys: choose';
 
     // Buttons.
     this.button('Back', { ...K.back, size: 15 }, () => this.h.onBack());
-    this.btnDelete = this.el('button', 'abs ktrash', this.root) as HTMLButtonElement;
-    this.box(this.btnDelete, K.del.x, K.del.y, K.del.w, K.del.h); this.btnDelete.title = 'Delete character';
-    this.btnDelete.setAttribute('aria-label', 'Delete character');
-    this.btnDelete.addEventListener('mousedown', (e) => e.preventDefault());
-    this.btnDelete.addEventListener('click', () => this.openDeleteConfirm());
     this.btnEnter = this.button('ENTER WORLD', { ...K.enter, size: 19 }, () => this.enterWorld(), true);
-    if (this.h.onPvp) this.btnPvp = this.button('PvP Arena', { ...K.pvp, size: 15 }, () => { if (CharacterStore.getSelectedCharacter()) this.h.onPvp?.(); });
-    this.btnCreate = this.button('CREATE CHARACTER', { ...K.create, size: 19 }, () => this.h.onCreate(), true);
-    if (this.h.onHero) this.button('START HERO', { ...K.hero, size: 15 }, () => this.openHeroes());
+    if (this.h.onPvp) this.btnPvp = this.button('PvP Arena', { ...K.pvp, size: 15 }, () => this.h.onPvp?.());
 
+    let saved: string | null = null;
+    try { saved = localStorage.getItem(PICK_KEY); } catch { saved = null; }
+    this.pick = (HERO_ORDER as readonly string[]).includes(saved ?? '') ? saved! : HERO_ORDER[0];
     window.addEventListener('keydown', this.onKey);
-    this.render();
+    this.select(this.pick);
     this.layout();
   }
 
@@ -295,8 +292,10 @@ export class CharacterSelectUI {
 
   // ---------- behavior ----------
 
-  private select(id: SlotId): void {
-    CharacterStore.select(id);
+  private select(cls: string): void {
+    this.pick = cls;
+    try { localStorage.setItem(PICK_KEY, cls); } catch { /* storage unavailable: this visit only */ }
+    this.h.onPick(cls);
     this.render();
   }
 
@@ -305,140 +304,32 @@ export class CharacterSelectUI {
   }
 
   private handleKey(e: KeyboardEvent): void {
-    if (this.modal) {
-      if (e.key === 'Escape') { e.preventDefault(); this.closeModal(); }
-      return;
-    }
-    const ids = CharacterStore.getSlots().map((s) => s.slotId);
-    const cur = CharacterStore.getSelectedId();
-    const idx = cur ? ids.indexOf(cur) : -1;
+    const i = HERO_ORDER.indexOf(this.pick as typeof HERO_ORDER[number]);
     switch (e.key) {
       case 'Escape': e.preventDefault(); this.h.onBack(); break;
-      case 'ArrowDown': e.preventDefault(); this.select(ids[Math.min(ids.length - 1, idx + 2)]); break;
-      case 'ArrowUp': e.preventDefault(); this.select(ids[Math.max(0, idx - 2)]); break;
-      case 'ArrowRight': e.preventDefault(); this.select(ids[Math.min(ids.length - 1, idx + 1)]); break;
-      case 'ArrowLeft': e.preventDefault(); this.select(ids[Math.max(0, idx - 1)]); break;
+      case 'ArrowDown': case 'ArrowRight': e.preventDefault(); this.select(HERO_ORDER[Math.min(HERO_ORDER.length - 1, i + 1)]); break;
+      case 'ArrowUp': case 'ArrowLeft': e.preventDefault(); this.select(HERO_ORDER[Math.max(0, i - 1)]); break;
       case 'Enter': e.preventDefault(); this.enterWorld(); break;
     }
-  }
-
-  private openDeleteConfirm(): void {
-    const id = CharacterStore.getSelectedId();
-    const ch = CharacterStore.getSelectedCharacter();
-    if (!id || !ch || this.modal) return;
-    const M = L.modal;
-    const m = this.el('div', 'abs overlay', this.root);
-    const p = this.el('div', 'abs panel modal kit', m);
-    this.box(p, (DESIGN.width - M.w) / 2, (DESIGN.height - M.h) / 2, M.w, M.h);
-    const q = this.el('div', 'q', p); q.textContent = `Delete ${ch.name}?`;
-    this.el('div', 'qs', p).textContent = 'This character and everything it carries will be gone for good.';
-    const bw = 200, bh = 50, by = M.h - 34 - bh;
-    const mkBtn = (label: string, cx: number, fn: () => void, cls = '') => {
-      const b = this.el('button', `kbtn abs ${cls}`, p) as HTMLButtonElement;
-      b.textContent = label;
-      this.box(b, cx - bw / 2, by, bw, bh);
-      b.addEventListener('mousedown', (e) => e.preventDefault());
-      b.addEventListener('click', fn);
-    };
-    mkBtn('Cancel', M.w / 2 - 110, () => this.closeModal());
-    mkBtn('Delete', M.w / 2 + 110, () => { CharacterStore.deleteCharacter(id); this.closeModal(); this.render(); }, 'primary danger');
-    this.modal = m;
-  }
-
-  /** START HERO: the five ready heroes side by side — each enters the world or the PvP arena at once. */
-  private openHeroes(): void {
-    if (this.modal) return;
-    const M = HERO_M, C = M.card;
-    const m = this.el('div', 'abs overlay', this.root); m.style.zIndex = '60'; // above the roster's slot icons
-    const p = this.el('div', 'abs panel modal kit heroes', m);
-    this.box(p, (DESIGN.width - M.w) / 2, (DESIGN.height - M.h) / 2, M.w, M.h);
-    this.el('div', 'ttl', p).textContent = 'START HERO';
-    this.el('div', 'sub', p).textContent = 'A ready hero with every skill of the class — play the world or the PvP arena.';
-    const x = this.el('button', 'kbtn x', p) as HTMLButtonElement; x.textContent = '×'; x.title = 'Close (Esc)';
-    x.addEventListener('click', () => this.closeModal());
-    const x0 = (M.w - (C.w * HERO_CLASSES.length + C.gap * (HERO_CLASSES.length - 1))) / 2;
-    HERO_CLASSES.forEach((cls, i) => {
-      const c = this.el('div', 'hc', p);
-      this.box(c, x0 + i * (C.w + C.gap), C.top, C.w, C.h);
-      const img = this.el<HTMLImageElement>('img', '', c); img.src = `assets/final/heroes/${cls}/card.png`; img.alt = className(cls);
-      this.el('div', 'nm', c).textContent = className(cls).toUpperCase();
-      const mk = (label: string, y: number, pvp: boolean, primary: boolean) => {
-        const b = this.el('button', `kbtn abs${primary ? ' primary' : ''}`, c) as HTMLButtonElement;
-        b.textContent = label; b.style.top = `${y}px`;
-        b.addEventListener('mousedown', (e) => e.preventDefault());
-        b.addEventListener('click', () => { this.closeModal(); this.h.onHero?.(cls, pvp); });
-      };
-      mk('PLAY', C.h - 102, false, true);
-      mk('PvP ARENA', C.h - 52, true, false);
-    });
-    this.modal = m;
-  }
-
-  private closeModal(): void {
-    this.modal?.remove();
-    this.modal = undefined;
   }
 
   // ---------- rendering ----------
 
   private render(): void {
-    const sel = CharacterStore.getSelectedId();
-    for (const slot of CharacterStore.getSlots()) {
-      const d = this.slotEls.get(slot.slotId)!;
-      const c = slot.character;
-      (d.children[0] as HTMLElement).textContent = c ? c.name : `Character slot ${slot.slotId}`;
-      (d.children[1] as HTMLElement).textContent = '';
-      (d.children[3] as HTMLElement).textContent = c ? `${className(c.classId)} · Lv ${c.level}` : '';
-      if (!c) (d.children[0] as HTMLElement).textContent = 'Empty slot';
-      d.classList.toggle('sel', slot.slotId === sel);
-      d.classList.toggle('empty', !c);
-      // Face/upper-body crop of the same full-body preview (display-only; empty slots stay blank).
-      const pv = c ? previewFor(c) : undefined;
-      const po = d.children[2] as HTMLElement;
-      if (c && HERO3D.on) { // the 3D heroes: the 3D Beginner's head and shoulders (its class's weapon), from its splash
-        const a = art3d(playedClass(c), c.gender === 'female'), w = a.face.s * 1.5, k = K.card.art.w / w;
-        Object.assign(po.style, { backgroundImage: `url("${a.url}")`, backgroundSize: `${a.w * k}px ${a.h * k}px`, backgroundPosition: `${-(a.face.x + a.face.s / 2 - w / 2) * k}px ${-(a.face.y - a.face.s * 0.22) * k}px` });
-      } else if (pv?.portrait) {
-        // Dedicated portrait file (face/shoulders), scaled to the frame.
-        Object.assign(po.style, { backgroundImage: `url("${pv.portrait}")`, backgroundSize: 'cover', backgroundPosition: 'center top' });
-      } else if (pv) {
-        const k = K.card.art.w / pv.crop.w;
-        Object.assign(po.style, {
-          backgroundImage: `url("${pv.file}")`,
-          backgroundSize: `${pv.width * k}px ${pv.height * k}px`,
-          backgroundPosition: `${-pv.crop.x * k}px ${-pv.crop.y * k}px`,
-        });
-      } else po.style.backgroundImage = '';
-    }
+    for (const [cls, d] of this.rows) d.classList.toggle('sel', cls === this.pick);
     const ch: Character | null = CharacterStore.getSelectedCharacter();
-    this.h.onPreview?.(ch ? previewFor(ch)?.key ?? null : null);
-    const job = ch ? (jobsFor(ch.level < 19 ? 'warrior' : ch.classId).filter((j) => ch.level >= j.level).pop()?.name ?? 'Beginner') : DASH;
+    this.h.onPreview?.(ch ? `hero.card.${this.pick}` : null);
+    const job = topJob(this.pick);
     this.fields.name.textContent = ch ? ch.name : DASH;
-    this.fields.cls.textContent = ch ? className(ch.classId) : DASH;
-    const need = ch ? expToNext(ch.level) : 0, pct = ch && Number.isFinite(need) ? Math.min(100, ((ch.exp ?? 0) / need) * 100) : 0;
-    this.fields.level.textContent = ch ? `${ch.level}  ·  ${pct.toFixed(1)}% EXP` : DASH;
+    this.fields.cls.textContent = className(this.pick);
+    this.fields.level.textContent = ch ? String(ch.level) : DASH;
     this.jobField.textContent = job;
-    this.fields.last.textContent = ch?.lastPlayedAt ? formatDate(ch.lastPlayedAt) : 'Never';
-    (this.xpBar.firstChild as HTMLElement).style.width = `${pct}%`;
-    for (const r of this.infoRows) r.style.display = ch ? 'flex' : 'none';
-    this.xpBar.style.display = ch ? 'block' : 'none';
-    this.noneMsg.style.display = ch ? 'none' : 'block';
-    this.noneMsg.textContent = sel && !CharacterStore.getSlot(sel).character ? 'This slot is empty.\nCreate a new hero to begin your legacy.' : 'Select a character.';
-    this.noneMsg.style.whiteSpace = 'pre-line';
-    const used = CharacterStore.getSlots().filter((x) => x.character).length;
-    this.rosterCount.textContent = `${used} / ${CharacterStore.getSlots().length}`;
-    const emptySel = !!sel && !CharacterStore.getSlot(sel).character;
-    (this.stage.children[0] as HTMLElement).textContent = ch ? ch.name : emptySel ? 'NEW HERO' : '';
-    (this.stage.children[1] as HTMLElement).textContent = ch ? `${className(ch.classId)}  ·  ${job}  ·  Lv ${ch.level}` : emptySel ? 'Press Create Character to begin' : '';
-    // Context buttons: a character → ENTER WORLD + PVP ARENA; an empty slot → CREATE CHARACTER in the same place.
-    const empty = !!sel && !CharacterStore.getSlot(sel).character;
-    this.btnEnter.style.display = empty ? 'none' : '';
-    if (this.btnPvp) this.btnPvp.style.display = empty ? 'none' : '';
-    this.btnCreate.style.display = empty ? '' : 'none';
+    const last = CharacterStore.heroLastPlayed(this.pick);
+    this.fields.last.textContent = last ? formatDate(last) : 'Never';
+    (this.stage.children[0] as HTMLElement).textContent = ch ? ch.name : '';
+    (this.stage.children[1] as HTMLElement).textContent = ch ? `${className(this.pick)}  ·  ${job}  ·  Lv ${ch.level}` : '';
     this.btnEnter.disabled = !ch;
     if (this.btnPvp) this.btnPvp.disabled = !ch;
-    this.btnCreate.disabled = !empty;
-    this.btnDelete.disabled = !ch;
   }
 
   private button(label: string, b: { x: number; y: number; w: number; h: number; size: number }, fn: () => void, primary = false) {
@@ -461,6 +352,11 @@ export class CharacterSelectUI {
     Object.assign(e.style, { left: `${x}px`, top: `${y}px`, width: `${w}px`, height: `${h}px` });
   }
 }
+
+/** A ready hero's level (every job and skill open). */
+export const HERO_LV = 100;
+/** The class's last job (a ready hero has them all). */
+const topJob = (cls: string): string => jobsFor(cls).filter((j) => HERO_LV >= j.level).pop()?.name ?? className(cls);
 
 function formatDate(iso: string): string {
   const d = new Date(iso);

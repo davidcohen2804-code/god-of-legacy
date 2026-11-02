@@ -168,7 +168,7 @@ export function addParallax(scene: Phaser.Scene, layers: { obj: { x: number; y: 
 // ======================================================================================== Character Select
 
 const PRESENCE: Record<string, {
-  color: number; halo: number; motes: { n: number; tint: number; box: [number, number, number, number]; speed: [number, number]; drift: number; size: [number, number] };
+  color: number; halo: number; /** another class's aura sheet, tinted (a class without its own) */ aura?: string; auraTint?: number; motes: { n: number; tint: number; box: [number, number, number, number]; speed: [number, number]; drift: number; size: [number, number] };
   blade?: [[number, number], [number, number]]; bladeTint?: number; glow?: { at: [number, number]; tint: number; r: number }; sparkle?: [number, number];
   bow?: [[number, number], [number, number], [number, number]]; ribbon?: boolean;
 }> = {
@@ -181,6 +181,9 @@ const PRESENCE: Record<string, {
     bow: [[0.9, 0.08], [0.82, 0.5], [0.76, 0.88]], ribbon: true },
   samurai: { color: 0xff4a5a, halo: 0xff5a5a, motes: { n: 6, tint: 0xff3a30, box: [0.15, 0.3, 0.85, 0.9], speed: [10, 20], drift: 6, size: [7, 13] },
     blade: [[0.4, 0.45], [0.97, 0.8]], bladeTint: 0xffe8e8 },
+  // the Gambler (his card's colours: magenta and gold; the book mage's aura sheet, tinted — he has none of his own)
+  gambler: { color: 0xff3ad6, halo: 0xff5ae0, aura: 'book_mage', auraTint: 0xff7ae6, motes: { n: 8, tint: 0xff5ae0, box: [0.15, 0.15, 0.85, 0.85], speed: [8, 18], drift: 10, size: [8, 16] },
+    sparkle: [0.9, 0.17] },
 };
 
 /** Per-class life around the Character Select preview (no whole-image translation). */
@@ -202,7 +205,7 @@ export class ClassPresence {
 
   constructor(private scene: Phaser.Scene, private hero: Phaser.GameObjects.Image, private halo: Phaser.GameObjects.Image, private feet: { x: number; y: number }) {
     if (!scene.anims.exists('life-aura-warrior')) for (const c of Object.keys(PRESENCE)) {
-      scene.anims.create({ key: `life-aura-${c}`, frames: scene.anims.generateFrameNumbers(`life-aura-${c}`, { start: 0, end: 7 }), frameRate: 8, repeat: -1 });
+      scene.anims.create({ key: `life-aura-${c}`, frames: scene.anims.generateFrameNumbers(`life-aura-${PRESENCE[c].aura ?? c}`, { start: 0, end: 7 }), frameRate: 8, repeat: -1 });
     }
     this.aura = scene.add.sprite(feet.x, feet.y, 'life-aura-warrior', 0).setOrigin(0.5, 0.667).setBlendMode(Phaser.BlendModes.ADD).setVisible(false);
     this.aura.setDepth(hero.depth - 0.5);
@@ -228,6 +231,7 @@ export class ClassPresence {
     this.heroScale = this.hero.scaleX;
     const P = PRESENCE[cls];
     this.aura.play(`life-aura-${cls}`);
+    if (P.auraTint !== undefined) this.aura.setTint(P.auraTint); else this.aura.clearTint();
     this.halo.setTint(P.halo);
     const a = this.at(P.motes.box[0], P.motes.box[1]), b = this.at(P.motes.box[2], P.motes.box[3]);
     this.moteLayer = addMotes(this.scene, { x: a.x, y: a.y, w: b.x - a.x, h: b.y - a.y }, P.motes.n,
