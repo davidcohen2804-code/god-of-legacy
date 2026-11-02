@@ -79,7 +79,10 @@ const SLOTS: SlotDef[] = [
   // the bare torso under the hips' piece (the belly carries on under a waistband), the trousers' waist over both, the
   // top over everything (an untucked hem)
   slot('torso.skin', 'chest', 'torso', 'body'), slot('pelvis.skin', 'hip', 'torso', 'body'),
-  slot('pelvis.cloth', 'hip', 'torso', 'bottom'), slot('torso.cloth', 'chest', 'torso', 'top'),
+  slot('pelvis.cloth', 'hip', 'torso', 'bottom'),
+  // the trousers' hidden underlap: over the belly, under the top (drawn only while a top is worn)
+  slot('pelvis.under', 'hip', 'torso', 'bottom'),
+  slot('torso.cloth', 'chest', 'torso', 'top'),
   // the far shoulder plate sits on the chest's far edge: over the chest, though its arm is behind it
   pauldron('F', 'torso'),
   slot('head.skin', 'head', 'head', 'body'), slot('head.hat', 'head', 'head', 'head'),

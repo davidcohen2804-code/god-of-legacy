@@ -72,6 +72,7 @@ export class Wardrobe {
       const it = pick[s];
       if (!it) continue;
       for (const p of it.parts) {
+        if (p.onlyWith && !pick[p.onlyWith]) continue;
         const i = this.slotIndex.get(p.slot);
         if (i === undefined) { notes.push(`${it.id}: no rig slot ${p.slot}`); continue; }
         if (!this.owns(it, this.rig.slots[i])) { notes.push(`${it.id}: ${p.slot} belongs to ${this.rig.slots[i].owner} — refused`); continue; }

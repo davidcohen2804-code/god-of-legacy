@@ -17,14 +17,19 @@ export const PIECE_SLOT: Partial<Record<WardrobeSlot, Record<string, string>>> =
     torso: 'torso.cloth', arm_B: 'arm_B.sleeve', arm_F: 'arm_F.sleeve', uparm_B: 'arm_B.plateU', forearm_B: 'arm_B.plateL', uparm_F: 'arm_F.plateU', forearm_F: 'arm_F.plateL',
     pauldron_B: 'arm_B.pauldron', pauldron_F: 'arm_F.pauldron',
   },
-  bottom: { pelvis: 'pelvis.cloth', leg_B: 'leg_B.cloth', leg_F: 'leg_F.cloth' },
+  bottom: { pelvis: 'pelvis.cloth', pelvis_under: 'pelvis.under', leg_B: 'leg_B.cloth', leg_F: 'leg_F.cloth' },
   shoes: { foot_B: 'foot_B.shoe', foot_F: 'foot_F.shoe', leg_B: 'leg_B.shaft', leg_F: 'leg_F.shaft' },
   head: { head: 'head.hat' },
 };
 /** What a slot's item covers of the body under it (it is drawn over it anyway; this only keeps a bare edge from showing). */
 const HIDES: Partial<Record<WardrobeSlot, string[]>> = { shoes: ['foot_B.skin', 'foot_F.skin'] };
+/** The body's bare pieces an item may hide, by the parts the exporter measured it covering (its `covers`). */
+const COVER_HIDES: Partial<Record<WardrobeSlot, Record<string, string>>> = {
+  bottom: { pelvis: 'pelvis.skin', leg_B: 'leg_B.skin', leg_F: 'leg_F.skin' },
+  shoes: { foot_B: 'foot_B.skin', foot_F: 'foot_F.skin' },
+};
 
-export interface ItemData { id: string; slot: WardrobeSlot | 'hat'; name: string; parts: { part: string; frame: string }[]; grip?: number[] }
+export interface ItemData { id: string; slot: WardrobeSlot | 'hat'; name: string; parts: { part: string; frame: string }[]; grip?: number[]; covers?: string[] }
 export const B01_ITEMS = data.items as ItemData[];
 const has = new Set(B01_FRAMES.map((f) => f.name));
 
@@ -39,7 +44,8 @@ export function buildCatalogB01(): Catalog {
       continue;
     }
     const map = PIECE_SLOT[wslot] ?? {};
-    const parts: ItemPart[] = it.parts.filter((p) => map[p.part]).map((p) => ({ slot: map[p.part], frame: p.frame }));
+    // the waistband's underlap is drawn only under a top (with no top the bare belly shows)
+    const parts: ItemPart[] = it.parts.filter((p) => map[p.part]).map((p) => ({ slot: map[p.part], frame: p.frame, ...(p.part === 'pelvis_under' ? { onlyWith: 'top' as WardrobeSlot } : {}) }));
     if (wslot === 'body') {
       for (const s of ['B', 'F']) {
         const v: Record<string, string> = { open: `base/hand_${s}` };
@@ -47,7 +53,7 @@ export function buildCatalogB01(): Catalog {
         parts.push({ slot: `hand_${s}.skin`, variants: v });
       }
     }
-    const hides = HIDES[wslot] ?? [];
+    const hides = [...new Set([...(HIDES[wslot] ?? []), ...(it.covers ?? []).map((p) => COVER_HIDES[wslot]?.[p]).filter((h): h is string => !!h)])];
     const made = put({ id: it.id, wslot, name: it.name, set: wslot === 'body' ? 'base' : 'A', parts, ...(hides.length ? { hides } : {}) });
     if (wslot === 'body') body = made;
   }

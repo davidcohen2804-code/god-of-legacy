@@ -143,6 +143,8 @@ GEO = {
     'uparm_B': rel('shoulder_B', 'waist'), 'uparm_F': rel('shoulder_F', 'waist'),
     'thigh_B': rel('hip_B', 'pelvis'), 'thigh_F': rel('hip_F', 'pelvis'),
 }
+# the waistband's hidden underlap under a top (the art director's starting value: 8 to 12 master px)
+UNDERLAP = 10
 PIVOT = {'head': 'head', 'torso': 'waist', 'pelvis': 'pelvis', 'hand_B': 'wrist_B', 'hand_F': 'wrist_F', 'foot_B': 'ankle_B', 'foot_F': 'ankle_F'}
 LIMBS = T['limbs']
 
@@ -251,21 +253,24 @@ def cut_body(prefix, alpha, fg, L, base=True, item_slot=None, rigid=False):
         neck = (YY > J['head'][1] - 0.035 * BPX) & (YY < J['neck'][1] + 4) & (np.abs(XX - J['neck'][0]) < 0.034 * BPX)
         belly_x = np.where(L['torso'][int(J['waist'][1])])[0]
         belly = (YY >= J['waist'][1]) & (YY < J['pelvis'][1] + 0.01 * BPX) & (XX > belly_x.min() + 6) & (XX < belly_x.max() - 6)
-        known = L['torso'] & (alpha > 0.9) & (fg.max(2) > 140)
+        known = L['torso'] & (alpha > 0.9) & (fg.max(2) > 140 / 255.0)   # skin, not its outline (fg is 0..1)
         tl_ = fill_under(tl_, (neck & ~L['torso']) | (belly & ~L['torso']), known)
     if L['torso'].any() and put_rigid(f'{prefix}/torso', tl_, J['waist']): made.append(('torso', f'{prefix}/torso'))
     pl = lay(L['pelvis'])
     if not base and L['pelvis'].any() and item_slot == 'bottom':
-        # the trousers' waist carries on a little up under the top (hidden art): a top's hem riding the chest never
-        # opens a gap onto the belly when the hips and the chest turn apart
+        # the hidden underlap (its own piece, drawn only under a worn top): the trousers' waist carried on up under the
+        # top by UNDERLAP px in the waistband's own fabric colour, so a top's hem riding the chest never opens a gap onto
+        # the belly when the hips and the chest turn apart (with no top it is not drawn: the bare belly shows)
         rows = np.where(L['pelvis'].any(1))[0]; ty = rows.min()
         cols = np.where(L['pelvis'][ty + 6])[0]
         band = L['pelvis'] & (YY < ty + 0.02 * BPX) & (alpha > 0.9)
         px_ = fg[band]
         if len(px_):
-            col = np.median(px_, axis=0)
-            up = (YY >= ty - 0.03 * BPX) & (YY < ty + 3) & (XX > cols.min() + 3) & (XX < cols.max() - 3) & ~L['pelvis']
-            pl[up, :3] = col; pl[up, 3] = 1.0
+            lum_ = px_ @ np.array([0.299, 0.587, 0.114])
+            col = np.median(px_[lum_ >= np.percentile(lum_, 40)], axis=0)   # the fabric, not its outline
+            up = (YY >= ty - UNDERLAP) & (YY < ty + 2) & (XX > cols.min() + 3) & (XX < cols.max() - 3)
+            under = np.zeros(SH + (4,), np.float32); under[up, :3] = col; under[up, 3] = 1.0
+            if put_rigid(f'{prefix}/pelvis_under', under, J['pelvis']): made.append(('pelvis_under', f'{prefix}/pelvis_under'))
     if L['pelvis'].any() and put_rigid(f'{prefix}/pelvis', pl, J['pelvis']): made.append(('pelvis', f'{prefix}/pelvis'))
     for s in 'BF':
         if rigid and (L[f'arm_{s}'].any() or P[s].any()):
@@ -501,8 +506,13 @@ for it in items_spec:
     for p in allowed:
         Li[remap.get(p, p)] = Li[remap.get(p, p)] | (item & field[p])
     made = cut_body(it['id'], wgt, fg_i / 255.0, Li, base=False, item_slot=it['slot'], rigid=it.get('rigid', False))
-    ITEMS.append({'id': it['id'], 'slot': it['slot'], 'name': it['name'], 'parts': [{'part': p, 'frame': f} for p, f in made]})
-    REPORT[-1].update({'skin_halo_px': int(halo.sum()), 'light_outline': bool(Lm > it.get('light_from', 0.72 * 255)) and it['slot'] in ('top', 'bottom') and not it.get('rigid')})
+    # coverage (the item's coverage metadata): how much of each of the body's parts the item covers in the master's
+    # pose; a part it covers almost whole is hidden under it (its bare piece would only peek out at the edges, like the
+    # shorts' waistband above a pair of trousers)
+    cov = {p: float((item & L0[p] & M0).sum() / max(1, (L0[p] & M0).sum())) for p in PARTS}
+    covers = [p for p, c in cov.items() if c >= it.get('cover_from', 0.85)]
+    ITEMS.append({'id': it['id'], 'slot': it['slot'], 'name': it['name'], 'parts': [{'part': p, 'frame': f} for p, f in made], 'covers': covers})
+    REPORT[-1].update({'coverage': {p: round(c, 3) for p, c in cov.items() if c > 0.3}, 'skin_halo_px': int(halo.sum()), 'light_outline': bool(Lm > it.get('light_from', 0.72 * 255)) and it['slot'] in ('top', 'bottom') and not it.get('rigid')})
     Image.fromarray(np.dstack([fg_i, wgt * 255]).clip(0, 255).astype(np.uint8), 'RGBA').save(os.path.join(OUT, f"item_{it['id']}.png"))
 
 # ------------------------------------------------------------------ write

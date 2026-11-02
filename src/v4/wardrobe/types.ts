@@ -8,7 +8,11 @@ export type Family = 'sword' | 'katana' | 'bow' | 'book' | 'cane';
 export type BodyStd = 'male_std';
 
 /** One image (or one image per corrective variant) placed in a rig slot. Frame names refer to the atlas. */
-export interface ItemPart { slot: string; frame?: string; variants?: Record<string, string> }
+export interface ItemPart {
+  slot: string; frame?: string; variants?: Record<string, string>;
+  /** Drawn only while this wardrobe slot is worn too (a garment's hidden underlap under the garment that covers it). */
+  onlyWith?: WardrobeSlot;
+}
 
 export interface Item {
   id: string;

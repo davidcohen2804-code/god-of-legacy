@@ -233,18 +233,9 @@
    "py": 0.49042
   },
   {
-   "name": "bottom01_pants/pelvis",
-   "x": 1,
-   "y": 340,
-   "w": 105,
-   "h": 70,
-   "px": 0.49229,
-   "py": 0.63786
-  },
-  {
    "name": "top02_armor/pauldron_F",
-   "x": 108,
-   "y": 340,
+   "x": 941,
+   "y": 200,
    "w": 43,
    "h": 68,
    "px": 0.03837,
@@ -252,7 +243,7 @@
   },
   {
    "name": "top02_armor/forearm_B",
-   "x": 153,
+   "x": 1,
    "y": 340,
    "w": 55,
    "h": 64,
@@ -261,7 +252,7 @@
   },
   {
    "name": "top02_armor/forearm_F",
-   "x": 210,
+   "x": 58,
    "y": 340,
    "w": 62,
    "h": 62,
@@ -270,7 +261,7 @@
   },
   {
    "name": "base/hand_F_grip",
-   "x": 274,
+   "x": 122,
    "y": 340,
    "w": 55,
    "h": 59,
@@ -279,7 +270,7 @@
   },
   {
    "name": "base/pelvis",
-   "x": 331,
+   "x": 179,
    "y": 340,
    "w": 108,
    "h": 58,
@@ -288,7 +279,7 @@
   },
   {
    "name": "base/hand_B_grip",
-   "x": 441,
+   "x": 289,
    "y": 340,
    "w": 61,
    "h": 58,
@@ -296,8 +287,17 @@
    "py": 0.14914
   },
   {
+   "name": "bottom01_pants/pelvis",
+   "x": 352,
+   "y": 340,
+   "w": 105,
+   "h": 56,
+   "px": 0.49229,
+   "py": 0.54732
+  },
+  {
    "name": "base/foot_B",
-   "x": 504,
+   "x": 459,
    "y": 340,
    "w": 97,
    "h": 50,
@@ -306,7 +306,7 @@
   },
   {
    "name": "shoes01_boots/foot_B",
-   "x": 603,
+   "x": 558,
    "y": 340,
    "w": 78,
    "h": 49,
@@ -315,7 +315,7 @@
   },
   {
    "name": "base/foot_F",
-   "x": 683,
+   "x": 638,
    "y": 340,
    "w": 88,
    "h": 45,
@@ -324,12 +324,21 @@
   },
   {
    "name": "shoes01_boots/foot_F",
-   "x": 773,
+   "x": 728,
    "y": 340,
    "w": 84,
    "h": 45,
    "px": 0.29952,
    "py": 0.15533
+  },
+  {
+   "name": "bottom01_pants/pelvis_under",
+   "x": 814,
+   "y": 340,
+   "w": 77,
+   "h": 11,
+   "px": 0.47649,
+   "py": 3.24091
   }
  ],
  "rig": {
@@ -493,6 +502,10 @@
      "part": "arm_F",
      "frame": "top01_tunic/arm_F"
     }
+   ],
+   "covers": [
+    "torso",
+    "pelvis"
    ]
   },
   {
@@ -528,6 +541,9 @@
      "part": "forearm_F",
      "frame": "top02_armor/forearm_F"
     }
+   ],
+   "covers": [
+    "torso"
    ]
   },
   {
@@ -535,6 +551,10 @@
    "slot": "bottom",
    "name": "Wanderer Pants",
    "parts": [
+    {
+     "part": "pelvis_under",
+     "frame": "bottom01_pants/pelvis_under"
+    },
     {
      "part": "pelvis",
      "frame": "bottom01_pants/pelvis"
@@ -547,6 +567,11 @@
      "part": "leg_F",
      "frame": "bottom01_pants/leg_F"
     }
+   ],
+   "covers": [
+    "pelvis",
+    "leg_B",
+    "leg_F"
    ]
   },
   {
@@ -570,6 +595,10 @@
      "part": "foot_F",
      "frame": "shoes01_boots/foot_F"
     }
+   ],
+   "covers": [
+    "foot_B",
+    "foot_F"
    ]
   },
   {
@@ -591,6 +620,12 @@
    "median_colour_err_outside": 8.7,
    "silhouette_mismatch_outside": 0.0083,
    "accepted": true,
+   "coverage": {
+    "torso": 0.915,
+    "pelvis": 0.973,
+    "arm_B": 0.354,
+    "arm_F": 0.326
+   },
    "skin_halo_px": 178,
    "light_outline": true
   },
@@ -600,6 +635,12 @@
    "median_colour_err_outside": 6.3,
    "silhouette_mismatch_outside": 0.0059,
    "accepted": true,
+   "coverage": {
+    "torso": 0.973,
+    "pelvis": 0.511,
+    "arm_B": 0.804,
+    "arm_F": 0.75
+   },
    "skin_halo_px": 333,
    "light_outline": false
   },
@@ -609,6 +650,11 @@
    "median_colour_err_outside": 10.0,
    "silhouette_mismatch_outside": 0.0082,
    "accepted": true,
+   "coverage": {
+    "pelvis": 0.884,
+    "leg_B": 0.983,
+    "leg_F": 0.989
+   },
    "skin_halo_px": 519,
    "light_outline": false
   },
@@ -618,6 +664,10 @@
    "median_colour_err_outside": 10.3,
    "silhouette_mismatch_outside": 0.0076,
    "accepted": true,
+   "coverage": {
+    "foot_B": 0.911,
+    "foot_F": 0.885
+   },
    "skin_halo_px": 71,
    "light_outline": false
   },
