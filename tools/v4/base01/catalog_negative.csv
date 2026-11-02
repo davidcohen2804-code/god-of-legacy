@@ -11,3 +11,5 @@ neg08_drawn_smaller,top,cloth,base01,Vest drawn 85% smaller,items/negative/neg08
 # Gate 5 invalid sources made by make_invalid.py (controlled changes of valid pictures; the art director's X list)
 x01_proportions,hat,cloth,base01,X01 Subtly Incorrect Proportions,items/gate5/invalid/x01_proportions.png
 x02_pose,bottom,cloth,base01,X02 Incorrect Reference Pose,items/gate5/invalid/x02_pose.png
+x03_mirrored,top,cloth,base01,X03 Mirrored Source,items/gate5/invalid/x03_mirrored.png
+x04_background,top,cloth,base01,X04 Invalid Background,items/gate5/invalid/x04_background.png

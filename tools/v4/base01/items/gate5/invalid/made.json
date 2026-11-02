@@ -16,5 +16,13 @@
    528.0
   ],
   "wrist_moved_px": 21.1
+ },
+ "x03_mirrored": {
+  "from": "items/gate5/b01_02_linen_shirt_v1.png",
+  "flip": "left-right"
+ },
+ "x04_background": {
+  "from": "items/gate5/b01_03_crimson_shirt_v1.png",
+  "background": "vertical gradient (196, 222, 240) to (232, 206, 160)"
  }
 }

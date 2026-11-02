@@ -48,8 +48,9 @@ so every item bends with the body under it.
 - Rigid tops: each shoulder plate (the plates its outlines enclose that reach the shoulder and lie a quarter or more on
   the upper arm) is one piece on its own slot, turning 0.55 of the arm; under it the chest plate carries on (a harness
   leaves the body bare); the rest of an arm's plates are cut at the elbow, and only solid plates are kept there (a
-  piece of 400 px or more once thin strokes are opened away, with its outline): loose strokes or specks left over by
-  a shoulder plate are not drawn on the arm.
+  piece of 400 px or more once thin strokes are opened away, with its outline) that covers a quarter or more of the
+  bare arm where it lies (a bracer, an arm plate); a narrower piece is the shoulder plate's edge: joined to the
+  shoulder plate it rides with it, loose it is a stray stroke and is not drawn.
 - Coverage: the parts of the body an item covers 85% or more hide the bare piece under them (`covers`). Trousers have a
   hidden 10 px underlap, drawn only under a top.
 - Light garments (tops and trousers with a median L* above 72) get a crisp warm dark outline (7 master px) and slightly
@@ -58,10 +59,16 @@ so every item bends with the body under it.
   The profile picks the body's motion kit (idle, run, jump and attack made for that kind of weapon); a new weapon of
   a known kit needs no animation work. A staff is held with both hands: the far fist closes on the shaft 0.167 of the
   body height above the near one, solved onto it in every frame (`hold` in the animation), drawn over the shaft.
+- Determinism: an item's cut depends on its own picture only (the colour models start from a fixed seed), so adding,
+  removing or rejecting a source changes no other item; a subset built in another order is byte-identical.
 - Regression (the lab's tests R1 to R13) over every mix of the catalog and every animation. The art director's ten
   stress items (`items/stress/`) are permanent fixtures: every exporter change must still accept them.
-- Rejections, each with its reason in plain words: a row with an unknown slot or profile, or a profile that does not
-  fit its slot; a picture that cannot be lined up with the master; a figure whose shape outside the item is not the
+- Rejections, each with its reason in plain words and its check (`check` in the report: catalog row, background,
+  orientation, alignment, pose, proportions, body colour, figure, no item, face, weapon orientation): a row with an
+  unknown slot or profile, or a profile that does not fit its slot; a picture whose background is not the flat
+  magenta (its border, 12 px all round: white, another flat colour, a gradient or a scene); a mirrored picture (the
+  character faces the other way: flipped back it lines up clearly better); a picture that cannot be lined up with the
+  master; a figure whose shape outside the item is not the
   master's; no item in the picture; a weapon not drawn level; headwear whose face is not the master's (where the face
   shows, its drawn lines must match the master's at 0.7 or more and be at least 0.8 as strong: a blurred face fails);
   a body whose proportions or pose differ from the master's.

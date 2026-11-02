@@ -8,6 +8,10 @@ X01 subtle proportions: the hat item (stress/i07) with the body below the neck r
     hips) 4% shorter, the legs (hips to ankles) as much longer; the head, the hat and the feet stay where they were.
 X02 wrong reference pose: the fitted trousers item (gate5/b01_07) with the far arm turned 6 deg outward about its
     shoulder joint (the hand moves about 21 px); everything else as drawn.
+X03 mirrored source: the white linen shirt item (gate5/b01_02) flipped left to right (the character faces the other
+    way).
+X04 invalid background: the crimson shirt item (gate5/b01_03) with the flat magenta behind the figure replaced by a
+    vertical gradient (pale sky blue at the top to warm sand at the bottom); the figure untouched.
 """
 import json, os
 import numpy as np
@@ -83,6 +87,24 @@ def x02_pose(img, turn=6.0):
     return out, {'turn_deg': turn, 'about': sh.tolist(), 'wrist_moved_px': round(float(np.hypot(*(wrist - J['wrist_F']))), 1)}
 
 
+def x03_mirrored(img):
+    """The whole picture flipped left to right."""
+    return np.ascontiguousarray(img[:, ::-1]), {'flip': 'left-right'}
+
+
+def x04_background(img, top=(196, 222, 240), bottom=(232, 206, 160)):
+    """The magenta behind the figure replaced by a vertical gradient, the figure's soft edge kept (keyed alpha)."""
+    import sys
+    sys.path.insert(0, HERE)
+    from keying import key
+    alpha, fg = key(Image.fromarray(img))
+    t = (YY[:, :1] / (H - 1))[..., None]
+    grad = (np.array(top, np.float32) * (1 - t) + np.array(bottom, np.float32) * t) * np.ones((1, W, 1), np.float32)
+    a = alpha[..., None].astype(np.float32)
+    out = fg.astype(np.float32) * a + grad * (1 - a)
+    return np.clip(out + 0.5, 0, 255).astype(np.uint8), {'background': f'vertical gradient {top} to {bottom}'}
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     made = {}
@@ -90,7 +112,11 @@ def main():
     Image.fromarray(x01).save(os.path.join(OUT, 'x01_proportions.png')); made['x01_proportions'] = {'from': 'items/stress/i07_hat_v1.png', **info}
     x02, info = x02_pose(rgb('items/gate5/b01_07_leather_trousers_v1.png'))
     Image.fromarray(x02).save(os.path.join(OUT, 'x02_pose.png')); made['x02_pose'] = {'from': 'items/gate5/b01_07_leather_trousers_v1.png', **info}
-    json.dump(made, open(os.path.join(OUT, 'made.json'), 'w'), indent=1)
+    x03, info = x03_mirrored(rgb('items/gate5/b01_02_linen_shirt_v1.png'))
+    Image.fromarray(x03).save(os.path.join(OUT, 'x03_mirrored.png')); made['x03_mirrored'] = {'from': 'items/gate5/b01_02_linen_shirt_v1.png', **info}
+    x04, info = x04_background(rgb('items/gate5/b01_03_crimson_shirt_v1.png'))
+    Image.fromarray(x04).save(os.path.join(OUT, 'x04_background.png')); made['x04_background'] = {'from': 'items/gate5/b01_03_crimson_shirt_v1.png', **info}
+    json.dump(made, open(os.path.join(OUT, 'made.json'), 'w'), indent=1, default=float)
     for k, v in made.items(): print(k, v)
 
 

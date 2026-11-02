@@ -251,6 +251,10 @@ def pauldrons(alpha, fg, L):
     return out
 
 
+ARM_PLATE_WRAP = 0.25   # a rigid plate on the arm covers at least this share of the bare arm where it lies
+PLATE_WRAP = {}
+
+
 def solid_plate(m, alpha, min_px=400):
     """The solid plates of a rigid item's arm pixels `m`: each piece that keeps 400 px or more once opened by a 7 px
     disk, grown back by 3 px within `m` (its outline); thin strokes and specks on their own are dropped."""
@@ -331,11 +335,23 @@ def cut_body(prefix, alpha, fg, L, base=True, item_slot=None, rigid=False):
             # to the bend's bisector), a little overlap each way: the upper one turns about the shoulder, the lower one
             # about the elbow
             side = elbow_side(s)
-            if P[s].any() and put_rigid(f'{prefix}/pauldron_{s}', lay(P[s]), J[f'shoulder_{s}']): made.append((f'pauldron_{s}', f'{prefix}/pauldron_{s}'))
             up_, lo_ = L[f'arm_{s}'] & ~P[s] & (side < 4), L[f'arm_{s}'] & ~P[s] & (side > -4)
             # an arm plate is a plate: its solid pieces (400 px or more once thin strokes are opened away), with their
             # outlines; a few edge pixels or loose strokes left over by the shoulder plate are not drawn on the arm
             up_, lo_ = solid_plate(up_, alpha), solid_plate(lo_, alpha)
+            # and it is on the arm: it covers a quarter or more of the bare arm where it lies (a bracer, an arm plate).
+            # A narrow piece is the shoulder plate's edge: joined to the shoulder plate it rides with it; loose, it is
+            # a stray stroke and is not drawn
+            sp = P[s].copy()
+            for part_, m_ in (('upper', up_), ('lower', lo_)):
+                if not m_.any(): continue
+                bare = L0[f'arm_{s}'] & ((side < 4) if part_ == 'upper' else (side > -4))
+                wrap = float((m_ & bare).sum()) / max(1, bare.sum())
+                PLATE_WRAP.setdefault(prefix, {})[f'{part_}_{s}'] = round(wrap, 2)
+                if wrap < ARM_PLATE_WRAP:
+                    if (m_ & ndimage.binary_dilation(sp, iterations=3)).any(): sp |= m_
+                    m_[:] = False
+            if sp.any() and put_rigid(f'{prefix}/pauldron_{s}', lay(sp), J[f'shoulder_{s}']): made.append((f'pauldron_{s}', f'{prefix}/pauldron_{s}'))
             if up_.any() and put_rigid(f'{prefix}/uparm_{s}', lay(up_), J[f'shoulder_{s}']): made.append((f'uparm_{s}', f'{prefix}/uparm_{s}'))
             if lo_.any() and put_rigid(f'{prefix}/forearm_{s}', lay(lo_), J[f'elbow_{s}']): made.append((f'forearm_{s}', f'{prefix}/forearm_{s}'))
         elif L[f'arm_{s}'].any() and put_strip(f'{prefix}/arm_{s}', f'arm_{s}', limb_layer(f'arm_{s}', L[f'arm_{s}'], {'top': L['torso'], 'end': L[f'hand_{s}']}, alpha, fg), None if base else limb_reach(f'arm_{s}', L[f'arm_{s}'] & (alpha > 0.5))):
@@ -539,7 +555,7 @@ def load_catalog():
         elif r.get('profile') not in ('cloth', 'rigid') + WEAPON_KITS: bad = f"unknown profile '{r.get('profile')}' (cloth, rigid; a weapon: {', '.join(WEAPON_KITS)})"
         elif (r['profile'] in WEAPON_KITS) != (r['slot'] == 'weapon'): bad = f"profile '{r['profile']}' does not fit slot '{r['slot']}' (a weapon row has its motion kit as profile: {', '.join(WEAPON_KITS)})"
         if bad:
-            REPORT.append({'id': r.get('id', '?'), 'accepted': False, 'reason': bad}); print('REJECTED', r.get('id'), bad); continue
+            REPORT.append({'id': r.get('id', '?'), 'accepted': False, 'check': 'catalog row', 'reason': bad}); print('REJECTED', r.get('id'), bad); continue
         pic = r['picture'] if os.path.isabs(r['picture']) else os.path.join(HERE, r['picture'])
         it = {'id': r['id'], 'slot': r['slot'], 'name': r['name'], 'picture': pic, 'profile': r['profile']}
         if r['profile'] == 'rigid': it['rigid'] = True
@@ -575,6 +591,36 @@ BODY_FIELDS = [_field(SKIN0), _field(L0['head'] & (alpha0 > 0.95) & ~FACE0 & (LA
                _field(L0['pelvis'] & (alpha0 > 0.95) & ~SKIN0 & (LAB0[..., 0] > 50))]
 
 
+def background_problem(img):
+    """A source stands on the flat magenta background (the keying depends on it): the picture's border, 12 px all
+    round, must be magenta. Otherwise the reason says what is there instead (white, another flat colour, a gradient,
+    a scene)."""
+    b = np.zeros(img.shape[:2], bool); b[:12] = b[-12:] = True; b[:, :12] = b[:, -12:] = True
+    px = img[b].astype(np.float32)
+    mag = float((np.abs(px - np.array([255, 0, 255], np.float32)).max(1) < 60).mean())
+    if mag >= 0.95: return None
+    mean = px.mean(0); spread = float(np.abs(px - mean).max(1).mean())
+    if spread < 12:
+        kind = 'white' if mean.min() > 225 else f'a flat colour (RGB {int(mean[0])}, {int(mean[1])}, {int(mean[2])})'
+    else:
+        # along the left and top edges: a gradient changes smoothly (small steps, a large range), a scene does not
+        col = img[:, :12].astype(np.float32).mean(1); row = img[:12].astype(np.float32).mean(0)
+        steps = float(np.mean([np.abs(np.diff(col, axis=0)).max(1).mean(), np.abs(np.diff(row, axis=0)).max(1).mean()]))
+        kind = 'a gradient' if steps < 3 else 'a scene or a texture'
+    return f'the background is {kind}, not the flat magenta ({mag * 100:.0f}% of the border is magenta): ask for the item again on the flat magenta background of the attached master'
+
+
+def mirrored(img, cc, exclude):
+    """(is the picture mirrored, the fit of the flipped picture): a mirrored source (the character facing the other way)
+    lines up with the master clearly better once flipped back."""
+    try:
+        alpha_f, _ = key(Image.fromarray(np.ascontiguousarray(img[:, ::-1])))
+        ccf, _ = align(alpha_f, exclude)
+    except cv2.error:
+        return False, None
+    return bool(ccf > (cc if cc is not None else 0.0) + 0.02), round(float(ccf), 4)
+
+
 def item_reach(al, alpha_a, zone):
     """The item reaching past the body beyond its zone (big shoulder plates, wide sleeves, a long hem): opaque pixels
     off the master's figure, in pieces joined to the item's zone and mostly coloured unlike the body there (skin, hair
@@ -596,8 +642,11 @@ SOURCES = {}
 for it in items_spec:
     path = os.path.join(HERE, it['picture'])
     if not os.path.exists(path):
-        REPORT.append({'id': it['id'], 'accepted': False, 'reason': f"no picture at {it['picture']}"}); continue
+        REPORT.append({'id': it['id'], 'accepted': False, 'check': 'source missing', 'reason': f"no picture at {it['picture']}"}); continue
     SOURCES[it['id']] = sha1(path)
+    bg = background_problem(np.asarray(Image.open(path).convert('RGB')))
+    if bg:
+        REPORT.append({'id': it['id'], 'accepted': False, 'check': 'background', 'reason': bg}); print('REJECTED', it['id'], REPORT[-1]); continue
     if it['slot'] == 'weapon':
         # a weapon is drawn on its own, lying flat, blade to the right: keyed, scaled so its grip fits the fist (the
         # grip's drawn thickness → the fist's handle size), its pivot at the middle of the grip. The grip is found
@@ -606,7 +655,7 @@ for it in items_spec:
         auto, thick, kind, axis = find_grip(aw)
         grip = it.get('grip', auto); thick = it.get('grip_thickness', thick)
         if abs(axis[1]) > 0.12:
-            REPORT.append({'id': it['id'], 'accepted': False, 'reason': f'the weapon is not drawn level (its axis turns {math.degrees(math.atan2(axis[1], axis[0])):.1f} deg): redraw it flat, blade to the right'}); continue
+            REPORT.append({'id': it['id'], 'accepted': False, 'check': 'weapon orientation', 'reason': f'the weapon is not drawn level (its axis turns {math.degrees(math.atan2(axis[1], axis[0])):.1f} deg): redraw it flat, blade to the right'}); continue
         own = component(aw > 0.5, grip)
         lay = tl.premul(aw, fw / 255.0, (ndimage.binary_dilation(own, iterations=2) & (aw > 0.02)).astype(np.float32))
         kw = it.get('handle', 30.0) / thick
@@ -631,7 +680,11 @@ for it in items_spec:
         # reaches: shoulder plates, a wide hat, heavy boots), so the item's own outline never pulls the fit
         cc, warp = align(alpha_i, np.any([L0[p] for p in allowed], axis=0) | region)
     except cv2.error:
-        REPORT.append({'id': it['id'], 'accepted': False, 'reason': 'the picture cannot be lined up with the master: it must be an edit of the master (same stance, size and place) on a flat magenta background'})
+        flip, ccf = mirrored(img, None, np.any([L0[p] for p in allowed], axis=0) | region)
+        if flip:
+            REPORT.append({'id': it['id'], 'accepted': False, 'check': 'orientation', 'ecc_mirrored': ccf, 'reason': 'the picture is mirrored: the character faces the other way (it lines up with the master only when flipped back): ask for the item again as an edit of the attached master, not flipped'})
+        else:
+            REPORT.append({'id': it['id'], 'accepted': False, 'check': 'alignment', 'reason': 'the picture cannot be lined up with the master: it must be an edit of the master (same stance, size and place) on a flat magenta background'})
         print('REJECTED', it['id'], REPORT[-1]); continue
     al = cv2.warpAffine(img, warp, (SH[1], SH[0]), flags=cv2.INTER_LINEAR | cv2.WARP_INVERSE_MAP, borderValue=(255, 0, 255))
     if os.environ.get('B01_SAVE_ALIGNED'):   # for review: the picture lined up on the master, before the limb fits
@@ -655,6 +708,12 @@ for it in items_spec:
     REPORT.append({'id': it['id'], 'ecc': round(float(cc), 4), 'median_colour_err_outside': round(err, 1), 'silhouette_mismatch_outside': round(sil, 4), 'accepted': ok,
                    'reach_px': int((reach & ~zone_).sum()), **meas, 'limb_fit': dict(REFINE), 'part_shift': shifts})
     if not ok:
+        flip, ccf = mirrored(img, cc, np.any([L0[p] for p in allowed], axis=0) | region)
+        REPORT[-1]['ecc_mirrored'] = ccf
+        if flip:
+            REPORT[-1].update({'check': 'orientation', 'reason': f'the picture is mirrored: the character faces the other way (flipped back it lines up at {ccf:.3f}, as drawn at {cc:.3f}): ask for the item again as an edit of the attached master, not flipped'})
+            print('REJECTED', it['id'], REPORT[-1]); continue
+        REPORT[-1]['check'] = 'pose' if pose else 'proportions' if geo else 'body colour' if err >= it.get('max_err', 40) else 'figure'
         why = []
         if pose: why.append('the picture is not in the master\'s pose: ' + ', '.join(pose) + f' (the limit is {POSE_MAX_DEG:.0f} deg)')
         if geo: why.append('the body outside the item does not keep the master\'s proportions: ' + ', '.join(geo) + f' (the limit is {GEO_MAX_PX:.0f} px)')
@@ -685,9 +744,12 @@ for it in items_spec:
     sub[(sub == cv2.GC_PR_BGD) & (dE[y0_:y1_, x0_:x1_] < 6)] = cv2.GC_BGD
     bgd = np.zeros((1, 65), np.float64); fgd = np.zeros((1, 65), np.float64)
     try:
+        # the colour models start from a fixed seed: an item's cut depends on its own picture only, never on which
+        # items were cut before it (adding, removing or rejecting a source changes no other item)
+        cv2.setRNGSeed(12345)
         cv2.grabCut(np.ascontiguousarray(al[y0_:y1_, x0_:x1_]), sub, None, bgd, fgd, 6, cv2.GC_INIT_WITH_MASK)
     except cv2.error:   # nothing in the picture differs from the master (or nothing is the body): no item to cut
-        REPORT[-1].update({'accepted': False, 'reason': 'no item found: the picture is the master itself, or the item is too small to cut'})
+        REPORT[-1].update({'accepted': False, 'check': 'no item', 'reason': 'no item found: the picture is the master itself, or the item is too small to cut'})
         print('REJECTED', it['id'], REPORT[-1]); continue
     item = np.zeros(SH, bool)
     item[y0_:y1_, x0_:x1_] = (sub == cv2.GC_FGD) | (sub == cv2.GC_PR_FGD)
@@ -718,7 +780,7 @@ for it in items_spec:
     item &= ~halo
     item &= ndimage.binary_opening(item, iterations=1) | ~edge_band
     if item.sum() < it.get('min_item_px', 800):
-        REPORT[-1].update({'accepted': False, 'reason': 'no item found: the picture is the master itself, or the item is too small to cut'})
+        REPORT[-1].update({'accepted': False, 'check': 'no item', 'reason': 'no item found: the picture is the master itself, or the item is too small to cut'})
         print('REJECTED', it['id'], REPORT[-1]); continue
     if it['slot'] == 'hat':
         # headwear replaces the whole head piece as drawn (the hair under a crown is pressed down, a helmet hides it):
@@ -740,10 +802,10 @@ for it in items_spec:
         REPORT[-1].update({'face_covered': round(covered, 3), 'face_err': round(face_err, 1), 'face_lines': round(ncc, 3), 'face_sharpness': round(sharp, 3)})
         lines_min = it.get('face_lines_min', FACE_LINES_MIN)
         if covered < 0.6 and (ncc < lines_min or sharp < FACE_SHARP_MIN):
-            REPORT[-1].update({'accepted': False, 'reason': f'the face is not drawn as the master\'s (its lines match {ncc:.2f}, at least {lines_min} needed; their strength {sharp:.2f} of the master\'s, at least {FACE_SHARP_MIN}): ask for the headwear again, keeping the face exactly'})
+            REPORT[-1].update({'accepted': False, 'check': 'face', 'reason': f'the face is not drawn as the master\'s (its lines match {ncc:.2f}, at least {lines_min} needed; their strength {sharp:.2f} of the master\'s, at least {FACE_SHARP_MIN}): ask for the headwear again, keeping the face exactly'})
             print('REJECTED', it['id'], REPORT[-1]); continue
         if covered < 0.6 and float(np.median(dEf[face])) > it.get('face_max', 18):
-            REPORT[-1].update({'accepted': False, 'reason': f'the face is not the master\'s (median colour error {np.median(dEf[face]):.0f} over the visible face): ask for the headwear again, keeping the face exactly'})
+            REPORT[-1].update({'accepted': False, 'check': 'face', 'reason': f'the face is not the master\'s (median colour error {np.median(dEf[face]):.0f} over the visible face): ask for the headwear again, keeping the face exactly'})
             ITEMS_REJECTED.append(it['id']); print('REJECTED', it['id'], REPORT[-1]); continue
         item = (alpha_a > 0.5) & field['head'] & region
         if covered >= 0.6:
@@ -857,4 +919,5 @@ for n, p in J.items(): cv2.circle(over, (int(p[0]), int(p[1])), 5, (255, 255, 0)
 Image.fromarray(over).save(os.path.join(OUT, 'labels_base.png'))
 print('report', REPORT)
 print('limb fits', REFINE)
+print('arm plates (share of the bare arm covered)', PLATE_WRAP)
 print('frames', len(meta), {k: (v['w'], v['h']) for k, v in list(meta.items())[:40]})
