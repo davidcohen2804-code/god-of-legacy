@@ -143,18 +143,20 @@ const RUN = build('run', RD, true, [...RUN_ORDER, 'contact' as Phase].map((ph, i
 }), { swaps: ARMED, order: [] });
 
 // The jump: anticipation (a quick crouch), takeoff (full extension, toes pointing), rising (knees tucked), the top,
-// falling (the legs reach for the ground), landing (compression), back to the stance.
+// falling (the legs reach for the ground), landing (compression), back to the stance. No height in it: in the game the
+// body's vertical motion is physics (the marks map takeoff, air and landing onto the jump's phases); the studio adds
+// the arc for viewing.
 const JUMP = build('jump', 0.9, false, [
   { t: 0, hip: [-0.008, 0.012], chest: 3, head: -2, legs: { B: on(STANCE.B), F: on(STANCE.F) }, arms: GUARD },
   { t: 0.08, e: 'in', hip: [0, 0.065], chest: 18, head: -8, legs: { B: on(STANCE.B), F: on(STANCE.F) }, arms: { B: [92, 44, grip('B', -30)], F: [104, 82, 86] } },
-  { t: 0.16, e: 'out', hip: [0.01, -0.1], chest: 5, head: -2, legs: { B: fromHip(-0.035, 0.31, 40), F: fromHip(0.01, 0.305, 30) }, arms: { B: [28, -30, grip('B', -60)], F: [-25, -55, -50] } },
-  { t: 0.3, hip: [0.01, -0.27], chest: 7, head: -3, legs: { B: fromHip(-0.07, 0.2, 30), F: fromHip(0.07, 0.18, 18) }, arms: { B: [40, -14, grip('B', -55)], F: [-8, -35, -30] } },
-  { t: 0.45, hip: [0.01, -0.32], chest: 6, head: -3, legs: { B: fromHip(-0.06, 0.22, 26), F: fromHip(0.08, 0.235, 10) }, arms: { B: [46, -6, grip('B', -52)], F: [10, -20, -14] } },
-  { t: 0.62, e: 'in', hip: [0.005, -0.17], chest: 6, head: -3, legs: { B: fromHip(-0.045, 0.29, 14), F: fromHip(0.05, 0.3, 4) }, arms: { B: [58, 6, grip('B', -46)], F: [40, 16, 24] } },
+  { t: 0.16, e: 'out', hip: [0.01, -0.03], chest: 5, head: -2, legs: { B: fromHip(-0.035, 0.31, 40), F: fromHip(0.01, 0.305, 30) }, arms: { B: [28, -30, grip('B', -60)], F: [-25, -55, -50] } },
+  { t: 0.3, hip: [0.01, 0], chest: 7, head: -3, legs: { B: fromHip(-0.07, 0.2, 30), F: fromHip(0.07, 0.18, 18) }, arms: { B: [40, -14, grip('B', -55)], F: [-8, -35, -30] } },
+  { t: 0.45, hip: [0.01, 0], chest: 6, head: -3, legs: { B: fromHip(-0.06, 0.22, 26), F: fromHip(0.08, 0.235, 10) }, arms: { B: [46, -6, grip('B', -52)], F: [10, -20, -14] } },
+  { t: 0.62, e: 'in', hip: [0.005, -0.01], chest: 6, head: -3, legs: { B: fromHip(-0.045, 0.29, 14), F: fromHip(0.05, 0.3, 4) }, arms: { B: [58, 6, grip('B', -46)], F: [40, 16, 24] } },
   { t: 0.72, e: 'out', hip: [0, 0.01], chest: 9, head: -4, legs: { B: on(STANCE.B), F: on(STANCE.F) }, arms: { B: [66, 14, grip('B', -44)], F: [70, 40, 46] } },
   { t: 0.78, hip: [0, 0.07], chest: 20, head: -9, legs: { B: on(STANCE.B), F: on(STANCE.F) }, arms: { B: [86, 38, grip('B', -32)], F: [104, 84, 88] } },
   { t: 0.9, hip: [-0.008, 0.012], chest: 3, head: -2, legs: { B: on(STANCE.B), F: on(STANCE.F) }, arms: GUARD },
-], { swaps: ARMED });
+], { swaps: ARMED, marks: { takeoff: 0, air: 0.16, land: 0.72, end: 0.9 } });
 
 // The sword attack, an overhead diagonal slash on the game's timings (the hit at 0.20 s): wind-up (weight back, the
 // sword drawn up behind the head), the swing (the hips turn and lunge, the front foot steps in, the chest follows,
@@ -167,6 +169,6 @@ const ATTACK = build('attack', 0.65, false, [
   { t: 0.3, hip: [0.056, 0.042], hipR: 5, chest: 18, head: -7, legs: { B: on(STANCE.B, 22, 0.012), F: on(0.21) }, arms: { B: [55, 85, grip('B', 27)], F: [98, 76, 80] } },
   { t: 0.45, hip: [0.05, 0.036], hipR: 4, chest: 15, head: -6, legs: { B: on(STANCE.B, 18, 0.01), F: on(0.21) }, arms: { B: [60, 88, grip('B', 29)], F: [94, 72, 76] } },
   { t: 0.65, hip: [-0.008, 0.012], chest: 3, head: -2, legs: { B: on(STANCE.B), F: on(STANCE.F) }, arms: GUARD },
-], { swaps: ARMED, order: [{ t: 0.012, move: 'group:armB', before: 'group:head' }, { t: 0.185, move: 'group:armB', before: null }] });
+], { swaps: ARMED, marks: { startup: 0, active: 0.2, recovery: 0.45, end: 0.65 }, order: [{ t: 0.012, move: 'group:armB', before: 'group:head' }, { t: 0.185, move: 'group:armB', before: null }] });
 
 export const ANIMS_B01: Record<string, AnimDef> = { idle: IDLE, idle_bare: IDLE_BARE, run: RUN, jump: JUMP, attack: ATTACK };

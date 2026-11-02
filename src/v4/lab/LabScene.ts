@@ -7,6 +7,7 @@ import { poseQuery, type AnimSnap, type Mode } from '../../game/PoseState';
 import { JOB_SET, giveItem, starterGear, type GearState } from '../../items/Gear';
 import b256Url from '../real/assets/b256.png?inline';
 import b512Url from '../real/assets/b512.png?inline';
+import b01Url from '../base01/assets/base01.png?inline';
 import type { PoseState } from '../rig/pose';
 import { bodyDrive } from '../rig/pose';
 import { JUMP_VZ, LAND_MS, TAKEOFF_MS, rigTime, type RigTime } from '../rig/posemap';
@@ -14,7 +15,7 @@ import { Composite } from '../render/Composite';
 import { RigCharacter } from '../render/RigCharacter';
 import { WEARABLE } from '../wardrobe/resolve';
 import type { AppearanceInput, Avatar, Item, WardrobeSlot } from '../wardrobe/types';
-import { B_TEXTURES, CANVAS, CELL, MASTER_B, SCREEN_720, SIZE_B, WORLD, ZOOM0, ZOOM_PRESETS, labAssets, placeholderGearLooks, type Art, type LabAssets, type ZoomPreset } from './world';
+import { B01_TEXTURE_KEY, B_TEXTURES, CANVAS, CELL, MASTER_B, SCREEN_720, SIZE_B, WORLD, ZOOM0, ZOOM_PRESETS, labAssets, placeholderGearLooks, type Art, type LabAssets, type ZoomPreset } from './world';
 
 export type RenderMode = 'direct' | 'composite' | 'composite-outline';
 export type Forced = 'idle' | 'run' | 'jump' | 'attack' | null;
@@ -33,11 +34,13 @@ const STAGE_X = 12000, STAGE_Y = 1000; // where the preview character stands (of
 /** Placeholder art: gameplay gear → its looks by wardrobe slot (the Phase 1 tests use it). */
 export const gearLooks = placeholderGearLooks;
 
-/** The art the lab opens with: candidate B, unless the address asks for the placeholder (?art=placeholder or
+/** The art the lab opens with: BASE-01, unless the address asks for another (?art=b / #b, ?art=placeholder /
  *  #placeholder; the published lab only passes a plain #name). */
 export function initialArt(): Art {
   const q = new URLSearchParams(location.search).get('art'), h = location.hash.slice(1);
-  return q === 'placeholder' || h === 'placeholder' ? 'placeholder' : 'b';
+  if (q === 'placeholder' || h === 'placeholder') return 'placeholder';
+  if (q === 'b' || h === 'b') return 'b';
+  return 'base01';
 }
 
 export function jobGear(): GearState {
@@ -162,6 +165,7 @@ export class LabScene extends Phaser.Scene {
   preload(): void {
     if (!this.textures.exists(B_TEXTURES[256])) this.load.image(B_TEXTURES[256], b256Url);
     if (!this.textures.exists(B_TEXTURES[512])) this.load.image(B_TEXTURES[512], b512Url);
+    if (!this.textures.exists(B01_TEXTURE_KEY)) this.load.image(B01_TEXTURE_KEY, b01Url);
   }
 
   create(): void {
@@ -362,7 +366,7 @@ export class LabScene extends Phaser.Scene {
       const col = i % 10, row = Math.floor(i / 10);
       const a = new Actor(this, 120 + col * 150 + (row % 2) * 60, WORLD.laneMin + row * ((WORLD.laneMax - WORLD.laneMin) / 4), {
         ...this.baseInput(), gearLooks: this.assets.gearLooks(this.rng.frac() < 0.5 ? starterGear() : jobGear()),
-        look: this.art === 'b' ? { ...this.assets.baseLook } : { hair: this.rng.frac() < 0.5 ? 'hair_short' : 'hair_long', face: 'face_a' },
+        look: this.art !== 'placeholder' ? { ...this.assets.baseLook } : { hair: this.rng.frac() < 0.5 ? 'hair_short' : 'hair_long', face: 'face_a' },
         cosmetics: { equipped: this.randomLook(false), hidden: [] },
       });
       a.facing = this.rng.frac() < 0.5 ? 1 : -1;

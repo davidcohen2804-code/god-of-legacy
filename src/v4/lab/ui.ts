@@ -35,10 +35,12 @@ function segmented(host: HTMLElement | null, options: [string, string][], curren
 }
 
 const INTRO: Record<Art, string> = {
+  base01: 'BASE-01: the base character locked by the art director, playable at the game\'s real size on the courtyard, with the items drawn on it (Traveler\'s Tunic, Wanderer Pants, Traveler Boots, Knight\'s Sword) and the animations authored for this body. Arrows to move (double-tap to run), Space to attack, E to jump.',
   b: 'Phase 5: candidate B with the second premium set, the Ember Duelist: a long split coat whose loose pieces (the near and far front panels, the split back tails, the sash end and the scarf end) each swing on their own chain, a half-cape on the near shoulder, slim trousers, riding boots and fingerless gloves. The Golden tabard keeps the trousers\' own chain, so the Ember coat can be worn over the Golden trousers. Nothing on this page changes the game.',
   placeholder: 'Phase 1 technical prototype with placeholder art: one rig, swappable outfits, two renderers. Nothing on this page changes the game.',
 };
 const HINT: Record<Art, string> = {
+  base01: 'Every item is one picture of the base wearing it, cut automatically by the template. Pick None to take an item off; the animation keeps playing.',
   b: 'A = basic clothing, B = Golden Warrior set and the test helmet, C = Ember Duelist set, X = the plain coat stand-in (rule test). Cosmetics beat gear looks; gear keeps its stats. Job gear shows the Golden top, trousers and boots, and the job helmet shows the test helmet.',
   placeholder: 'A = cloth set, B = plate set, X = oversized and rule tests. Cosmetics beat gear looks; gear keeps its stats.',
 };
@@ -55,7 +57,7 @@ export function buildUI(scene: LabScene, api: { runTests: (full: boolean) => Pro
     const tests = $('tests-note');
     if (tests) tests.textContent = scene.art === 'b' ? 'Real-art tests of candidate B (switch to the placeholder for the Phase 1 tests).' : 'Phase 1 tests on the placeholder art.';
   };
-  segmented($('seg-art'), [['b', 'Candidate B · real art'], ['placeholder', 'Placeholder · Phase 1']], scene.art, (v) => {
+  segmented($('seg-art'), [['base01', 'BASE-01'], ['b', 'Candidate B (earlier)'], ['placeholder', 'Placeholder · Phase 1']], scene.art, (v) => {
     scene.setArt(v as Art);
     buildSlots(); syncArt(); setGearSeg('starter'); scene.setGear('starter');
     if (crowd) crowd.checked = scene.npcs.length > 0;
@@ -81,7 +83,7 @@ export function buildUI(scene: LabScene, api: { runTests: (full: boolean) => Pro
     if (!rows) return;
     rows.querySelectorAll(':scope > :not(.hdr)').forEach((el) => el.remove());
     selects.clear();
-    const real = scene.art === 'b';
+    const real = scene.art !== 'placeholder';
     for (const slot of ['hair', ...WEARABLE] as WardrobeSlot[]) {
       if (real && scene.itemsFor(slot).length === 0) continue;
       const id = `slot-${slot}`;

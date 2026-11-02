@@ -7,6 +7,10 @@ import { buildAtlas } from '../art/painter';
 import { ANIMS_B } from '../real/animsB';
 import { B_FRAMES, GEAR_LOOKS_B, buildCatalogB, type BFrame } from '../real/catalogB';
 import { RIG_B } from '../real/rigB';
+import { ANIMS_B01 } from '../base01/anims';
+import { B01_FRAMES, B01_TEXTURE, buildCatalogB01 } from '../base01/catalog';
+import { RIG_B01 } from '../base01/rig';
+import b01Data from '../base01/assets/base01.json';
 import { ANIMS } from '../rig/anims';
 import { RigPose } from '../rig/pose';
 import { GOLDEN_RIG } from '../rig/rig';
@@ -30,10 +34,12 @@ export const CELL = { w: 1.65, h: 1.85, rootX: 0.8, rootY: 1.5 };
 /** A 1280 × 720 window shows the 1920 × 1080 canvas at 2/3. */
 export const SCREEN_720 = 1280 / CANVAS.w;
 
-/** Which art the lab shows: the Phase 1 placeholder, or candidate B's real art (Phase 3). */
-export type Art = 'placeholder' | 'b';
+/** Which art the lab shows: BASE-01 (the art director's locked base character), the Phase 1 placeholder, or
+ *  candidate B's real art (Phase 3). */
+export type Art = 'placeholder' | 'b' | 'base01';
 /** Texture keys of B's atlases (B = 256 and 512 px), loaded by the lab scene. */
 export const B_TEXTURES = { 256: 'v4b256', 512: 'v4b512' } as const;
+export const B01_TEXTURE_KEY = B01_TEXTURE;
 
 export interface LabAssets {
   art: Art;
@@ -65,7 +71,7 @@ const cache = new Map<Art, LabAssets>();
 export function labAssets(scene: Phaser.Scene, art: Art = 'placeholder'): LabAssets {
   const hit = cache.get(art);
   if (hit && scene.textures.exists(hit.atlas256.key)) return hit;
-  const made = art === 'b' ? realAssetsB(scene) : placeholderAssets(scene);
+  const made = art === 'b' ? realAssetsB(scene) : art === 'base01' ? assetsBase01(scene) : placeholderAssets(scene);
   cache.set(art, made);
   return made;
 }
@@ -111,5 +117,28 @@ function realAssetsB(scene: Phaser.Scene): LabAssets {
     atlas256: { key: B_TEXTURES[256], unitsPerPx: MASTER_B / 256 }, atlas512: { key: B_TEXTURES[512], unitsPerPx: MASTER_B / 512 },
     atlasInfo: { frames: B_FRAMES[512].length, size256, size512, buildMs: performance.now() - t0 },
     baseLook: { hair: 'b_hair', face: 'b_face' }, gearLooks: gearLooksB,
+  };
+}
+
+/** BASE-01: one atlas (512 px per B) serves both sizes; any gameplay gear shows the base outfit (the first item drawn
+ *  for each slot), the weapon the sword. */
+function assetsBase01(scene: Phaser.Scene): LabAssets {
+  const t0 = performance.now();
+  const catalog = buildCatalogB01();
+  const tex = scene.textures.get(B01_TEXTURE);
+  for (const f of B01_FRAMES) {
+    if (tex.has(f.name)) continue;
+    const fr = tex.add(f.name, 0, f.x, f.y, f.w, f.h)!;
+    fr.customPivot = true; fr.pivotX = f.px; fr.pivotY = f.py;
+  }
+  const src = tex.getSourceImage() as HTMLImageElement;
+  const size: [number, number] = [src.width, src.height];
+  const atlas = { key: B01_TEXTURE, unitsPerPx: MASTER_B / b01Data.bpx };
+  const outfit: Partial<Record<WardrobeSlot, string>> = { top: 'top01_tunic', bottom: 'bottom01_pants', shoes: 'shoes01_boots', weapon: 'weapon01_sword' };
+  return {
+    art: 'base01', pose: new RigPose(RIG_B01), anims: ANIMS_B01, catalog, wardrobe: new Wardrobe(RIG_B01, catalog.items, catalog.base),
+    atlas256: atlas, atlas512: atlas,
+    atlasInfo: { frames: B01_FRAMES.length, size256: size, size512: size, buildMs: performance.now() - t0 },
+    baseLook: { hair: 'b01_hair', face: 'b01_face' }, gearLooks: () => ({ ...outfit }),
   };
 }

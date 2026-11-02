@@ -89,6 +89,10 @@ export class StudioScene extends Phaser.Scene {
   }
 
   render(): void {
+    // a jump with marks has no height of its own (the game's physics lifts the body): the studio draws the arc
+    const m = this.anim.marks;
+    const lift = m && 'air' in m && this.t > m.air && this.t < m.land ? 0.36 * 4 * ((this.t - m.air) / (m.land - m.air)) * (1 - (this.t - m.air) / (m.land - m.air)) : 0;
+    this.big.container.y = BIG.y - lift * BIG.B; this.small.container.y = GAME.y - lift * GAME.B;
     for (const [ch, B] of [[this.big, BIG.B], [this.small, GAME.B]] as const) {
       ch.evaluate(this.anim, this.t);
       ch.layout(B / MASTER_B);
