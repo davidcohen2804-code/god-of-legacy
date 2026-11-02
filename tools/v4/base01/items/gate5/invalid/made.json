@@ -1,0 +1,20 @@
+{
+ "x01_proportions": {
+  "from": "items/stress/i07_hat_v1.png",
+  "neck_y": 480.0,
+  "hips_y": 725.0,
+  "hips_y_new": 715.2,
+  "ankles_y": 1047.0,
+  "torso_scale": 0.96,
+  "legs_scale": 1.0304
+ },
+ "x02_pose": {
+  "from": "items/gate5/b01_07_leather_trousers_v1.png",
+  "turn_deg": 6.0,
+  "about": [
+   724.0,
+   528.0
+  ],
+  "wrist_moved_px": 21.1
+ }
+}

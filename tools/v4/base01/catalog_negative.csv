@@ -8,3 +8,6 @@ neg05_bad_profile,top,sword_1h,base01,Vest as a weapon,items/stress/i01_vest_v1.
 neg06_unknown_slot,cape,cloth,base01,Unknown slot,items/stress/i01_vest_v1.png
 neg07_face_changed,hat,cloth,base01,Hat with another face,items/negative/neg07_face_changed.png
 neg08_drawn_smaller,top,cloth,base01,Vest drawn 85% smaller,items/negative/neg08_drawn_smaller.png
+# Gate 5 invalid sources made by make_invalid.py (controlled changes of valid pictures; the art director's X list)
+x01_proportions,hat,cloth,base01,X01 Subtly Incorrect Proportions,items/gate5/invalid/x01_proportions.png
+x02_pose,bottom,cloth,base01,X02 Incorrect Reference Pose,items/gate5/invalid/x02_pose.png

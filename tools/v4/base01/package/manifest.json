@@ -4,7 +4,7 @@
  "body": "base01",
  "versions": {
   "template": "v1",
-  "exporter": "1.5",
+  "exporter": "1.6",
   "master": "4dfe86abe317"
  },
  "items": [
@@ -217,8 +217,83 @@
    "checks": {
     "ecc": 0.9921,
     "median_colour_err_outside": 8.7,
-    "silhouette_mismatch_outside": 0.0083,
+    "silhouette_mismatch_outside": 0.0076,
     "accepted": true,
+    "reach_px": 1099,
+    "geometry_px": {
+     "shin_B": 1.7,
+     "shin_F": 0.7
+    },
+    "pose_deg": {},
+    "limb_fit": {
+     "arm_B": [
+      14.8,
+      1.43,
+      9.7
+     ],
+     "arm_F": [
+      19.0,
+      -0.66,
+      9.6
+     ],
+     "leg_B": [
+      18.8,
+      0.83,
+      5.8
+     ],
+     "leg_F": [
+      1.5,
+      0.04,
+      1.9
+     ]
+    },
+    "part_shift": {
+     "head": [
+      -0.1,
+      2.2,
+      0.22
+     ],
+     "hand_B": [
+      -7.1,
+      -2.2,
+      0.29
+     ],
+     "hand_F": [
+      3.7,
+      0.2,
+      0.24
+     ],
+     "foot_B": [
+      -0.0,
+      -2.1,
+      0.06
+     ],
+     "foot_F": [
+      -2.7,
+      -1.0,
+      0.07
+     ],
+     "thigh_B": [
+      4.2,
+      -0.8,
+      0.22
+     ],
+     "shin_B": [
+      1.6,
+      0.5,
+      0.0
+     ],
+     "thigh_F": [
+      -2.4,
+      -0.7,
+      0.21
+     ],
+     "shin_F": [
+      -0.7,
+      -0.2,
+      0.01
+     ]
+    },
     "sleeve_reach": {
      "B": 0.68,
      "F": 0.71
@@ -228,12 +303,12 @@
      "F": 1.0
     },
     "coverage": {
-     "torso": 0.915,
+     "torso": 0.914,
      "pelvis": 0.973,
-     "arm_B": 0.354,
-     "arm_F": 0.326
+     "arm_B": 0.353,
+     "arm_F": 0.327
     },
-    "skin_halo_px": 178,
+    "skin_halo_px": 186,
     "light_outline": true
    },
    "warnings": [
@@ -261,7 +336,7 @@
      "frame": "top02_armor/torso",
      "size": [
       131,
-      138
+      136
      ],
      "anchor": [
       71.69,
@@ -272,11 +347,11 @@
      "part": "pauldron_B",
      "frame": "top02_armor/pauldron_B",
      "size": [
-      86,
+      87,
       76
      ],
      "anchor": [
-      50.74,
+      51.74,
       36.74
      ]
     },
@@ -284,23 +359,23 @@
      "part": "uparm_B",
      "frame": "top02_armor/uparm_B",
      "size": [
-      59,
-      86
+      61,
+      41
      ],
      "anchor": [
-      44.74,
-      35.74
+      46.74,
+      -9.26
      ]
     },
     {
      "part": "forearm_B",
      "frame": "top02_armor/forearm_B",
      "size": [
-      55,
-      64
+      56,
+      65
      ],
      "anchor": [
-      37.76,
+      38.76,
       10.7
      ]
     },
@@ -309,18 +384,18 @@
      "frame": "top02_armor/pauldron_F",
      "size": [
       43,
-      68
+      69
      ],
      "anchor": [
       1.65,
-      33.74
+      34.74
      ]
     },
     {
      "part": "uparm_F",
      "frame": "top02_armor/uparm_F",
      "size": [
-      48,
+      50,
       84
      ],
      "anchor": [
@@ -332,12 +407,12 @@
      "part": "forearm_F",
      "frame": "top02_armor/forearm_F",
      "size": [
-      62,
-      62
+      63,
+      64
      ],
      "anchor": [
       23.63,
-      9.7
+      10.7
      ]
     }
    ],
@@ -346,21 +421,92 @@
    ],
    "loose": false,
    "checks": {
-    "ecc": 0.9856,
-    "median_colour_err_outside": 6.3,
-    "silhouette_mismatch_outside": 0.0059,
+    "ecc": 0.9995,
+    "median_colour_err_outside": 6.0,
+    "silhouette_mismatch_outside": 0.0013,
     "accepted": true,
-    "coverage": {
-     "torso": 0.973,
-     "pelvis": 0.511,
-     "arm_B": 0.804,
-     "arm_F": 0.75
+    "reach_px": 5128,
+    "geometry_px": {
+     "head": 0.3,
+     "thigh_B": 0.9,
+     "thigh_F": 0.6,
+     "shin_B": 0.7,
+     "shin_F": 0.6
     },
-    "skin_halo_px": 333,
+    "pose_deg": {
+     "leg_B": 0.14,
+     "leg_F": 0.04
+    },
+    "limb_fit": {
+     "leg_B": [
+      3.3,
+      0.14,
+      1.1
+     ],
+     "leg_F": [
+      0.7,
+      0.04,
+      0.6
+     ]
+    },
+    "part_shift": {
+     "head": [
+      -0.3,
+      -0.1,
+      0.04
+     ],
+     "hand_B": [
+      -0.4,
+      0.2,
+      0.08
+     ],
+     "hand_F": [
+      1.5,
+      -0.8,
+      0.12
+     ],
+     "foot_B": [
+      0.1,
+      -0.3,
+      0.0
+     ],
+     "foot_F": [
+      -0.6,
+      -0.3,
+      0.02
+     ],
+     "thigh_B": [
+      0.8,
+      -0.4,
+      0.04
+     ],
+     "shin_B": [
+      0.6,
+      -0.3,
+      0.0
+     ],
+     "thigh_F": [
+      -0.5,
+      0.3,
+      0.03
+     ],
+     "shin_F": [
+      -0.6,
+      -0.2,
+      0.0
+     ]
+    },
+    "coverage": {
+     "torso": 0.975,
+     "pelvis": 0.487,
+     "arm_B": 0.803,
+     "arm_F": 0.762
+    },
+    "skin_halo_px": 515,
     "light_outline": false
    },
    "warnings": [
-    "333 px of skin along the edges returned to the body",
+    "515 px of skin along the edges returned to the body",
     "partly covered (the bare body shows under it): pelvis, arm_B, arm_F"
    ],
    "previews": {
@@ -375,32 +521,32 @@
    "profile": "cloth",
    "motion": null,
    "source": {
-    "picture": "items/bottom01_pants_v1.png",
-    "sha1": "9481d06a0445"
+    "picture": "items/bottom01_pants_v2.png",
+    "sha1": "ffd2dc83744e"
    },
    "parts": [
     {
      "part": "pelvis_under",
      "frame": "bottom01_pants/pelvis_under",
      "size": [
-      77,
+      78,
       11
      ],
      "anchor": [
-      36.69,
-      35.65
+      37.69,
+      37.65
      ]
     },
     {
      "part": "pelvis",
      "frame": "bottom01_pants/pelvis",
      "size": [
-      105,
-      56
+      112,
+      58
      ],
      "anchor": [
-      51.69,
-      30.65
+      56.69,
+      32.65
      ]
     },
     {
@@ -435,22 +581,103 @@
    ],
    "loose": false,
    "checks": {
-    "ecc": 0.9902,
-    "median_colour_err_outside": 10.0,
-    "silhouette_mismatch_outside": 0.0082,
+    "ecc": 0.9997,
+    "median_colour_err_outside": 5.0,
+    "silhouette_mismatch_outside": 0.0007,
     "accepted": true,
+    "reach_px": 806,
+    "geometry_px": {
+     "head": 0.2,
+     "torso": 0.3
+    },
+    "pose_deg": {
+     "arm_B": 0.05,
+     "arm_F": 0.09
+    },
+    "limb_fit": {
+     "arm_B": [
+      0.2,
+      -0.05,
+      0.7
+     ],
+     "arm_F": [
+      1.3,
+      -0.09,
+      0.5
+     ],
+     "leg_B": [
+      33.2,
+      -1.57,
+      10.0
+     ],
+     "leg_F": [
+      24.8,
+      1.03,
+      8.0
+     ]
+    },
+    "part_shift": {
+     "head": [
+      -0.2,
+      -0.0,
+      0.02
+     ],
+     "torso": [
+      0.0,
+      -0.3,
+      0.0
+     ],
+     "hand_B": [
+      0.6,
+      -0.5,
+      0.07
+     ],
+     "hand_F": [
+      0.3,
+      -0.5,
+      0.01
+     ],
+     "foot_B": [
+      0.8,
+      -0.4,
+      0.06
+     ],
+     "foot_F": [
+      0.4,
+      0.1,
+      0.04
+     ],
+     "uparm_B": [
+      0.3,
+      -0.3,
+      0.0
+     ],
+     "forearm_B": [
+      0.5,
+      -0.4,
+      0.0
+     ],
+     "uparm_F": [
+      0.0,
+      -0.2,
+      0.0
+     ],
+     "forearm_F": [
+      0.1,
+      -0.3,
+      0.0
+     ]
+    },
     "leg_width": 0.96,
     "coverage": {
-     "pelvis": 0.884,
-     "leg_B": 0.983,
-     "leg_F": 0.989
+     "pelvis": 0.957,
+     "leg_B": 1.0,
+     "leg_F": 0.994
     },
-    "skin_halo_px": 519,
+    "skin_halo_px": 0,
     "light_outline": false
    },
-   "warnings": [
-    "519 px of skin along the edges returned to the body"
-   ],
+   "warnings": [],
    "previews": {
     "150": "previews/bottom01_pants_150.png",
     "600": "previews/bottom01_pants_600.png"
@@ -522,20 +749,87 @@
    ],
    "loose": false,
    "checks": {
-    "ecc": 0.993,
+    "ecc": 0.9933,
     "median_colour_err_outside": 10.3,
-    "silhouette_mismatch_outside": 0.0076,
+    "silhouette_mismatch_outside": 0.0075,
     "accepted": true,
-    "coverage": {
-     "foot_B": 0.911,
-     "foot_F": 0.885
+    "reach_px": 0,
+    "geometry_px": {
+     "torso": 2.8
     },
-    "skin_halo_px": 359,
+    "pose_deg": {},
+    "limb_fit": {
+     "arm_B": [
+      21.6,
+      1.68,
+      4.8
+     ],
+     "arm_F": [
+      25.0,
+      -1.31,
+      4.8
+     ],
+     "leg_B": [
+      22.6,
+      1.28,
+      7.9
+     ],
+     "leg_F": [
+      6.1,
+      -0.07,
+      5.2
+     ]
+    },
+    "part_shift": {
+     "head": [
+      -0.3,
+      0.1,
+      0.24
+     ],
+     "torso": [
+      -0.8,
+      2.7,
+      0.03
+     ],
+     "hand_B": [
+      -7.9,
+      -9.9,
+      0.22
+     ],
+     "hand_F": [
+      8.6,
+      -10.3,
+      0.21
+     ],
+     "uparm_B": [
+      2.2,
+      2.4,
+      0.06
+     ],
+     "forearm_B": [
+      -2.5,
+      7.7,
+      0.01
+     ],
+     "uparm_F": [
+      -0.5,
+      3.6,
+      0.05
+     ],
+     "forearm_F": [
+      3.7,
+      9.2,
+      0.01
+     ]
+    },
+    "coverage": {
+     "foot_B": 0.91,
+     "foot_F": 0.886
+    },
+    "skin_halo_px": 92,
     "light_outline": false
    },
-   "warnings": [
-    "359 px of skin along the edges returned to the body"
-   ],
+   "warnings": [],
    "previews": {
     "150": "previews/shoes01_boots_150.png",
     "600": "previews/shoes01_boots_600.png"
@@ -619,8 +913,89 @@
     "median_colour_err_outside": 6.7,
     "silhouette_mismatch_outside": 0.0004,
     "accepted": true,
+    "reach_px": 0,
+    "geometry_px": {
+     "head": 0.1,
+     "thigh_B": 0.0,
+     "thigh_F": 0.1,
+     "shin_B": 0.1,
+     "shin_F": 0.2
+    },
+    "pose_deg": {
+     "leg_B": 0.01,
+     "leg_F": 0.02
+    },
+    "limb_fit": {
+     "arm_B": [
+      0.2,
+      -0.0,
+      0.2
+     ],
+     "arm_F": [
+      1.5,
+      0.08,
+      0.5
+     ],
+     "leg_B": [
+      0.3,
+      -0.01,
+      0.1
+     ],
+     "leg_F": [
+      0.3,
+      -0.02,
+      0.1
+     ]
+    },
+    "part_shift": {
+     "head": [
+      -0.0,
+      -0.1,
+      0.01
+     ],
+     "hand_B": [
+      -0.1,
+      0.1,
+      0.01
+     ],
+     "hand_F": [
+      0.1,
+      0.0,
+      0.0
+     ],
+     "foot_B": [
+      0.0,
+      0.1,
+      0.0
+     ],
+     "foot_F": [
+      0.1,
+      -0.0,
+      0.0
+     ],
+     "thigh_B": [
+      -0.0,
+      -0.0,
+      0.0
+     ],
+     "shin_B": [
+      0.0,
+      0.1,
+      0.0
+     ],
+     "thigh_F": [
+      0.1,
+      -0.1,
+      0.0
+     ],
+     "shin_F": [
+      0.0,
+      0.2,
+      0.0
+     ]
+    },
     "sleeve_reach": {
-     "B": 0.51,
+     "B": 0.52,
      "F": 0.26
     },
     "sleeve_wrap": {
@@ -628,14 +1003,14 @@
      "F": 0.09
     },
     "coverage": {
-     "torso": 0.742,
+     "torso": 0.743,
      "pelvis": 0.327
     },
     "skin_halo_px": 138,
     "light_outline": false
    },
    "warnings": [
-    "arm B: no sleeve (reach 0.51, wraps 0.00 of the arm): its edge drawn on the torso",
+    "arm B: no sleeve (reach 0.52, wraps 0.00 of the arm): its edge drawn on the torso",
     "arm F: no sleeve (reach 0.26, wraps 0.09 of the arm): its edge drawn on the torso",
     "partly covered (the bare body shows under it): torso, pelvis"
    ],
@@ -700,10 +1075,91 @@
    ],
    "loose": false,
    "checks": {
-    "ecc": 0.9996,
+    "ecc": 0.9998,
     "median_colour_err_outside": 7.0,
-    "silhouette_mismatch_outside": 0.0007,
+    "silhouette_mismatch_outside": 0.0004,
     "accepted": true,
+    "reach_px": 281,
+    "geometry_px": {
+     "head": 0.1,
+     "thigh_B": 0.1,
+     "thigh_F": 0.1,
+     "shin_B": 0.1,
+     "shin_F": 0.2
+    },
+    "pose_deg": {
+     "leg_B": 0.03,
+     "leg_F": 0.02
+    },
+    "limb_fit": {
+     "arm_B": [
+      16.3,
+      -0.99,
+      4.5
+     ],
+     "arm_F": [
+      9.8,
+      0.52,
+      2.4
+     ],
+     "leg_B": [
+      0.5,
+      -0.03,
+      0.2
+     ],
+     "leg_F": [
+      0.3,
+      0.02,
+      0.1
+     ]
+    },
+    "part_shift": {
+     "head": [
+      0.0,
+      -0.1,
+      0.01
+     ],
+     "hand_B": [
+      0.1,
+      0.3,
+      0.0
+     ],
+     "hand_F": [
+      -0.1,
+      0.3,
+      0.01
+     ],
+     "foot_B": [
+      0.1,
+      -0.1,
+      0.0
+     ],
+     "foot_F": [
+      -0.1,
+      -0.1,
+      0.0
+     ],
+     "thigh_B": [
+      0.1,
+      0.1,
+      0.0
+     ],
+     "shin_B": [
+      0.1,
+      0.1,
+      0.0
+     ],
+     "thigh_F": [
+      0.0,
+      0.1,
+      0.0
+     ],
+     "shin_F": [
+      -0.0,
+      0.2,
+      0.0
+     ]
+    },
     "sleeve_reach": {
      "B": 1.86,
      "F": 1.87
@@ -716,9 +1172,9 @@
      "torso": 0.933,
      "pelvis": 1.0,
      "arm_B": 0.966,
-     "arm_F": 0.958
+     "arm_F": 0.957
     },
-    "skin_halo_px": 53,
+    "skin_halo_px": 57,
     "light_outline": false
    },
    "warnings": [],
@@ -742,11 +1198,11 @@
      "part": "torso",
      "frame": "item03_shoulder/torso",
      "size": [
-      120,
+      121,
       111
      ],
      "anchor": [
-      70.69,
+      71.69,
       95.19
      ]
     },
@@ -755,42 +1211,111 @@
      "frame": "item03_shoulder/pauldron_B",
      "size": [
       92,
-      77
+      76
      ],
      "anchor": [
       47.74,
-      36.74
-     ]
-    },
-    {
-     "part": "uparm_F",
-     "frame": "item03_shoulder/uparm_F",
-     "size": [
-      16,
-      51
-     ],
-     "anchor": [
-      9.65,
-      -0.26
+      35.74
      ]
     }
    ],
    "covers": [],
    "loose": false,
    "checks": {
-    "ecc": 0.9912,
-    "median_colour_err_outside": 5.3,
-    "silhouette_mismatch_outside": 0.0036,
+    "ecc": 1.0,
+    "median_colour_err_outside": 4.7,
+    "silhouette_mismatch_outside": 0.0006,
     "accepted": true,
-    "coverage": {
-     "torso": 0.621,
-     "arm_B": 0.355
+    "reach_px": 2457,
+    "geometry_px": {
+     "head": 0.1,
+     "thigh_B": 0.1,
+     "thigh_F": 0.2,
+     "shin_B": 0.3,
+     "shin_F": 0.6
     },
-    "skin_halo_px": 844,
+    "pose_deg": {
+     "leg_B": 0.04,
+     "leg_F": 0.0
+    },
+    "limb_fit": {
+     "arm_B": [
+      12.9,
+      -0.76,
+      3.5
+     ],
+     "arm_F": [
+      8.3,
+      -0.41,
+      2.1
+     ],
+     "leg_B": [
+      0.7,
+      -0.04,
+      0.1
+     ],
+     "leg_F": [
+      0.2,
+      0.0,
+      0.2
+     ]
+    },
+    "part_shift": {
+     "head": [
+      0.0,
+      0.1,
+      0.01
+     ],
+     "hand_B": [
+      -0.0,
+      0.4,
+      0.01
+     ],
+     "hand_F": [
+      -0.2,
+      0.2,
+      0.01
+     ],
+     "foot_B": [
+      0.1,
+      -0.0,
+      0.0
+     ],
+     "foot_F": [
+      -0.1,
+      -0.1,
+      0.0
+     ],
+     "thigh_B": [
+      -0.1,
+      -0.0,
+      0.0
+     ],
+     "shin_B": [
+      0.1,
+      -0.3,
+      0.0
+     ],
+     "thigh_F": [
+      0.0,
+      -0.2,
+      0.01
+     ],
+     "shin_F": [
+      0.1,
+      -0.6,
+      0.0
+     ]
+    },
+    "coverage": {
+     "torso": 0.616,
+     "arm_B": 0.36
+    },
+    "skin_halo_px": 944,
     "light_outline": false
    },
    "warnings": [
-    "844 px of skin along the edges returned to the body",
+    "944 px of skin along the edges returned to the body",
     "partly covered (the bare body shows under it): torso, arm_B"
    ],
    "previews": {
@@ -813,7 +1338,7 @@
      "part": "pelvis_under",
      "frame": "item04_hakama/pelvis_under",
      "size": [
-      81,
+      82,
       11
      ],
      "anchor": [
@@ -829,7 +1354,7 @@
       58
      ],
      "anchor": [
-      56.69,
+      55.69,
       32.65
      ]
     },
@@ -837,11 +1362,11 @@
      "part": "leg_B",
      "frame": "item04_hakama/leg_B",
      "size": [
-      86,
+      85,
       197
      ],
      "anchor": [
-      43.0,
+      42.5,
       25.6
      ]
     },
@@ -865,21 +1390,104 @@
    ],
    "loose": true,
    "checks": {
-    "ecc": 0.9706,
-    "median_colour_err_outside": 5.0,
-    "silhouette_mismatch_outside": 0.0093,
+    "ecc": 0.9998,
+    "median_colour_err_outside": 4.3,
+    "silhouette_mismatch_outside": 0.0005,
     "accepted": true,
-    "leg_width": 1.41,
+    "reach_px": 10045,
+    "geometry_px": {
+     "head": 0.0,
+     "torso": 0.1
+    },
+    "pose_deg": {
+     "arm_B": 0.06,
+     "arm_F": 0.02
+    },
+    "limb_fit": {
+     "arm_B": [
+      0.8,
+      0.06,
+      0.1
+     ],
+     "arm_F": [
+      0.6,
+      0.02,
+      0.4
+     ],
+     "leg_B": [
+      79.6,
+      -3.65,
+      25.2
+     ],
+     "leg_F": [
+      15.6,
+      -0.66,
+      4.8
+     ]
+    },
+    "part_shift": {
+     "head": [
+      -0.0,
+      -0.0,
+      0.01
+     ],
+     "torso": [
+      -0.1,
+      -0.1,
+      0.0
+     ],
+     "hand_B": [
+      -0.2,
+      0.0,
+      0.01
+     ],
+     "hand_F": [
+      -0.2,
+      -0.4,
+      0.02
+     ],
+     "foot_B": [
+      -0.3,
+      -0.1,
+      0.01
+     ],
+     "foot_F": [
+      -0.4,
+      -0.4,
+      0.01
+     ],
+     "uparm_B": [
+      0.1,
+      -0.1,
+      0.0
+     ],
+     "forearm_B": [
+      -0.0,
+      -0.1,
+      0.0
+     ],
+     "uparm_F": [
+      -0.2,
+      -0.3,
+      0.0
+     ],
+     "forearm_F": [
+      -0.1,
+      -0.4,
+      0.0
+     ]
+    },
+    "leg_width": 1.42,
     "coverage": {
-     "pelvis": 0.996,
+     "pelvis": 0.993,
      "leg_B": 1.0,
-     "leg_F": 1.0
+     "leg_F": 0.999
     },
     "skin_halo_px": 0,
     "light_outline": false
    },
    "warnings": [
-    "loose trousers (1.41 of the leg): drawn over the boots"
+    "loose trousers (1.42 of the leg): drawn over the boots"
    ],
    "previews": {
     "150": "previews/item04_hakama_150.png",
@@ -956,13 +1564,92 @@
     "median_colour_err_outside": 4.7,
     "silhouette_mismatch_outside": 0.0003,
     "accepted": true,
+    "reach_px": 0,
+    "geometry_px": {
+     "head": 0.0,
+     "torso": 0.1,
+     "pelvis": 0.1
+    },
+    "pose_deg": {
+     "arm_B": 0.01,
+     "arm_F": 0.01
+    },
+    "limb_fit": {
+     "arm_B": [
+      0.2,
+      0.01,
+      0.1
+     ],
+     "arm_F": [
+      0.1,
+      0.01,
+      0.0
+     ],
+     "leg_B": [
+      14.2,
+      0.86,
+      4.7
+     ],
+     "leg_F": [
+      17.6,
+      0.95,
+      3.9
+     ]
+    },
+    "part_shift": {
+     "head": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "torso": [
+      0.0,
+      -0.1,
+      0.0
+     ],
+     "pelvis": [
+      -0.0,
+      -0.1,
+      0.0
+     ],
+     "hand_B": [
+      -0.1,
+      0.0,
+      0.0
+     ],
+     "hand_F": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "uparm_B": [
+      0.0,
+      0.1,
+      0.0
+     ],
+     "forearm_B": [
+      0.1,
+      0.1,
+      0.0
+     ],
+     "uparm_F": [
+      0.0,
+      0.1,
+      0.0
+     ],
+     "forearm_F": [
+      0.0,
+      -0.0,
+      0.0
+     ]
+    },
     "coverage": {
      "leg_B": 0.423,
      "leg_F": 0.423,
-     "foot_B": 0.971,
+     "foot_B": 0.972,
      "foot_F": 0.986
     },
-    "skin_halo_px": 29,
+    "skin_halo_px": 30,
     "light_outline": false
    },
    "warnings": [
@@ -1053,11 +1740,80 @@
    ],
    "loose": false,
    "checks": {
-    "ecc": 0.9794,
+    "ecc": 0.9793,
     "median_colour_err_outside": 4.3,
-    "silhouette_mismatch_outside": 0.0074,
+    "silhouette_mismatch_outside": 0.0011,
     "accepted": true,
-    "tails_px": 24142,
+    "reach_px": 9057,
+    "geometry_px": {
+     "head": 0.7,
+     "shin_B": 0.8,
+     "shin_F": 0.7
+    },
+    "pose_deg": {
+     "leg_B": 0.1,
+     "leg_F": 0.05
+    },
+    "limb_fit": {
+     "arm_B": [
+      21.5,
+      -1.35,
+      6.0
+     ],
+     "arm_F": [
+      1.8,
+      -0.04,
+      1.2
+     ],
+     "leg_B": [
+      1.8,
+      -0.1,
+      0.9
+     ],
+     "leg_F": [
+      1.3,
+      0.05,
+      1.0
+     ]
+    },
+    "part_shift": {
+     "head": [
+      -0.2,
+      -0.7,
+      0.05
+     ],
+     "hand_B": [
+      0.3,
+      -0.6,
+      0.06
+     ],
+     "hand_F": [
+      -1.0,
+      -0.5,
+      0.12
+     ],
+     "foot_B": [
+      0.0,
+      -0.8,
+      0.01
+     ],
+     "foot_F": [
+      -0.9,
+      -0.9,
+      0.03
+     ],
+     "shin_B": [
+      -0.1,
+      0.8,
+      0.1
+     ],
+     "shin_F": [
+      -0.7,
+      0.2,
+      0.03
+     ]
+    },
+    "tails_px": 24140,
     "sleeve_reach": {
      "B": 1.87,
      "F": 1.88
@@ -1068,11 +1824,11 @@
     },
     "coverage": {
      "torso": 0.984,
-     "pelvis": 0.918,
+     "pelvis": 0.917,
      "arm_B": 0.969,
-     "arm_F": 0.963
+     "arm_F": 0.962
     },
-    "skin_halo_px": 3,
+    "skin_halo_px": 22,
     "light_outline": false
    },
    "warnings": [
@@ -1098,12 +1854,12 @@
      "part": "head",
      "frame": "item07_hat/head",
      "size": [
-      277,
-      190
+      279,
+      189
      ],
      "anchor": [
-      134.7,
-      178.78
+      135.7,
+      177.78
      ]
     }
    ],
@@ -1112,21 +1868,131 @@
    ],
    "loose": false,
    "checks": {
-    "ecc": 0.9794,
+    "ecc": 1.0,
     "median_colour_err_outside": 7.3,
-    "silhouette_mismatch_outside": 0.0049,
+    "silhouette_mismatch_outside": 0.0002,
     "accepted": true,
-    "face_covered": 0.259,
+    "reach_px": 6274,
+    "geometry_px": {
+     "torso": 0.1,
+     "pelvis": 0.1,
+     "thigh_B": 0.0,
+     "thigh_F": 0.1,
+     "shin_B": 0.0,
+     "shin_F": 0.2
+    },
+    "pose_deg": {
+     "arm_B": 0.03,
+     "arm_F": 0.01,
+     "leg_B": 0.01,
+     "leg_F": 0.0
+    },
+    "limb_fit": {
+     "arm_B": [
+      0.5,
+      0.03,
+      0.1
+     ],
+     "arm_F": [
+      0.3,
+      -0.01,
+      0.0
+     ],
+     "leg_B": [
+      0.2,
+      -0.01,
+      0.0
+     ],
+     "leg_F": [
+      0.1,
+      -0.0,
+      0.1
+     ]
+    },
+    "part_shift": {
+     "torso": [
+      -0.0,
+      0.1,
+      0.0
+     ],
+     "pelvis": [
+      -0.1,
+      -0.1,
+      0.0
+     ],
+     "hand_B": [
+      -0.1,
+      0.0,
+      0.0
+     ],
+     "hand_F": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "foot_B": [
+      0.0,
+      0.1,
+      0.0
+     ],
+     "foot_F": [
+      0.1,
+      0.0,
+      0.0
+     ],
+     "uparm_B": [
+      0.0,
+      0.1,
+      0.0
+     ],
+     "forearm_B": [
+      -0.0,
+      -0.0,
+      0.0
+     ],
+     "thigh_B": [
+      -0.0,
+      -0.0,
+      0.0
+     ],
+     "shin_B": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "uparm_F": [
+      -0.0,
+      0.1,
+      0.0
+     ],
+     "forearm_F": [
+      0.1,
+      -0.1,
+      0.0
+     ],
+     "thigh_F": [
+      0.1,
+      0.0,
+      0.0
+     ],
+     "shin_F": [
+      0.0,
+      0.2,
+      0.0
+     ]
+    },
+    "face_covered": 0.237,
     "face_err": 7.9,
-    "face_lines": 0.764,
+    "face_lines": 0.873,
+    "face_sharpness": 0.971,
     "coverage": {
-     "head": 0.96
+     "head": 0.964
     },
     "skin_halo_px": 0,
     "light_outline": false
    },
    "warnings": [
-    "face checked by its drawn lines: 0.76 (0.5 needed)"
+    "face checked by its drawn lines: 0.87 (0.5 needed)"
    ],
    "previews": {
     "150": "previews/item07_hat_150.png",
@@ -1166,9 +2032,119 @@
     "median_colour_err_outside": 7.3,
     "silhouette_mismatch_outside": 0.0002,
     "accepted": true,
+    "reach_px": 0,
+    "geometry_px": {
+     "torso": 0.0,
+     "pelvis": 0.1,
+     "thigh_B": 0.0,
+     "thigh_F": 0.1,
+     "shin_B": 0.1,
+     "shin_F": 0.2
+    },
+    "pose_deg": {
+     "arm_B": 0.02,
+     "arm_F": 0.01,
+     "leg_B": 0.0,
+     "leg_F": 0.0
+    },
+    "limb_fit": {
+     "arm_B": [
+      0.3,
+      0.02,
+      0.1
+     ],
+     "arm_F": [
+      0.1,
+      -0.01,
+      0.0
+     ],
+     "leg_B": [
+      0.0,
+      -0.0,
+      0.0
+     ],
+     "leg_F": [
+      0.0,
+      -0.0,
+      0.0
+     ]
+    },
+    "part_shift": {
+     "torso": [
+      -0.0,
+      0.0,
+      0.0
+     ],
+     "pelvis": [
+      -0.0,
+      -0.1,
+      0.0
+     ],
+     "hand_B": [
+      -0.1,
+      0.1,
+      0.01
+     ],
+     "hand_F": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "foot_B": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "foot_F": [
+      0.0,
+      -0.0,
+      0.0
+     ],
+     "uparm_B": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "forearm_B": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "thigh_B": [
+      0.0,
+      -0.0,
+      0.0
+     ],
+     "shin_B": [
+      0.0,
+      0.1,
+      0.0
+     ],
+     "uparm_F": [
+      -0.0,
+      -0.0,
+      0.0
+     ],
+     "forearm_F": [
+      0.1,
+      -0.1,
+      0.0
+     ],
+     "thigh_F": [
+      0.1,
+      -0.0,
+      0.0
+     ],
+     "shin_F": [
+      0.0,
+      0.2,
+      0.0
+     ]
+    },
     "face_covered": 0.973,
-    "face_err": 20.9,
+    "face_err": 20.8,
     "face_lines": 1.0,
+    "face_sharpness": 1.0,
     "helmet_scale": 1.08,
     "coverage": {
      "head": 0.807
@@ -1313,24 +2289,105 @@
     "median_colour_err_outside": 4.3,
     "silhouette_mismatch_outside": 0.0003,
     "accepted": true,
+    "reach_px": 0,
+    "geometry_px": {
+     "head": 0.0,
+     "thigh_B": 0.1,
+     "thigh_F": 0.1,
+     "shin_B": 0.1,
+     "shin_F": 0.1
+    },
+    "pose_deg": {
+     "leg_B": 0.02,
+     "leg_F": 0.03
+    },
+    "limb_fit": {
+     "arm_B": [
+      0.2,
+      -0.01,
+      0.2
+     ],
+     "arm_F": [
+      2.7,
+      0.16,
+      0.7
+     ],
+     "leg_B": [
+      0.5,
+      -0.02,
+      0.1
+     ],
+     "leg_F": [
+      0.7,
+      0.03,
+      0.2
+     ]
+    },
+    "part_shift": {
+     "head": [
+      0.0,
+      -0.0,
+      0.0
+     ],
+     "hand_B": [
+      -0.0,
+      0.1,
+      0.0
+     ],
+     "hand_F": [
+      0.0,
+      0.1,
+      0.0
+     ],
+     "foot_B": [
+      0.1,
+      0.0,
+      0.0
+     ],
+     "foot_F": [
+      0.0,
+      -0.0,
+      0.0
+     ],
+     "thigh_B": [
+      -0.0,
+      0.1,
+      0.0
+     ],
+     "shin_B": [
+      0.1,
+      0.1,
+      0.0
+     ],
+     "thigh_F": [
+      0.1,
+      0.1,
+      0.0
+     ],
+     "shin_F": [
+      0.0,
+      0.1,
+      0.0
+     ]
+    },
     "sleeve_reach": {
      "B": 0.52,
-     "F": 0.25
+     "F": 0.24
     },
     "sleeve_wrap": {
      "B": 0.0,
      "F": 0.11
     },
     "coverage": {
-     "torso": 0.852,
-     "pelvis": 0.98
+     "torso": 0.851,
+     "pelvis": 0.974
     },
-    "skin_halo_px": 100,
+    "skin_halo_px": 92,
     "light_outline": false
    },
    "warnings": [
     "arm B: no sleeve (reach 0.52, wraps 0.00 of the arm): its edge drawn on the torso",
-    "arm F: no sleeve (reach 0.25, wraps 0.11 of the arm): its edge drawn on the torso"
+    "arm F: no sleeve (reach 0.24, wraps 0.11 of the arm): its edge drawn on the torso"
    ],
    "previews": {
     "150": "previews/g5_b01_01_150.png",
@@ -1394,6 +2451,87 @@
     "median_colour_err_outside": 6.3,
     "silhouette_mismatch_outside": 0.0005,
     "accepted": true,
+    "reach_px": 0,
+    "geometry_px": {
+     "head": 0.0,
+     "thigh_B": 0.0,
+     "thigh_F": 0.1,
+     "shin_B": 0.0,
+     "shin_F": 0.1
+    },
+    "pose_deg": {
+     "leg_B": 0.03,
+     "leg_F": 0.01
+    },
+    "limb_fit": {
+     "arm_B": [
+      13.3,
+      -0.82,
+      3.4
+     ],
+     "arm_F": [
+      1.9,
+      0.11,
+      0.8
+     ],
+     "leg_B": [
+      0.8,
+      -0.03,
+      0.3
+     ],
+     "leg_F": [
+      0.2,
+      -0.01,
+      0.2
+     ]
+    },
+    "part_shift": {
+     "head": [
+      0.0,
+      -0.0,
+      0.01
+     ],
+     "hand_B": [
+      -0.0,
+      0.1,
+      0.01
+     ],
+     "hand_F": [
+      0.0,
+      0.1,
+      0.0
+     ],
+     "foot_B": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "foot_F": [
+      0.0,
+      -0.0,
+      0.0
+     ],
+     "thigh_B": [
+      -0.0,
+      0.0,
+      0.0
+     ],
+     "shin_B": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "thigh_F": [
+      0.1,
+      0.0,
+      0.0
+     ],
+     "shin_F": [
+      0.0,
+      0.1,
+      0.0
+     ]
+    },
     "sleeve_reach": {
      "B": 0.57,
      "F": 0.61
@@ -1435,7 +2573,7 @@
      "frame": "g5_b01_03/torso",
      "size": [
       114,
-      136
+      135
      ],
      "anchor": [
       61.69,
@@ -1478,6 +2616,87 @@
     "median_colour_err_outside": 6.0,
     "silhouette_mismatch_outside": 0.001,
     "accepted": true,
+    "reach_px": 1,
+    "geometry_px": {
+     "head": 0.5,
+     "thigh_B": 0.1,
+     "thigh_F": 0.4,
+     "shin_B": 0.1,
+     "shin_F": 0.1
+    },
+    "pose_deg": {
+     "leg_B": 0.05,
+     "leg_F": 0.06
+    },
+    "limb_fit": {
+     "arm_B": [
+      16.6,
+      -0.99,
+      4.8
+     ],
+     "arm_F": [
+      4.2,
+      0.23,
+      1.0
+     ],
+     "leg_B": [
+      0.8,
+      0.05,
+      0.2
+     ],
+     "leg_F": [
+      1.3,
+      -0.06,
+      0.3
+     ]
+    },
+    "part_shift": {
+     "head": [
+      -0.4,
+      -0.3,
+      0.04
+     ],
+     "hand_B": [
+      -0.3,
+      0.2,
+      0.04
+     ],
+     "hand_F": [
+      0.0,
+      -0.1,
+      0.0
+     ],
+     "foot_B": [
+      -0.0,
+      0.3,
+      0.0
+     ],
+     "foot_F": [
+      0.2,
+      0.3,
+      0.0
+     ],
+     "thigh_B": [
+      -0.0,
+      -0.1,
+      0.0
+     ],
+     "shin_B": [
+      -0.1,
+      0.1,
+      0.0
+     ],
+     "thigh_F": [
+      0.0,
+      -0.4,
+      0.02
+     ],
+     "shin_F": [
+      0.1,
+      0.1,
+      0.0
+     ]
+    },
     "sleeve_reach": {
      "B": 1.86,
      "F": 1.86
@@ -1534,6 +2753,87 @@
     "median_colour_err_outside": 5.3,
     "silhouette_mismatch_outside": 0.0004,
     "accepted": true,
+    "reach_px": 0,
+    "geometry_px": {
+     "head": 0.1,
+     "thigh_B": 0.2,
+     "thigh_F": 0.2,
+     "shin_B": 0.1,
+     "shin_F": 0.1
+    },
+    "pose_deg": {
+     "leg_B": 0.01,
+     "leg_F": 0.0
+    },
+    "limb_fit": {
+     "arm_B": [
+      0.2,
+      0.01,
+      0.3
+     ],
+     "arm_F": [
+      4.0,
+      0.24,
+      1.1
+     ],
+     "leg_B": [
+      0.4,
+      -0.01,
+      0.2
+     ],
+     "leg_F": [
+      0.2,
+      -0.0,
+      0.1
+     ]
+    },
+    "part_shift": {
+     "head": [
+      0.0,
+      0.1,
+      0.01
+     ],
+     "hand_B": [
+      -0.0,
+      0.2,
+      0.0
+     ],
+     "hand_F": [
+      0.0,
+      0.2,
+      0.0
+     ],
+     "foot_B": [
+      0.1,
+      0.1,
+      0.0
+     ],
+     "foot_F": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "thigh_B": [
+      -0.0,
+      0.2,
+      0.0
+     ],
+     "shin_B": [
+      0.0,
+      0.1,
+      0.0
+     ],
+     "thigh_F": [
+      0.1,
+      0.2,
+      0.0
+     ],
+     "shin_F": [
+      0.0,
+      0.1,
+      0.0
+     ]
+    },
     "sleeve_reach": {
      "B": 0.53,
      "F": 1.32
@@ -1546,7 +2846,7 @@
      "torso": 0.624,
      "pelvis": 0.487
     },
-    "skin_halo_px": 250,
+    "skin_halo_px": 244,
     "light_outline": false
    },
    "warnings": [
@@ -1575,7 +2875,7 @@
      "frame": "g5_b01_05/torso",
      "size": [
       114,
-      150
+      151
      ],
      "anchor": [
       55.69,
@@ -1592,6 +2892,87 @@
     "median_colour_err_outside": 7.0,
     "silhouette_mismatch_outside": 0.0004,
     "accepted": true,
+    "reach_px": 1,
+    "geometry_px": {
+     "head": 0.0,
+     "thigh_B": 0.0,
+     "thigh_F": 0.1,
+     "shin_B": 0.0,
+     "shin_F": 0.1
+    },
+    "pose_deg": {
+     "leg_B": 0.01,
+     "leg_F": 0.0
+    },
+    "limb_fit": {
+     "arm_B": [
+      0.3,
+      0.02,
+      0.2
+     ],
+     "arm_F": [
+      3.0,
+      0.18,
+      0.9
+     ],
+     "leg_B": [
+      0.2,
+      -0.01,
+      0.1
+     ],
+     "leg_F": [
+      0.1,
+      -0.0,
+      0.1
+     ]
+    },
+    "part_shift": {
+     "head": [
+      -0.0,
+      0.0,
+      0.01
+     ],
+     "hand_B": [
+      -0.0,
+      0.1,
+      0.0
+     ],
+     "hand_F": [
+      0.1,
+      0.1,
+      0.0
+     ],
+     "foot_B": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "foot_F": [
+      0.1,
+      -0.0,
+      0.0
+     ],
+     "thigh_B": [
+      -0.0,
+      0.0,
+      0.0
+     ],
+     "shin_B": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "thigh_F": [
+      0.1,
+      -0.0,
+      0.0
+     ],
+     "shin_F": [
+      0.0,
+      0.1,
+      0.0
+     ]
+    },
     "sleeve_reach": {
      "B": 0.57,
      "F": 1.31
@@ -1602,9 +2983,9 @@
     },
     "coverage": {
      "torso": 0.891,
-     "pelvis": 0.832
+     "pelvis": 0.835
     },
-    "skin_halo_px": 71,
+    "skin_halo_px": 70,
     "light_outline": false
    },
    "warnings": [
@@ -1660,21 +3041,102 @@
     "median_colour_err_outside": 5.7,
     "silhouette_mismatch_outside": 0.0006,
     "accepted": true,
+    "reach_px": 0,
+    "geometry_px": {
+     "head": 0.0,
+     "thigh_B": 0.0,
+     "thigh_F": 0.1,
+     "shin_B": 0.1,
+     "shin_F": 0.2
+    },
+    "pose_deg": {
+     "leg_B": 0.01,
+     "leg_F": 0.0
+    },
+    "limb_fit": {
+     "arm_B": [
+      7.9,
+      0.5,
+      2.0
+     ],
+     "arm_F": [
+      23.7,
+      1.31,
+      5.4
+     ],
+     "leg_B": [
+      0.1,
+      0.01,
+      0.1
+     ],
+     "leg_F": [
+      0.1,
+      0.0,
+      0.1
+     ]
+    },
+    "part_shift": {
+     "head": [
+      -0.0,
+      -0.0,
+      0.01
+     ],
+     "hand_B": [
+      -0.1,
+      0.1,
+      0.01
+     ],
+     "hand_F": [
+      0.0,
+      -0.0,
+      0.01
+     ],
+     "foot_B": [
+      -0.0,
+      0.1,
+      0.0
+     ],
+     "foot_F": [
+      -0.0,
+      0.0,
+      0.0
+     ],
+     "thigh_B": [
+      -0.0,
+      0.0,
+      0.0
+     ],
+     "shin_B": [
+      -0.0,
+      0.1,
+      0.0
+     ],
+     "thigh_F": [
+      0.1,
+      0.0,
+      0.0
+     ],
+     "shin_F": [
+      -0.0,
+      0.2,
+      0.0
+     ]
+    },
     "sleeve_reach": {
-     "F": 0.8
+     "F": 0.72
     },
     "sleeve_wrap": {
      "F": 1.0
     },
     "coverage": {
      "torso": 0.662,
-     "pelvis": 0.692
+     "pelvis": 0.683
     },
-    "skin_halo_px": 415,
+    "skin_halo_px": 318,
     "light_outline": false
    },
    "warnings": [
-    "415 px of skin along the edges returned to the body",
+    "318 px of skin along the edges returned to the body",
     "partly covered (the bare body shows under it): torso, pelvis"
    ],
    "previews": {
@@ -1753,9 +3215,92 @@
     "median_colour_err_outside": 3.0,
     "silhouette_mismatch_outside": 0.0004,
     "accepted": true,
+    "reach_px": 0,
+    "geometry_px": {
+     "head": 0.0,
+     "torso": 0.2
+    },
+    "pose_deg": {
+     "arm_B": 0.02,
+     "arm_F": 0.01
+    },
+    "limb_fit": {
+     "arm_B": [
+      0.4,
+      0.02,
+      0.1
+     ],
+     "arm_F": [
+      0.2,
+      -0.01,
+      0.3
+     ],
+     "leg_B": [
+      4.3,
+      0.21,
+      1.5
+     ],
+     "leg_F": [
+      5.8,
+      -0.24,
+      1.8
+     ]
+    },
+    "part_shift": {
+     "head": [
+      -0.0,
+      0.0,
+      0.0
+     ],
+     "torso": [
+      0.0,
+      -0.2,
+      0.0
+     ],
+     "hand_B": [
+      -0.1,
+      -0.1,
+      0.0
+     ],
+     "hand_F": [
+      0.1,
+      -0.3,
+      0.0
+     ],
+     "foot_B": [
+      0.1,
+      0.1,
+      0.0
+     ],
+     "foot_F": [
+      -0.1,
+      0.2,
+      0.0
+     ],
+     "uparm_B": [
+      0.0,
+      -0.1,
+      0.0
+     ],
+     "forearm_B": [
+      0.1,
+      -0.2,
+      0.0
+     ],
+     "uparm_F": [
+      0.0,
+      -0.2,
+      0.0
+     ],
+     "forearm_F": [
+      0.1,
+      -0.4,
+      0.0
+     ]
+    },
     "leg_width": 0.88,
     "coverage": {
-     "pelvis": 0.954,
+     "pelvis": 0.955,
      "leg_B": 0.988,
      "leg_F": 0.994
     },
@@ -1835,15 +3380,98 @@
    ],
    "loose": false,
    "checks": {
-    "ecc": 0.9984,
+    "ecc": 1.0,
     "median_colour_err_outside": 2.7,
-    "silhouette_mismatch_outside": 0.0009,
+    "silhouette_mismatch_outside": 0.0004,
     "accepted": true,
+    "reach_px": 400,
+    "geometry_px": {
+     "head": 0.0,
+     "torso": 0.1
+    },
+    "pose_deg": {
+     "arm_B": 0.02,
+     "arm_F": 0.01
+    },
+    "limb_fit": {
+     "arm_B": [
+      0.4,
+      0.02,
+      0.2
+     ],
+     "arm_F": [
+      0.1,
+      -0.01,
+      0.2
+     ],
+     "leg_B": [
+      6.0,
+      -0.28,
+      1.9
+     ],
+     "leg_F": [
+      13.3,
+      0.57,
+      3.9
+     ]
+    },
+    "part_shift": {
+     "head": [
+      0.0,
+      -0.0,
+      0.0
+     ],
+     "torso": [
+      0.1,
+      -0.1,
+      0.0
+     ],
+     "hand_B": [
+      -0.0,
+      -0.2,
+      0.0
+     ],
+     "hand_F": [
+      0.1,
+      -0.2,
+      0.0
+     ],
+     "foot_B": [
+      0.1,
+      0.2,
+      0.0
+     ],
+     "foot_F": [
+      0.1,
+      0.1,
+      0.0
+     ],
+     "uparm_B": [
+      0.1,
+      -0.1,
+      0.0
+     ],
+     "forearm_B": [
+      0.1,
+      -0.2,
+      0.0
+     ],
+     "uparm_F": [
+      0.1,
+      -0.1,
+      0.0
+     ],
+     "forearm_F": [
+      0.1,
+      -0.3,
+      0.0
+     ]
+    },
     "leg_width": 1.1,
     "coverage": {
-     "pelvis": 0.966,
-     "leg_B": 0.999,
-     "leg_F": 0.998
+     "pelvis": 0.964,
+     "leg_B": 0.998,
+     "leg_F": 0.997
     },
     "skin_halo_px": 0,
     "light_outline": false
@@ -1869,11 +3497,11 @@
      "part": "pelvis_under",
      "frame": "g5_b01_09/pelvis_under",
      "size": [
-      79,
+      80,
       11
      ],
      "anchor": [
-      37.69,
+      38.69,
       37.65
      ]
     },
@@ -1923,13 +3551,96 @@
     "median_colour_err_outside": 5.3,
     "silhouette_mismatch_outside": 0.0004,
     "accepted": true,
+    "reach_px": 0,
+    "geometry_px": {
+     "head": 0.0,
+     "torso": 0.1
+    },
+    "pose_deg": {
+     "arm_B": 0.0,
+     "arm_F": 0.03
+    },
+    "limb_fit": {
+     "arm_B": [
+      0.1,
+      0.0,
+      0.1
+     ],
+     "arm_F": [
+      0.5,
+      0.03,
+      0.1
+     ],
+     "leg_B": [
+      3.2,
+      -0.15,
+      0.9
+     ],
+     "leg_F": [
+      2.0,
+      0.09,
+      0.5
+     ]
+    },
+    "part_shift": {
+     "head": [
+      -0.0,
+      -0.0,
+      0.01
+     ],
+     "torso": [
+      0.0,
+      -0.1,
+      0.0
+     ],
+     "hand_B": [
+      0.0,
+      0.2,
+      0.0
+     ],
+     "hand_F": [
+      -0.0,
+      0.1,
+      0.01
+     ],
+     "foot_B": [
+      0.0,
+      0.1,
+      0.0
+     ],
+     "foot_F": [
+      -0.0,
+      -0.0,
+      0.0
+     ],
+     "uparm_B": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "forearm_B": [
+      0.1,
+      -0.1,
+      0.0
+     ],
+     "uparm_F": [
+      -0.0,
+      -0.1,
+      0.0
+     ],
+     "forearm_F": [
+      -0.0,
+      -0.2,
+      0.0
+     ]
+    },
     "leg_width": 0.98,
     "coverage": {
-     "pelvis": 0.956,
-     "leg_B": 0.606,
-     "leg_F": 0.624
+     "pelvis": 0.955,
+     "leg_B": 0.608,
+     "leg_F": 0.625
     },
-    "skin_halo_px": 110,
+    "skin_halo_px": 101,
     "light_outline": false
    },
    "warnings": [
@@ -1955,7 +3666,7 @@
      "part": "pelvis_under",
      "frame": "g5_b01_10/pelvis_under",
      "size": [
-      82,
+      83,
       11
      ],
      "anchor": [
@@ -2007,10 +3718,93 @@
    ],
    "loose": false,
    "checks": {
-    "ecc": 0.9998,
+    "ecc": 1.0,
     "median_colour_err_outside": 5.7,
-    "silhouette_mismatch_outside": 0.0005,
+    "silhouette_mismatch_outside": 0.0004,
     "accepted": true,
+    "reach_px": 46,
+    "geometry_px": {
+     "head": 0.0,
+     "torso": 0.0
+    },
+    "pose_deg": {
+     "arm_B": 0.05,
+     "arm_F": 0.01
+    },
+    "limb_fit": {
+     "arm_B": [
+      0.8,
+      0.05,
+      0.2
+     ],
+     "arm_F": [
+      0.0,
+      -0.01,
+      0.2
+     ],
+     "leg_B": [
+      45.1,
+      -2.07,
+      14.2
+     ],
+     "leg_F": [
+      18.7,
+      0.8,
+      5.6
+     ]
+    },
+    "part_shift": {
+     "head": [
+      -0.0,
+      -0.0,
+      0.01
+     ],
+     "torso": [
+      0.0,
+      -0.0,
+      0.0
+     ],
+     "hand_B": [
+      -0.0,
+      -0.0,
+      0.01
+     ],
+     "hand_F": [
+      0.1,
+      -0.1,
+      0.0
+     ],
+     "foot_B": [
+      -0.0,
+      0.1,
+      0.0
+     ],
+     "foot_F": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "uparm_B": [
+      0.1,
+      0.0,
+      0.0
+     ],
+     "forearm_B": [
+      0.1,
+      -0.0,
+      0.0
+     ],
+     "uparm_F": [
+      0.0,
+      -0.1,
+      0.0
+     ],
+     "forearm_F": [
+      0.1,
+      -0.1,
+      0.0
+     ]
+    },
     "leg_width": 1.03,
     "coverage": {
      "pelvis": 0.98,
@@ -2024,6 +3818,1411 @@
    "previews": {
     "150": "previews/g5_b01_10_150.png",
     "600": "previews/g5_b01_10_600.png"
+   }
+  },
+  {
+   "id": "g5_b02_11",
+   "name": "Iron Recruit Cuirass",
+   "slot": "top",
+   "profile": "rigid",
+   "motion": null,
+   "source": {
+    "picture": "items/gate5/b02_11_iron_cuirass_v1.png",
+    "sha1": "22d95e83aba5"
+   },
+   "parts": [
+    {
+     "part": "torso",
+     "frame": "g5_b02_11/torso",
+     "size": [
+      121,
+      111
+     ],
+     "anchor": [
+      65.69,
+      93.19
+     ]
+    },
+    {
+     "part": "pauldron_B",
+     "frame": "g5_b02_11/pauldron_B",
+     "size": [
+      63,
+      49
+     ],
+     "anchor": [
+      31.74,
+      33.74
+     ]
+    },
+    {
+     "part": "pauldron_F",
+     "frame": "g5_b02_11/pauldron_F",
+     "size": [
+      45,
+      64
+     ],
+     "anchor": [
+      20.65,
+      31.74
+     ]
+    }
+   ],
+   "covers": [
+    "torso"
+   ],
+   "loose": false,
+   "checks": {
+    "ecc": 1.0,
+    "median_colour_err_outside": 7.7,
+    "silhouette_mismatch_outside": 0.0004,
+    "accepted": true,
+    "reach_px": 0,
+    "geometry_px": {
+     "head": 0.0,
+     "thigh_B": 0.1,
+     "thigh_F": 0.1,
+     "shin_B": 0.1,
+     "shin_F": 0.1
+    },
+    "pose_deg": {
+     "leg_B": 0.01,
+     "leg_F": 0.0
+    },
+    "limb_fit": {
+     "arm_B": [
+      3.1,
+      0.2,
+      0.9
+     ],
+     "arm_F": [
+      10.1,
+      0.57,
+      2.4
+     ],
+     "leg_B": [
+      0.1,
+      -0.01,
+      0.1
+     ],
+     "leg_F": [
+      0.1,
+      0.0,
+      0.1
+     ]
+    },
+    "part_shift": {
+     "head": [
+      0.0,
+      0.0,
+      0.01
+     ],
+     "hand_B": [
+      -0.0,
+      0.0,
+      0.0
+     ],
+     "hand_F": [
+      -0.0,
+      0.1,
+      0.0
+     ],
+     "foot_B": [
+      0.1,
+      0.0,
+      0.0
+     ],
+     "foot_F": [
+      0.0,
+      -0.0,
+      0.0
+     ],
+     "thigh_B": [
+      0.0,
+      -0.1,
+      0.0
+     ],
+     "shin_B": [
+      0.1,
+      0.0,
+      0.0
+     ],
+     "thigh_F": [
+      0.1,
+      -0.1,
+      0.0
+     ],
+     "shin_F": [
+      0.0,
+      0.1,
+      0.0
+     ]
+    },
+    "coverage": {
+     "torso": 0.942
+    },
+    "skin_halo_px": 99,
+    "light_outline": false
+   },
+   "warnings": [],
+   "previews": {
+    "150": "previews/g5_b02_11_150.png",
+    "600": "previews/g5_b02_11_600.png"
+   }
+  },
+  {
+   "id": "g5_b02_12",
+   "name": "Golden Vanguard Armor",
+   "slot": "top",
+   "profile": "rigid",
+   "motion": null,
+   "source": {
+    "picture": "items/gate5/b02_12_golden_vanguard_v1.png",
+    "sha1": "7a58d8eaa6ca"
+   },
+   "parts": [
+    {
+     "part": "torso",
+     "frame": "g5_b02_12/torso",
+     "size": [
+      131,
+      122
+     ],
+     "anchor": [
+      71.69,
+      95.19
+     ]
+    },
+    {
+     "part": "pauldron_B",
+     "frame": "g5_b02_12/pauldron_B",
+     "size": [
+      80,
+      83
+     ],
+     "anchor": [
+      53.74,
+      36.74
+     ]
+    },
+    {
+     "part": "forearm_B",
+     "frame": "g5_b02_12/forearm_B",
+     "size": [
+      51,
+      66
+     ],
+     "anchor": [
+      38.76,
+      13.7
+     ]
+    },
+    {
+     "part": "pauldron_F",
+     "frame": "g5_b02_12/pauldron_F",
+     "size": [
+      59,
+      65
+     ],
+     "anchor": [
+      14.65,
+      34.74
+     ]
+    },
+    {
+     "part": "uparm_F",
+     "frame": "g5_b02_12/uparm_F",
+     "size": [
+      48,
+      61
+     ],
+     "anchor": [
+      7.65,
+      8.74
+     ]
+    },
+    {
+     "part": "forearm_F",
+     "frame": "g5_b02_12/forearm_F",
+     "size": [
+      52,
+      65
+     ],
+     "anchor": [
+      17.63,
+      11.7
+     ]
+    }
+   ],
+   "covers": [
+    "torso"
+   ],
+   "loose": false,
+   "checks": {
+    "ecc": 0.9999,
+    "median_colour_err_outside": 5.0,
+    "silhouette_mismatch_outside": 0.0008,
+    "accepted": true,
+    "reach_px": 6074,
+    "geometry_px": {
+     "head": 0.2,
+     "thigh_B": 0.2,
+     "thigh_F": 0.5,
+     "shin_B": 0.0,
+     "shin_F": 0.3
+    },
+    "pose_deg": {
+     "leg_B": 0.05,
+     "leg_F": 0.02
+    },
+    "limb_fit": {
+     "arm_F": [
+      24.1,
+      1.31,
+      5.9
+     ],
+     "leg_B": [
+      0.9,
+      0.05,
+      0.2
+     ],
+     "leg_F": [
+      0.3,
+      -0.02,
+      0.2
+     ]
+    },
+    "part_shift": {
+     "head": [
+      -0.1,
+      -0.2,
+      0.02
+     ],
+     "hand_B": [
+      -0.6,
+      0.1,
+      0.06
+     ],
+     "hand_F": [
+      -0.1,
+      0.4,
+      0.0
+     ],
+     "foot_B": [
+      -0.1,
+      0.3,
+      0.0
+     ],
+     "foot_F": [
+      0.2,
+      0.2,
+      0.0
+     ],
+     "thigh_B": [
+      0.1,
+      -0.2,
+      0.01
+     ],
+     "shin_B": [
+      0.0,
+      -0.0,
+      0.0
+     ],
+     "thigh_F": [
+      0.1,
+      -0.5,
+      0.02
+     ],
+     "shin_F": [
+      0.2,
+      -0.2,
+      0.0
+     ]
+    },
+    "coverage": {
+     "torso": 0.983,
+     "arm_B": 0.663,
+     "arm_F": 0.683
+    },
+    "skin_halo_px": 183,
+    "light_outline": false
+   },
+   "warnings": [
+    "partly covered (the bare body shows under it): arm_B, arm_F"
+   ],
+   "previews": {
+    "150": "previews/g5_b02_12_150.png",
+    "600": "previews/g5_b02_12_600.png"
+   }
+  },
+  {
+   "id": "g5_b02_13",
+   "name": "Shadow Assassin Armor",
+   "slot": "top",
+   "profile": "rigid",
+   "motion": null,
+   "source": {
+    "picture": "items/gate5/b02_13_shadow_assassin_v1.png",
+    "sha1": "c084d48883e2"
+   },
+   "parts": [
+    {
+     "part": "torso",
+     "frame": "g5_b02_13/torso",
+     "size": [
+      128,
+      150
+     ],
+     "anchor": [
+      69.69,
+      95.19
+     ]
+    },
+    {
+     "part": "pauldron_B",
+     "frame": "g5_b02_13/pauldron_B",
+     "size": [
+      83,
+      76
+     ],
+     "anchor": [
+      45.74,
+      36.74
+     ]
+    },
+    {
+     "part": "uparm_B",
+     "frame": "g5_b02_13/uparm_B",
+     "size": [
+      60,
+      78
+     ],
+     "anchor": [
+      45.74,
+      35.74
+     ]
+    },
+    {
+     "part": "forearm_B",
+     "frame": "g5_b02_13/forearm_B",
+     "size": [
+      52,
+      56
+     ],
+     "anchor": [
+      37.76,
+      2.7
+     ]
+    },
+    {
+     "part": "pauldron_F",
+     "frame": "g5_b02_13/pauldron_F",
+     "size": [
+      59,
+      64
+     ],
+     "anchor": [
+      30.65,
+      27.74
+     ]
+    },
+    {
+     "part": "forearm_F",
+     "frame": "g5_b02_13/forearm_F",
+     "size": [
+      51,
+      57
+     ],
+     "anchor": [
+      13.63,
+      3.7
+     ]
+    }
+   ],
+   "covers": [
+    "torso"
+   ],
+   "loose": false,
+   "checks": {
+    "ecc": 0.9997,
+    "median_colour_err_outside": 5.7,
+    "silhouette_mismatch_outside": 0.0006,
+    "accepted": true,
+    "reach_px": 2716,
+    "geometry_px": {
+     "head": 0.1,
+     "thigh_B": 0.4,
+     "thigh_F": 0.4,
+     "shin_B": 0.3,
+     "shin_F": 0.2
+    },
+    "pose_deg": {
+     "leg_B": 0.01,
+     "leg_F": 0.02
+    },
+    "limb_fit": {
+     "arm_B": [
+      8.4,
+      -0.47,
+      2.4
+     ],
+     "arm_F": [
+      5.9,
+      0.35,
+      1.9
+     ],
+     "leg_B": [
+      0.4,
+      -0.01,
+      0.3
+     ],
+     "leg_F": [
+      0.4,
+      -0.02,
+      0.2
+     ]
+    },
+    "part_shift": {
+     "head": [
+      0.1,
+      0.0,
+      0.01
+     ],
+     "hand_B": [
+      0.0,
+      0.8,
+      0.01
+     ],
+     "hand_F": [
+      -0.1,
+      0.7,
+      0.01
+     ],
+     "foot_B": [
+      0.0,
+      0.1,
+      0.0
+     ],
+     "foot_F": [
+      0.1,
+      -0.1,
+      0.0
+     ],
+     "thigh_B": [
+      -0.0,
+      0.4,
+      0.02
+     ],
+     "shin_B": [
+      0.0,
+      0.3,
+      0.0
+     ],
+     "thigh_F": [
+      0.2,
+      0.3,
+      0.01
+     ],
+     "shin_F": [
+      0.1,
+      0.2,
+      0.0
+     ]
+    },
+    "coverage": {
+     "torso": 0.99,
+     "pelvis": 0.829,
+     "arm_B": 0.677,
+     "arm_F": 0.596
+    },
+    "skin_halo_px": 98,
+    "light_outline": false
+   },
+   "warnings": [
+    "partly covered (the bare body shows under it): pelvis, arm_B, arm_F"
+   ],
+   "previews": {
+    "150": "previews/g5_b02_13_150.png",
+    "600": "previews/g5_b02_13_600.png"
+   }
+  },
+  {
+   "id": "g5_b02_14",
+   "name": "Royal Bastion Heavy Armor",
+   "slot": "top",
+   "profile": "rigid",
+   "motion": null,
+   "source": {
+    "picture": "items/gate5/b02_14_royal_bastion_v1.png",
+    "sha1": "d94dc195e224"
+   },
+   "parts": [
+    {
+     "part": "torso",
+     "frame": "g5_b02_14/torso",
+     "size": [
+      134,
+      151
+     ],
+     "anchor": [
+      71.69,
+      96.19
+     ]
+    },
+    {
+     "part": "pauldron_B",
+     "frame": "g5_b02_14/pauldron_B",
+     "size": [
+      122,
+      85
+     ],
+     "anchor": [
+      83.74,
+      36.74
+     ]
+    },
+    {
+     "part": "uparm_B",
+     "frame": "g5_b02_14/uparm_B",
+     "size": [
+      89,
+      49
+     ],
+     "anchor": [
+      74.74,
+      -7.26
+     ]
+    },
+    {
+     "part": "forearm_B",
+     "frame": "g5_b02_14/forearm_B",
+     "size": [
+      82,
+      76
+     ],
+     "anchor": [
+      53.76,
+      21.7
+     ]
+    },
+    {
+     "part": "pauldron_F",
+     "frame": "g5_b02_14/pauldron_F",
+     "size": [
+      73,
+      79
+     ],
+     "anchor": [
+      4.65,
+      35.74
+     ]
+    },
+    {
+     "part": "uparm_F",
+     "frame": "g5_b02_14/uparm_F",
+     "size": [
+      73,
+      95
+     ],
+     "anchor": [
+      9.65,
+      34.74
+     ]
+    },
+    {
+     "part": "forearm_F",
+     "frame": "g5_b02_14/forearm_F",
+     "size": [
+      65,
+      67
+     ],
+     "anchor": [
+      23.63,
+      12.7
+     ]
+    }
+   ],
+   "covers": [
+    "torso",
+    "pelvis",
+    "arm_B",
+    "arm_F"
+   ],
+   "loose": false,
+   "checks": {
+    "ecc": 0.9938,
+    "median_colour_err_outside": 6.3,
+    "silhouette_mismatch_outside": 0.0017,
+    "accepted": true,
+    "reach_px": 27883,
+    "geometry_px": {
+     "head": 0.9,
+     "thigh_B": 1.5,
+     "thigh_F": 0.9,
+     "shin_B": 1.6,
+     "shin_F": 0.4
+    },
+    "pose_deg": {
+     "leg_B": 0.07,
+     "leg_F": 0.01
+    },
+    "limb_fit": {
+     "leg_B": [
+      1.6,
+      0.07,
+      1.5
+     ],
+     "leg_F": [
+      0.3,
+      0.01,
+      0.4
+     ]
+    },
+    "part_shift": {
+     "head": [
+      0.2,
+      0.9,
+      0.09
+     ],
+     "hand_B": [
+      0.6,
+      1.4,
+      0.06
+     ],
+     "hand_F": [
+      -0.9,
+      0.5,
+      0.09
+     ],
+     "foot_B": [
+      0.0,
+      1.2,
+      0.03
+     ],
+     "foot_F": [
+      -0.2,
+      -0.1,
+      0.01
+     ],
+     "thigh_B": [
+      0.3,
+      1.5,
+      0.06
+     ],
+     "shin_B": [
+      0.2,
+      1.6,
+      0.0
+     ],
+     "thigh_F": [
+      0.2,
+      0.9,
+      0.04
+     ],
+     "shin_F": [
+      -0.1,
+      0.4,
+      0.0
+     ]
+    },
+    "coverage": {
+     "torso": 0.994,
+     "pelvis": 0.892,
+     "arm_B": 0.89,
+     "arm_F": 0.983
+    },
+    "skin_halo_px": 319,
+    "light_outline": false
+   },
+   "warnings": [
+    "319 px of skin along the edges returned to the body"
+   ],
+   "previews": {
+    "150": "previews/g5_b02_14_150.png",
+    "600": "previews/g5_b02_14_600.png"
+   }
+  },
+  {
+   "id": "g5_b02_15",
+   "name": "Crimson Samurai Armor",
+   "slot": "top",
+   "profile": "rigid",
+   "motion": null,
+   "source": {
+    "picture": "items/gate5/b02_15_crimson_samurai_v1.png",
+    "sha1": "4b820478dd12"
+   },
+   "parts": [
+    {
+     "part": "torso",
+     "frame": "g5_b02_15/torso",
+     "size": [
+      133,
+      150
+     ],
+     "anchor": [
+      70.69,
+      96.19
+     ]
+    },
+    {
+     "part": "pauldron_B",
+     "frame": "g5_b02_15/pauldron_B",
+     "size": [
+      86,
+      79
+     ],
+     "anchor": [
+      60.74,
+      33.74
+     ]
+    },
+    {
+     "part": "uparm_B",
+     "frame": "g5_b02_15/uparm_B",
+     "size": [
+      71,
+      87
+     ],
+     "anchor": [
+      56.74,
+      34.74
+     ]
+    },
+    {
+     "part": "forearm_B",
+     "frame": "g5_b02_15/forearm_B",
+     "size": [
+      20,
+      13
+     ],
+     "anchor": [
+      34.76,
+      15.7
+     ]
+    },
+    {
+     "part": "pauldron_F",
+     "frame": "g5_b02_15/pauldron_F",
+     "size": [
+      62,
+      86
+     ],
+     "anchor": [
+      15.65,
+      34.74
+     ]
+    },
+    {
+     "part": "uparm_F",
+     "frame": "g5_b02_15/uparm_F",
+     "size": [
+      53,
+      79
+     ],
+     "anchor": [
+      9.65,
+      18.74
+     ]
+    },
+    {
+     "part": "forearm_F",
+     "frame": "g5_b02_15/forearm_F",
+     "size": [
+      39,
+      62
+     ],
+     "anchor": [
+      23.63,
+      9.7
+     ]
+    }
+   ],
+   "covers": [
+    "torso",
+    "pelvis"
+   ],
+   "loose": false,
+   "checks": {
+    "ecc": 1.0,
+    "median_colour_err_outside": 4.3,
+    "silhouette_mismatch_outside": 0.0005,
+    "accepted": true,
+    "reach_px": 7594,
+    "geometry_px": {
+     "head": 0.0,
+     "thigh_B": 0.1,
+     "thigh_F": 0.1,
+     "shin_B": 0.1,
+     "shin_F": 0.1
+    },
+    "pose_deg": {
+     "leg_B": 0.01,
+     "leg_F": 0.02
+    },
+    "limb_fit": {
+     "arm_B": [
+      17.5,
+      -1.08,
+      4.8
+     ],
+     "arm_F": [
+      5.3,
+      0.3,
+      1.2
+     ],
+     "leg_B": [
+      0.4,
+      -0.01,
+      0.2
+     ],
+     "leg_F": [
+      0.5,
+      -0.02,
+      0.2
+     ]
+    },
+    "part_shift": {
+     "head": [
+      -0.0,
+      -0.0,
+      0.0
+     ],
+     "hand_B": [
+      0.0,
+      0.2,
+      0.0
+     ],
+     "hand_F": [
+      -0.1,
+      0.2,
+      0.0
+     ],
+     "foot_B": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "foot_F": [
+      0.0,
+      -0.0,
+      0.0
+     ],
+     "thigh_B": [
+      0.0,
+      0.1,
+      0.0
+     ],
+     "shin_B": [
+      0.0,
+      0.1,
+      0.0
+     ],
+     "thigh_F": [
+      0.1,
+      0.0,
+      0.0
+     ],
+     "shin_F": [
+      0.0,
+      0.1,
+      0.0
+     ]
+    },
+    "coverage": {
+     "torso": 0.988,
+     "pelvis": 0.953,
+     "arm_B": 0.362,
+     "arm_F": 0.33
+    },
+    "skin_halo_px": 127,
+    "light_outline": false
+   },
+   "warnings": [
+    "partly covered (the bare body shows under it): arm_B, arm_F"
+   ],
+   "previews": {
+    "150": "previews/g5_b02_15_150.png",
+    "600": "previews/g5_b02_15_600.png"
+   }
+  },
+  {
+   "id": "g5_b02_16",
+   "name": "Wanderer Leather Sandals",
+   "slot": "shoes",
+   "profile": "cloth",
+   "motion": null,
+   "source": {
+    "picture": "items/gate5/b02_16_wanderer_sandals_v1.png",
+    "sha1": "61d0933d6981"
+   },
+   "parts": [
+    {
+     "part": "leg_B",
+     "frame": "g5_b02_16/leg_B",
+     "size": [
+      72,
+      197
+     ],
+     "anchor": [
+      36.0,
+      25.6
+     ]
+    },
+    {
+     "part": "foot_B",
+     "frame": "g5_b02_16/foot_B",
+     "size": [
+      100,
+      57
+     ],
+     "anchor": [
+      30.75,
+      6.99
+     ]
+    },
+    {
+     "part": "leg_F",
+     "frame": "g5_b02_16/leg_F",
+     "size": [
+      72,
+      195
+     ],
+     "anchor": [
+      36.0,
+      25.6
+     ]
+    },
+    {
+     "part": "foot_F",
+     "frame": "g5_b02_16/foot_F",
+     "size": [
+      93,
+      52
+     ],
+     "anchor": [
+      28.16,
+      2.99
+     ]
+    }
+   ],
+   "covers": [],
+   "loose": false,
+   "checks": {
+    "ecc": 1.0,
+    "median_colour_err_outside": 3.0,
+    "silhouette_mismatch_outside": 0.0003,
+    "accepted": true,
+    "reach_px": 0,
+    "geometry_px": {
+     "head": 0.0,
+     "torso": 0.0,
+     "pelvis": 0.1
+    },
+    "pose_deg": {
+     "arm_B": 0.02,
+     "arm_F": 0.0
+    },
+    "limb_fit": {
+     "arm_B": [
+      0.4,
+      0.02,
+      0.1
+     ],
+     "arm_F": [
+      0.1,
+      0.0,
+      0.0
+     ],
+     "leg_B": [
+      3.5,
+      0.16,
+      1.1
+     ],
+     "leg_F": [
+      7.7,
+      -0.42,
+      1.6
+     ]
+    },
+    "part_shift": {
+     "head": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "torso": [
+      -0.0,
+      -0.0,
+      0.0
+     ],
+     "pelvis": [
+      -0.1,
+      0.0,
+      0.0
+     ],
+     "hand_B": [
+      -0.1,
+      -0.1,
+      0.0
+     ],
+     "hand_F": [
+      0.1,
+      -0.0,
+      0.0
+     ],
+     "uparm_B": [
+      0.0,
+      0.1,
+      0.0
+     ],
+     "forearm_B": [
+      0.1,
+      0.0,
+      0.0
+     ],
+     "uparm_F": [
+      0.1,
+      0.1,
+      0.0
+     ],
+     "forearm_F": [
+      0.0,
+      -0.0,
+      0.0
+     ]
+    },
+    "coverage": {
+     "foot_B": 0.78,
+     "foot_F": 0.765
+    },
+    "skin_halo_px": 418,
+    "light_outline": false
+   },
+   "warnings": [
+    "418 px of skin along the edges returned to the body",
+    "partly covered (the bare body shows under it): foot_B, foot_F"
+   ],
+   "previews": {
+    "150": "previews/g5_b02_16_150.png",
+    "600": "previews/g5_b02_16_600.png"
+   }
+  },
+  {
+   "id": "g5_b02_17",
+   "name": "Knight's High Boots",
+   "slot": "shoes",
+   "profile": "rigid",
+   "motion": null,
+   "source": {
+    "picture": "items/gate5/b02_17_knight_boots_v1.png",
+    "sha1": "1cb33a509957"
+   },
+   "parts": [
+    {
+     "part": "leg_B",
+     "frame": "g5_b02_17/leg_B",
+     "size": [
+      72,
+      197
+     ],
+     "anchor": [
+      36.0,
+      25.6
+     ]
+    },
+    {
+     "part": "foot_B",
+     "frame": "g5_b02_17/foot_B",
+     "size": [
+      98,
+      53
+     ],
+     "anchor": [
+      28.75,
+      5.99
+     ]
+    },
+    {
+     "part": "leg_F",
+     "frame": "g5_b02_17/leg_F",
+     "size": [
+      72,
+      195
+     ],
+     "anchor": [
+      36.0,
+      25.6
+     ]
+    },
+    {
+     "part": "foot_F",
+     "frame": "g5_b02_17/foot_F",
+     "size": [
+      93,
+      49
+     ],
+     "anchor": [
+      30.16,
+      4.99
+     ]
+    }
+   ],
+   "covers": [
+    "foot_B",
+    "foot_F"
+   ],
+   "loose": false,
+   "checks": {
+    "ecc": 1.0,
+    "median_colour_err_outside": 5.7,
+    "silhouette_mismatch_outside": 0.0003,
+    "accepted": true,
+    "reach_px": 0,
+    "geometry_px": {
+     "head": 0.1,
+     "torso": 0.1,
+     "pelvis": 0.2
+    },
+    "pose_deg": {
+     "arm_B": 0.01,
+     "arm_F": 0.0
+    },
+    "limb_fit": {
+     "arm_B": [
+      0.1,
+      0.01,
+      0.1
+     ],
+     "arm_F": [
+      0.0,
+      -0.0,
+      0.1
+     ],
+     "leg_B": [
+      35.8,
+      1.85,
+      7.2
+     ]
+    },
+    "part_shift": {
+     "head": [
+      -0.1,
+      0.0,
+      0.01
+     ],
+     "torso": [
+      -0.1,
+      -0.0,
+      0.0
+     ],
+     "pelvis": [
+      -0.0,
+      -0.2,
+      0.0
+     ],
+     "hand_B": [
+      -0.1,
+      0.1,
+      0.01
+     ],
+     "hand_F": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "uparm_B": [
+      -0.0,
+      0.0,
+      0.0
+     ],
+     "forearm_B": [
+      -0.0,
+      -0.0,
+      0.0
+     ],
+     "uparm_F": [
+      -0.0,
+      -0.1,
+      0.0
+     ],
+     "forearm_F": [
+      0.0,
+      -0.2,
+      0.0
+     ]
+    },
+    "coverage": {
+     "leg_B": 0.405,
+     "leg_F": 0.418,
+     "foot_B": 0.999,
+     "foot_F": 1.0
+    },
+    "skin_halo_px": 84,
+    "light_outline": false
+   },
+   "warnings": [
+    "partly covered (the bare body shows under it): leg_B, leg_F"
+   ],
+   "previews": {
+    "150": "previews/g5_b02_17_150.png",
+    "600": "previews/g5_b02_17_600.png"
+   }
+  },
+  {
+   "id": "g5_b02_18",
+   "name": "Titan War Boots",
+   "slot": "shoes",
+   "profile": "rigid",
+   "motion": null,
+   "source": {
+    "picture": "items/gate5/b02_18_titan_boots_v1.png",
+    "sha1": "bc826fa76514"
+   },
+   "parts": [
+    {
+     "part": "leg_B",
+     "frame": "g5_b02_18/leg_B",
+     "size": [
+      72,
+      197
+     ],
+     "anchor": [
+      36.0,
+      25.6
+     ]
+    },
+    {
+     "part": "foot_B",
+     "frame": "g5_b02_18/foot_B",
+     "size": [
+      108,
+      55
+     ],
+     "anchor": [
+      38.75,
+      10.99
+     ]
+    },
+    {
+     "part": "leg_F",
+     "frame": "g5_b02_18/leg_F",
+     "size": [
+      72,
+      195
+     ],
+     "anchor": [
+      36.0,
+      25.6
+     ]
+    },
+    {
+     "part": "foot_F",
+     "frame": "g5_b02_18/foot_F",
+     "size": [
+      107,
+      58
+     ],
+     "anchor": [
+      36.16,
+      13.99
+     ]
+    }
+   ],
+   "covers": [
+    "foot_B",
+    "foot_F"
+   ],
+   "loose": false,
+   "checks": {
+    "ecc": 1.0,
+    "median_colour_err_outside": 3.7,
+    "silhouette_mismatch_outside": 0.0003,
+    "accepted": true,
+    "reach_px": 1447,
+    "geometry_px": {
+     "head": 0.0,
+     "torso": 0.0,
+     "pelvis": 0.1
+    },
+    "pose_deg": {
+     "arm_B": 0.04,
+     "arm_F": 0.02
+    },
+    "limb_fit": {
+     "arm_B": [
+      0.6,
+      0.04,
+      0.1
+     ],
+     "arm_F": [
+      0.3,
+      0.02,
+      0.0
+     ]
+    },
+    "part_shift": {
+     "head": [
+      -0.0,
+      -0.0,
+      0.0
+     ],
+     "torso": [
+      -0.0,
+      -0.0,
+      0.0
+     ],
+     "pelvis": [
+      -0.1,
+      -0.1,
+      0.0
+     ],
+     "hand_B": [
+      -0.1,
+      -0.0,
+      0.0
+     ],
+     "hand_F": [
+      0.0,
+      -0.0,
+      0.0
+     ],
+     "uparm_B": [
+      -0.0,
+      0.1,
+      0.0
+     ],
+     "forearm_B": [
+      0.1,
+      -0.0,
+      0.0
+     ],
+     "uparm_F": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "forearm_F": [
+      -0.0,
+      -0.1,
+      0.0
+     ]
+    },
+    "coverage": {
+     "leg_B": 0.413,
+     "leg_F": 0.418,
+     "foot_B": 0.999,
+     "foot_F": 1.0
+    },
+    "skin_halo_px": 28,
+    "light_outline": false
+   },
+   "warnings": [
+    "partly covered (the bare body shows under it): leg_B, leg_F"
+   ],
+   "previews": {
+    "150": "previews/g5_b02_18_150.png",
+    "600": "previews/g5_b02_18_600.png"
    }
   }
  ],

@@ -410,12 +410,15 @@ def edges(rgb):
 
 MASTER_RGB = None
 LIMB_PARTS = {'arm_B': ['arm_B', 'hand_B'], 'arm_F': ['arm_F', 'hand_F'], 'leg_B': ['leg_B', 'foot_B'], 'leg_F': ['leg_F', 'foot_F']}
+LIMB_JOINTS = {'arm_B': ('shoulder_B', 'elbow_B', 'wrist_B'), 'arm_F': ('shoulder_F', 'elbow_F', 'wrist_F'),
+               'leg_B': ('hip_B', 'knee_B', 'ankle_B'), 'leg_F': ('hip_F', 'knee_F', 'ankle_F')}
 REFINE = {}
 
 
 def refine_limbs(al, field):
     e0 = edges(MASTER_RGB); e1 = edges(al)
     out = al.copy()
+    REFINE.clear()
     for limb, parts in LIMB_PARTS.items():
         own = np.any([L0[p] for p in parts], axis=0)
         msk = ndimage.binary_dilation(own, iterations=14)
@@ -425,7 +428,9 @@ def refine_limbs(al, field):
         except cv2.error:
             continue
         shift = float(np.hypot(w[0, 2], w[1, 2])); rot = float(np.degrees(np.arctan2(w[1, 0], w[0, 0])))
-        REFINE[limb] = (round(shift, 1), round(rot, 2))
+        # how far the fit moves the limb's joints (the master's joint p is drawn at w(p) in the picture)
+        moved_px = max(float(np.hypot(*(w[:, :2].astype(np.float64) @ J[j] + w[:, 2] - J[j]))) for j in LIMB_JOINTS[limb])
+        REFINE[limb] = (round(shift, 1), round(rot, 2), round(moved_px, 1))
         if shift > 30 or abs(rot) > 12: continue  # not a small correction: leave it to the check
         moved = cv2.warpAffine(al, w, (SH[1], SH[0]), flags=cv2.INTER_LINEAR | cv2.WARP_INVERSE_MAP, borderValue=(255, 0, 255))
         sel = np.any([field[p] for p in parts], axis=0)
@@ -433,7 +438,74 @@ def refine_limbs(al, field):
     return out
 
 
-EXPORTER_VERSION = '1.5'
+SEG = {}
+# the body check (exporter 1.6): outside the item, the picture's body must be the master's, in proportions and in pose.
+# Calibrated on every accepted source (an exact edit of the master sits within 1.6 px and 0.2 deg) and on the art
+# director's made defects (X01: torso 4% shorter, legs longer; X02: an arm turned 6 deg).
+GEO_SEGS = ('head', 'torso', 'pelvis', 'thigh_B', 'thigh_F', 'shin_B', 'shin_F')   # the trunk and the legs' landmarks
+GEO_MAX_PX = 3.0       # a trunk or leg part may sit at most this far (master px) from the master's after the body fit
+POSE_MAX_DEG = 3.0     # a limb outside the item may be turned at most this much from the master's pose
+COVER_MAX = 0.2        # a part more covered by the item than this (its inside) is the item's, not checked
+# the face under headwear (exporter 1.6, with the finer body fit): its drawn lines must match the master's at 0.7 (a
+# valid hat 0.87; the changed-face fixture 0.57) and be nearly as strong (0.8 of the master's; a valid hat 0.97, the
+# blurred face of the fixture 0.70)
+FACE_LINES_MIN = 0.7
+FACE_SHARP_MIN = 0.8
+LIMB_SEGS = {'arm_B': ('uparm_B', 'forearm_B', 'hand_B'), 'arm_F': ('uparm_F', 'forearm_F', 'hand_F'),
+             'leg_B': ('thigh_B', 'shin_B', 'foot_B'), 'leg_F': ('thigh_F', 'shin_F', 'foot_F')}
+NAMES = {'head': 'the head', 'torso': 'the chest', 'pelvis': 'the hips', 'thigh_B': 'the near thigh', 'thigh_F': 'the far thigh',
+         'shin_B': 'the near shin', 'shin_F': 'the far shin', 'arm_B': 'the near arm', 'arm_F': 'the far arm',
+         'leg_B': 'the near leg', 'leg_F': 'the far leg'}
+
+
+def body_check(shifts, refine, allowed):
+    """(geometry problems, pose problems, measures): the trunk and leg parts outside the item that sit off the master's
+    (proportions or landmarks changed), and the limbs outside the item turned from the master's pose."""
+    geo, pose, meas = [], [], {'geometry_px': {}, 'pose_deg': {}}
+    for sname in GEO_SEGS:
+        if sname in shifts and shifts[sname][2] < COVER_MAX:
+            d = float(np.hypot(shifts[sname][0], shifts[sname][1])); meas['geometry_px'][sname] = round(d, 1)
+            if d > GEO_MAX_PX: geo.append(f'{NAMES[sname]} {d:.1f} px off')
+    for limb, parts in LIMB_PARTS.items():
+        if any(p in allowed for p in parts) or limb not in refine: continue
+        if any(shifts.get(sg, (0, 0, 0))[2] >= COVER_MAX for sg in LIMB_SEGS[limb]): continue
+        turn = abs(float(refine[limb][1])); meas['pose_deg'][limb] = round(turn, 2)
+        if turn > POSE_MAX_DEG: pose.append(f'{NAMES[limb]} turned {turn:.1f} deg')
+    return geo, pose, meas
+
+
+def part_shifts(al, item_zone):
+    """How far each body part of the lined-up picture sits from the master's, outside the item's zone: a translation
+    fit of the part's drawn lines (px). Head, torso, pelvis, upper arms, forearms, hands, thighs, shins, feet."""
+    if not SEG:
+        SEG['_e0'] = edges(MASTER_RGB)
+        for p in ('head', 'torso', 'pelvis', 'hand_B', 'hand_F', 'foot_B', 'foot_F'): SEG[p] = L0[p]
+        for s in 'BF':
+            up = beyond(J[f'elbow_{s}'], unit(J[f'shoulder_{s}'], J[f'elbow_{s}'])) < 0
+            SEG[f'uparm_{s}'] = L0[f'arm_{s}'] & up; SEG[f'forearm_{s}'] = L0[f'arm_{s}'] & ~up
+            th = beyond(J[f'knee_{s}'], unit(J[f'hip_{s}'], J[f'knee_{s}'])) < 0
+            SEG[f'thigh_{s}'] = L0[f'leg_{s}'] & th; SEG[f'shin_{s}'] = L0[f'leg_{s}'] & ~th
+    e1 = edges(al); out = {}
+    alpha_al, _ = key(Image.fromarray(al))
+    dE = np.sqrt(((cv2.cvtColor(al, cv2.COLOR_RGB2LAB).astype(np.float32) - LAB0) ** 2).sum(2))
+    item_like = (alpha_al > 0.5) & (dE > 30)    # opaque and far from the master's colour there: the item over the body
+    for name, m in SEG.items():
+        if name == '_e0': continue
+        m_ = m & ~item_zone
+        if m_.sum() < 800: continue
+        inner = ndimage.binary_erosion(m_, iterations=6)
+        covered = float(item_like[inner].mean()) if inner.any() else 0.0
+        msk = ndimage.binary_dilation(m_, iterations=5) & ~item_zone
+        w = np.eye(2, 3, dtype=np.float32)
+        try:
+            _, w = cv2.findTransformECC(SEG['_e0'], e1, w, cv2.MOTION_TRANSLATION, (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 200, 1e-6), msk.astype(np.uint8), 3)
+        except cv2.error:
+            continue
+        out[name] = [round(float(w[0, 2]), 1), round(float(w[1, 2]), 1), round(covered, 2)]
+    return out
+
+
+EXPORTER_VERSION = '1.6'
 # a weapon's profile is its motion kit, the art director's motion families (how the body holds and swings it)
 WEAPON_KITS = ('sword_1h', 'dagger_1h', 'staff_2h')
 
@@ -479,6 +551,33 @@ SKIN0_W = ndimage.gaussian_filter(SKIN0.astype(np.float32), 6)
 SKIN0_LAB = np.dstack([ndimage.gaussian_filter(LAB0[..., c] * SKIN0, 6) for c in range(3)]) / np.maximum(SKIN0_W, 1e-3)[..., None]
 # the master's face: the head's skin (reddish, opaque, not the hair)
 FACE0 = L0['head'] & (alpha0 > 0.95) & (LAB0[..., 0] > 100) & (LAB0[..., 1] > 138) & (LAB0[..., 2] < 175)
+# the bare body's colours where they are (skin, hair, the grey shorts), as local colour fields: a pixel is like the
+# body when its colour is near the colour of a body material that lies near it (grey near the shorts is the body,
+# grey on the shoulders is not)
+def _field(mask, sigma=25):
+    w = ndimage.gaussian_filter(mask.astype(np.float32), sigma)
+    return w, np.dstack([ndimage.gaussian_filter(LAB0[..., c] * mask, sigma) for c in range(3)]) / np.maximum(w, 1e-6)[..., None]
+
+
+BODY_FIELDS = [_field(SKIN0), _field(L0['head'] & (alpha0 > 0.95) & ~FACE0 & (LAB0[..., 0] > 50)),
+               _field(L0['pelvis'] & (alpha0 > 0.95) & ~SKIN0 & (LAB0[..., 0] > 50))]
+
+
+def item_reach(al, alpha_a, zone):
+    """The item reaching past the body beyond its zone (big shoulder plates, wide sleeves, a long hem): opaque pixels
+    off the master's figure, in pieces joined to the item's zone and mostly coloured unlike the body there (skin, hair
+    or shorts nearby). That is the item, not a body that differs from the master."""
+    off = (alpha_a > 0.5) & ~M0
+    lab, n = ndimage.label(off)
+    ids = np.unique(lab[off & zone]); ids = ids[ids > 0]
+    if not n or not len(ids): return np.zeros(SH, bool)
+    la = cv2.cvtColor(al, cv2.COLOR_RGB2LAB).astype(np.float32)
+    like = np.zeros(SH, bool)
+    for w, col in BODY_FIELDS:
+        like |= (w > 0.02) & (np.sqrt(((la - col) ** 2).sum(2)) <= 30)
+    unlike = (~like).astype(np.float32)
+    share = np.asarray(ndimage.mean(unlike, lab, ids))
+    return np.isin(lab, ids[share >= 0.6])
 ITEMS_REJECTED = []
 items_spec = load_catalog()
 SOURCES = {}
@@ -516,27 +615,40 @@ for it in items_spec:
             d_ = unit(J[f'knee_{s_}'], J[f'ankle_{s_}']); L_ = np.linalg.norm(J[f'ankle_{s_}'] - J[f'knee_{s_}'])
             region &= ~(field[f'leg_{s_}'] & (beyond(J[f'knee_{s_}'], d_) < L_ * it.get('shaft_from', 0.06)))
     try:
-        cc, warp = align(alpha_i, np.any([L0[p] for p in allowed], axis=0))
+        # lined up on the body outside the item's whole region (its parts and the space around them, where a big item
+        # reaches: shoulder plates, a wide hat, heavy boots), so the item's own outline never pulls the fit
+        cc, warp = align(alpha_i, np.any([L0[p] for p in allowed], axis=0) | region)
     except cv2.error:
         REPORT.append({'id': it['id'], 'accepted': False, 'reason': 'the picture cannot be lined up with the master: it must be an edit of the master (same stance, size and place) on a flat magenta background'})
         print('REJECTED', it['id'], REPORT[-1]); continue
     al = cv2.warpAffine(img, warp, (SH[1], SH[0]), flags=cv2.INTER_LINEAR | cv2.WARP_INVERSE_MAP, borderValue=(255, 0, 255))
+    if os.environ.get('B01_SAVE_ALIGNED'):   # for review: the picture lined up on the master, before the limb fits
+        os.makedirs(os.path.join(OUT, 'aligned'), exist_ok=True); Image.fromarray(al).save(os.path.join(OUT, 'aligned', f"{it['id']}.png"))
     # each limb is then lined up on its own (a picture's arm or leg can sit a few px off even when the body fits): a
     # rigid fit of the limb's edges, its hand or foot included, piecewise over the limb's part of the canvas
+    shifts = part_shifts(al, ndimage.binary_dilation(np.any([L0[p] for p in allowed], axis=0), iterations=30))
     al = refine_limbs(al, field)
     alpha_a, fg_a = key(Image.fromarray(al))
     # check: outside the item's own region the picture must still be the master
     outside = M0 & ~ndimage.binary_dilation(np.any([L0[p] for p in allowed], axis=0), iterations=30)
     diff = np.abs(fg_a.astype(np.float32) - fg0.astype(np.float32)).mean(2)
     err = float(np.median(diff[outside])) if outside.any() else 0.0
-    sil = float(np.mean(np.abs((alpha_a > 0.5) ^ M0)[outside | (~M0 & ~ndimage.binary_dilation(np.any([L0[p] for p in allowed], axis=0), iterations=30))]))
-    ok = err < it.get('max_err', 40) and sil < 0.02
-    REPORT.append({'id': it['id'], 'ecc': round(float(cc), 4), 'median_colour_err_outside': round(err, 1), 'silhouette_mismatch_outside': round(sil, 4), 'accepted': ok})
+    zone_ = ndimage.binary_dilation(np.any([L0[p] for p in allowed], axis=0), iterations=30)
+    reach = item_reach(al, alpha_a, zone_)
+    sil = float(np.mean((((alpha_a > 0.5) ^ M0) & ~reach)[~zone_]))
+    # check: outside the item the body keeps the master's proportions and pose (a subtle redraw of the body is caught
+    # here, not lined up and passed)
+    geo, pose, meas = body_check(shifts, REFINE, allowed)
+    ok = err < it.get('max_err', 40) and sil < 0.02 and not geo and not pose
+    REPORT.append({'id': it['id'], 'ecc': round(float(cc), 4), 'median_colour_err_outside': round(err, 1), 'silhouette_mismatch_outside': round(sil, 4), 'accepted': ok,
+                   'reach_px': int((reach & ~zone_).sum()), **meas, 'limb_fit': dict(REFINE), 'part_shift': shifts})
     if not ok:
         why = []
+        if pose: why.append('the picture is not in the master\'s pose: ' + ', '.join(pose) + f' (the limit is {POSE_MAX_DEG:.0f} deg)')
+        if geo: why.append('the body outside the item does not keep the master\'s proportions: ' + ', '.join(geo) + f' (the limit is {GEO_MAX_PX:.0f} px)')
         if err >= it.get('max_err', 40): why.append(f'the body outside the item is not the master (median colour error {err:.0f}, the limit is {it.get("max_err", 40)})')
         if sil >= 0.02: why.append(f'the figure outside the item has another shape than the master ({sil * 100:.1f}% of it differs, the limit is 2%)')
-        REPORT[-1]['reason'] = '; '.join(why) + ': ask for the item again as an edit of the attached master'
+        REPORT[-1]['reason'] = '; '.join(why) + ': ask for the item again as an edit of the attached master, without changing the body'
         print('REJECTED', it['id'], REPORT[-1]); continue
     # the item's own pixels: inside its region, opaque in the picture, and either off the master's silhouette or
     # clearly different from the master there
@@ -605,15 +717,18 @@ for it in items_spec:
         covered = float((face & (dEf > 25)).sum()) / max(1, face.sum())
         face_err = float(np.median(dEf[face & (dEf <= 25)])) if (face & (dEf <= 25)).any() else 0.0
         # the face's features (its drawn lines) must be the master's where the face shows: edge correlation
+        # and as sharp as the master's (a blurred or smudged face still lines up, but its lines are weak)
         vis = face & (dEf <= 25)
-        ncc = 1.0
+        ncc, sharp = 1.0, 1.0
         if covered < 0.6 and vis.sum() > 500:
             e0 = edges(MASTER_RGB)[vis]; e1 = edges(al)[vis]
+            sharp = float(np.sqrt((e1 * e1).sum() / max(1e-6, (e0 * e0).sum())))
             e0 = e0 - e0.mean(); e1 = e1 - e1.mean()
             ncc = float((e0 * e1).sum() / max(1e-6, np.sqrt((e0 * e0).sum() * (e1 * e1).sum())))
-        REPORT[-1].update({'face_covered': round(covered, 3), 'face_err': round(face_err, 1), 'face_lines': round(ncc, 3)})
-        if covered < 0.6 and ncc < it.get('face_lines_min', 0.5):
-            REPORT[-1].update({'accepted': False, 'reason': f'the face is not drawn as the master\'s (its lines match {ncc:.2f}, at least 0.5 needed): ask for the headwear again, keeping the face exactly'})
+        REPORT[-1].update({'face_covered': round(covered, 3), 'face_err': round(face_err, 1), 'face_lines': round(ncc, 3), 'face_sharpness': round(sharp, 3)})
+        lines_min = it.get('face_lines_min', FACE_LINES_MIN)
+        if covered < 0.6 and (ncc < lines_min or sharp < FACE_SHARP_MIN):
+            REPORT[-1].update({'accepted': False, 'reason': f'the face is not drawn as the master\'s (its lines match {ncc:.2f}, at least {lines_min} needed; their strength {sharp:.2f} of the master\'s, at least {FACE_SHARP_MIN}): ask for the headwear again, keeping the face exactly'})
             print('REJECTED', it['id'], REPORT[-1]); continue
         if covered < 0.6 and float(np.median(dEf[face])) > it.get('face_max', 18):
             REPORT[-1].update({'accepted': False, 'reason': f'the face is not the master\'s (median colour error {np.median(dEf[face]):.0f} over the visible face): ask for the headwear again, keeping the face exactly'})

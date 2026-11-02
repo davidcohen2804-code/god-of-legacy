@@ -26,13 +26,20 @@ so every item bends with the body under it.
    `package/previews/<id>_600.png` and `_150.png` (build outputs, not kept in the repository), and `package/previews.jpg`
    (all of them on one sheet, kept with the manifest).
 
-## The asset contract (BASE-01, template v1, exporter 1.5)
+## The asset contract (BASE-01, template v1, exporter 1.6)
 
 - The skeleton and the anatomy are the master's and never change (`template.json`, versioned); every package records
   the template and exporter versions, the master's hash and each source picture's hash.
 - Alignment and checks: a picture is lined up with the master (the body outside the item, then each limb) and
   **rejected**, with the reason in plain words, when the body outside the item is not the master (median colour error
-  40 or more, or 2% of the figure's shape different).
+  40 or more, or 2% of the figure's shape different; an item reaching past the body, such as big shoulder plates, is
+  the item, not a different figure: pieces off the body, joined to the item, coloured unlike skin, hair and shorts).
+- The body check (exporter 1.6): outside the item the body keeps the master's proportions and pose. Each trunk and leg
+  part (head, chest, hips, thighs, shins) not covered by the item must sit within 3 master px of the master's after the
+  body fit (its drawn lines fitted on their own), and each limb wholly outside the item within 3 degrees of the
+  master's pose. An exact edit of the master sits within 1.7 px and 0.2 degrees; the made defects X01 (torso 4%
+  shorter, legs as much longer) and X02 (an arm turned 6 degrees) are caught. The report keeps every measure
+  (`geometry_px`, `pose_deg`, `limb_fit`, `part_shift`, `reach_px`).
 - Cutting: the item is told apart from the body with a colour model; small holes are filled, a large enclosed area
   (the bare chest inside a harness) stays body; skin-coloured pixels along its edge that match the master's skin are
   body. It is cut by the same part map as the body, into the same pieces (limb strips widen for a flared sleeve or a
@@ -53,9 +60,13 @@ so every item bends with the body under it.
   stress items (`items/stress/`) are permanent fixtures: every exporter change must still accept them.
 - Rejections, each with its reason in plain words: a row with an unknown slot or profile, or a profile that does not
   fit its slot; a picture that cannot be lined up with the master; a figure whose shape outside the item is not the
-  master's; no item in the picture; a weapon not drawn level; headwear whose face is not the master's (its drawn lines
-  must match at 0.5 or more where the face shows). Negative fixtures: `catalog_negative.csv` (every row rejected but
-  `neg08`, a smaller drawing that is lined up and accepted): `B01_CATALOG=catalog_negative.csv python3 build.py <out>`.
+  master's; no item in the picture; a weapon not drawn level; headwear whose face is not the master's (where the face
+  shows, its drawn lines must match the master's at 0.7 or more and be at least 0.8 as strong: a blurred face fails);
+  a body whose proportions or pose differ from the master's.
+  Negative fixtures: `catalog_negative.csv` (every row rejected but `neg08`, a smaller drawing that is lined up and
+  accepted): `B01_CATALOG=catalog_negative.csv python3 build.py <out>`. The art director's made defects (X01, X02, ...)
+  come from `make_invalid.py`: controlled changes of valid pictures, the same every time, each recorded in
+  `items/gate5/invalid/made.json`.
 - Split coats: each tail panel hangs from its hip joint, turns 0.45 of its thigh and swings up to 10 degrees behind it.
   Full helmets drawn smaller than the master's head are enlarged about the neck by up to 8%.
 

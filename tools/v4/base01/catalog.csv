@@ -5,7 +5,7 @@
 id,slot,profile,body,name,picture
 top01_tunic,top,cloth,base01,Traveler's Tunic,items/top01_tunic_v2.png
 top02_armor,top,rigid,base01,Royal Guard Armor,items/top02_armor_v2.png
-bottom01_pants,bottom,cloth,base01,Wanderer Pants,items/bottom01_pants_v1.png
+bottom01_pants,bottom,cloth,base01,Wanderer Pants,items/bottom01_pants_v2.png
 shoes01_boots,shoes,cloth,base01,Traveler Boots,items/shoes01_boots_v1.png
 weapon01_sword,weapon,sword_1h,base01,Knight's Sword,items/weapon01_sword_v1.png
 # the art director's stress batch (Equipment Factory v1)
@@ -30,3 +30,12 @@ g5_b01_07,bottom,cloth,base01,Brown Fitted Leather Trousers,items/gate5/b01_07_l
 g5_b01_08,bottom,cloth,base01,Black Loose Combat Trousers,items/gate5/b01_08_combat_trousers_v1.png
 g5_b01_09,bottom,cloth,base01,Light Blue Knee-Length Shorts,items/gate5/b01_09_blue_shorts_v1.png
 g5_b01_10,bottom,cloth,base01,Dark Red Layered Waist Trousers,items/gate5/b01_10_layered_trousers_v1.png
+# Gate 5, batch 02: rigid equipment and footwear (the art director's designs, each an edit of the locked master)
+g5_b02_11,top,rigid,base01,Iron Recruit Cuirass,items/gate5/b02_11_iron_cuirass_v1.png
+g5_b02_12,top,rigid,base01,Golden Vanguard Armor,items/gate5/b02_12_golden_vanguard_v1.png
+g5_b02_13,top,rigid,base01,Shadow Assassin Armor,items/gate5/b02_13_shadow_assassin_v1.png
+g5_b02_14,top,rigid,base01,Royal Bastion Heavy Armor,items/gate5/b02_14_royal_bastion_v1.png
+g5_b02_15,top,rigid,base01,Crimson Samurai Armor,items/gate5/b02_15_crimson_samurai_v1.png
+g5_b02_16,shoes,cloth,base01,Wanderer Leather Sandals,items/gate5/b02_16_wanderer_sandals_v1.png
+g5_b02_17,shoes,rigid,base01,Knight's High Boots,items/gate5/b02_17_knight_boots_v1.png
+g5_b02_18,shoes,rigid,base01,Titan War Boots,items/gate5/b02_18_titan_boots_v1.png
