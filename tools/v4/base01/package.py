@@ -3,7 +3,8 @@
 Usage: python3 package.py <build out dir> <preview renders dir> <package dir>
 Reads the exporter's parts.json (items, report, versions) and catalog.csv (profiles), and the full-canvas renders made
 by previews.mjs; writes <package>/manifest.json, <package>/previews/<id>_600.png and _150.png, and
-<package>/previews.png (every item at both sizes with its checks, for review).
+<package>/previews.jpg (every item at both sizes with its checks, for review). The per-item renders are build outputs
+(not kept in the repository); the manifest and the review sheet are.
 """
 import csv, json, os, sys, textwrap
 from PIL import Image, ImageDraw, ImageFont
@@ -27,7 +28,8 @@ def warnings(r):
     if r.get('light_outline'): w.append('light garment: dark outline and deeper folds added')
     if r.get('skin_halo_px', 0) >= 300: w.append(f"{r['skin_halo_px']} px of skin along the edges returned to the body")
     for s, v in (r.get('sleeve_reach') or {}).items():
-        if v < 0.35: w.append(f'sleeve {s} reaches {v:.2f} of the upper arm: drawn on the torso, not bent with the arm')
+        wrap = (r.get('sleeve_wrap') or {}).get(s, 1)
+        if v < 0.35 or wrap < 0.5: w.append(f'arm {s}: no sleeve (reach {v:.2f}, wraps {wrap:.2f} of the arm): its edge drawn on the torso')
     if 'face_lines' in r and r.get('face_covered', 1) < 0.6: w.append(f"face checked by its drawn lines: {r['face_lines']:.2f} (0.5 needed)")
     if r.get('leg_width', 1) >= 1.15: w.append(f"loose trousers ({r['leg_width']:.2f} of the leg): drawn over the boots")
     cov = r.get('coverage') or {}
@@ -88,7 +90,7 @@ def main(build, renders, pkg):
         msg = ('accepted' if ok else 'REJECTED') + ('; ' + '; '.join(it['warnings']) if it['warnings'] else '')
         for k, line in enumerate(textwrap.wrap(msg, 98)[:2]):
             d.text((x + 6, y + 22 + 15 * k), line, fill=(116, 199, 147) if ok else (234, 127, 102), font=f)
-    sheet.save(os.path.join(pkg, 'previews.png'))
+    sheet.save(os.path.join(pkg, 'previews.jpg'), quality=88)
     print('package', pkg, len(items), 'items', len(rejected), 'rejected')
 
 

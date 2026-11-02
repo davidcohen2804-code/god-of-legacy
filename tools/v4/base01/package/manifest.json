@@ -4,7 +4,7 @@
  "body": "base01",
  "versions": {
   "template": "v1",
-  "exporter": "1.4",
+  "exporter": "1.5",
   "master": "4dfe86abe317"
  },
  "items": [
@@ -157,8 +157,8 @@
    "checks": {},
    "warnings": [],
    "previews": {
-    "600": "previews/base01_body_600.png",
-    "150": "previews/base01_body_150.png"
+    "150": "previews/base01_body_150.png",
+    "600": "previews/base01_body_600.png"
    }
   },
   {
@@ -223,6 +223,10 @@
      "B": 0.68,
      "F": 0.71
     },
+    "sleeve_wrap": {
+     "B": 0.99,
+     "F": 1.0
+    },
     "coverage": {
      "torso": 0.915,
      "pelvis": 0.973,
@@ -237,8 +241,8 @@
     "partly covered (the bare body shows under it): arm_B, arm_F"
    ],
    "previews": {
-    "600": "previews/top01_tunic_600.png",
-    "150": "previews/top01_tunic_150.png"
+    "150": "previews/top01_tunic_150.png",
+    "600": "previews/top01_tunic_600.png"
    }
   },
   {
@@ -360,8 +364,8 @@
     "partly covered (the bare body shows under it): pelvis, arm_B, arm_F"
    ],
    "previews": {
-    "600": "previews/top02_armor_600.png",
-    "150": "previews/top02_armor_150.png"
+    "150": "previews/top02_armor_150.png",
+    "600": "previews/top02_armor_600.png"
    }
   },
   {
@@ -448,8 +452,8 @@
     "519 px of skin along the edges returned to the body"
    ],
    "previews": {
-    "600": "previews/bottom01_pants_600.png",
-    "150": "previews/bottom01_pants_150.png"
+    "150": "previews/bottom01_pants_150.png",
+    "600": "previews/bottom01_pants_600.png"
    }
   },
   {
@@ -533,8 +537,8 @@
     "359 px of skin along the edges returned to the body"
    ],
    "previews": {
-    "600": "previews/shoes01_boots_600.png",
-    "150": "previews/shoes01_boots_150.png"
+    "150": "previews/shoes01_boots_150.png",
+    "600": "previews/shoes01_boots_600.png"
    }
   },
   {
@@ -580,8 +584,8 @@
    },
    "warnings": [],
    "previews": {
-    "600": "previews/weapon01_sword_600.png",
-    "150": "previews/weapon01_sword_150.png"
+    "150": "previews/weapon01_sword_150.png",
+    "600": "previews/weapon01_sword_600.png"
    }
   },
   {
@@ -619,6 +623,10 @@
      "B": 0.51,
      "F": 0.26
     },
+    "sleeve_wrap": {
+     "B": 0.0,
+     "F": 0.09
+    },
     "coverage": {
      "torso": 0.742,
      "pelvis": 0.327
@@ -627,12 +635,13 @@
     "light_outline": false
    },
    "warnings": [
-    "sleeve F reaches 0.26 of the upper arm: drawn on the torso, not bent with the arm",
+    "arm B: no sleeve (reach 0.51, wraps 0.00 of the arm): its edge drawn on the torso",
+    "arm F: no sleeve (reach 0.26, wraps 0.09 of the arm): its edge drawn on the torso",
     "partly covered (the bare body shows under it): torso, pelvis"
    ],
    "previews": {
-    "600": "previews/item01_vest_600.png",
-    "150": "previews/item01_vest_150.png"
+    "150": "previews/item01_vest_150.png",
+    "600": "previews/item01_vest_600.png"
    }
   },
   {
@@ -699,6 +708,10 @@
      "B": 1.86,
      "F": 1.87
     },
+    "sleeve_wrap": {
+     "B": 0.96,
+     "F": 0.92
+    },
     "coverage": {
      "torso": 0.933,
      "pelvis": 1.0,
@@ -710,8 +723,8 @@
    },
    "warnings": [],
    "previews": {
-    "600": "previews/item02_robe_600.png",
-    "150": "previews/item02_robe_150.png"
+    "150": "previews/item02_robe_150.png",
+    "600": "previews/item02_robe_600.png"
    }
   },
   {
@@ -781,8 +794,8 @@
     "partly covered (the bare body shows under it): torso, arm_B"
    ],
    "previews": {
-    "600": "previews/item03_shoulder_600.png",
-    "150": "previews/item03_shoulder_150.png"
+    "150": "previews/item03_shoulder_150.png",
+    "600": "previews/item03_shoulder_600.png"
    }
   },
   {
@@ -869,8 +882,8 @@
     "loose trousers (1.41 of the leg): drawn over the boots"
    ],
    "previews": {
-    "600": "previews/item04_hakama_600.png",
-    "150": "previews/item04_hakama_150.png"
+    "150": "previews/item04_hakama_150.png",
+    "600": "previews/item04_hakama_600.png"
    }
   },
   {
@@ -956,8 +969,8 @@
     "partly covered (the bare body shows under it): leg_B, leg_F"
    ],
    "previews": {
-    "600": "previews/item05_greaves_600.png",
-    "150": "previews/item05_greaves_150.png"
+    "150": "previews/item05_greaves_150.png",
+    "600": "previews/item05_greaves_600.png"
    }
   },
   {
@@ -1049,6 +1062,10 @@
      "B": 1.87,
      "F": 1.88
     },
+    "sleeve_wrap": {
+     "B": 0.98,
+     "F": 0.94
+    },
     "coverage": {
      "torso": 0.984,
      "pelvis": 0.918,
@@ -1062,8 +1079,8 @@
     "split coat: two tail panels on the hips, with follow-through"
    ],
    "previews": {
-    "600": "previews/item06_coat_600.png",
-    "150": "previews/item06_coat_150.png"
+    "150": "previews/item06_coat_150.png",
+    "600": "previews/item06_coat_600.png"
    }
   },
   {
@@ -1112,8 +1129,8 @@
     "face checked by its drawn lines: 0.76 (0.5 needed)"
    ],
    "previews": {
-    "600": "previews/item07_hat_600.png",
-    "150": "previews/item07_hat_150.png"
+    "150": "previews/item07_hat_150.png",
+    "600": "previews/item07_hat_600.png"
    }
   },
   {
@@ -1164,8 +1181,8 @@
     "partly covered (the bare body shows under it): head"
    ],
    "previews": {
-    "600": "previews/item08_helmet_600.png",
-    "150": "previews/item08_helmet_150.png"
+    "150": "previews/item08_helmet_150.png",
+    "600": "previews/item08_helmet_600.png"
    }
   },
   {
@@ -1211,8 +1228,8 @@
    },
    "warnings": [],
    "previews": {
-    "600": "previews/item09_staff_600.png",
-    "150": "previews/item09_staff_150.png"
+    "150": "previews/item09_staff_150.png",
+    "600": "previews/item09_staff_600.png"
    }
   },
   {
@@ -1258,8 +1275,755 @@
    },
    "warnings": [],
    "previews": {
-    "600": "previews/item10_dagger_600.png",
-    "150": "previews/item10_dagger_150.png"
+    "150": "previews/item10_dagger_150.png",
+    "600": "previews/item10_dagger_600.png"
+   }
+  },
+  {
+   "id": "g5_b01_01",
+   "name": "Ranger's Sleeveless Green Tunic",
+   "slot": "top",
+   "profile": "cloth",
+   "motion": null,
+   "source": {
+    "picture": "items/gate5/b01_01_ranger_tunic_v1.png",
+    "sha1": "a88ea59dec17"
+   },
+   "parts": [
+    {
+     "part": "torso",
+     "frame": "g5_b01_01/torso",
+     "size": [
+      110,
+      152
+     ],
+     "anchor": [
+      53.69,
+      94.19
+     ]
+    }
+   ],
+   "covers": [
+    "torso",
+    "pelvis"
+   ],
+   "loose": false,
+   "checks": {
+    "ecc": 1.0,
+    "median_colour_err_outside": 4.3,
+    "silhouette_mismatch_outside": 0.0003,
+    "accepted": true,
+    "sleeve_reach": {
+     "B": 0.52,
+     "F": 0.25
+    },
+    "sleeve_wrap": {
+     "B": 0.0,
+     "F": 0.11
+    },
+    "coverage": {
+     "torso": 0.852,
+     "pelvis": 0.98
+    },
+    "skin_halo_px": 100,
+    "light_outline": false
+   },
+   "warnings": [
+    "arm B: no sleeve (reach 0.52, wraps 0.00 of the arm): its edge drawn on the torso",
+    "arm F: no sleeve (reach 0.25, wraps 0.11 of the arm): its edge drawn on the torso"
+   ],
+   "previews": {
+    "150": "previews/g5_b01_01_150.png",
+    "600": "previews/g5_b01_01_600.png"
+   }
+  },
+  {
+   "id": "g5_b01_02",
+   "name": "Apprentice White Linen Shirt",
+   "slot": "top",
+   "profile": "cloth",
+   "motion": null,
+   "source": {
+    "picture": "items/gate5/b01_02_linen_shirt_v1.png",
+    "sha1": "37e31ed05d52"
+   },
+   "parts": [
+    {
+     "part": "torso",
+     "frame": "g5_b01_02/torso",
+     "size": [
+      117,
+      143
+     ],
+     "anchor": [
+      62.69,
+      94.19
+     ]
+    },
+    {
+     "part": "arm_B",
+     "frame": "g5_b01_02/arm_B",
+     "size": [
+      59,
+      128
+     ],
+     "anchor": [
+      29.5,
+      21.5
+     ]
+    },
+    {
+     "part": "arm_F",
+     "frame": "g5_b01_02/arm_F",
+     "size": [
+      59,
+      130
+     ],
+     "anchor": [
+      29.5,
+      21.5
+     ]
+    }
+   ],
+   "covers": [
+    "torso"
+   ],
+   "loose": false,
+   "checks": {
+    "ecc": 1.0,
+    "median_colour_err_outside": 6.3,
+    "silhouette_mismatch_outside": 0.0005,
+    "accepted": true,
+    "sleeve_reach": {
+     "B": 0.57,
+     "F": 0.61
+    },
+    "sleeve_wrap": {
+     "B": 1.0,
+     "F": 0.96
+    },
+    "coverage": {
+     "torso": 0.942,
+     "pelvis": 0.825,
+     "arm_B": 0.302
+    },
+    "skin_halo_px": 33,
+    "light_outline": true
+   },
+   "warnings": [
+    "light garment: dark outline and deeper folds added",
+    "partly covered (the bare body shows under it): pelvis, arm_B"
+   ],
+   "previews": {
+    "150": "previews/g5_b01_02_150.png",
+    "600": "previews/g5_b01_02_600.png"
+   }
+  },
+  {
+   "id": "g5_b01_03",
+   "name": "Crimson Long-Sleeved Shirt",
+   "slot": "top",
+   "profile": "cloth",
+   "motion": null,
+   "source": {
+    "picture": "items/gate5/b01_03_crimson_shirt_v1.png",
+    "sha1": "0af26bf37155"
+   },
+   "parts": [
+    {
+     "part": "torso",
+     "frame": "g5_b01_03/torso",
+     "size": [
+      114,
+      136
+     ],
+     "anchor": [
+      61.69,
+      93.19
+     ]
+    },
+    {
+     "part": "arm_B",
+     "frame": "g5_b01_03/arm_B",
+     "size": [
+      59,
+      128
+     ],
+     "anchor": [
+      29.5,
+      21.5
+     ]
+    },
+    {
+     "part": "arm_F",
+     "frame": "g5_b01_03/arm_F",
+     "size": [
+      59,
+      130
+     ],
+     "anchor": [
+      29.5,
+      21.5
+     ]
+    }
+   ],
+   "covers": [
+    "torso",
+    "arm_B",
+    "arm_F"
+   ],
+   "loose": false,
+   "checks": {
+    "ecc": 0.9998,
+    "median_colour_err_outside": 6.0,
+    "silhouette_mismatch_outside": 0.001,
+    "accepted": true,
+    "sleeve_reach": {
+     "B": 1.86,
+     "F": 1.86
+    },
+    "sleeve_wrap": {
+     "B": 1.0,
+     "F": 0.98
+    },
+    "coverage": {
+     "torso": 0.93,
+     "pelvis": 0.645,
+     "arm_B": 0.983,
+     "arm_F": 0.967
+    },
+    "skin_halo_px": 62,
+    "light_outline": false
+   },
+   "warnings": [
+    "partly covered (the bare body shows under it): pelvis"
+   ],
+   "previews": {
+    "150": "previews/g5_b01_03_150.png",
+    "600": "previews/g5_b01_03_600.png"
+   }
+  },
+  {
+   "id": "g5_b01_04",
+   "name": "Black Open-Chest Adventurer Vest",
+   "slot": "top",
+   "profile": "cloth",
+   "motion": null,
+   "source": {
+    "picture": "items/gate5/b01_04_open_vest_v1.png",
+    "sha1": "bb0e33f241b3"
+   },
+   "parts": [
+    {
+     "part": "torso",
+     "frame": "g5_b01_04/torso",
+     "size": [
+      112,
+      145
+     ],
+     "anchor": [
+      54.69,
+      95.19
+     ]
+    }
+   ],
+   "covers": [],
+   "loose": false,
+   "checks": {
+    "ecc": 1.0,
+    "median_colour_err_outside": 5.3,
+    "silhouette_mismatch_outside": 0.0004,
+    "accepted": true,
+    "sleeve_reach": {
+     "B": 0.53,
+     "F": 1.32
+    },
+    "sleeve_wrap": {
+     "B": 0.0,
+     "F": 0.2
+    },
+    "coverage": {
+     "torso": 0.624,
+     "pelvis": 0.487
+    },
+    "skin_halo_px": 250,
+    "light_outline": false
+   },
+   "warnings": [
+    "arm B: no sleeve (reach 0.53, wraps 0.00 of the arm): its edge drawn on the torso",
+    "arm F: no sleeve (reach 1.32, wraps 0.20 of the arm): its edge drawn on the torso",
+    "partly covered (the bare body shows under it): torso, pelvis"
+   ],
+   "previews": {
+    "150": "previews/g5_b01_04_150.png",
+    "600": "previews/g5_b01_04_600.png"
+   }
+  },
+  {
+   "id": "g5_b01_05",
+   "name": "Navy Padded Gambler Waistcoat",
+   "slot": "top",
+   "profile": "cloth",
+   "motion": null,
+   "source": {
+    "picture": "items/gate5/b01_05_gambler_waistcoat_v1.png",
+    "sha1": "851da46c442f"
+   },
+   "parts": [
+    {
+     "part": "torso",
+     "frame": "g5_b01_05/torso",
+     "size": [
+      114,
+      150
+     ],
+     "anchor": [
+      55.69,
+      95.19
+     ]
+    }
+   ],
+   "covers": [
+    "torso"
+   ],
+   "loose": false,
+   "checks": {
+    "ecc": 1.0,
+    "median_colour_err_outside": 7.0,
+    "silhouette_mismatch_outside": 0.0004,
+    "accepted": true,
+    "sleeve_reach": {
+     "B": 0.57,
+     "F": 1.31
+    },
+    "sleeve_wrap": {
+     "B": 0.0,
+     "F": 0.24
+    },
+    "coverage": {
+     "torso": 0.891,
+     "pelvis": 0.832
+    },
+    "skin_halo_px": 71,
+    "light_outline": false
+   },
+   "warnings": [
+    "arm B: no sleeve (reach 0.57, wraps 0.00 of the arm): its edge drawn on the torso",
+    "arm F: no sleeve (reach 1.31, wraps 0.24 of the arm): its edge drawn on the torso",
+    "partly covered (the bare body shows under it): pelvis"
+   ],
+   "previews": {
+    "150": "previews/g5_b01_05_150.png",
+    "600": "previews/g5_b01_05_600.png"
+   }
+  },
+  {
+   "id": "g5_b01_06",
+   "name": "Desert Traveler Wrap Top",
+   "slot": "top",
+   "profile": "cloth",
+   "motion": null,
+   "source": {
+    "picture": "items/gate5/b01_06_desert_wrap_v1.png",
+    "sha1": "7c62035150e5"
+   },
+   "parts": [
+    {
+     "part": "torso",
+     "frame": "g5_b01_06/torso",
+     "size": [
+      109,
+      142
+     ],
+     "anchor": [
+      52.69,
+      95.19
+     ]
+    },
+    {
+     "part": "arm_F",
+     "frame": "g5_b01_06/arm_F",
+     "size": [
+      59,
+      130
+     ],
+     "anchor": [
+      29.5,
+      21.5
+     ]
+    }
+   ],
+   "covers": [],
+   "loose": false,
+   "checks": {
+    "ecc": 1.0,
+    "median_colour_err_outside": 5.7,
+    "silhouette_mismatch_outside": 0.0006,
+    "accepted": true,
+    "sleeve_reach": {
+     "F": 0.8
+    },
+    "sleeve_wrap": {
+     "F": 1.0
+    },
+    "coverage": {
+     "torso": 0.662,
+     "pelvis": 0.692
+    },
+    "skin_halo_px": 415,
+    "light_outline": false
+   },
+   "warnings": [
+    "415 px of skin along the edges returned to the body",
+    "partly covered (the bare body shows under it): torso, pelvis"
+   ],
+   "previews": {
+    "150": "previews/g5_b01_06_150.png",
+    "600": "previews/g5_b01_06_600.png"
+   }
+  },
+  {
+   "id": "g5_b01_07",
+   "name": "Brown Fitted Leather Trousers",
+   "slot": "bottom",
+   "profile": "cloth",
+   "motion": null,
+   "source": {
+    "picture": "items/gate5/b01_07_leather_trousers_v1.png",
+    "sha1": "6d7193a49d9b"
+   },
+   "parts": [
+    {
+     "part": "pelvis_under",
+     "frame": "g5_b01_07/pelvis_under",
+     "size": [
+      77,
+      11
+     ],
+     "anchor": [
+      36.69,
+      37.65
+     ]
+    },
+    {
+     "part": "pelvis",
+     "frame": "g5_b01_07/pelvis",
+     "size": [
+      108,
+      58
+     ],
+     "anchor": [
+      53.69,
+      32.65
+     ]
+    },
+    {
+     "part": "leg_B",
+     "frame": "g5_b01_07/leg_B",
+     "size": [
+      72,
+      197
+     ],
+     "anchor": [
+      36.0,
+      25.6
+     ]
+    },
+    {
+     "part": "leg_F",
+     "frame": "g5_b01_07/leg_F",
+     "size": [
+      72,
+      195
+     ],
+     "anchor": [
+      36.0,
+      25.6
+     ]
+    }
+   ],
+   "covers": [
+    "pelvis",
+    "leg_B",
+    "leg_F"
+   ],
+   "loose": false,
+   "checks": {
+    "ecc": 1.0,
+    "median_colour_err_outside": 3.0,
+    "silhouette_mismatch_outside": 0.0004,
+    "accepted": true,
+    "leg_width": 0.88,
+    "coverage": {
+     "pelvis": 0.954,
+     "leg_B": 0.988,
+     "leg_F": 0.994
+    },
+    "skin_halo_px": 0,
+    "light_outline": false
+   },
+   "warnings": [],
+   "previews": {
+    "150": "previews/g5_b01_07_150.png",
+    "600": "previews/g5_b01_07_600.png"
+   }
+  },
+  {
+   "id": "g5_b01_08",
+   "name": "Black Loose Combat Trousers",
+   "slot": "bottom",
+   "profile": "cloth",
+   "motion": null,
+   "source": {
+    "picture": "items/gate5/b01_08_combat_trousers_v1.png",
+    "sha1": "0be4f00618b6"
+   },
+   "parts": [
+    {
+     "part": "pelvis_under",
+     "frame": "g5_b01_08/pelvis_under",
+     "size": [
+      80,
+      11
+     ],
+     "anchor": [
+      38.69,
+      37.65
+     ]
+    },
+    {
+     "part": "pelvis",
+     "frame": "g5_b01_08/pelvis",
+     "size": [
+      111,
+      58
+     ],
+     "anchor": [
+      55.69,
+      32.65
+     ]
+    },
+    {
+     "part": "leg_B",
+     "frame": "g5_b01_08/leg_B",
+     "size": [
+      79,
+      197
+     ],
+     "anchor": [
+      39.5,
+      25.6
+     ]
+    },
+    {
+     "part": "leg_F",
+     "frame": "g5_b01_08/leg_F",
+     "size": [
+      77,
+      195
+     ],
+     "anchor": [
+      38.5,
+      25.6
+     ]
+    }
+   ],
+   "covers": [
+    "pelvis",
+    "leg_B",
+    "leg_F"
+   ],
+   "loose": false,
+   "checks": {
+    "ecc": 0.9984,
+    "median_colour_err_outside": 2.7,
+    "silhouette_mismatch_outside": 0.0009,
+    "accepted": true,
+    "leg_width": 1.1,
+    "coverage": {
+     "pelvis": 0.966,
+     "leg_B": 0.999,
+     "leg_F": 0.998
+    },
+    "skin_halo_px": 0,
+    "light_outline": false
+   },
+   "warnings": [],
+   "previews": {
+    "150": "previews/g5_b01_08_150.png",
+    "600": "previews/g5_b01_08_600.png"
+   }
+  },
+  {
+   "id": "g5_b01_09",
+   "name": "Light Blue Knee-Length Shorts",
+   "slot": "bottom",
+   "profile": "cloth",
+   "motion": null,
+   "source": {
+    "picture": "items/gate5/b01_09_blue_shorts_v1.png",
+    "sha1": "94a5c41205ba"
+   },
+   "parts": [
+    {
+     "part": "pelvis_under",
+     "frame": "g5_b01_09/pelvis_under",
+     "size": [
+      79,
+      11
+     ],
+     "anchor": [
+      37.69,
+      37.65
+     ]
+    },
+    {
+     "part": "pelvis",
+     "frame": "g5_b01_09/pelvis",
+     "size": [
+      108,
+      58
+     ],
+     "anchor": [
+      53.69,
+      32.65
+     ]
+    },
+    {
+     "part": "leg_B",
+     "frame": "g5_b01_09/leg_B",
+     "size": [
+      72,
+      197
+     ],
+     "anchor": [
+      36.0,
+      25.6
+     ]
+    },
+    {
+     "part": "leg_F",
+     "frame": "g5_b01_09/leg_F",
+     "size": [
+      72,
+      195
+     ],
+     "anchor": [
+      36.0,
+      25.6
+     ]
+    }
+   ],
+   "covers": [
+    "pelvis"
+   ],
+   "loose": false,
+   "checks": {
+    "ecc": 1.0,
+    "median_colour_err_outside": 5.3,
+    "silhouette_mismatch_outside": 0.0004,
+    "accepted": true,
+    "leg_width": 0.98,
+    "coverage": {
+     "pelvis": 0.956,
+     "leg_B": 0.606,
+     "leg_F": 0.624
+    },
+    "skin_halo_px": 110,
+    "light_outline": false
+   },
+   "warnings": [
+    "partly covered (the bare body shows under it): leg_B, leg_F"
+   ],
+   "previews": {
+    "150": "previews/g5_b01_09_150.png",
+    "600": "previews/g5_b01_09_600.png"
+   }
+  },
+  {
+   "id": "g5_b01_10",
+   "name": "Dark Red Layered Waist Trousers",
+   "slot": "bottom",
+   "profile": "cloth",
+   "motion": null,
+   "source": {
+    "picture": "items/gate5/b01_10_layered_trousers_v1.png",
+    "sha1": "e815fb6766e4"
+   },
+   "parts": [
+    {
+     "part": "pelvis_under",
+     "frame": "g5_b01_10/pelvis_under",
+     "size": [
+      82,
+      11
+     ],
+     "anchor": [
+      39.69,
+      37.65
+     ]
+    },
+    {
+     "part": "pelvis",
+     "frame": "g5_b01_10/pelvis",
+     "size": [
+      111,
+      58
+     ],
+     "anchor": [
+      55.69,
+      32.65
+     ]
+    },
+    {
+     "part": "leg_B",
+     "frame": "g5_b01_10/leg_B",
+     "size": [
+      74,
+      197
+     ],
+     "anchor": [
+      37.0,
+      25.6
+     ]
+    },
+    {
+     "part": "leg_F",
+     "frame": "g5_b01_10/leg_F",
+     "size": [
+      72,
+      195
+     ],
+     "anchor": [
+      36.0,
+      25.6
+     ]
+    }
+   ],
+   "covers": [
+    "pelvis",
+    "leg_B",
+    "leg_F"
+   ],
+   "loose": false,
+   "checks": {
+    "ecc": 0.9998,
+    "median_colour_err_outside": 5.7,
+    "silhouette_mismatch_outside": 0.0005,
+    "accepted": true,
+    "leg_width": 1.03,
+    "coverage": {
+     "pelvis": 0.98,
+     "leg_B": 1.0,
+     "leg_F": 0.995
+    },
+    "skin_halo_px": 0,
+    "light_outline": false
+   },
+   "warnings": [],
+   "previews": {
+    "150": "previews/g5_b01_10_150.png",
+    "600": "previews/g5_b01_10_600.png"
    }
   }
  ],

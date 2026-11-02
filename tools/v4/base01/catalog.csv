@@ -19,3 +19,14 @@ item07_hat,hat,cloth,base01,Adventurer Hat,items/stress/i07_hat_v1.png
 item08_helmet,hat,rigid,base01,Knight Helmet,items/stress/i08_helmet_v1.png
 item09_staff,weapon,staff_2h,base01,Astral Staff,items/stress/i09_staff_v1.png
 item10_dagger,weapon,dagger_1h,base01,Short Dagger,items/stress/i10_dagger_v1.png
+# Gate 5 (Equipment Factory v1.2, the art director's 50-asset validation), batch 01: ordinary clothing
+g5_b01_01,top,cloth,base01,Ranger's Sleeveless Green Tunic,items/gate5/b01_01_ranger_tunic_v1.png
+g5_b01_02,top,cloth,base01,Apprentice White Linen Shirt,items/gate5/b01_02_linen_shirt_v1.png
+g5_b01_03,top,cloth,base01,Crimson Long-Sleeved Shirt,items/gate5/b01_03_crimson_shirt_v1.png
+g5_b01_04,top,cloth,base01,Black Open-Chest Adventurer Vest,items/gate5/b01_04_open_vest_v1.png
+g5_b01_05,top,cloth,base01,Navy Padded Gambler Waistcoat,items/gate5/b01_05_gambler_waistcoat_v1.png
+g5_b01_06,top,cloth,base01,Desert Traveler Wrap Top,items/gate5/b01_06_desert_wrap_v1.png
+g5_b01_07,bottom,cloth,base01,Brown Fitted Leather Trousers,items/gate5/b01_07_leather_trousers_v1.png
+g5_b01_08,bottom,cloth,base01,Black Loose Combat Trousers,items/gate5/b01_08_combat_trousers_v1.png
+g5_b01_09,bottom,cloth,base01,Light Blue Knee-Length Shorts,items/gate5/b01_09_blue_shorts_v1.png
+g5_b01_10,bottom,cloth,base01,Dark Red Layered Waist Trousers,items/gate5/b01_10_layered_trousers_v1.png

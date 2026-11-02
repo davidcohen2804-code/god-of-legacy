@@ -433,7 +433,7 @@ def refine_limbs(al, field):
     return out
 
 
-EXPORTER_VERSION = '1.4'
+EXPORTER_VERSION = '1.5'
 # a weapon's profile is its motion kit, the art director's motion families (how the body holds and swings it)
 WEAPON_KITS = ('sword_1h', 'dagger_1h', 'staff_2h')
 
@@ -670,15 +670,21 @@ for it in items_spec:
             wgt = np.maximum(wgt, np.minimum(alpha_a, ndimage.gaussian_filter(tails.astype(np.float32), 0.7)))
             REPORT[-1]['tails_px'] = int(tails.sum())
     if it['slot'] == 'top' and not it.get('rigid'):
-        # a sleeve is a sleeve only when it reaches down the arm: what a sleeveless top has in an arm's part (its edge
-        # at the armhole) rides the chest with the rest of it; a few stray pixels go
+        # a sleeve is a sleeve only when it reaches down the arm and wraps it: what a sleeveless top has in an arm's
+        # part (its edge at the armhole, a side panel beside a hanging arm) rides the chest with the rest of it; a
+        # sleeve covers at least half of the arm's own pixels just below the shoulder; a few stray pixels go
         for s_ in 'BF':
             m_ = Li[f'arm_{s_}']
             if not m_.any(): continue
             d_ = unit(J[f'shoulder_{s_}'], J[f'elbow_{s_}'])
-            reach = float(np.percentile(beyond(J[f'shoulder_{s_}'], d_)[m_], 95)) / np.linalg.norm(J[f'elbow_{s_}'] - J[f'shoulder_{s_}'])
+            up_ = np.linalg.norm(J[f'elbow_{s_}'] - J[f'shoulder_{s_}'])
+            along_ = beyond(J[f'shoulder_{s_}'], d_)
+            reach = float(np.percentile(along_[m_], 95)) / up_
+            band_ = L0[f'arm_{s_}'] & M0 & (along_ >= 0) & (along_ <= 0.35 * up_)
+            wrap_ = float((m_ & band_).sum() / max(1, band_.sum()))
             REPORT[-1].setdefault('sleeve_reach', {})[s_] = round(reach, 2)
-            if reach < it.get('sleeve_from', 0.35) or m_.sum() < 150:
+            REPORT[-1].setdefault('sleeve_wrap', {})[s_] = round(wrap_, 2)
+            if reach < it.get('sleeve_from', 0.35) or wrap_ < it.get('sleeve_wrap', 0.5) or m_.sum() < 150:
                 Li['torso'] |= m_ & (m_.sum() >= 150); Li[f'arm_{s_}'] = np.zeros(SH, bool)
     made = cut_body(it['id'], wgt, fg_i / 255.0, Li, base=False, item_slot=it['slot'], rigid=it.get('rigid', False))
     # coverage (the item's coverage metadata): how much of each of the body's parts the item covers in the master's

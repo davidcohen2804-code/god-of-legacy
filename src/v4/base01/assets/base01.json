@@ -73,8 +73,64 @@
    }
   },
   {
-   "name": "base/leg_F",
+   "name": "g5_b01_07/leg_B",
    "x": 385,
+   "y": 1,
+   "w": 72,
+   "h": 197,
+   "px": 0.5,
+   "py": 0.12995,
+   "rows": {
+    "top": 25.6,
+    "mid": 113.97,
+    "end": 189.03
+   }
+  },
+  {
+   "name": "g5_b01_08/leg_B",
+   "x": 459,
+   "y": 1,
+   "w": 79,
+   "h": 197,
+   "px": 0.5,
+   "py": 0.12995,
+   "rows": {
+    "top": 25.6,
+    "mid": 113.97,
+    "end": 189.03
+   }
+  },
+  {
+   "name": "g5_b01_09/leg_B",
+   "x": 540,
+   "y": 1,
+   "w": 72,
+   "h": 197,
+   "px": 0.5,
+   "py": 0.12995,
+   "rows": {
+    "top": 25.6,
+    "mid": 113.97,
+    "end": 189.03
+   }
+  },
+  {
+   "name": "g5_b01_10/leg_B",
+   "x": 614,
+   "y": 1,
+   "w": 74,
+   "h": 197,
+   "px": 0.5,
+   "py": 0.12995,
+   "rows": {
+    "top": 25.6,
+    "mid": 113.97,
+    "end": 189.03
+   }
+  },
+  {
+   "name": "base/leg_F",
+   "x": 690,
    "y": 1,
    "w": 72,
    "h": 195,
@@ -88,7 +144,7 @@
   },
   {
    "name": "bottom01_pants/leg_F",
-   "x": 459,
+   "x": 764,
    "y": 1,
    "w": 72,
    "h": 195,
@@ -102,7 +158,7 @@
   },
   {
    "name": "shoes01_boots/leg_F",
-   "x": 533,
+   "x": 838,
    "y": 1,
    "w": 72,
    "h": 195,
@@ -116,7 +172,7 @@
   },
   {
    "name": "item04_hakama/leg_F",
-   "x": 607,
+   "x": 912,
    "y": 1,
    "w": 102,
    "h": 195,
@@ -130,7 +186,7 @@
   },
   {
    "name": "item05_greaves/leg_F",
-   "x": 711,
+   "x": 1016,
    "y": 1,
    "w": 72,
    "h": 195,
@@ -144,7 +200,7 @@
   },
   {
    "name": "item08_helmet/head",
-   "x": 785,
+   "x": 1090,
    "y": 1,
    "w": 163,
    "h": 195,
@@ -152,9 +208,65 @@
    "py": 0.93221
   },
   {
+   "name": "g5_b01_07/leg_F",
+   "x": 1255,
+   "y": 1,
+   "w": 72,
+   "h": 195,
+   "px": 0.5,
+   "py": 0.13128,
+   "rows": {
+    "top": 25.6,
+    "mid": 112.61,
+    "end": 186.62
+   }
+  },
+  {
+   "name": "g5_b01_08/leg_F",
+   "x": 1329,
+   "y": 1,
+   "w": 77,
+   "h": 195,
+   "px": 0.5,
+   "py": 0.13128,
+   "rows": {
+    "top": 25.6,
+    "mid": 112.61,
+    "end": 186.62
+   }
+  },
+  {
+   "name": "g5_b01_09/leg_F",
+   "x": 1408,
+   "y": 1,
+   "w": 72,
+   "h": 195,
+   "px": 0.5,
+   "py": 0.13128,
+   "rows": {
+    "top": 25.6,
+    "mid": 112.61,
+    "end": 186.62
+   }
+  },
+  {
+   "name": "g5_b01_10/leg_F",
+   "x": 1482,
+   "y": 1,
+   "w": 72,
+   "h": 195,
+   "px": 0.5,
+   "py": 0.13128,
+   "rows": {
+    "top": 25.6,
+    "mid": 112.61,
+    "end": 186.62
+   }
+  },
+  {
    "name": "item07_hat/head",
-   "x": 1,
-   "y": 200,
+   "x": 1556,
+   "y": 1,
    "w": 277,
    "h": 190,
    "px": 0.48628,
@@ -162,8 +274,8 @@
   },
   {
    "name": "base/head",
-   "x": 280,
-   "y": 200,
+   "x": 1835,
+   "y": 1,
    "w": 212,
    "h": 184,
    "px": 0.49387,
@@ -171,7 +283,7 @@
   },
   {
    "name": "base/torso",
-   "x": 494,
+   "x": 1,
    "y": 200,
    "w": 114,
    "h": 159,
@@ -180,7 +292,7 @@
   },
   {
    "name": "item02_robe/torso",
-   "x": 610,
+   "x": 117,
    "y": 200,
    "w": 124,
    "h": 152,
@@ -188,8 +300,17 @@
    "py": 0.61309
   },
   {
+   "name": "g5_b01_01/torso",
+   "x": 243,
+   "y": 200,
+   "w": 110,
+   "h": 152,
+   "px": 0.48809,
+   "py": 0.61967
+  },
+  {
    "name": "item06_coat/torso",
-   "x": 736,
+   "x": 355,
    "y": 200,
    "w": 121,
    "h": 151,
@@ -197,8 +318,17 @@
    "py": 0.62377
   },
   {
+   "name": "g5_b01_05/torso",
+   "x": 478,
+   "y": 200,
+   "w": 114,
+   "h": 150,
+   "px": 0.48851,
+   "py": 0.6346
+  },
+  {
    "name": "top01_tunic/torso",
-   "x": 859,
+   "x": 594,
    "y": 200,
    "w": 118,
    "h": 148,
@@ -206,18 +336,54 @@
    "py": 0.62291
   },
   {
+   "name": "g5_b01_04/torso",
+   "x": 714,
+   "y": 200,
+   "w": 112,
+   "h": 145,
+   "px": 0.4883,
+   "py": 0.65648
+  },
+  {
+   "name": "g5_b01_02/torso",
+   "x": 828,
+   "y": 200,
+   "w": 117,
+   "h": 143,
+   "px": 0.53581,
+   "py": 0.65867
+  },
+  {
+   "name": "g5_b01_06/torso",
+   "x": 947,
+   "y": 200,
+   "w": 109,
+   "h": 142,
+   "px": 0.48339,
+   "py": 0.67035
+  },
+  {
    "name": "top02_armor/torso",
-   "x": 1,
-   "y": 392,
+   "x": 1058,
+   "y": 200,
    "w": 131,
    "h": 138,
    "px": 0.54725,
    "py": 0.68978
   },
   {
+   "name": "g5_b01_03/torso",
+   "x": 1191,
+   "y": 200,
+   "w": 114,
+   "h": 136,
+   "px": 0.54114,
+   "py": 0.68522
+  },
+  {
    "name": "base/arm_F",
-   "x": 134,
-   "y": 392,
+   "x": 1307,
+   "y": 200,
    "w": 59,
    "h": 130,
    "px": 0.5,
@@ -230,8 +396,8 @@
   },
   {
    "name": "top01_tunic/arm_F",
-   "x": 195,
-   "y": 392,
+   "x": 1368,
+   "y": 200,
    "w": 59,
    "h": 130,
    "px": 0.5,
@@ -244,8 +410,8 @@
   },
   {
    "name": "item02_robe/arm_F",
-   "x": 256,
-   "y": 392,
+   "x": 1429,
+   "y": 200,
    "w": 59,
    "h": 130,
    "px": 0.5,
@@ -258,8 +424,50 @@
   },
   {
    "name": "item06_coat/arm_F",
-   "x": 317,
-   "y": 392,
+   "x": 1490,
+   "y": 200,
+   "w": 59,
+   "h": 130,
+   "px": 0.5,
+   "py": 0.16538,
+   "rows": {
+    "top": 21.5,
+    "mid": 72.38,
+    "end": 122.1
+   }
+  },
+  {
+   "name": "g5_b01_02/arm_F",
+   "x": 1551,
+   "y": 200,
+   "w": 59,
+   "h": 130,
+   "px": 0.5,
+   "py": 0.16538,
+   "rows": {
+    "top": 21.5,
+    "mid": 72.38,
+    "end": 122.1
+   }
+  },
+  {
+   "name": "g5_b01_03/arm_F",
+   "x": 1612,
+   "y": 200,
+   "w": 59,
+   "h": 130,
+   "px": 0.5,
+   "py": 0.16538,
+   "rows": {
+    "top": 21.5,
+    "mid": 72.38,
+    "end": 122.1
+   }
+  },
+  {
+   "name": "g5_b01_06/arm_F",
+   "x": 1673,
+   "y": 200,
    "w": 59,
    "h": 130,
    "px": 0.5,
@@ -272,8 +480,8 @@
   },
   {
    "name": "base/arm_B",
-   "x": 378,
-   "y": 392,
+   "x": 1734,
+   "y": 200,
    "w": 59,
    "h": 128,
    "px": 0.5,
@@ -286,8 +494,8 @@
   },
   {
    "name": "top01_tunic/arm_B",
-   "x": 439,
-   "y": 392,
+   "x": 1795,
+   "y": 200,
    "w": 59,
    "h": 128,
    "px": 0.5,
@@ -300,8 +508,8 @@
   },
   {
    "name": "item02_robe/arm_B",
-   "x": 500,
-   "y": 392,
+   "x": 1856,
+   "y": 200,
    "w": 59,
    "h": 128,
    "px": 0.5,
@@ -314,8 +522,36 @@
   },
   {
    "name": "item06_coat/arm_B",
-   "x": 561,
-   "y": 392,
+   "x": 1917,
+   "y": 200,
+   "w": 59,
+   "h": 128,
+   "px": 0.5,
+   "py": 0.16797,
+   "rows": {
+    "top": 21.5,
+    "mid": 72.15,
+    "end": 121.44
+   }
+  },
+  {
+   "name": "g5_b01_02/arm_B",
+   "x": 1978,
+   "y": 200,
+   "w": 59,
+   "h": 128,
+   "px": 0.5,
+   "py": 0.16797,
+   "rows": {
+    "top": 21.5,
+    "mid": 72.15,
+    "end": 121.44
+   }
+  },
+  {
+   "name": "g5_b01_03/arm_B",
+   "x": 1,
+   "y": 361,
    "w": 59,
    "h": 128,
    "px": 0.5,
@@ -328,8 +564,8 @@
   },
   {
    "name": "item01_vest/torso",
-   "x": 622,
-   "y": 392,
+   "x": 62,
+   "y": 361,
    "w": 99,
    "h": 122,
    "px": 0.49182,
@@ -337,8 +573,8 @@
   },
   {
    "name": "item03_shoulder/torso",
-   "x": 723,
-   "y": 392,
+   "x": 163,
+   "y": 361,
    "w": 120,
    "h": 111,
    "px": 0.58908,
@@ -346,8 +582,8 @@
   },
   {
    "name": "item09_staff/weapon",
-   "x": 1,
-   "y": 532,
+   "x": 285,
+   "y": 361,
    "w": 428,
    "h": 103,
    "px": 0.30159,
@@ -355,8 +591,8 @@
   },
   {
    "name": "top02_armor/uparm_B",
-   "x": 431,
-   "y": 532,
+   "x": 715,
+   "y": 361,
    "w": 59,
    "h": 86,
    "px": 0.75831,
@@ -364,8 +600,8 @@
   },
   {
    "name": "item06_coat/tail_F",
-   "x": 492,
-   "y": 532,
+   "x": 776,
+   "y": 361,
    "w": 51,
    "h": 85,
    "px": 0.13078,
@@ -373,8 +609,8 @@
   },
   {
    "name": "top02_armor/uparm_F",
-   "x": 545,
-   "y": 532,
+   "x": 829,
+   "y": 361,
    "w": 48,
    "h": 84,
    "px": 0.20104,
@@ -382,8 +618,8 @@
   },
   {
    "name": "item06_coat/tail_B",
-   "x": 595,
-   "y": 532,
+   "x": 879,
+   "y": 361,
    "w": 74,
    "h": 83,
    "px": 0.67189,
@@ -391,8 +627,8 @@
   },
   {
    "name": "base/hand_B",
-   "x": 671,
-   "y": 532,
+   "x": 955,
+   "y": 361,
    "w": 56,
    "h": 81,
    "px": 0.51393,
@@ -400,8 +636,8 @@
   },
   {
    "name": "base/hand_F",
-   "x": 729,
-   "y": 532,
+   "x": 1013,
+   "y": 361,
    "w": 48,
    "h": 80,
    "px": 0.45021,
@@ -409,8 +645,8 @@
   },
   {
    "name": "item03_shoulder/pauldron_B",
-   "x": 779,
-   "y": 532,
+   "x": 1063,
+   "y": 361,
    "w": 92,
    "h": 77,
    "px": 0.51891,
@@ -418,8 +654,8 @@
   },
   {
    "name": "top02_armor/pauldron_B",
-   "x": 873,
-   "y": 532,
+   "x": 1157,
+   "y": 361,
    "w": 86,
    "h": 76,
    "px": 0.59,
@@ -427,8 +663,8 @@
   },
   {
    "name": "weapon01_sword/weapon",
-   "x": 1,
-   "y": 637,
+   "x": 1245,
+   "y": 361,
    "w": 250,
    "h": 71,
    "px": 0.16184,
@@ -436,8 +672,8 @@
   },
   {
    "name": "top02_armor/pauldron_F",
-   "x": 253,
-   "y": 637,
+   "x": 1497,
+   "y": 361,
    "w": 43,
    "h": 68,
    "px": 0.03837,
@@ -445,8 +681,8 @@
   },
   {
    "name": "top02_armor/forearm_B",
-   "x": 298,
-   "y": 637,
+   "x": 1542,
+   "y": 361,
    "w": 55,
    "h": 64,
    "px": 0.68655,
@@ -454,8 +690,8 @@
   },
   {
    "name": "top02_armor/forearm_F",
-   "x": 355,
-   "y": 637,
+   "x": 1599,
+   "y": 361,
    "w": 62,
    "h": 62,
    "px": 0.38113,
@@ -463,8 +699,8 @@
   },
   {
    "name": "base/hand_F_grip",
-   "x": 419,
-   "y": 637,
+   "x": 1663,
+   "y": 361,
    "w": 55,
    "h": 59,
    "px": 0.502,
@@ -472,8 +708,8 @@
   },
   {
    "name": "base/pelvis",
-   "x": 476,
-   "y": 637,
+   "x": 1720,
+   "y": 361,
    "w": 108,
    "h": 58,
    "px": 0.50639,
@@ -481,8 +717,8 @@
   },
   {
    "name": "base/hand_B_grip",
-   "x": 586,
-   "y": 637,
+   "x": 1830,
+   "y": 361,
    "w": 61,
    "h": 58,
    "px": 0.4718,
@@ -490,17 +726,53 @@
   },
   {
    "name": "item04_hakama/pelvis",
-   "x": 649,
-   "y": 637,
+   "x": 1893,
+   "y": 361,
    "w": 113,
    "h": 58,
    "px": 0.50168,
    "py": 0.56293
   },
   {
+   "name": "g5_b01_07/pelvis",
+   "x": 1,
+   "y": 491,
+   "w": 108,
+   "h": 58,
+   "px": 0.49713,
+   "py": 0.56293
+  },
+  {
+   "name": "g5_b01_08/pelvis",
+   "x": 111,
+   "y": 491,
+   "w": 111,
+   "h": 58,
+   "px": 0.50171,
+   "py": 0.56293
+  },
+  {
+   "name": "g5_b01_09/pelvis",
+   "x": 224,
+   "y": 491,
+   "w": 108,
+   "h": 58,
+   "px": 0.49713,
+   "py": 0.56293
+  },
+  {
+   "name": "g5_b01_10/pelvis",
+   "x": 334,
+   "y": 491,
+   "w": 111,
+   "h": 58,
+   "px": 0.50171,
+   "py": 0.56293
+  },
+  {
    "name": "bottom01_pants/pelvis",
-   "x": 764,
-   "y": 637,
+   "x": 447,
+   "y": 491,
    "w": 105,
    "h": 56,
    "px": 0.49229,
@@ -508,8 +780,8 @@
   },
   {
    "name": "item10_dagger/weapon",
-   "x": 1,
-   "y": 710,
+   "x": 554,
+   "y": 491,
    "w": 158,
    "h": 54,
    "px": 0.22544,
@@ -517,8 +789,8 @@
   },
   {
    "name": "item05_greaves/foot_B",
-   "x": 161,
-   "y": 710,
+   "x": 714,
+   "y": 491,
    "w": 75,
    "h": 53,
    "px": 0.35667,
@@ -526,8 +798,8 @@
   },
   {
    "name": "item03_shoulder/uparm_F",
-   "x": 238,
-   "y": 710,
+   "x": 791,
+   "y": 491,
    "w": 16,
    "h": 51,
    "px": 0.60313,
@@ -535,8 +807,8 @@
   },
   {
    "name": "base/foot_B",
-   "x": 256,
-   "y": 710,
+   "x": 809,
+   "y": 491,
    "w": 97,
    "h": 50,
    "px": 0.28608,
@@ -544,8 +816,8 @@
   },
   {
    "name": "item05_greaves/foot_F",
-   "x": 355,
-   "y": 710,
+   "x": 908,
+   "y": 491,
    "w": 87,
    "h": 50,
    "px": 0.2777,
@@ -553,8 +825,8 @@
   },
   {
    "name": "shoes01_boots/foot_B",
-   "x": 444,
-   "y": 710,
+   "x": 997,
+   "y": 491,
    "w": 78,
    "h": 49,
    "px": 0.34295,
@@ -562,8 +834,8 @@
   },
   {
    "name": "base/foot_F",
-   "x": 524,
-   "y": 710,
+   "x": 1077,
+   "y": 491,
    "w": 88,
    "h": 45,
    "px": 0.28591,
@@ -571,8 +843,8 @@
   },
   {
    "name": "shoes01_boots/foot_F",
-   "x": 614,
-   "y": 710,
+   "x": 1167,
+   "y": 491,
    "w": 84,
    "h": 45,
    "px": 0.29952,
@@ -580,8 +852,8 @@
   },
   {
    "name": "bottom01_pants/pelvis_under",
-   "x": 700,
-   "y": 710,
+   "x": 1253,
+   "y": 491,
    "w": 77,
    "h": 11,
    "px": 0.47649,
@@ -589,11 +861,47 @@
   },
   {
    "name": "item04_hakama/pelvis_under",
-   "x": 779,
-   "y": 710,
+   "x": 1332,
+   "y": 491,
    "w": 81,
    "h": 11,
    "px": 0.49,
+   "py": 3.42273
+  },
+  {
+   "name": "g5_b01_07/pelvis_under",
+   "x": 1415,
+   "y": 491,
+   "w": 77,
+   "h": 11,
+   "px": 0.47649,
+   "py": 3.42273
+  },
+  {
+   "name": "g5_b01_08/pelvis_under",
+   "x": 1494,
+   "y": 491,
+   "w": 80,
+   "h": 11,
+   "px": 0.48362,
+   "py": 3.42273
+  },
+  {
+   "name": "g5_b01_09/pelvis_under",
+   "x": 1576,
+   "y": 491,
+   "w": 79,
+   "h": 11,
+   "px": 0.47709,
+   "py": 3.42273
+  },
+  {
+   "name": "g5_b01_10/pelvis_under",
+   "x": 1657,
+   "y": 491,
+   "w": 82,
+   "h": 11,
+   "px": 0.48402,
    "py": 3.42273
   }
  ],
@@ -1066,6 +1374,219 @@
     }
    ],
    "motion": "dagger_1h"
+  },
+  {
+   "id": "g5_b01_01",
+   "slot": "top",
+   "name": "Ranger's Sleeveless Green Tunic",
+   "parts": [
+    {
+     "part": "torso",
+     "frame": "g5_b01_01/torso"
+    }
+   ],
+   "covers": [
+    "torso",
+    "pelvis"
+   ]
+  },
+  {
+   "id": "g5_b01_02",
+   "slot": "top",
+   "name": "Apprentice White Linen Shirt",
+   "parts": [
+    {
+     "part": "torso",
+     "frame": "g5_b01_02/torso"
+    },
+    {
+     "part": "arm_B",
+     "frame": "g5_b01_02/arm_B"
+    },
+    {
+     "part": "arm_F",
+     "frame": "g5_b01_02/arm_F"
+    }
+   ],
+   "covers": [
+    "torso"
+   ]
+  },
+  {
+   "id": "g5_b01_03",
+   "slot": "top",
+   "name": "Crimson Long-Sleeved Shirt",
+   "parts": [
+    {
+     "part": "torso",
+     "frame": "g5_b01_03/torso"
+    },
+    {
+     "part": "arm_B",
+     "frame": "g5_b01_03/arm_B"
+    },
+    {
+     "part": "arm_F",
+     "frame": "g5_b01_03/arm_F"
+    }
+   ],
+   "covers": [
+    "torso",
+    "arm_B",
+    "arm_F"
+   ]
+  },
+  {
+   "id": "g5_b01_04",
+   "slot": "top",
+   "name": "Black Open-Chest Adventurer Vest",
+   "parts": [
+    {
+     "part": "torso",
+     "frame": "g5_b01_04/torso"
+    }
+   ],
+   "covers": []
+  },
+  {
+   "id": "g5_b01_05",
+   "slot": "top",
+   "name": "Navy Padded Gambler Waistcoat",
+   "parts": [
+    {
+     "part": "torso",
+     "frame": "g5_b01_05/torso"
+    }
+   ],
+   "covers": [
+    "torso"
+   ]
+  },
+  {
+   "id": "g5_b01_06",
+   "slot": "top",
+   "name": "Desert Traveler Wrap Top",
+   "parts": [
+    {
+     "part": "torso",
+     "frame": "g5_b01_06/torso"
+    },
+    {
+     "part": "arm_F",
+     "frame": "g5_b01_06/arm_F"
+    }
+   ],
+   "covers": []
+  },
+  {
+   "id": "g5_b01_07",
+   "slot": "bottom",
+   "name": "Brown Fitted Leather Trousers",
+   "parts": [
+    {
+     "part": "pelvis_under",
+     "frame": "g5_b01_07/pelvis_under"
+    },
+    {
+     "part": "pelvis",
+     "frame": "g5_b01_07/pelvis"
+    },
+    {
+     "part": "leg_B",
+     "frame": "g5_b01_07/leg_B"
+    },
+    {
+     "part": "leg_F",
+     "frame": "g5_b01_07/leg_F"
+    }
+   ],
+   "covers": [
+    "pelvis",
+    "leg_B",
+    "leg_F"
+   ]
+  },
+  {
+   "id": "g5_b01_08",
+   "slot": "bottom",
+   "name": "Black Loose Combat Trousers",
+   "parts": [
+    {
+     "part": "pelvis_under",
+     "frame": "g5_b01_08/pelvis_under"
+    },
+    {
+     "part": "pelvis",
+     "frame": "g5_b01_08/pelvis"
+    },
+    {
+     "part": "leg_B",
+     "frame": "g5_b01_08/leg_B"
+    },
+    {
+     "part": "leg_F",
+     "frame": "g5_b01_08/leg_F"
+    }
+   ],
+   "covers": [
+    "pelvis",
+    "leg_B",
+    "leg_F"
+   ]
+  },
+  {
+   "id": "g5_b01_09",
+   "slot": "bottom",
+   "name": "Light Blue Knee-Length Shorts",
+   "parts": [
+    {
+     "part": "pelvis_under",
+     "frame": "g5_b01_09/pelvis_under"
+    },
+    {
+     "part": "pelvis",
+     "frame": "g5_b01_09/pelvis"
+    },
+    {
+     "part": "leg_B",
+     "frame": "g5_b01_09/leg_B"
+    },
+    {
+     "part": "leg_F",
+     "frame": "g5_b01_09/leg_F"
+    }
+   ],
+   "covers": [
+    "pelvis"
+   ]
+  },
+  {
+   "id": "g5_b01_10",
+   "slot": "bottom",
+   "name": "Dark Red Layered Waist Trousers",
+   "parts": [
+    {
+     "part": "pelvis_under",
+     "frame": "g5_b01_10/pelvis_under"
+    },
+    {
+     "part": "pelvis",
+     "frame": "g5_b01_10/pelvis"
+    },
+    {
+     "part": "leg_B",
+     "frame": "g5_b01_10/leg_B"
+    },
+    {
+     "part": "leg_F",
+     "frame": "g5_b01_10/leg_F"
+    }
+   ],
+   "covers": [
+    "pelvis",
+    "leg_B",
+    "leg_F"
+   ]
   }
  ],
  "report": [
@@ -1078,6 +1599,10 @@
    "sleeve_reach": {
     "B": 0.68,
     "F": 0.71
+   },
+   "sleeve_wrap": {
+    "B": 0.99,
+    "F": 1.0
    },
    "coverage": {
     "torso": 0.915,
@@ -1157,6 +1682,10 @@
     "B": 0.51,
     "F": 0.26
    },
+   "sleeve_wrap": {
+    "B": 0.0,
+    "F": 0.09
+   },
    "coverage": {
     "torso": 0.742,
     "pelvis": 0.327
@@ -1173,6 +1702,10 @@
    "sleeve_reach": {
     "B": 1.86,
     "F": 1.87
+   },
+   "sleeve_wrap": {
+    "B": 0.96,
+    "F": 0.92
    },
    "coverage": {
     "torso": 0.933,
@@ -1236,6 +1769,10 @@
    "sleeve_reach": {
     "B": 1.87,
     "F": 1.88
+   },
+   "sleeve_wrap": {
+    "B": 0.98,
+    "F": 0.94
    },
    "coverage": {
     "torso": 0.984,
@@ -1308,11 +1845,198 @@
    "scale": 0.492,
    "length_B": 0.309,
    "accepted": true
+  },
+  {
+   "id": "g5_b01_01",
+   "ecc": 1.0,
+   "median_colour_err_outside": 4.3,
+   "silhouette_mismatch_outside": 0.0003,
+   "accepted": true,
+   "sleeve_reach": {
+    "B": 0.52,
+    "F": 0.25
+   },
+   "sleeve_wrap": {
+    "B": 0.0,
+    "F": 0.11
+   },
+   "coverage": {
+    "torso": 0.852,
+    "pelvis": 0.98
+   },
+   "skin_halo_px": 100,
+   "light_outline": false
+  },
+  {
+   "id": "g5_b01_02",
+   "ecc": 1.0,
+   "median_colour_err_outside": 6.3,
+   "silhouette_mismatch_outside": 0.0005,
+   "accepted": true,
+   "sleeve_reach": {
+    "B": 0.57,
+    "F": 0.61
+   },
+   "sleeve_wrap": {
+    "B": 1.0,
+    "F": 0.96
+   },
+   "coverage": {
+    "torso": 0.942,
+    "pelvis": 0.825,
+    "arm_B": 0.302
+   },
+   "skin_halo_px": 33,
+   "light_outline": true
+  },
+  {
+   "id": "g5_b01_03",
+   "ecc": 0.9998,
+   "median_colour_err_outside": 6.0,
+   "silhouette_mismatch_outside": 0.001,
+   "accepted": true,
+   "sleeve_reach": {
+    "B": 1.86,
+    "F": 1.86
+   },
+   "sleeve_wrap": {
+    "B": 1.0,
+    "F": 0.98
+   },
+   "coverage": {
+    "torso": 0.93,
+    "pelvis": 0.645,
+    "arm_B": 0.983,
+    "arm_F": 0.967
+   },
+   "skin_halo_px": 62,
+   "light_outline": false
+  },
+  {
+   "id": "g5_b01_04",
+   "ecc": 1.0,
+   "median_colour_err_outside": 5.3,
+   "silhouette_mismatch_outside": 0.0004,
+   "accepted": true,
+   "sleeve_reach": {
+    "B": 0.53,
+    "F": 1.32
+   },
+   "sleeve_wrap": {
+    "B": 0.0,
+    "F": 0.2
+   },
+   "coverage": {
+    "torso": 0.624,
+    "pelvis": 0.487
+   },
+   "skin_halo_px": 250,
+   "light_outline": false
+  },
+  {
+   "id": "g5_b01_05",
+   "ecc": 1.0,
+   "median_colour_err_outside": 7.0,
+   "silhouette_mismatch_outside": 0.0004,
+   "accepted": true,
+   "sleeve_reach": {
+    "B": 0.57,
+    "F": 1.31
+   },
+   "sleeve_wrap": {
+    "B": 0.0,
+    "F": 0.24
+   },
+   "coverage": {
+    "torso": 0.891,
+    "pelvis": 0.832
+   },
+   "skin_halo_px": 71,
+   "light_outline": false
+  },
+  {
+   "id": "g5_b01_06",
+   "ecc": 1.0,
+   "median_colour_err_outside": 5.7,
+   "silhouette_mismatch_outside": 0.0006,
+   "accepted": true,
+   "sleeve_reach": {
+    "F": 0.8
+   },
+   "sleeve_wrap": {
+    "F": 1.0
+   },
+   "coverage": {
+    "torso": 0.662,
+    "pelvis": 0.692
+   },
+   "skin_halo_px": 415,
+   "light_outline": false
+  },
+  {
+   "id": "g5_b01_07",
+   "ecc": 1.0,
+   "median_colour_err_outside": 3.0,
+   "silhouette_mismatch_outside": 0.0004,
+   "accepted": true,
+   "leg_width": 0.88,
+   "coverage": {
+    "pelvis": 0.954,
+    "leg_B": 0.988,
+    "leg_F": 0.994
+   },
+   "skin_halo_px": 0,
+   "light_outline": false
+  },
+  {
+   "id": "g5_b01_08",
+   "ecc": 0.9984,
+   "median_colour_err_outside": 2.7,
+   "silhouette_mismatch_outside": 0.0009,
+   "accepted": true,
+   "leg_width": 1.1,
+   "coverage": {
+    "pelvis": 0.966,
+    "leg_B": 0.999,
+    "leg_F": 0.998
+   },
+   "skin_halo_px": 0,
+   "light_outline": false
+  },
+  {
+   "id": "g5_b01_09",
+   "ecc": 1.0,
+   "median_colour_err_outside": 5.3,
+   "silhouette_mismatch_outside": 0.0004,
+   "accepted": true,
+   "leg_width": 0.98,
+   "coverage": {
+    "pelvis": 0.956,
+    "leg_B": 0.606,
+    "leg_F": 0.624
+   },
+   "skin_halo_px": 110,
+   "light_outline": false
+  },
+  {
+   "id": "g5_b01_10",
+   "ecc": 0.9998,
+   "median_colour_err_outside": 5.7,
+   "silhouette_mismatch_outside": 0.0005,
+   "accepted": true,
+   "leg_width": 1.03,
+   "coverage": {
+    "pelvis": 0.98,
+    "leg_B": 1.0,
+    "leg_F": 0.995
+   },
+   "skin_halo_px": 0,
+   "light_outline": false
   }
  ],
  "versions": {
   "template": "v1",
-  "exporter": "1.4",
+  "exporter": "1.5",
   "master": "4dfe86abe317",
   "sources": {
    "top01_tunic": "bd98594e85c1",
@@ -1329,7 +2053,17 @@
    "item07_hat": "a781956f7fdd",
    "item08_helmet": "3360c09327a9",
    "item09_staff": "4ab6fdf47afe",
-   "item10_dagger": "9911f3e732cc"
+   "item10_dagger": "9911f3e732cc",
+   "g5_b01_01": "a88ea59dec17",
+   "g5_b01_02": "37e31ed05d52",
+   "g5_b01_03": "0af26bf37155",
+   "g5_b01_04": "bb0e33f241b3",
+   "g5_b01_05": "851da46c442f",
+   "g5_b01_06": "7c62035150e5",
+   "g5_b01_07": "6d7193a49d9b",
+   "g5_b01_08": "0be4f00618b6",
+   "g5_b01_09": "94a5c41205ba",
+   "g5_b01_10": "e815fb6766e4"
   }
  }
 }

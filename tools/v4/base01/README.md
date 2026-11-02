@@ -23,9 +23,10 @@ so every item bends with the body under it.
    `package/manifest.json` (schema `base01-package/1`: template, exporter and master versions; per item its slot,
    profile, motion kit, source picture and checksum, parts with their sizes and anchors, the body pieces it covers,
    every check the exporter measured and the warnings in plain words; the rejected rows with their reasons),
-   `package/previews/<id>_600.png` and `_150.png`, and `package/previews.png` (all of them on one sheet).
+   `package/previews/<id>_600.png` and `_150.png` (build outputs, not kept in the repository), and `package/previews.jpg`
+   (all of them on one sheet, kept with the manifest).
 
-## The asset contract (BASE-01, template v1, exporter 1.4)
+## The asset contract (BASE-01, template v1, exporter 1.5)
 
 - The skeleton and the anatomy are the master's and never change (`template.json`, versioned); every package records
   the template and exporter versions, the master's hash and each source picture's hash.
@@ -35,7 +36,8 @@ so every item bends with the body under it.
 - Cutting: the item is told apart from the body with a colour model; small holes are filled, a large enclosed area
   (the bare chest inside a harness) stays body; skin-coloured pixels along its edge that match the master's skin are
   body. It is cut by the same part map as the body, into the same pieces (limb strips widen for a flared sleeve or a
-  wide trouser leg). A sleeve is a sleeve only when it reaches a third of the way down the arm.
+  wide trouser leg). A sleeve is a sleeve only when it reaches a third of the way down the arm and wraps it (covers half
+  or more of the arm just below the shoulder); a sleeveless top's armhole edge or side panel rides the chest.
 - Rigid tops: each shoulder plate (the plates its outlines enclose that reach the shoulder and lie a quarter or more on
   the upper arm) is one piece on its own slot, turning 0.55 of the arm; under it the chest plate carries on (a harness
   leaves the body bare); the rest of an arm's plates are cut at the elbow.
