@@ -120,48 +120,50 @@ type Phase = 'contact' | 'down' | 'push' | 'flight' | 'contact2' | 'down2' | 'pu
 function runLeg(s: Side, ph: Phase): (hx: number, hy: number) => Foot {
   const lead = s === 'F' ? ['contact', 'down', 'push', 'flight'] : ['contact2', 'down2', 'push2', 'flight2'];
   const i = lead.indexOf(ph);
-  const PLANT: Foot[] = [[0.17, GROUND + 0.004, -14], [0.03, GROUND, 0], [-0.14, GROUND - 0.022, 38], [-0.2, GROUND - 0.09, 55]];
-  const SWING: Foot[] = [[-0.19, GROUND - 0.1, 48], [-0.05, GROUND - 0.17, 32], [0.12, GROUND - 0.13, -4], [0.19, GROUND - 0.05, -16]];
+  const PLANT: Foot[] = [[0.17, GROUND + 0.004, -14], [0.03, GROUND, 0], [-0.14, GROUND - 0.022, 38], [-0.21, GROUND - 0.11, 58]];
+  const SWING: Foot[] = [[-0.2, GROUND - 0.12, 50], [-0.05, GROUND - 0.19, 32], [0.12, GROUND - 0.14, -4], [0.19, GROUND - 0.06, -16]];
   const f = i >= 0 ? PLANT[i] : SWING[(['contact', 'down', 'push', 'flight', 'contact2', 'down2', 'push2', 'flight2'].indexOf(ph) + 4) % 4];
   const hx0 = s === 'B' ? hxB : hxF;
   return (hx: number) => [hx0 + (hx - hx0) + f[0], f[1], f[2]];
 }
-const RUN_BODY: Record<string, { y: number; chest: number; head: number; armB: Arm; armF: Arm }> = {
-  contact: { y: 0.012, chest: 11, head: -7, armB: [64, 8, grip('B', -46)], armF: [106, 74, 78] },
-  down: { y: 0.03, chest: 13, head: -8, armB: [66, 10, grip('B', -45)], armF: [104, 60, 66] },
-  push: { y: 0.008, chest: 11, head: -7, armB: [70, 16, grip('B', -42)], armF: [70, 20, 26] },
-  flight: { y: -0.012, chest: 10, head: -6, armB: [72, 20, grip('B', -40)], armF: [44, -6, 0] },
-  contact2: { y: 0.012, chest: 11, head: -7, armB: [74, 22, grip('B', -40)], armF: [40, -10, -4] },
-  down2: { y: 0.03, chest: 13, head: -8, armB: [72, 20, grip('B', -41)], armF: [62, 14, 20] },
-  push2: { y: 0.008, chest: 11, head: -7, armB: [68, 14, grip('B', -43)], armF: [96, 52, 58] },
-  flight2: { y: -0.012, chest: 10, head: -6, armB: [65, 9, grip('B', -46)], armF: [102, 70, 74] },
+// the sword carried low at the side, blade forward-down (an armed run, not the guard); the free fist pumps against
+// the far leg; the pelvis tips into the stride with the chest leaning further, more in compression
+const RUN_BODY: Record<string, { y: number; hipR: number; chest: number; head: number; armB: Arm; armF: Arm }> = {
+  contact: { y: 0.016, hipR: 4, chest: 11, head: -9, armB: [76, 92, grip('B', 34)], armF: [112, 70, 74] },
+  down: { y: 0.038, hipR: 5, chest: 13, head: -10, armB: [78, 95, grip('B', 37)], armF: [100, 52, 58] },
+  push: { y: 0.01, hipR: 5, chest: 12, head: -9, armB: [82, 98, grip('B', 40)], armF: [66, 12, 18] },
+  flight: { y: -0.026, hipR: 4, chest: 10, head: -8, armB: [84, 100, grip('B', 42)], armF: [42, -14, -8] },
+  contact2: { y: 0.016, hipR: 4, chest: 11, head: -9, armB: [84, 100, grip('B', 42)], armF: [38, -18, -12] },
+  down2: { y: 0.038, hipR: 5, chest: 13, head: -10, armB: [82, 98, grip('B', 40)], armF: [58, 6, 12] },
+  push2: { y: 0.01, hipR: 5, chest: 12, head: -9, armB: [78, 95, grip('B', 37)], armF: [96, 46, 52] },
+  flight2: { y: -0.026, hipR: 4, chest: 10, head: -8, armB: [76, 92, grip('B', 34)], armF: [108, 64, 68] },
 };
 const RUN_ORDER: Phase[] = ['contact', 'down', 'push', 'flight', 'contact2', 'down2', 'push2', 'flight2'];
 const RUN = build('run', RD, true, [...RUN_ORDER, 'contact' as Phase].map((ph, i) => {
   const b = RUN_BODY[ph];
-  return { t: i * Q, e: 'linear' as Ease, hip: [0, b.y] as [number, number], chest: b.chest, head: b.head, legs: { B: runLeg('B', ph), F: runLeg('F', ph) }, arms: { B: b.armB, F: b.armF } };
+  return { t: i * Q, e: 'linear' as Ease, hip: [0, b.y] as [number, number], hipR: b.hipR, chest: b.chest, head: b.head, legs: { B: runLeg('B', ph), F: runLeg('F', ph) }, arms: { B: b.armB, F: b.armF } };
 }), { swaps: ARMED, order: [] });
 
 // The jump: anticipation (a quick crouch), takeoff (full extension, toes pointing), rising (knees tucked), the top,
 // falling (the legs reach for the ground), landing (compression), back to the stance. No height in it: in the game the
 // body's vertical motion is physics (the marks map takeoff, air and landing onto the jump's phases); the studio adds
 // the arc for viewing.
-const JUMP = build('jump', 0.9, false, [
+const JUMP = build('jump', 0.95, false, [
   { t: 0, hip: [-0.008, 0.012], chest: 3, head: -2, legs: { B: on(STANCE.B), F: on(STANCE.F) }, arms: GUARD },
-  { t: 0.08, e: 'in', hip: [0, 0.065], chest: 18, head: -8, legs: { B: on(STANCE.B), F: on(STANCE.F) }, arms: { B: [92, 44, grip('B', -30)], F: [104, 82, 86] } },
-  { t: 0.16, e: 'out', hip: [0.01, -0.03], chest: 5, head: -2, legs: { B: fromHip(-0.035, 0.31, 40), F: fromHip(0.01, 0.305, 30) }, arms: { B: [28, -30, grip('B', -60)], F: [-25, -55, -50] } },
-  { t: 0.3, hip: [0.01, 0], chest: 7, head: -3, legs: { B: fromHip(-0.07, 0.2, 30), F: fromHip(0.07, 0.18, 18) }, arms: { B: [40, -14, grip('B', -55)], F: [-8, -35, -30] } },
-  { t: 0.45, hip: [0.01, 0], chest: 6, head: -3, legs: { B: fromHip(-0.06, 0.22, 26), F: fromHip(0.08, 0.235, 10) }, arms: { B: [46, -6, grip('B', -52)], F: [10, -20, -14] } },
-  { t: 0.62, e: 'in', hip: [0.005, -0.01], chest: 6, head: -3, legs: { B: fromHip(-0.045, 0.29, 14), F: fromHip(0.05, 0.3, 4) }, arms: { B: [58, 6, grip('B', -46)], F: [40, 16, 24] } },
-  { t: 0.72, e: 'out', hip: [0, 0.01], chest: 9, head: -4, legs: { B: on(STANCE.B), F: on(STANCE.F) }, arms: { B: [66, 14, grip('B', -44)], F: [70, 40, 46] } },
-  { t: 0.78, hip: [0, 0.07], chest: 20, head: -9, legs: { B: on(STANCE.B), F: on(STANCE.F) }, arms: { B: [86, 38, grip('B', -32)], F: [104, 84, 88] } },
-  { t: 0.9, hip: [-0.008, 0.012], chest: 3, head: -2, legs: { B: on(STANCE.B), F: on(STANCE.F) }, arms: GUARD },
-], { swaps: ARMED, marks: { takeoff: 0, air: 0.16, land: 0.72, end: 0.9 } });
+  { t: 0.07, e: 'in', hip: [0, 0.07], chest: 20, head: -9, legs: { B: on(STANCE.B), F: on(STANCE.F) }, arms: { B: [94, 48, grip('B', -28)], F: [108, 86, 90] } },
+  { t: 0.12, e: 'out', hip: [0.012, -0.035], chest: 4, head: -1, legs: { B: fromHip(-0.04, 0.312, 44), F: fromHip(0.012, 0.306, 34) }, arms: { B: [26, -32, grip('B', -62)], F: [-28, -58, -52] } },
+  { t: 0.28, hip: [0.01, -0.005], chest: 7, head: -3, legs: { B: fromHip(-0.08, 0.27, 34), F: fromHip(0.1, 0.15, 6) }, arms: { B: [40, -14, grip('B', -55)], F: [-8, -35, -30] } },
+  { t: 0.42, hip: [0.01, -0.005], chest: 6, head: -3, legs: { B: fromHip(-0.07, 0.28, 30), F: fromHip(0.11, 0.16, 4) }, arms: { B: [46, -6, grip('B', -52)], F: [8, -22, -16] } },
+  { t: 0.6, e: 'in', hip: [0.005, -0.012], chest: 5, head: -3, legs: { B: fromHip(-0.045, 0.3, 12), F: fromHip(0.05, 0.302, 2) }, arms: { B: [58, 6, grip('B', -46)], F: [42, 14, 22] } },
+  { t: 0.7, e: 'out', hip: [0, 0.012], chest: 10, head: -4, legs: { B: on(STANCE.B), F: on(STANCE.F) }, arms: { B: [66, 14, grip('B', -44)], F: [72, 42, 48] } },
+  { t: 0.79, e: 'out', hip: [0, 0.085], chest: 22, head: -10, legs: { B: on(STANCE.B), F: on(STANCE.F) }, arms: { B: [88, 40, grip('B', -30)], F: [106, 86, 90] } },
+  { t: 0.95, hip: [-0.008, 0.012], chest: 3, head: -2, legs: { B: on(STANCE.B), F: on(STANCE.F) }, arms: GUARD },
+], { swaps: ARMED, marks: { takeoff: 0, air: 0.12, land: 0.7, end: 0.95 } });
 
 // The sword attack, an overhead diagonal slash on the game's timings (the hit at 0.20 s): wind-up (weight back, the
 // sword drawn up behind the head), the swing (the hips turn and lunge, the front foot steps in, the chest follows,
 // the arm comes over the top), the impact (blade level, arm extended), follow-through (blade forward-down), recovery.
-const ATTACK = build('attack', 0.65, false, [
+const ATTACK_HEAVY = build('attack_heavy', 0.65, false, [
   { t: 0, hip: [-0.008, 0.012], chest: 3, head: -2, legs: { B: on(STANCE.B), F: on(STANCE.F) }, arms: GUARD },
   { t: 0.1, hip: [-0.032, 0.022], hipR: -4, chest: -10, head: 4, legs: { B: on(STANCE.B), F: on(STANCE.F, -6, 0.004) }, arms: { B: [-100, -125, grip('B', 169)], F: [12, -8, 0] } },
   { t: 0.16, e: 'in', hip: [-0.012, 0.024], hipR: -2, chest: -4, head: 2, legs: { B: on(STANCE.B), F: on(STANCE.F + 0.04, -8, 0.02) }, arms: { B: [-95, -80, grip('B', -150)], F: [32, 2, 8] } },
@@ -171,4 +173,19 @@ const ATTACK = build('attack', 0.65, false, [
   { t: 0.65, hip: [-0.008, 0.012], chest: 3, head: -2, legs: { B: on(STANCE.B), F: on(STANCE.F) }, arms: GUARD },
 ], { swaps: ARMED, marks: { startup: 0, active: 0.2, recovery: 0.45, end: 0.65 }, order: [{ t: 0.012, move: 'group:armB', before: 'group:head' }, { t: 0.185, move: 'group:armB', before: null }] });
 
-export const ANIMS_B01: Record<string, AnimDef> = { idle: IDLE, idle_bare: IDLE_BARE, run: RUN, jump: JUMP, attack: ATTACK };
+
+// The light slash, the Warrior's foundation (the art director's choreography): the body loads (hips back, the sword
+// cocked over the rear shoulder, the free fist up in guard), the hips start the cut (the front foot steps in), the
+// shoulder whips the arm through, the blade crosses the target level at impact, momentum carries it forward-down while
+// the free fist chambers at the hip, then the body regains the guard. 0.4 s; the marks fit the game's own timings.
+const ATTACK = build('attack', 0.4, false, [
+  { t: 0, hip: [-0.008, 0.012], chest: 3, head: -2, legs: { B: on(STANCE.B), F: on(STANCE.F) }, arms: GUARD },
+  { t: 0.07, e: 'out', hip: [-0.028, 0.026], hipR: -6, chest: -9, head: 3, legs: { B: on(STANCE.B), F: on(STANCE.F, -8, 0.006) }, arms: { B: [-112, -140, grip('B', 162)], F: [38, -42, -34] } },
+  { t: 0.105, e: 'in', hip: [0.004, 0.03], hipR: -1, chest: 2, head: 0, legs: { B: on(STANCE.B, 10, 0.004), F: on(STANCE.F + 0.06, -10, 0.025) }, arms: { B: [-70, -45, grip('B', -110)], F: [60, -10, -6] } },
+  { t: 0.14, e: 'linear', hip: [0.044, 0.04], hipR: 6, chest: 15, head: -6, legs: { B: on(STANCE.B, 20, 0.012), F: on(0.205) }, arms: { B: [24, 50, grip('B', -3)], F: [100, 150, 150] } },
+  { t: 0.18, e: 'out', hip: [0.05, 0.044], hipR: 7, chest: 17, head: -7, legs: { B: on(STANCE.B, 22, 0.014), F: on(0.205) }, arms: { B: [40, 70, grip('B', 17)], F: [104, 152, 152] } },
+  { t: 0.25, hip: [0.046, 0.042], hipR: 6, chest: 15, head: -6, legs: { B: on(STANCE.B, 20, 0.012), F: on(0.205) }, arms: { B: [62, 95, grip('B', 37)], F: [102, 148, 148] } },
+  { t: 0.4, hip: [-0.008, 0.012], chest: 3, head: -2, legs: { B: on(STANCE.B), F: on(STANCE.F) }, arms: GUARD },
+], { swaps: ARMED, marks: { startup: 0, active: 0.14, recovery: 0.25, end: 0.4 }, order: [{ t: 0.01, move: 'group:armB', before: 'group:head' }, { t: 0.125, move: 'group:armB', before: null }] });
+
+export const ANIMS_B01: Record<string, AnimDef> = { idle: IDLE, idle_bare: IDLE_BARE, run: RUN, jump: JUMP, attack: ATTACK, attack_heavy: ATTACK_HEAVY };
