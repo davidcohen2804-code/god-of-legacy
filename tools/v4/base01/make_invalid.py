@@ -12,6 +12,11 @@ X03 mirrored source: the white linen shirt item (gate5/b01_02) flipped left to r
     way).
 X04 invalid background: the crimson shirt item (gate5/b01_03) with the flat magenta behind the figure replaced by a
     vertical gradient (pale sky blue at the top to warm sand at the bottom); the figure untouched.
+X05 slot incompatibility: the ranger's sleeveless tunic item (gate5/b01_01), a valid top, unchanged; its catalog row
+    (catalog_negative.csv) says shoes.
+X07 facial identity mismatch: the hat item (stress/i07), its uncovered face changed under the hat: both eyes enlarged
+    1.25 times about their centres (a smooth local magnification, 34 px round each eye) and the mouth moved 6 px down;
+    the hat, the hair and everything else as drawn.
 """
 import json, os
 import numpy as np
@@ -105,6 +110,32 @@ def x04_background(img, top=(196, 222, 240), bottom=(232, 206, 160)):
     return np.clip(out + 0.5, 0, 255).astype(np.uint8), {'background': f'vertical gradient {top} to {bottom}'}
 
 
+def bulge(img, c, r, k):
+    """A smooth local magnification by k about c within radius r (none at the rim)."""
+    dx, dy = XX - c[0], YY - c[1]; d = np.sqrt(dx * dx + dy * dy) / r
+    w = np.clip(1 - d * d, 0, 1) ** 2
+    s = 1 + (k - 1) * w                        # output → source: pull the source in by s near the centre
+    return cv2.remap(img, (c[0] + dx / s).astype(np.float32), (c[1] + dy / s).astype(np.float32), cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
+
+
+def shift(img, c, r, v):
+    """A smooth local move by v (px) of what lies about c within radius r (none at the rim)."""
+    dx, dy = XX - c[0], YY - c[1]; d = np.sqrt(dx * dx + dy * dy) / r
+    w = np.clip(1 - d * d, 0, 1) ** 2
+    return cv2.remap(img, (XX - v[0] * w).astype(np.float32), (YY - v[1] * w).astype(np.float32), cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
+
+
+EYES = ((670.0, 342.0), (743.0, 348.0))   # the master's eyes (the near one, the far one), drawing px
+MOUTH = (710.0, 415.0)
+
+
+def x07_face(img, k=1.25, mouth=6.0):
+    out = img
+    for c in EYES: out = bulge(out, c, 34.0, k)
+    out = shift(out, MOUTH, 26.0, (0.0, mouth))
+    return out, {'eyes': [list(c) for c in EYES], 'eye_scale': k, 'eye_radius_px': 34, 'mouth': list(MOUTH), 'mouth_moved_px': mouth}
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     made = {}
@@ -116,6 +147,10 @@ def main():
     Image.fromarray(x03).save(os.path.join(OUT, 'x03_mirrored.png')); made['x03_mirrored'] = {'from': 'items/gate5/b01_02_linen_shirt_v1.png', **info}
     x04, info = x04_background(rgb('items/gate5/b01_03_crimson_shirt_v1.png'))
     Image.fromarray(x04).save(os.path.join(OUT, 'x04_background.png')); made['x04_background'] = {'from': 'items/gate5/b01_03_crimson_shirt_v1.png', **info}
+    x05 = rgb('items/gate5/b01_01_ranger_tunic_v1.png')   # the picture is valid: the defect is the row's slot
+    Image.fromarray(x05).save(os.path.join(OUT, 'x05_wrong_slot.png')); made['x05_wrong_slot'] = {'from': 'items/gate5/b01_01_ranger_tunic_v1.png', 'change': 'none (a valid top, catalogued as shoes)'}
+    x07, info = x07_face(rgb('items/stress/i07_hat_v1.png'))
+    Image.fromarray(x07).save(os.path.join(OUT, 'x07_face.png')); made['x07_face'] = {'from': 'items/stress/i07_hat_v1.png', **info}
     json.dump(made, open(os.path.join(OUT, 'made.json'), 'w'), indent=1, default=float)
     for k, v in made.items(): print(k, v)
 

@@ -491,6 +491,32 @@ COVER_MAX = 0.2        # a part more covered by the item than this (its inside) 
 # blurred face of the fixture 0.70)
 FACE_LINES_MIN = 0.7
 FACE_SHARP_MIN = 0.8
+# the face's own features (Gate 5's X07: headwear that changes the face under it): each feature's drawn lines, where the
+# headwear leaves it uncovered, must be the master's in its own window (edge correlation, at its place within 2 px): a
+# valid hat 0.97 or more; X07 (eyes 1.25 times larger, mouth 6 px lower) 0.70 to 0.82; the changed-face fixture 0.34
+# and lower. Windows measured on the master (drawing px: x0, y0, x1, y1); a feature the headwear covers half or more
+# of is not checked.
+FACE_FEATURES = {'the near eye': (640, 322, 702, 362), 'the far eye': (725, 328, 765, 368), 'the near brow': (632, 298, 718, 332),
+                 'the nose': (712, 370, 746, 398), 'the mouth': (686, 402, 735, 428)}
+FACE_FEATURE_MIN = 0.85
+FACE_FEATURE_COVER = 0.5
+
+
+def face_features(al, lab_a):
+    """Each face feature: (its lines' match with the master's, at the best place within 2 px; the share of its window
+    the headwear covers)."""
+    e0, e1 = edges(MASTER_RGB), edges(al)
+    out = {}
+    for n, (x0, y0, x1, y1) in FACE_FEATURES.items():
+        a = e0[y0:y1, x0:x1]; a = a - a.mean()
+        best = -1.0
+        for dy in range(-2, 3):
+            for dx in range(-2, 3):
+                b = e1[y0 + dy:y1 + dy, x0 + dx:x1 + dx]; b = b - b.mean()
+                best = max(best, float((a * b).sum() / max(1e-6, np.sqrt((a * a).sum() * (b * b).sum()))))
+        cov = float((np.sqrt(((lab_a[y0:y1, x0:x1] - LAB0[y0:y1, x0:x1]) ** 2).sum(2)) > 25).mean())
+        out[n] = (round(best, 3), round(cov, 2))
+    return out
 LIMB_SEGS = {'arm_B': ('uparm_B', 'forearm_B', 'hand_B'), 'arm_F': ('uparm_F', 'forearm_F', 'hand_F'),
              'leg_B': ('thigh_B', 'shin_B', 'foot_B'), 'leg_F': ('thigh_F', 'shin_F', 'foot_F')}
 NAMES = {'head': 'the head', 'torso': 'the chest', 'pelvis': 'the hips', 'thigh_B': 'the near thigh', 'thigh_F': 'the far thigh',
@@ -545,7 +571,7 @@ def part_shifts(al, item_zone):
     return out
 
 
-EXPORTER_VERSION = '1.7'
+EXPORTER_VERSION = '1.8'
 # a weapon's profile is its motion kit, the art director's motion families (how the body holds and swings it)
 WEAPON_KITS = ('sword_1h', 'dagger_1h', 'staff_2h')
 
@@ -649,6 +675,49 @@ def item_reach(al, alpha_a, zone):
     share = np.asarray(ndimage.mean(unlike, lab, ids))
     return np.isin(lab, ids[share >= 0.6])
 
+
+
+# ------------------------------------------------------------------ the slot check (Gate 5's X05)
+# A catalog row's slot must fit its picture: when what differs from the master lies mostly where another slot's item
+# goes and hardly at all where the row's slot goes (a top catalogued as footwear), the row is wrong, not the drawing.
+SLOT_WORDS = {'top': 'a top (the chest and the arms)', 'bottom': 'trousers (the hips and the legs)', 'shoes': 'footwear (the feet and the shins)', 'hat': 'headwear (the head)'}
+SLOT_OWN_MAX = 0.3      # at most this share of the differences where the row's slot goes ...
+SLOT_OTHER_MIN = 0.6    # ... and at least this share where one other slot goes
+
+
+def slot_region(slot, fld):
+    """Where a slot's item goes: its parts' share of the canvas (footwear from just below the knee down)."""
+    reg = np.any([fld[p] for p in SLOT_PARTS[slot]], axis=0)
+    if slot == 'shoes':
+        for s_ in 'BF':
+            d_ = unit(J[f'knee_{s_}'], J[f'ankle_{s_}']); L_ = np.linalg.norm(J[f'ankle_{s_}'] - J[f'knee_{s_}'])
+            reg &= ~(fld[f'leg_{s_}'] & (beyond(J[f'knee_{s_}'], d_) < L_ * 0.06))
+    return reg
+
+
+SLOT_REG = {}
+
+
+def wrong_slot(al, alpha_a, declared):
+    """(the slot the picture's item belongs to, the measures) when the row's slot does not fit the picture, else None."""
+    if not SLOT_REG:
+        fld = label_field(L0, None)
+        for sl in SLOT_WORDS: SLOT_REG[sl] = slot_region(sl, fld)
+    lab = cv2.cvtColor(al, cv2.COLOR_RGB2LAB).astype(np.float32)
+    d = ((alpha_a > 0.5) & (np.sqrt(((lab - LAB0) ** 2).sum(2)) > 35)) | ((alpha_a > 0.5) ^ M0)
+    d = ndimage.binary_opening(d, iterations=3)
+    n = int(d.sum())
+    if n < 2000 or declared not in SLOT_REG: return None
+    share = {sl: round(float((d & r).sum()) / n, 3) for sl, r in SLOT_REG.items()}
+    other = max((sl for sl in share if sl != declared), key=lambda sl: share[sl])
+    if share[declared] <= SLOT_OWN_MAX and share[other] >= SLOT_OTHER_MIN: return other, share
+    return None
+
+
+def slot_reason(declared, ws):
+    other, share = ws
+    return (f"the catalog row says {declared}, but the picture's item is {SLOT_WORDS[other]}: {share[other] * 100:.0f}% of what "
+            f"differs from the master lies where {other} goes, {share[declared] * 100:.0f}% where {declared} goes: fix the row's slot")
 
 # ------------------------------------------------------------------ the skirt garment profile (the art director's r9)
 # A bottom whose cloth closes the gap between the thighs down to a hem above the knees, where the gap opens at once onto
@@ -947,6 +1016,10 @@ for it in items_spec:
         if flip:
             REPORT[-1].update({'check': 'orientation', 'reason': f'the picture is mirrored: the character faces the other way (flipped back it lines up at {ccf:.3f}, as drawn at {cc:.3f}): ask for the item again as an edit of the attached master, not flipped'})
             print('REJECTED', it['id'], REPORT[-1]); continue
+        ws = wrong_slot(al, alpha_a, it['slot'])
+        if ws:
+            REPORT[-1].update({'check': 'slot', 'slot_share': ws[1], 'reason': slot_reason(it['slot'], ws)})
+            print('REJECTED', it['id'], REPORT[-1]); continue
         REPORT[-1]['check'] = 'pose' if pose else 'proportions' if geo else 'body colour' if err >= it.get('max_err', 40) else 'figure'
         why = []
         if pose: why.append('the picture is not in the master\'s pose: ' + ', '.join(pose) + f' (the limit is {POSE_MAX_DEG:.0f} deg)')
@@ -983,7 +1056,9 @@ for it in items_spec:
         cv2.setRNGSeed(12345)
         cv2.grabCut(np.ascontiguousarray(al[y0_:y1_, x0_:x1_]), sub, None, bgd, fgd, 6, cv2.GC_INIT_WITH_MASK)
     except cv2.error:   # nothing in the picture differs from the master (or nothing is the body): no item to cut
-        REPORT[-1].update({'accepted': False, 'check': 'no item', 'reason': 'no item found: the picture is the master itself, or the item is too small to cut'})
+        ws = wrong_slot(al, alpha_a, it['slot'])
+        if ws: REPORT[-1].update({'accepted': False, 'check': 'slot', 'slot_share': ws[1], 'reason': slot_reason(it['slot'], ws)})
+        else: REPORT[-1].update({'accepted': False, 'check': 'no item', 'reason': 'no item found: the picture is the master itself, or the item is too small to cut'})
         print('REJECTED', it['id'], REPORT[-1]); continue
     item = np.zeros(SH, bool)
     item[y0_:y1_, x0_:x1_] = (sub == cv2.GC_FGD) | (sub == cv2.GC_PR_FGD)
@@ -1032,7 +1107,9 @@ for it in items_spec:
     item &= ~halo
     item &= ndimage.binary_opening(item, iterations=1) | ~edge_band
     if item.sum() < it.get('min_item_px', 800):
-        REPORT[-1].update({'accepted': False, 'check': 'no item', 'reason': 'no item found: the picture is the master itself, or the item is too small to cut'})
+        ws = wrong_slot(al, alpha_a, it['slot'])
+        if ws: REPORT[-1].update({'accepted': False, 'check': 'slot', 'slot_share': ws[1], 'reason': slot_reason(it['slot'], ws)})
+        else: REPORT[-1].update({'accepted': False, 'check': 'no item', 'reason': 'no item found: the picture is the master itself, or the item is too small to cut'})
         print('REJECTED', it['id'], REPORT[-1]); continue
     if it['slot'] == 'hat':
         # headwear replaces the whole head piece as drawn (the hair under a crown is pressed down, a helmet hides it):
@@ -1055,6 +1132,12 @@ for it in items_spec:
         lines_min = it.get('face_lines_min', FACE_LINES_MIN)
         if covered < 0.6 and (ncc < lines_min or sharp < FACE_SHARP_MIN):
             REPORT[-1].update({'accepted': False, 'check': 'face', 'reason': f'the face is not drawn as the master\'s (its lines match {ncc:.2f}, at least {lines_min} needed; their strength {sharp:.2f} of the master\'s, at least {FACE_SHARP_MIN}): ask for the headwear again, keeping the face exactly'})
+            print('REJECTED', it['id'], REPORT[-1]); continue
+        feats = face_features(al, lab_a)
+        REPORT[-1]['face_features'] = {n: {'lines': v, 'covered': c} for n, (v, c) in feats.items()}
+        bad = [(n, v) for n, (v, c) in feats.items() if c < FACE_FEATURE_COVER and v < FACE_FEATURE_MIN]
+        if covered < 0.6 and bad:
+            REPORT[-1].update({'accepted': False, 'check': 'face', 'reason': 'the face is not the master\'s: ' + ', '.join(f'{n} differs (its lines match {v:.2f}, at least {FACE_FEATURE_MIN} needed)' for n, v in bad) + ': ask for the headwear again, keeping the face exactly'})
             print('REJECTED', it['id'], REPORT[-1]); continue
         if covered < 0.6 and float(np.median(dEf[face])) > it.get('face_max', 18):
             REPORT[-1].update({'accepted': False, 'check': 'face', 'reason': f'the face is not the master\'s (median colour error {np.median(dEf[face]):.0f} over the visible face): ask for the headwear again, keeping the face exactly'})

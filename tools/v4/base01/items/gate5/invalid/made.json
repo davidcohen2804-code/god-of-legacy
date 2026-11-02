@@ -24,5 +24,29 @@
  "x04_background": {
   "from": "items/gate5/b01_03_crimson_shirt_v1.png",
   "background": "vertical gradient (196, 222, 240) to (232, 206, 160)"
+ },
+ "x05_wrong_slot": {
+  "from": "items/gate5/b01_01_ranger_tunic_v1.png",
+  "change": "none (a valid top, catalogued as shoes)"
+ },
+ "x07_face": {
+  "from": "items/stress/i07_hat_v1.png",
+  "eyes": [
+   [
+    670.0,
+    342.0
+   ],
+   [
+    743.0,
+    348.0
+   ]
+  ],
+  "eye_scale": 1.25,
+  "eye_radius_px": 34,
+  "mouth": [
+   710.0,
+   415.0
+  ],
+  "mouth_moved_px": 6.0
  }
 }
