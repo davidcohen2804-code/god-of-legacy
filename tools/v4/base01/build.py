@@ -251,6 +251,17 @@ def pauldrons(alpha, fg, L):
     return out
 
 
+def solid_plate(m, alpha, min_px=400):
+    """The solid plates of a rigid item's arm pixels `m`: each piece that keeps 400 px or more once opened by a 7 px
+    disk, grown back by 3 px within `m` (its outline); thin strokes and specks on their own are dropped."""
+    core = ndimage.binary_opening(m & (alpha > 0.5), structure=disk((3, 3), 3)[:7, :7])
+    lab, n = ndimage.label(core)
+    if not n: return np.zeros_like(m)
+    sizes = ndimage.sum(core, lab, range(1, n + 1))
+    keep = np.isin(lab, 1 + np.where(np.asarray(sizes) >= min_px)[0])
+    return m & ndimage.binary_dilation(keep, iterations=3) if keep.any() else np.zeros_like(m)
+
+
 def cut_body(prefix, alpha, fg, L, base=True, item_slot=None, rigid=False):
     """The pieces of one figure (the base body, or an item's own pixels) cut by the part map L."""
     made = []
@@ -322,9 +333,10 @@ def cut_body(prefix, alpha, fg, L, base=True, item_slot=None, rigid=False):
             side = elbow_side(s)
             if P[s].any() and put_rigid(f'{prefix}/pauldron_{s}', lay(P[s]), J[f'shoulder_{s}']): made.append((f'pauldron_{s}', f'{prefix}/pauldron_{s}'))
             up_, lo_ = L[f'arm_{s}'] & ~P[s] & (side < 4), L[f'arm_{s}'] & ~P[s] & (side > -4)
-            # an upper-arm plate under the shoulder plate only when there is one (not a few edge pixels left over)
-            solid = ndimage.binary_opening(up_ & (alpha > 0.5), structure=disk((3, 3), 3)[:7, :7]).sum()
-            if solid > 400 and put_rigid(f'{prefix}/uparm_{s}', lay(up_), J[f'shoulder_{s}']): made.append((f'uparm_{s}', f'{prefix}/uparm_{s}'))
+            # an arm plate is a plate: its solid pieces (400 px or more once thin strokes are opened away), with their
+            # outlines; a few edge pixels or loose strokes left over by the shoulder plate are not drawn on the arm
+            up_, lo_ = solid_plate(up_, alpha), solid_plate(lo_, alpha)
+            if up_.any() and put_rigid(f'{prefix}/uparm_{s}', lay(up_), J[f'shoulder_{s}']): made.append((f'uparm_{s}', f'{prefix}/uparm_{s}'))
             if lo_.any() and put_rigid(f'{prefix}/forearm_{s}', lay(lo_), J[f'elbow_{s}']): made.append((f'forearm_{s}', f'{prefix}/forearm_{s}'))
         elif L[f'arm_{s}'].any() and put_strip(f'{prefix}/arm_{s}', f'arm_{s}', limb_layer(f'arm_{s}', L[f'arm_{s}'], {'top': L['torso'], 'end': L[f'hand_{s}']}, alpha, fg), None if base else limb_reach(f'arm_{s}', L[f'arm_{s}'] & (alpha > 0.5))):
             made.append((f'arm_{s}', f'{prefix}/arm_{s}'))

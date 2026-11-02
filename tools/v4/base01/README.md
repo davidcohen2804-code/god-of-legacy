@@ -47,7 +47,9 @@ so every item bends with the body under it.
   or more of the arm just below the shoulder); a sleeveless top's armhole edge or side panel rides the chest.
 - Rigid tops: each shoulder plate (the plates its outlines enclose that reach the shoulder and lie a quarter or more on
   the upper arm) is one piece on its own slot, turning 0.55 of the arm; under it the chest plate carries on (a harness
-  leaves the body bare); the rest of an arm's plates are cut at the elbow.
+  leaves the body bare); the rest of an arm's plates are cut at the elbow, and only solid plates are kept there (a
+  piece of 400 px or more once thin strokes are opened away, with its outline): loose strokes or specks left over by
+  a shoulder plate are not drawn on the arm.
 - Coverage: the parts of the body an item covers 85% or more hide the bare piece under them (`covers`). Trousers have a
   hidden 10 px underlap, drawn only under a top.
 - Light garments (tops and trousers with a median L* above 72) get a crisp warm dark outline (7 master px) and slightly
