@@ -796,7 +796,7 @@ export class ArcherFx {
       // armed: the heart of the flower blinks faster and faster; the cracks blaze
       this.floor('thorn_roots', t.x, t.y, 2.0 * R0, 2400, { add: true, glow: 0.3, alive: () => on, a: (u) => kf([0, 0], [0.1, 0.7])(u) * (0.6 + 0.4 * Math.sin(u * 40 * (1 + u))) }); // (the same roots glowing, pulsing faster — not a second patch of cracks pasted over them)
       let k = 0;
-      const blink = () => { if (!on) return; this.pop('spark_s', t.x, t.y - 0.1 * R0, 40 + k * 3, { life: 160, depth: t.y + 2 }); k++; this.later(Math.max(70, 320 - k * 22), blink); };
+      const blink = () => { if (!on) return; this.pop('spark_s', t.x, t.y - 0.1 * R0, 40 + Math.min(k, 24) * 3, { life: 160, depth: t.y + 2 }); k++; this.later(Math.max(70, 320 - k * 22), blink); }; // (its growth capped: never a great star over the foe)
       blink();
     } });
   }

@@ -83,7 +83,7 @@ const IMPACT: Record<string, { key: string; path: string; cell: number; frames: 
   warrior: { key: 'imp-warrior', path: `${F}/impact/warrior_steel.png`, cell: 256, frames: 6, size: 110 },
   book_mage: { key: 'imp-mage', path: `${F}/skills/book_mage/astral_burst/vfx.png`, cell: 256, frames: 8, size: 92 },
   archer: { key: 'imp-archer', path: `${F}/impact/archer_burst.png`, cell: 160, frames: 1, size: 78 },
-  dust: { key: 'imp-dust', path: `${F}/impact/dust_pixel.png`, cell: 128, frames: 6, size: 96 },
+  dust: { key: 'imp-dust', path: `${F}/impact/dust_soft.png`, cell: 128, frames: 6, size: 96 }, // (a soft painted puff — the pixel-art one broke ART_STYLE's "no pixel art" beside the painted heroes)
   explosion: { key: 'imp-explosion', path: `${F}/impact/archer_explosion.png`, cell: 256, frames: 5, size: 190 },
 };
 export const CLASS_COLOR: Record<string, number> = { warrior: 0xffb04a, book_mage: 0x6fc8ff, archer: 0x9be35a, samurai: 0xff4a5a, gambler: 0xff2bd6 };

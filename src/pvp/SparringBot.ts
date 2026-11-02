@@ -7,6 +7,8 @@ import Phaser from 'phaser';
 import { PVP } from '../config/layout';
 import { ARENA, CombatBody, HitOutcome, Kin, PHYS, newKin, steer, stepKin } from '../combat/Combat';
 const ARENA_TECH_MS = ARENA.techMinMs;
+/** The closest the knight's driving dash brings it to your centre (px; the scene's GLIDE_GAP). */
+const BOT_GLIDE_GAP = 58;
 import { FinalSkill, HitEvent } from '../skills/SkillTypes';
 import { ARENA_FLOW, arenaCommits, arenaTimeScale, armorEnd, finalSkill, kitFor } from '../skills/FinalKit';
 import { HitTarget, V2, V3, unit } from '../skills/HitGeometry';
@@ -432,9 +434,10 @@ export class SparringBot {
       const p = Math.min(1, (c.t - activeStart) / Math.max(1, T.active)), ease = 1 - (1 - p) * (1 - p);
       const want = { x: c.origin.x + c.aim.x * c.dist * ease, y: c.origin.y + c.aim.y * c.dist * ease };
       const steps = Math.ceil(Math.hypot(want.x - k.x, want.y - k.y) / 2);
+      const pl = w.player, crowd = (nx: number, ny: number) => !s.through && !s.carry && pl.alive && Math.abs(pl.z - k.z) < 60 && Math.abs(pl.y - ny) < 36 && Math.hypot(pl.x - nx, pl.y - ny) < BOT_GLIDE_GAP && Math.hypot(pl.x - nx, pl.y - ny) < Math.hypot(pl.x - k.x, pl.y - k.y);
       for (let i = 0; i < steps; i++) {
         const nx = k.x + (want.x - k.x) / (steps - i), ny = k.y + (want.y - k.y) / (steps - i);
-        if (!footAllowed(nx, ny, k.z, R)) break;
+        if (!footAllowed(nx, ny, k.z, R) || crowd(nx, ny)) break; // (a driving dash pushes on behind you, never into your body: as the players')
         k.x = nx; k.y = ny;
       }
       k.vx = 0; k.vy = 0;

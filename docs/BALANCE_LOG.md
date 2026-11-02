@@ -4,6 +4,16 @@ Every balance change to any class's skills, newest first. Class chats: read this
 needs new visuals / motion (an effect sized to a new hitbox, an animation timed to a new startup), do that part.
 Values apply to the whole game (only damage may differ in PvP: arenaDmg / the arena's scaling).
 
+## 2026-11-02 (evening) — Bodies never slide into each other; a pull stops at the blade (David 18:43: "every move perfect")
+- **Attack glides** (the lunge in to a soft-locked foe, Dash Slash's skid after the dash) stop 58 px from a foe's centre in
+  the arena (the training partner, the knight, another player: `GLIDE_GAP`, `crowdsFoe`) — Dash Slash skidded into the foe
+  it had just carried and the two stood in one place. The hit is still measured from where the lunge would have taken you.
+- **Driving dashes** (not `through`, not `carry`: Whirlwind's drive, the charges) push on behind the foe and stop 58 px from
+  him instead of running into his body — the players' (scene) and the knight's (`BOT_GLIDE_GAP`).
+- **Pulls** stop the foe 48 px from the hit's centre (was 30: the Whirlwind's and the quake's foe stood inside the warrior).
+- **Checked:** every combo trial replayed — 98 of 106 runs clear (93 before the day's changes; none lost; the Gambler's
+  Switch now clears too).
+
 ## 2026-11-02 — The fight's one pace: every skill 1.35× slower, the foe in step (David 15:50: "the skills run very fast")
 - **`PACE` = 1.35** (`SkillTypes.ts`, applied in `FinalKit.arenaTimeScale`): every class skill's wind-up, active, hit spacing
   and recovery run 1.35× its kit numbers — the basic chains, buffs, traps and counters too; the open game and PvP alike.

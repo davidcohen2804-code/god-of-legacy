@@ -145,6 +145,8 @@ function lingerPace(run: CastRun): number {
   if (!L || L.at === 'target') return 1;
   return L.startMs + (L.count - 1) * L.everyMs <= s.active + s.recovery ? (run.tune?.at ?? 1) : 1;
 }
+/** The closest an attack's glide brings you to a foe's centre (px): crowdsFoe. */
+const GLIDE_GAP = 58;
 /** A Master's HP in his trial (the Sun Seal Plaza). */
 const TRIAL_HP = 200; // (the world's own scale, not the arena's)
 /** Hit in the world (a monster, a Master's trial): untouchable this long (ms), blinking all the while (MapleStory-style). */
@@ -1408,7 +1410,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     for (const key of ['lunge', 'momentum'] as const) { // glide toward the target / along the push
       const m = this[key]; if (!m) continue;
       const f = Math.min(1, ms / Math.max(1, m.left)), nx = k.x + m.x * f, ny = k.y + m.y * f;
-      if (footAllowed(nx, ny, k.z, R, k) && !this.blockedByActors(nx, ny, k.z)) { k.x = nx; k.y = ny; }
+      if (footAllowed(nx, ny, k.z, R, k) && !this.blockedByActors(nx, ny, k.z) && !this.crowdsFoe(nx, ny, k.z)) { k.x = nx; k.y = ny; }
       m.x -= m.x * f; m.y -= m.y * f; m.left -= ms; if (m.left <= 0) this[key] = null;
     }
     if (s.through && run.phase === 'recovery' && !run.turned && run.elapsed >= T.startup + T.active + 0.75 * T.recovery) { // crossed the target: after the skid, turn to face it
@@ -1804,7 +1806,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const steps = Math.ceil(Math.hypot(want.x - k.x, want.y - k.y) / 2);
     for (let i = 0; i < steps; i++) {
       const nx = k.x + (want.x - k.x) / (steps - i), ny = k.y + (want.y - k.y) / (steps - i);
-      if (!footAllowed(nx, ny, k.z, R, k) || (!s.through && !s.carry && this.blockedByActors(nx, ny, k.z))) break;
+      if (!footAllowed(nx, ny, k.z, R, k) || (!s.through && !s.carry && (this.blockedByActors(nx, ny, k.z) || this.crowdsFoe(nx, ny, k.z)))) break; // (a driving dash — Whirlwind, a charge — pushes on behind the foe, never into him)
       k.x = nx; k.y = ny;
     }
     k.vx = 0; k.vy = 0;
@@ -1997,6 +1999,16 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       }
     }
     this.lingers = this.lingers.filter((l) => l.left > 0);
+  }
+
+  /** An attack's glide (the lunge in, the skid after a dash) never slides into a foe in the arena (the training partner, the
+   *  knight, another player): it stops GLIDE_GAP px from his centre — Dash Slash skidded into the foe it had just carried
+   *  and the two bodies stood in one place. (Walking past each other stays free.) */
+  private crowdsFoe(x: number, y: number, z: number): boolean {
+    const k = this.kin, near = (fx: number, fy: number, fz: number) => Math.abs(fz - z) < 60 && Math.abs(fy - y) < 36 && Math.hypot(fx - x, fy - y) < GLIDE_GAP && Math.hypot(fx - x, fy - y) < Math.hypot(fx - k.x, fy - k.y);
+    if (this.bot && !this.bot.defeated && near(this.bot.kin.x, this.bot.kin.y, this.bot.kin.z)) return true;
+    for (const r of this.pvp?.remotes.values() ?? []) if (r.alive && near(r.x, r.y, r.z)) return true;
+    return false;
   }
 
   /** mobs: the open world's monsters count too (skill glides stop at them; walking passes through them, MapleStory-style). */

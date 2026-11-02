@@ -43,6 +43,9 @@ const SLOW_FALL_G = 0.2;
  *  its hit-stun, holds and floor time PACE× as long, its juggle the same arcs at 1/PACE the speed (gravity / PACE², lifts
  *  / PACE). Free bodies (walking, running, jumping, a knockdown's throw) keep their speed. */
 const SLOW2 = PACE * PACE;
+/** A pull stops the foe this far from the hit's centre (px): drawn in up to the blade, never into the puller's body (it was 30: the
+ *  Whirlwind's and the quake's foe stood inside the warrior). */
+const PULL_GAP = 48;
 /** Combo-protection thresholds (fractions of max HP) and their effects. */
 export const GAUGE = { stand: 0.3, air: 0.4, airRamp: 0.15, down: 0.15, resetMs: 3000, holdVz: 300, holdCeil: 120, gravityRamp: 1.6, wakeInvulnMs: 600 };
 
@@ -514,7 +517,7 @@ export class CombatBody {
       if (kick) pushPx = Math.max(pushPx, THROWN.kick);
       else if (this.arena && pushPx > 0 && (airNow || downNow || c.hits > 1)) pushPx *= 0.4; // DFO: in a combo the foe hardly drifts sideways (stays in reach)
       if (R.yank !== undefined) { this.yankedAt = now; pushPx = -Math.max(0, Math.hypot(k.x - from.x, k.y - from.y) - R.yank); if (airNow) k.vz = Math.max(k.vz, 140 / PACE); } // a vine whip: back in front of the attacker
-      else if (pushPx < 0) pushPx = Math.max(pushPx, -Math.max(0, d - 30)); // a pull draws him in, never through the puller to his back (the next blow in front would miss)
+      else if (pushPx < 0) pushPx = Math.max(pushPx, -Math.max(0, d - PULL_GAP)); // a pull draws him in, never through the puller to his back (the next blow in front would miss), nor into his body (PULL_GAP)
       if (this.arena && pushPx > 0) { dx = Math.sign(k.x - from.x) || (dx < 0 ? -1 : 1); dy = 0; } // the arena: knocked straight back along the line (a combo stays on one line)
       if (pushPx > 0 && this.kbResist > 0 && Math.random() < this.kbResist) this.stanceAt = now; // stance: not pushed back
       else if (pushPx !== 0) { const pm = R.yank !== undefined ? 60 : kick ? THROWN.kickMs : pushPx < 0 && R.pullMs ? R.pullMs : 110; out.pushX = dx * pushPx; out.pushY = dy * pushPx; this.push = { vx: out.pushX / pm, vy: out.pushY / pm, left: pm, skid: kick ? THROWN.skidMs : 0 }; } // (a yank snaps in fast)

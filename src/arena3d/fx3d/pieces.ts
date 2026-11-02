@@ -879,6 +879,10 @@ void main() {
 #endif
   a *= uA;
   if (uFloor > 0.0) a *= smoothstep(0.0, uFloor, vWy); // (ground: nothing under the planks, its foot fading into them)
+  // its frame's edges feathered: a painted / filmed effect whose light runs off its frame (Binding Rune's chains, the
+  // astral seal, Glacial Spikes) ended in a straight line — a lit box round it in the room
+  vec2 e2 = smoothstep(vec2(0.0), vec2(0.06), vUv) * smoothstep(vec2(0.0), vec2(0.06), 1.0 - vUv);
+  a *= e2.x * (uFloor > 0.0 ? smoothstep(0.0, 0.06, 1.0 - vUv.y) : e2.y);
   if (!(a >= 0.003)) discard;
   gl_FragColor = vec4(max(col, vec3(0.0)), min(a, 1.0));
   #include <tonemapping_fragment>

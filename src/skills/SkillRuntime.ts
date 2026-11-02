@@ -216,8 +216,18 @@ export class SkillRuntime {
     }
     if (reason === 'death' || reason === 'sceneExit') {
       this.projectiles = this.projectiles.filter((e) => !e.run.own);
-      this.traps = this.traps.filter((t) => !t.run.own);
+      this.dropTraps((t) => !t.run.own);
     }
+  }
+
+  /** Take traps off the floor (`keep` false), each still announced as gone (unfired): their pictures end with them — a mine
+   *  dropped silently (a round's reset, its archer down) stayed drawn on the floor for good, an armed one's blink growing
+   *  into a great star over whoever stood there. */
+  private dropTraps(keep: (t: Trap) => boolean): void {
+    const gone = this.traps.filter((t) => !keep(t));
+    if (!gone.length) return;
+    this.traps = this.traps.filter(keep);
+    for (const t of gone) this.events.emit(RT_EVENTS.trapTrigger, t, false);
   }
 
   /** Cancel the own run for a hit-confirm cancel (keeps its projectiles/zones alive). */
@@ -226,7 +236,7 @@ export class SkillRuntime {
   cancelAttacker(id: string): void {
     for (const r of this.runs) if (r.attackerId === id && r.phase !== 'done') { r.phase = 'done'; this.events.emit(RT_EVENTS.cancelled, r); }
     this.projectiles = this.projectiles.filter((e) => e.p.attackerId !== id);
-    this.traps = this.traps.filter((t) => t.run.attackerId !== id);
+    this.dropTraps((t) => t.run.attackerId !== id);
   }
 
   /** Counter stance currently open for this caster? */

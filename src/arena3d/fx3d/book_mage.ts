@@ -30,7 +30,7 @@ const keep = <V>(m: Map<string, V>, k: string, v: V): void => { m.set(k, v); if 
 
 /** Arcane Bolt and its attuned kin: two star darts, then the lance (the chain's 3rd beat) charged on an upright seal. */
 const bolt = (col: number, el?: 'frost' | 'storm'): Recipe => ({
-  tone: col, own: true, trail: { c: col, w: 7, len: 12, i: 1.7 },
+  tone: col, own: true, trail: { c: col, w: 10, len: 14, i: 2 }, // (2 Nov: a size up — at 7 px the quick bolts read as a thin line)
   cast: (f, r) => {
     const h = book(f, r);
     if (r.stage === 2) { seal(f, h.x, h.y, col, { up: h.z, r: 44, ms: T(r).startup + 160, spin: 3.2, pulse: 5 }); star(f, h, col, { size: 70, ms: T(r).startup + 60, light: 0.5 }); }
@@ -41,7 +41,7 @@ const bolt = (col: number, el?: 'frost' | 'storm'): Recipe => ({
       rider(f, p, col, { size: 70, stretch: 2.8, glow: 1.25, burst: 1.5 });
       const c = { x: p.x, y: p.y, z: p.z + 62 };
       f.host.ring(f.host.w3(c.x), f.host.d3(c.y), col, 0.9, 260, 0.6);
-    } else rider(f, p, el === 'frost' ? ICE : col, { size: 40, spin: 9, burst: 0.8 });
+    } else rider(f, p, el === 'frost' ? ICE : col, { size: 60, stretch: 1.6, glow: 1.3, burst: 0.9 }); // (a comet of starlight drawn out along its flight, not a pin-point)
   },
   hit: (f, _s, h, at) => { // (every bolt lands as a star; the lance's a big gold one)
     const z = at.z + 62, big = !!h.heavy;

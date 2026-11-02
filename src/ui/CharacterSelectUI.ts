@@ -199,7 +199,7 @@ const PICK_KEY = 'godoflegacy.heroPick';
 const HL = { x: K.roster.x + 22, y: 152, w: K.roster.w - 44, h: 118, gap: 14, face: 96 } as const;
 const HERO_CSS = `
 .gol-sel .hrow{position:absolute;pointer-events:auto;cursor:pointer;box-sizing:border-box;border-radius:16px;background:#121b2d;border:1px solid rgba(255,255,255,.08);
-  box-shadow:0 8px 20px rgba(0,0,0,.3);transition:border-color 140ms,box-shadow 140ms,transform 140ms}
+  box-shadow:0 8px 20px rgba(0,0,0,.3);transition:transform 140ms} /* (the chosen hero's gold frame switches at once: a fading frame could lag a click and leave the gold on the last hero) */
 .gol-sel .hrow:hover{border-color:rgba(231,196,124,.45);transform:translateX(3px)}
 .gol-sel .hrow.sel{border-color:var(--gl-gold);box-shadow:0 0 0 3px rgba(231,196,124,.18),0 14px 30px rgba(0,0,0,.45);background:linear-gradient(90deg,#1b2740,#121b2d)}
 .gol-sel .hrow .face{position:absolute;left:11px;top:11px;width:${HL.face}px;height:${HL.face}px;border-radius:12px;background-color:#0b1220;background-repeat:no-repeat;
