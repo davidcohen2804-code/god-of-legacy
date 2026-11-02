@@ -130,11 +130,13 @@ try {
         save();
       }
     }
-    if (cmd === 'reel' && ART === 'b') {
+    if (cmd === 'reel' && (ART === 'b' || ART === 'base01')) {
       // one continuous clip per look: idle, run, a jump, two attacks (the game's own clock, 60 Hz steps, 30 fps frames)
       const GOLDR = { top: 'b_gold_top', bottom: 'b_gold_bottom', gloves: 'b_gold_gloves', shoes: 'b_gold_shoes', back: 'b_gold_cape' };
+      const B01 = { top: 'top01_tunic', bottom: 'bottom01_pants', shoes: 'shoes01_boots', weapon: 'weapon01_sword' };
+      const LOOKS = ART === 'base01' ? [['tunic', B01], ['armor', { ...B01, top: 'top02_armor' }]] : [['basic', {}], ['gold', GOLDR]];
       await set(() => { const s = window.__v4lab.scene; s.zoomPreset = 'grinding'; s.sizeKey = '1.12'; s.renderMode = 'direct'; s.previewOn = true; s.applyView(); });
-      for (const [name, eq] of [['basic', {}], ['gold', GOLDR]]) {
+      for (const [name, eq] of LOOKS) {
         await outfit(eq, 'starter'); await reset('idle');
         const dir = `${out}/reel_${name}`; rmSync(dir, { recursive: true, force: true }); mkdirSync(dir, { recursive: true });
         let f = 0, at = null;
@@ -142,8 +144,13 @@ try {
           await set((a) => { const s = window.__v4lab.scene; s.forced = a; }, anim);
           for (let i = 0; i < Math.round(seconds * 30); i++) { await step(2); if (!at) at = await where(); await shot(`${dir}/f${String(f++).padStart(4, '0')}.png`); }
         };
-        await play('idle', 1.6); await play('run', 1.4); await play(null, 0.2); await play('jump', 1.0); await play(null, 0.3);
-        await play('attack', 0.65); await play(null, 0.25); await play('attack', 0.65); await play(null, 0.6);
+        if (ART === 'base01') { // the transitions the art director asked for: idle → run → slash → slash → jump → land → idle
+          await play('idle', 1.0); await play('run', 1.2); await play('attack', 0.65); await play('attack', 0.65); await play(null, 0.3);
+          await play('jump', 1.0); await play(null, 0.7);
+        } else {
+          await play('idle', 1.6); await play('run', 1.4); await play(null, 0.2); await play('jump', 1.0); await play(null, 0.3);
+          await play('attack', 0.65); await play(null, 0.25); await play('attack', 0.65); await play(null, 0.6);
+        }
         execSync(`ffmpeg -loglevel error -y -framerate 30 -i ${dir}/f%04d.png -c:v libx264 -pix_fmt yuv420p -crf 18 ${out}/reel_${name}.mp4`);
         const gx = Math.round(at.x - 120), px = Math.ceil(1300 * (1280 / 1920));
         execSync(`ffmpeg -loglevel error -y -framerate 30 -i ${dir}/f%04d.png -filter_complex "[0:v]split[a][b];[a]crop=240:440:${gx}:150,pad=244:440:0:0:color=0x0c1017[g];[b]crop=${1280 - px}:440:${px}:150[p];[g][p]hstack=inputs=2,fps=15,split[s1][s2];[s1]palettegen=max_colors=160[pal];[s2][pal]paletteuse=dither=bayer:bayer_scale=4" ${out}/reel_${name}.gif`);
