@@ -2,7 +2,7 @@
 import type { WardrobeSlot } from '../wardrobe/types';
 import { KIT, type StudioScene } from './StudioScene';
 
-const ANIMS = [['rest', 'Source pose'], ['idle', 'Idle'], ['run', 'Run'], ['jump', 'Jump'], ['attack', 'Attack']] as const;
+const ANIMS = [['rest', 'Source pose'], ['idle', 'Idle'], ['idle_bare', 'Idle (no weapon)'], ['run', 'Run'], ['jump', 'Jump'], ['attack', 'Attack']] as const;
 
 export function buildStudioUI(scene: StudioScene): void {
   const $ = (id: string) => document.getElementById(id)!;

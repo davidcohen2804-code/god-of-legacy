@@ -192,7 +192,7 @@ def fill_under(layer, region, known):
     return tl.inpaint_rgba(layer, known, region, radius=6)
 
 
-def cut_body(prefix, alpha, fg, L, base=True):
+def cut_body(prefix, alpha, fg, L, base=True, item_slot=None):
     """The pieces of one figure (the base body, or an item's own pixels) cut by the part map L."""
     made = []
     lay = lambda m: tl.premul(alpha, fg, m.astype(np.float32))
@@ -207,7 +207,19 @@ def cut_body(prefix, alpha, fg, L, base=True):
         known = L['torso'] & (alpha > 0.9) & (fg.max(2) > 140)
         tl_ = fill_under(tl_, (neck & ~L['torso']) | (belly & ~L['torso']), known)
     if L['torso'].any() and put_rigid(f'{prefix}/torso', tl_, J['waist']): made.append(('torso', f'{prefix}/torso'))
-    if L['pelvis'].any() and put_rigid(f'{prefix}/pelvis', lay(L['pelvis']), J['pelvis']): made.append(('pelvis', f'{prefix}/pelvis'))
+    pl = lay(L['pelvis'])
+    if not base and L['pelvis'].any() and item_slot == 'bottom':
+        # the trousers' waist carries on a little up under the top (hidden art): a top's hem riding the chest never
+        # opens a gap onto the belly when the hips and the chest turn apart
+        rows = np.where(L['pelvis'].any(1))[0]; ty = rows.min()
+        cols = np.where(L['pelvis'][ty + 6])[0]
+        band = L['pelvis'] & (YY < ty + 0.02 * BPX) & (alpha > 0.9)
+        px_ = fg[band]
+        if len(px_):
+            col = np.median(px_, axis=0)
+            up = (YY >= ty - 0.03 * BPX) & (YY < ty + 3) & (XX > cols.min() + 3) & (XX < cols.max() - 3) & ~L['pelvis']
+            pl[up, :3] = col; pl[up, 3] = 1.0
+    if L['pelvis'].any() and put_rigid(f'{prefix}/pelvis', pl, J['pelvis']): made.append(('pelvis', f'{prefix}/pelvis'))
     for s in 'BF':
         if L[f'arm_{s}'].any() and put_strip(f'{prefix}/arm_{s}', f'arm_{s}', limb_layer(f'arm_{s}', L[f'arm_{s}'], {'top': L['torso'], 'end': L[f'hand_{s}']}, alpha, fg)):
             made.append((f'arm_{s}', f'{prefix}/arm_{s}'))
@@ -269,7 +281,14 @@ def align(alpha_i, region):
     a = cv2.GaussianBlur(cv2.resize(alpha0.astype(np.float32), None, fx=s, fy=s, interpolation=cv2.INTER_AREA), (0, 0), 2.5)
     b = cv2.GaussianBlur(cv2.resize(alpha_i.astype(np.float32), None, fx=s, fy=s, interpolation=cv2.INTER_AREA), (0, 0), 2.5)
     keep = cv2.resize((~ndimage.binary_dilation(region, iterations=25)).astype(np.uint8), None, fx=s, fy=s, interpolation=cv2.INTER_NEAREST)
-    warp = np.eye(2, 3, dtype=np.float32)
+    # start from the two figures' boxes (same height from the soles to the top of the hair, same feet): a picture
+    # drawn bigger or lower still converges
+    def box(al):
+        ys, xs = np.where(al > 0.5); return xs.min(), xs.max(), ys.min(), ys.max()
+    x0a, x1a, y0a, y1a = box(alpha0); x0b, x1b, y0b, y1b = box(alpha_i)
+    k0 = (y1b - y0b) / (y1a - y0a)
+    c0 = np.array([(x0a + x1a) / 2, y1a]); c1 = np.array([(x0b + x1b) / 2, y1b])
+    warp = np.array([[k0, 0, (c1[0] - k0 * c0[0]) * s], [0, k0, (c1[1] - k0 * c0[1]) * s]], np.float32)
     crit = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 400, 1e-7)
     cc, warp = cv2.findTransformECC(a, b, warp, cv2.MOTION_AFFINE, crit, keep, 5)
     warp[:, 2] /= s
@@ -397,7 +416,7 @@ for it in items_spec:
         Li[p] = np.zeros(SH, bool)
     for p in allowed:
         Li[remap.get(p, p)] = Li[remap.get(p, p)] | (item & field[p])
-    made = cut_body(it['id'], wgt, fg_a / 255.0, Li, base=False)
+    made = cut_body(it['id'], wgt, fg_a / 255.0, Li, base=False, item_slot=it['slot'])
     ITEMS.append({'id': it['id'], 'slot': it['slot'], 'name': it['name'], 'parts': [{'part': p, 'frame': f} for p, f in made]})
     Image.fromarray(np.dstack([fg_a, wgt * 255]).clip(0, 255).astype(np.uint8), 'RGBA').save(os.path.join(OUT, f"item_{it['id']}.png"))
 
@@ -411,6 +430,8 @@ rig = {
     'bpx_drawing': BPX, 'root': [round(float(v), 1) for v in ROOT],
     'world': {k: round(v, 3) for k, v in WORLD.items()}, 'lengths': {k: round(v, 5) for k, v in LEN.items()},
     'hand_len': round(HAND_LEN['B'], 5), 'hand_len_F': round(HAND_LEN['F'], 5),
+    # the handle through each fist, relative to the hand bone (the grip picture's forearm against its level handle)
+    'grip_axis': {s: round(math.degrees(math.atan2(T['hands'][s]['axis'][1], T['hands'][s]['axis'][0])), 3) for s in 'BF'},
     'offsets': GEO, 'limbs': {n: {k: lm[k] for k in ('top', 'bottom', 'bend')} for n, lm in LIMBS.items()},
 }
 json.dump({'bpx': ABPX, 'frames': meta, 'items': ITEMS, 'rig': rig, 'report': REPORT}, open(os.path.join(OUT, 'parts.json'), 'w'), indent=1)

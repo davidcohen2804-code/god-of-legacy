@@ -12,14 +12,17 @@ const O = R.offsets as unknown as Record<string, [number, number]>;
 const LEN = R.lengths as unknown as Record<string, number>;
 const LIMB = R.limbs as unknown as Record<string, { top: number; bottom: number; bend: number }>;
 const HAND_LEN = { B: R.hand_len as number, F: (R as unknown as { hand_len_F: number }).hand_len_F };
+/** Each fist's handle direction relative to its hand bone (degrees). */
+export const GRIP_AXIS = (R as unknown as { grip_axis: Record<'B' | 'F', number> }).grip_axis;
 
 const bone = (name: string, parent: string | null, x: number, y: number, r: number, len = 0): BoneDef => ({ name, parent, x, y, r, len });
 const side = (s: 'B' | 'F'): BoneDef[] => [
   bone(`uparm_${s}`, 'chest', O[`uparm_${s}`][0], O[`uparm_${s}`][1], W[`uparm_${s}`], LEN[`uparm_${s}`]),
   bone(`forearm_${s}`, `uparm_${s}`, LEN[`uparm_${s}`], 0, W[`forearm_${s}`] - W[`uparm_${s}`], LEN[`forearm_${s}`]),
   bone(`hand_${s}`, `forearm_${s}`, LEN[`forearm_${s}`], 0, 0, HAND_LEN[s]),
-  // the grip socket: through the middle of the fist, pointing forward (to the right) while the arm hangs at rest
-  bone(s === 'B' ? 'weapon' : 'offhand', `hand_${s}`, HAND_LEN[s], 0, -W[`forearm_${s}`]),
+  // the grip socket: through the middle of the fist along the handle the fist was drawn round, fixed to the hand (a
+  // held weapon never turns about the fist; the wrist turns the hand and the weapon together)
+  bone(s === 'B' ? 'weapon' : 'offhand', `hand_${s}`, HAND_LEN[s], 0, -GRIP_AXIS[s]),
   bone(`thigh_${s}`, 'hip', O[`thigh_${s}`][0], O[`thigh_${s}`][1], W[`thigh_${s}`], LEN[`thigh_${s}`]),
   bone(`shin_${s}`, `thigh_${s}`, LEN[`thigh_${s}`], 0, W[`shin_${s}`] - W[`thigh_${s}`], LEN[`shin_${s}`]),
   bone(`foot_${s}`, `shin_${s}`, LEN[`shin_${s}`], 0, -W[`shin_${s}`], 0.1),

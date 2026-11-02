@@ -188,8 +188,17 @@
    "py": 0.10812
   },
   {
-   "name": "weapon01_sword/weapon",
+   "name": "bottom01_pants/pelvis",
    "x": 231,
+   "y": 200,
+   "w": 105,
+   "h": 72,
+   "px": 0.49229,
+   "py": 0.64792
+  },
+  {
+   "name": "weapon01_sword/weapon",
+   "x": 338,
    "y": 200,
    "w": 254,
    "h": 72,
@@ -198,7 +207,7 @@
   },
   {
    "name": "base/hand_F_grip",
-   "x": 487,
+   "x": 594,
    "y": 200,
    "w": 55,
    "h": 59,
@@ -207,7 +216,7 @@
   },
   {
    "name": "base/pelvis",
-   "x": 544,
+   "x": 651,
    "y": 200,
    "w": 108,
    "h": 58,
@@ -216,21 +225,12 @@
   },
   {
    "name": "base/hand_B_grip",
-   "x": 654,
+   "x": 761,
    "y": 200,
    "w": 61,
    "h": 58,
    "px": 0.4718,
    "py": 0.14914
-  },
-  {
-   "name": "bottom01_pants/pelvis",
-   "x": 717,
-   "y": 200,
-   "w": 105,
-   "h": 57,
-   "px": 0.49229,
-   "py": 0.55526
   },
   {
    "name": "base/foot_B",
@@ -304,6 +304,10 @@
   },
   "hand_len": 0.05009,
   "hand_len_F": 0.0503,
+  "grip_axis": {
+   "B": 112.782,
+   "F": 61.631
+  },
   "offsets": {
    "hip": [
     0.02,
@@ -489,6 +493,13 @@
    "median_colour_err_outside": 8.7,
    "silhouette_mismatch_outside": 0.0083,
    "accepted": true
+  },
+  {
+   "id": "top02_armor",
+   "ecc": 0.8843,
+   "median_colour_err_outside": 22.7,
+   "silhouette_mismatch_outside": 0.0255,
+   "accepted": false
   },
   {
    "id": "bottom01_pants",
