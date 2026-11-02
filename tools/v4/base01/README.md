@@ -18,6 +18,12 @@ so every item bends with the body under it.
 3. Build: `python3 build.py <out>` then `python3 pack.py <out> ../../../src/v4/base01/assets`, then
    `node ../build_studio.mjs` (the studio) and `node ../build_lab.mjs` (the lab's game scene). A trial build of another
    catalog: `B01_CATALOG=<file> python3 build.py <out>`.
+4. The package (what a reviewer checks): `node previews.mjs <renders>` (the studio served on port 4201) draws every item
+   worn alone with the game's own runtime, then `python3 package.py <out> <renders> package` writes
+   `package/manifest.json` (schema `base01-package/1`: template, exporter and master versions; per item its slot,
+   profile, motion kit, source picture and checksum, parts with their sizes and anchors, the body pieces it covers,
+   every check the exporter measured and the warnings in plain words; the rejected rows with their reasons),
+   `package/previews/<id>_600.png` and `_150.png`, and `package/previews.png` (all of them on one sheet).
 
 ## The asset contract (BASE-01, template v1, exporter 1.4)
 

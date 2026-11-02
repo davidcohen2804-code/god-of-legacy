@@ -35,6 +35,8 @@ export class StudioScene extends Phaser.Scene {
   unarmed = false;
   /** The held weapon's motion kit (sword, dagger, staff). */
   weaponKit = 'sword_1h';
+  /** The large view's body height in px (420; the importer's preview renders set 600). */
+  bigB = BIG.B;
   t = 0;
   /** A change of animation by a change of item: a short cross-fade from the pose that was on screen. */
   private from: Float64Array | null = null;
@@ -114,8 +116,8 @@ export class StudioScene extends Phaser.Scene {
     // a jump with marks has no height of its own (the game's physics lifts the body): the studio draws the arc
     const m = this.anim.marks;
     const lift = m && 'air' in m && this.t > m.air && this.t < m.land ? 0.36 * 4 * ((this.t - m.air) / (m.land - m.air)) * (1 - (this.t - m.air) / (m.land - m.air)) : 0;
-    this.big.container.y = BIG.y - lift * BIG.B; this.small.container.y = GAME.y - lift * GAME.B;
-    for (const [ch, B] of [[this.big, BIG.B], [this.small, GAME.B]] as const) {
+    this.big.container.y = BIG.y - lift * this.bigB; this.small.container.y = GAME.y - lift * GAME.B;
+    for (const [ch, B] of [[this.big, this.bigB], [this.small, GAME.B]] as const) {
       const k = Math.min(1, this.fadeT / 0.09);
       ch.evaluate(this.anim, this.t, this.from && k < 1 ? { v: this.from, w: 1 - (1 - k) * (1 - k) } : undefined);
       ch.layout(B / MASTER_B);
@@ -126,7 +128,7 @@ export class StudioScene extends Phaser.Scene {
   }
 
   private drawJoints(): void {
-    const s = BIG.B / MASTER_B, w = this.big.state.world, g = this.gfx;
+    const s = this.bigB / MASTER_B, w = this.big.state.world, g = this.gfx;
     const at = (b: string): [number, number] => { const i = this.pose.index.get(b)!; return [BIG.x + w[i * 6 + 4] * s, BIG.y + w[i * 6 + 5] * s]; };
     const tip = (b: string): [number, number] => {
       const i = this.pose.index.get(b)!, L = this.pose.length(this.big.state, i) * MASTER_B;

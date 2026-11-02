@@ -1,0 +1,1267 @@
+{
+ "schema": "base01-package/1",
+ "catalogSchema": 2,
+ "body": "base01",
+ "versions": {
+  "template": "v1",
+  "exporter": "1.4",
+  "master": "4dfe86abe317"
+ },
+ "items": [
+  {
+   "id": "base01_body",
+   "name": "BASE-01 body",
+   "slot": "body",
+   "profile": "base",
+   "motion": null,
+   "source": {
+    "picture": null,
+    "sha1": null
+   },
+   "parts": [
+    {
+     "part": "head",
+     "frame": "base/head",
+     "size": [
+      212,
+      184
+     ],
+     "anchor": [
+      104.7,
+      172.78
+     ]
+    },
+    {
+     "part": "torso",
+     "frame": "base/torso",
+     "size": [
+      114,
+      159
+     ],
+     "anchor": [
+      61.69,
+      118.19
+     ]
+    },
+    {
+     "part": "pelvis",
+     "frame": "base/pelvis",
+     "size": [
+      108,
+      58
+     ],
+     "anchor": [
+      54.69,
+      32.65
+     ]
+    },
+    {
+     "part": "arm_B",
+     "frame": "base/arm_B",
+     "size": [
+      59,
+      128
+     ],
+     "anchor": [
+      29.5,
+      21.5
+     ]
+    },
+    {
+     "part": "leg_B",
+     "frame": "base/leg_B",
+     "size": [
+      72,
+      197
+     ],
+     "anchor": [
+      36.0,
+      25.6
+     ]
+    },
+    {
+     "part": "hand_B",
+     "frame": "base/hand_B",
+     "size": [
+      56,
+      81
+     ],
+     "anchor": [
+      28.78,
+      8.65
+     ]
+    },
+    {
+     "part": "foot_B",
+     "frame": "base/foot_B",
+     "size": [
+      97,
+      50
+     ],
+     "anchor": [
+      27.75,
+      5.99
+     ]
+    },
+    {
+     "part": "arm_F",
+     "frame": "base/arm_F",
+     "size": [
+      59,
+      130
+     ],
+     "anchor": [
+      29.5,
+      21.5
+     ]
+    },
+    {
+     "part": "leg_F",
+     "frame": "base/leg_F",
+     "size": [
+      72,
+      195
+     ],
+     "anchor": [
+      36.0,
+      25.6
+     ]
+    },
+    {
+     "part": "hand_F",
+     "frame": "base/hand_F",
+     "size": [
+      48,
+      80
+     ],
+     "anchor": [
+      21.61,
+      8.65
+     ]
+    },
+    {
+     "part": "foot_F",
+     "frame": "base/foot_F",
+     "size": [
+      88,
+      45
+     ],
+     "anchor": [
+      25.16,
+      2.99
+     ]
+    }
+   ],
+   "covers": [],
+   "loose": false,
+   "checks": {},
+   "warnings": [],
+   "previews": {
+    "600": "previews/base01_body_600.png",
+    "150": "previews/base01_body_150.png"
+   }
+  },
+  {
+   "id": "top01_tunic",
+   "name": "Traveler's Tunic",
+   "slot": "top",
+   "profile": "cloth",
+   "motion": null,
+   "source": {
+    "picture": "items/top01_tunic_v2.png",
+    "sha1": "bd98594e85c1"
+   },
+   "parts": [
+    {
+     "part": "torso",
+     "frame": "top01_tunic/torso",
+     "size": [
+      118,
+      148
+     ],
+     "anchor": [
+      60.69,
+      92.19
+     ]
+    },
+    {
+     "part": "arm_B",
+     "frame": "top01_tunic/arm_B",
+     "size": [
+      59,
+      128
+     ],
+     "anchor": [
+      29.5,
+      21.5
+     ]
+    },
+    {
+     "part": "arm_F",
+     "frame": "top01_tunic/arm_F",
+     "size": [
+      59,
+      130
+     ],
+     "anchor": [
+      29.5,
+      21.5
+     ]
+    }
+   ],
+   "covers": [
+    "torso",
+    "pelvis"
+   ],
+   "loose": false,
+   "checks": {
+    "ecc": 0.9921,
+    "median_colour_err_outside": 8.7,
+    "silhouette_mismatch_outside": 0.0083,
+    "accepted": true,
+    "sleeve_reach": {
+     "B": 0.68,
+     "F": 0.71
+    },
+    "coverage": {
+     "torso": 0.915,
+     "pelvis": 0.973,
+     "arm_B": 0.354,
+     "arm_F": 0.326
+    },
+    "skin_halo_px": 178,
+    "light_outline": true
+   },
+   "warnings": [
+    "light garment: dark outline and deeper folds added",
+    "partly covered (the bare body shows under it): arm_B, arm_F"
+   ],
+   "previews": {
+    "600": "previews/top01_tunic_600.png",
+    "150": "previews/top01_tunic_150.png"
+   }
+  },
+  {
+   "id": "top02_armor",
+   "name": "Royal Guard Armor",
+   "slot": "top",
+   "profile": "rigid",
+   "motion": null,
+   "source": {
+    "picture": "items/top02_armor_v2.png",
+    "sha1": "687a1345e26f"
+   },
+   "parts": [
+    {
+     "part": "torso",
+     "frame": "top02_armor/torso",
+     "size": [
+      131,
+      138
+     ],
+     "anchor": [
+      71.69,
+      95.19
+     ]
+    },
+    {
+     "part": "pauldron_B",
+     "frame": "top02_armor/pauldron_B",
+     "size": [
+      86,
+      76
+     ],
+     "anchor": [
+      50.74,
+      36.74
+     ]
+    },
+    {
+     "part": "uparm_B",
+     "frame": "top02_armor/uparm_B",
+     "size": [
+      59,
+      86
+     ],
+     "anchor": [
+      44.74,
+      35.74
+     ]
+    },
+    {
+     "part": "forearm_B",
+     "frame": "top02_armor/forearm_B",
+     "size": [
+      55,
+      64
+     ],
+     "anchor": [
+      37.76,
+      10.7
+     ]
+    },
+    {
+     "part": "pauldron_F",
+     "frame": "top02_armor/pauldron_F",
+     "size": [
+      43,
+      68
+     ],
+     "anchor": [
+      1.65,
+      33.74
+     ]
+    },
+    {
+     "part": "uparm_F",
+     "frame": "top02_armor/uparm_F",
+     "size": [
+      48,
+      84
+     ],
+     "anchor": [
+      9.65,
+      23.74
+     ]
+    },
+    {
+     "part": "forearm_F",
+     "frame": "top02_armor/forearm_F",
+     "size": [
+      62,
+      62
+     ],
+     "anchor": [
+      23.63,
+      9.7
+     ]
+    }
+   ],
+   "covers": [
+    "torso"
+   ],
+   "loose": false,
+   "checks": {
+    "ecc": 0.9856,
+    "median_colour_err_outside": 6.3,
+    "silhouette_mismatch_outside": 0.0059,
+    "accepted": true,
+    "coverage": {
+     "torso": 0.973,
+     "pelvis": 0.511,
+     "arm_B": 0.804,
+     "arm_F": 0.75
+    },
+    "skin_halo_px": 333,
+    "light_outline": false
+   },
+   "warnings": [
+    "333 px of skin along the edges returned to the body",
+    "partly covered (the bare body shows under it): pelvis, arm_B, arm_F"
+   ],
+   "previews": {
+    "600": "previews/top02_armor_600.png",
+    "150": "previews/top02_armor_150.png"
+   }
+  },
+  {
+   "id": "bottom01_pants",
+   "name": "Wanderer Pants",
+   "slot": "bottom",
+   "profile": "cloth",
+   "motion": null,
+   "source": {
+    "picture": "items/bottom01_pants_v1.png",
+    "sha1": "9481d06a0445"
+   },
+   "parts": [
+    {
+     "part": "pelvis_under",
+     "frame": "bottom01_pants/pelvis_under",
+     "size": [
+      77,
+      11
+     ],
+     "anchor": [
+      36.69,
+      35.65
+     ]
+    },
+    {
+     "part": "pelvis",
+     "frame": "bottom01_pants/pelvis",
+     "size": [
+      105,
+      56
+     ],
+     "anchor": [
+      51.69,
+      30.65
+     ]
+    },
+    {
+     "part": "leg_B",
+     "frame": "bottom01_pants/leg_B",
+     "size": [
+      72,
+      197
+     ],
+     "anchor": [
+      36.0,
+      25.6
+     ]
+    },
+    {
+     "part": "leg_F",
+     "frame": "bottom01_pants/leg_F",
+     "size": [
+      72,
+      195
+     ],
+     "anchor": [
+      36.0,
+      25.6
+     ]
+    }
+   ],
+   "covers": [
+    "pelvis",
+    "leg_B",
+    "leg_F"
+   ],
+   "loose": false,
+   "checks": {
+    "ecc": 0.9902,
+    "median_colour_err_outside": 10.0,
+    "silhouette_mismatch_outside": 0.0082,
+    "accepted": true,
+    "leg_width": 0.96,
+    "coverage": {
+     "pelvis": 0.884,
+     "leg_B": 0.983,
+     "leg_F": 0.989
+    },
+    "skin_halo_px": 519,
+    "light_outline": false
+   },
+   "warnings": [
+    "519 px of skin along the edges returned to the body"
+   ],
+   "previews": {
+    "600": "previews/bottom01_pants_600.png",
+    "150": "previews/bottom01_pants_150.png"
+   }
+  },
+  {
+   "id": "shoes01_boots",
+   "name": "Traveler Boots",
+   "slot": "shoes",
+   "profile": "cloth",
+   "motion": null,
+   "source": {
+    "picture": "items/shoes01_boots_v1.png",
+    "sha1": "618f8f180311"
+   },
+   "parts": [
+    {
+     "part": "leg_B",
+     "frame": "shoes01_boots/leg_B",
+     "size": [
+      72,
+      197
+     ],
+     "anchor": [
+      36.0,
+      25.6
+     ]
+    },
+    {
+     "part": "foot_B",
+     "frame": "shoes01_boots/foot_B",
+     "size": [
+      78,
+      49
+     ],
+     "anchor": [
+      26.75,
+      6.99
+     ]
+    },
+    {
+     "part": "leg_F",
+     "frame": "shoes01_boots/leg_F",
+     "size": [
+      72,
+      195
+     ],
+     "anchor": [
+      36.0,
+      25.6
+     ]
+    },
+    {
+     "part": "foot_F",
+     "frame": "shoes01_boots/foot_F",
+     "size": [
+      84,
+      45
+     ],
+     "anchor": [
+      25.16,
+      6.99
+     ]
+    }
+   ],
+   "covers": [
+    "foot_B",
+    "foot_F"
+   ],
+   "loose": false,
+   "checks": {
+    "ecc": 0.993,
+    "median_colour_err_outside": 10.3,
+    "silhouette_mismatch_outside": 0.0076,
+    "accepted": true,
+    "coverage": {
+     "foot_B": 0.911,
+     "foot_F": 0.885
+    },
+    "skin_halo_px": 359,
+    "light_outline": false
+   },
+   "warnings": [
+    "359 px of skin along the edges returned to the body"
+   ],
+   "previews": {
+    "600": "previews/shoes01_boots_600.png",
+    "150": "previews/shoes01_boots_150.png"
+   }
+  },
+  {
+   "id": "weapon01_sword",
+   "name": "Knight's Sword",
+   "slot": "weapon",
+   "profile": "sword_1h",
+   "motion": "sword_1h",
+   "source": {
+    "picture": "items/weapon01_sword_v1.png",
+    "sha1": "0604412a69ed"
+   },
+   "parts": [
+    {
+     "part": "weapon",
+     "frame": "weapon01_sword/weapon",
+     "size": [
+      250,
+      71
+     ],
+     "anchor": [
+      40.46,
+      35.61
+     ]
+    }
+   ],
+   "covers": [],
+   "loose": false,
+   "checks": {
+    "grip": [
+     299.8,
+     625.5
+    ],
+    "grip_found": [
+     299.8,
+     625.5
+    ],
+    "handle_px": 58.0,
+    "kind": "hilt",
+    "scale": 0.517,
+    "length_B": 0.488,
+    "accepted": true
+   },
+   "warnings": [],
+   "previews": {
+    "600": "previews/weapon01_sword_600.png",
+    "150": "previews/weapon01_sword_150.png"
+   }
+  },
+  {
+   "id": "item01_vest",
+   "name": "Leather Vest",
+   "slot": "top",
+   "profile": "cloth",
+   "motion": null,
+   "source": {
+    "picture": "items/stress/i01_vest_v1.png",
+    "sha1": "cbc101508200"
+   },
+   "parts": [
+    {
+     "part": "torso",
+     "frame": "item01_vest/torso",
+     "size": [
+      99,
+      122
+     ],
+     "anchor": [
+      48.69,
+      94.19
+     ]
+    }
+   ],
+   "covers": [],
+   "loose": false,
+   "checks": {
+    "ecc": 1.0,
+    "median_colour_err_outside": 6.7,
+    "silhouette_mismatch_outside": 0.0004,
+    "accepted": true,
+    "sleeve_reach": {
+     "B": 0.51,
+     "F": 0.26
+    },
+    "coverage": {
+     "torso": 0.742,
+     "pelvis": 0.327
+    },
+    "skin_halo_px": 138,
+    "light_outline": false
+   },
+   "warnings": [
+    "sleeve F reaches 0.26 of the upper arm: drawn on the torso, not bent with the arm",
+    "partly covered (the bare body shows under it): torso, pelvis"
+   ],
+   "previews": {
+    "600": "previews/item01_vest_600.png",
+    "150": "previews/item01_vest_150.png"
+   }
+  },
+  {
+   "id": "item02_robe",
+   "name": "Mage Robe",
+   "slot": "top",
+   "profile": "cloth",
+   "motion": null,
+   "source": {
+    "picture": "items/stress/i02_robe_v1.png",
+    "sha1": "eaebc14cccbf"
+   },
+   "parts": [
+    {
+     "part": "torso",
+     "frame": "item02_robe/torso",
+     "size": [
+      124,
+      152
+     ],
+     "anchor": [
+      61.69,
+      93.19
+     ]
+    },
+    {
+     "part": "arm_B",
+     "frame": "item02_robe/arm_B",
+     "size": [
+      59,
+      128
+     ],
+     "anchor": [
+      29.5,
+      21.5
+     ]
+    },
+    {
+     "part": "arm_F",
+     "frame": "item02_robe/arm_F",
+     "size": [
+      59,
+      130
+     ],
+     "anchor": [
+      29.5,
+      21.5
+     ]
+    }
+   ],
+   "covers": [
+    "torso",
+    "pelvis",
+    "arm_B",
+    "arm_F"
+   ],
+   "loose": false,
+   "checks": {
+    "ecc": 0.9996,
+    "median_colour_err_outside": 7.0,
+    "silhouette_mismatch_outside": 0.0007,
+    "accepted": true,
+    "sleeve_reach": {
+     "B": 1.86,
+     "F": 1.87
+    },
+    "coverage": {
+     "torso": 0.933,
+     "pelvis": 1.0,
+     "arm_B": 0.966,
+     "arm_F": 0.958
+    },
+    "skin_halo_px": 53,
+    "light_outline": false
+   },
+   "warnings": [],
+   "previews": {
+    "600": "previews/item02_robe_600.png",
+    "150": "previews/item02_robe_150.png"
+   }
+  },
+  {
+   "id": "item03_shoulder",
+   "name": "Shoulder Guard",
+   "slot": "top",
+   "profile": "rigid",
+   "motion": null,
+   "source": {
+    "picture": "items/stress/i03_asym_v1.png",
+    "sha1": "ce4e88ef0697"
+   },
+   "parts": [
+    {
+     "part": "torso",
+     "frame": "item03_shoulder/torso",
+     "size": [
+      120,
+      111
+     ],
+     "anchor": [
+      70.69,
+      95.19
+     ]
+    },
+    {
+     "part": "pauldron_B",
+     "frame": "item03_shoulder/pauldron_B",
+     "size": [
+      92,
+      77
+     ],
+     "anchor": [
+      47.74,
+      36.74
+     ]
+    },
+    {
+     "part": "uparm_F",
+     "frame": "item03_shoulder/uparm_F",
+     "size": [
+      16,
+      51
+     ],
+     "anchor": [
+      9.65,
+      -0.26
+     ]
+    }
+   ],
+   "covers": [],
+   "loose": false,
+   "checks": {
+    "ecc": 0.9912,
+    "median_colour_err_outside": 5.3,
+    "silhouette_mismatch_outside": 0.0036,
+    "accepted": true,
+    "coverage": {
+     "torso": 0.621,
+     "arm_B": 0.355
+    },
+    "skin_halo_px": 844,
+    "light_outline": false
+   },
+   "warnings": [
+    "844 px of skin along the edges returned to the body",
+    "partly covered (the bare body shows under it): torso, arm_B"
+   ],
+   "previews": {
+    "600": "previews/item03_shoulder_600.png",
+    "150": "previews/item03_shoulder_150.png"
+   }
+  },
+  {
+   "id": "item04_hakama",
+   "name": "Hakama",
+   "slot": "bottom",
+   "profile": "cloth",
+   "motion": null,
+   "source": {
+    "picture": "items/stress/i04_hakama_v1.png",
+    "sha1": "ab4bc8d1cbca"
+   },
+   "parts": [
+    {
+     "part": "pelvis_under",
+     "frame": "item04_hakama/pelvis_under",
+     "size": [
+      81,
+      11
+     ],
+     "anchor": [
+      39.69,
+      37.65
+     ]
+    },
+    {
+     "part": "pelvis",
+     "frame": "item04_hakama/pelvis",
+     "size": [
+      113,
+      58
+     ],
+     "anchor": [
+      56.69,
+      32.65
+     ]
+    },
+    {
+     "part": "leg_B",
+     "frame": "item04_hakama/leg_B",
+     "size": [
+      86,
+      197
+     ],
+     "anchor": [
+      43.0,
+      25.6
+     ]
+    },
+    {
+     "part": "leg_F",
+     "frame": "item04_hakama/leg_F",
+     "size": [
+      102,
+      195
+     ],
+     "anchor": [
+      51.0,
+      25.6
+     ]
+    }
+   ],
+   "covers": [
+    "pelvis",
+    "leg_B",
+    "leg_F"
+   ],
+   "loose": true,
+   "checks": {
+    "ecc": 0.9706,
+    "median_colour_err_outside": 5.0,
+    "silhouette_mismatch_outside": 0.0093,
+    "accepted": true,
+    "leg_width": 1.41,
+    "coverage": {
+     "pelvis": 0.996,
+     "leg_B": 1.0,
+     "leg_F": 1.0
+    },
+    "skin_halo_px": 0,
+    "light_outline": false
+   },
+   "warnings": [
+    "loose trousers (1.41 of the leg): drawn over the boots"
+   ],
+   "previews": {
+    "600": "previews/item04_hakama_600.png",
+    "150": "previews/item04_hakama_150.png"
+   }
+  },
+  {
+   "id": "item05_greaves",
+   "name": "Guardian Greaves",
+   "slot": "shoes",
+   "profile": "cloth",
+   "motion": null,
+   "source": {
+    "picture": "items/stress/i05_greaves_v1.png",
+    "sha1": "2cead5f35708"
+   },
+   "parts": [
+    {
+     "part": "leg_B",
+     "frame": "item05_greaves/leg_B",
+     "size": [
+      72,
+      197
+     ],
+     "anchor": [
+      36.0,
+      25.6
+     ]
+    },
+    {
+     "part": "foot_B",
+     "frame": "item05_greaves/foot_B",
+     "size": [
+      75,
+      53
+     ],
+     "anchor": [
+      26.75,
+      5.99
+     ]
+    },
+    {
+     "part": "leg_F",
+     "frame": "item05_greaves/leg_F",
+     "size": [
+      72,
+      195
+     ],
+     "anchor": [
+      36.0,
+      25.6
+     ]
+    },
+    {
+     "part": "foot_F",
+     "frame": "item05_greaves/foot_F",
+     "size": [
+      87,
+      50
+     ],
+     "anchor": [
+      24.16,
+      6.99
+     ]
+    }
+   ],
+   "covers": [
+    "foot_B",
+    "foot_F"
+   ],
+   "loose": false,
+   "checks": {
+    "ecc": 1.0,
+    "median_colour_err_outside": 4.7,
+    "silhouette_mismatch_outside": 0.0003,
+    "accepted": true,
+    "coverage": {
+     "leg_B": 0.423,
+     "leg_F": 0.423,
+     "foot_B": 0.971,
+     "foot_F": 0.986
+    },
+    "skin_halo_px": 29,
+    "light_outline": false
+   },
+   "warnings": [
+    "partly covered (the bare body shows under it): leg_B, leg_F"
+   ],
+   "previews": {
+    "600": "previews/item05_greaves_600.png",
+    "150": "previews/item05_greaves_150.png"
+   }
+  },
+  {
+   "id": "item06_coat",
+   "name": "Long Coat",
+   "slot": "top",
+   "profile": "cloth",
+   "motion": null,
+   "source": {
+    "picture": "items/stress/i06_coat_v1.png",
+    "sha1": "294e6b7eed5c"
+   },
+   "parts": [
+    {
+     "part": "torso",
+     "frame": "item06_coat/torso",
+     "size": [
+      121,
+      151
+     ],
+     "anchor": [
+      61.69,
+      94.19
+     ]
+    },
+    {
+     "part": "tail_B",
+     "frame": "item06_coat/tail_B",
+     "size": [
+      74,
+      83
+     ],
+     "anchor": [
+      49.72,
+      -5.85
+     ]
+    },
+    {
+     "part": "tail_F",
+     "frame": "item06_coat/tail_F",
+     "size": [
+      51,
+      85
+     ],
+     "anchor": [
+      6.67,
+      -3.85
+     ]
+    },
+    {
+     "part": "arm_B",
+     "frame": "item06_coat/arm_B",
+     "size": [
+      59,
+      128
+     ],
+     "anchor": [
+      29.5,
+      21.5
+     ]
+    },
+    {
+     "part": "arm_F",
+     "frame": "item06_coat/arm_F",
+     "size": [
+      59,
+      130
+     ],
+     "anchor": [
+      29.5,
+      21.5
+     ]
+    }
+   ],
+   "covers": [
+    "torso",
+    "pelvis",
+    "arm_B",
+    "arm_F"
+   ],
+   "loose": false,
+   "checks": {
+    "ecc": 0.9794,
+    "median_colour_err_outside": 4.3,
+    "silhouette_mismatch_outside": 0.0074,
+    "accepted": true,
+    "tails_px": 24142,
+    "sleeve_reach": {
+     "B": 1.87,
+     "F": 1.88
+    },
+    "coverage": {
+     "torso": 0.984,
+     "pelvis": 0.918,
+     "arm_B": 0.969,
+     "arm_F": 0.963
+    },
+    "skin_halo_px": 3,
+    "light_outline": false
+   },
+   "warnings": [
+    "split coat: two tail panels on the hips, with follow-through"
+   ],
+   "previews": {
+    "600": "previews/item06_coat_600.png",
+    "150": "previews/item06_coat_150.png"
+   }
+  },
+  {
+   "id": "item07_hat",
+   "name": "Adventurer Hat",
+   "slot": "hat",
+   "profile": "cloth",
+   "motion": null,
+   "source": {
+    "picture": "items/stress/i07_hat_v1.png",
+    "sha1": "a781956f7fdd"
+   },
+   "parts": [
+    {
+     "part": "head",
+     "frame": "item07_hat/head",
+     "size": [
+      277,
+      190
+     ],
+     "anchor": [
+      134.7,
+      178.78
+     ]
+    }
+   ],
+   "covers": [
+    "head"
+   ],
+   "loose": false,
+   "checks": {
+    "ecc": 0.9794,
+    "median_colour_err_outside": 7.3,
+    "silhouette_mismatch_outside": 0.0049,
+    "accepted": true,
+    "face_covered": 0.259,
+    "face_err": 7.9,
+    "face_lines": 0.764,
+    "coverage": {
+     "head": 0.96
+    },
+    "skin_halo_px": 0,
+    "light_outline": false
+   },
+   "warnings": [
+    "face checked by its drawn lines: 0.76 (0.5 needed)"
+   ],
+   "previews": {
+    "600": "previews/item07_hat_600.png",
+    "150": "previews/item07_hat_150.png"
+   }
+  },
+  {
+   "id": "item08_helmet",
+   "name": "Knight Helmet",
+   "slot": "hat",
+   "profile": "rigid",
+   "motion": null,
+   "source": {
+    "picture": "items/stress/i08_helmet_v1.png",
+    "sha1": "3360c09327a9"
+   },
+   "parts": [
+    {
+     "part": "head",
+     "frame": "item08_helmet/head",
+     "size": [
+      163,
+      195
+     ],
+     "anchor": [
+      75.7,
+      181.78
+     ]
+    }
+   ],
+   "covers": [
+    "head"
+   ],
+   "loose": false,
+   "checks": {
+    "ecc": 1.0,
+    "median_colour_err_outside": 7.3,
+    "silhouette_mismatch_outside": 0.0002,
+    "accepted": true,
+    "face_covered": 0.973,
+    "face_err": 20.9,
+    "face_lines": 1.0,
+    "helmet_scale": 1.08,
+    "coverage": {
+     "head": 0.807
+    },
+    "skin_halo_px": 0,
+    "light_outline": false
+   },
+   "warnings": [
+    "full helmet enlarged 8% about the neck",
+    "partly covered (the bare body shows under it): head"
+   ],
+   "previews": {
+    "600": "previews/item08_helmet_600.png",
+    "150": "previews/item08_helmet_150.png"
+   }
+  },
+  {
+   "id": "item09_staff",
+   "name": "Astral Staff",
+   "slot": "weapon",
+   "profile": "staff_2h",
+   "motion": "staff_2h",
+   "source": {
+    "picture": "items/stress/i09_staff_v1.png",
+    "sha1": "4ab6fdf47afe"
+   },
+   "parts": [
+    {
+     "part": "weapon",
+     "frame": "item09_staff/weapon",
+     "size": [
+      428,
+      103
+     ],
+     "anchor": [
+      129.08,
+      53.96
+     ]
+    }
+   ],
+   "covers": [],
+   "loose": false,
+   "checks": {
+    "grip": [
+     400.6,
+     624.5
+    ],
+    "grip_found": [
+     400.6,
+     624.5
+    ],
+    "handle_px": 40.0,
+    "kind": "pole",
+    "scale": 0.75,
+    "length_B": 0.836,
+    "accepted": true
+   },
+   "warnings": [],
+   "previews": {
+    "600": "previews/item09_staff_600.png",
+    "150": "previews/item09_staff_150.png"
+   }
+  },
+  {
+   "id": "item10_dagger",
+   "name": "Short Dagger",
+   "slot": "weapon",
+   "profile": "dagger_1h",
+   "motion": "dagger_1h",
+   "source": {
+    "picture": "items/stress/i10_dagger_v1.png",
+    "sha1": "9911f3e732cc"
+   },
+   "parts": [
+    {
+     "part": "weapon",
+     "frame": "item10_dagger/weapon",
+     "size": [
+      158,
+      54
+     ],
+     "anchor": [
+      35.62,
+      26.91
+     ]
+    }
+   ],
+   "covers": [],
+   "loose": false,
+   "checks": {
+    "grip": [
+     450.3,
+     626.5
+    ],
+    "grip_found": [
+     450.3,
+     626.5
+    ],
+    "handle_px": 61.0,
+    "kind": "hilt",
+    "scale": 0.492,
+    "length_B": 0.309,
+    "accepted": true
+   },
+   "warnings": [],
+   "previews": {
+    "600": "previews/item10_dagger_600.png",
+    "150": "previews/item10_dagger_150.png"
+   }
+  }
+ ],
+ "rejected": []
+}
