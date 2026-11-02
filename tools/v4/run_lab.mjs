@@ -136,7 +136,7 @@ try {
       const B01 = { top: 'top01_tunic', bottom: 'bottom01_pants', shoes: 'shoes01_boots', weapon: 'weapon01_sword' };
       const LOOKS = ART === 'base01' ? [['tunic', B01], ['armor', { ...B01, top: 'top02_armor' }]] : [['basic', {}], ['gold', GOLDR]];
       await set(() => { const s = window.__v4lab.scene; s.zoomPreset = 'grinding'; s.sizeKey = '1.12'; s.renderMode = 'direct'; s.previewOn = true; s.applyView(); });
-      for (const [name, eq] of LOOKS) {
+      for (const [name, eq] of LOOKS.filter(([n]) => !process.env.V4_LOOKS || process.env.V4_LOOKS.split(',').includes(n))) {
         await outfit(eq, 'starter'); await reset('idle');
         const dir = `${out}/reel_${name}`; rmSync(dir, { recursive: true, force: true }); mkdirSync(dir, { recursive: true });
         let f = 0, at = null;

@@ -84,5 +84,42 @@ export async function runTestsB01(scene: LabScene, progress: (msg: string) => vo
     }
   }
   out.push({ id: 'R4', name: 'Cross-fades between every pair of animations stay finite', pass: fadeBad === 0, detail: `${fades} blends, ${fadeBad} bad` });
+  // R5: rapid state changes, some in the middle of an unfinished cross-fade (run → slash → jump → slash → idle at 60 Hz),
+  // with the lab's fade (from the blend on screen): no bone turns more than 30° from one frame to the next
+  progress('R5 interrupted fades');
+  const A2 = A.anims as Record<string, AnimDef>;
+  const plan: [AnimDef, number][] = [];
+  const seg = (a: AnimDef, n: number) => { for (let i = 0; i < n; i++) plan.push([a, i / 60]); };
+  seg(A2.run, 20); seg(A2.attack, 3); seg(A2.jump, 2); seg(A2.attack, 12); seg(A2.run, 4); seg(A2.attack, 8); seg(A2.idle, 30);
+  const FADE = 0.09;
+  const runPlan = (fade: boolean) => {
+    let from: Float64Array | null = null, fadeT = 1, prev: [AnimDef, number] | null = null, last: Float64Array | null = null;
+    let atSwitch = 0, inside = 0, sinceSwitch = 99;
+    for (const [a, t] of plan) {
+      if (prev && prev[0] !== a) sinceSwitch = 0; else sinceSwitch++;
+      if (fade && prev && prev[0] !== a) {
+        const shown = pose.localValues(prev[0], prev[1]);
+        const kp = Math.min(1, fadeT / FADE), wp = 1 - (1 - kp) * (1 - kp);
+        if (from && wp < 1) for (let i = 0; i < shown.length; i += 3) { let d = shown[i] - from[i]; d -= 360 * Math.round(d / 360); shown[i] = from[i] + d * wp; shown[i + 1] = from[i + 1] + (shown[i + 1] - from[i + 1]) * wp; shown[i + 2] = from[i + 2] + (shown[i + 2] - from[i + 2]) * wp; }
+        from = shown; fadeT = 0;
+      }
+      fadeT += 1 / 60;
+      const k = Math.min(1, fadeT / FADE);
+      pose.evaluate(a, t, st, undefined, fade && from && k < 1 ? { v: from, w: 1 - (1 - k) * (1 - k) } : undefined);
+      const ang = new Float64Array(pose.n);
+      for (let i = 0; i < pose.n; i++) ang[i] = Math.atan2(st.world[i * 6 + 1], st.world[i * 6]) * 180 / Math.PI;
+      if (last) {
+        let step = 0;
+        for (let i = 0; i < pose.n; i++) { let d = Math.abs(ang[i] - last[i]); d = Math.min(d, 360 - d); if (!pose.rig.bones[i].name.startsWith('hair') && !pose.rig.bones[i].name.startsWith('cape')) step = Math.max(step, d); }
+        if (sinceSwitch === 0) atSwitch = Math.max(atSwitch, step); else inside = Math.max(inside, step);
+      }
+      last = ang; prev = [a, t];
+    }
+    return { atSwitch, inside };
+  };
+  // a pop is a frame-to-frame jump at a change of state bigger than what the animations themselves do in one frame (a
+  // light slash sweeps fast by design)
+  const f = runPlan(true), n = runPlan(false);
+  out.push({ id: 'R5', name: 'Rapid and interrupted state changes: no pop at any change', pass: f.atSwitch <= f.inside + 2, detail: `largest one-frame turn at a change ${f.atSwitch.toFixed(1)}° (without the cross-fade ${n.atSwitch.toFixed(1)}°); the animations' own fastest ${f.inside.toFixed(1)}°` });
   return out;
 }
