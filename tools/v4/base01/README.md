@@ -26,7 +26,7 @@ so every item bends with the body under it.
    `package/previews/<id>_600.png` and `_150.png` (build outputs, not kept in the repository), and `package/previews.jpg`
    (all of them on one sheet, kept with the manifest).
 
-## The asset contract (BASE-01, template v1, exporter 1.7)
+## The asset contract (BASE-01, template v1, exporter 1.8)
 
 - The skeleton and the anatomy are the master's and never change (`template.json`, versioned); every package records
   the template and exporter versions, the master's hash and each source picture's hash.
@@ -65,19 +65,24 @@ so every item bends with the body under it.
   removing or rejecting a source changes no other item; a subset built in another order is byte-identical.
 - Regression (the lab's tests R1 to R13, and R17 for skirts) over every mix of the catalog and every animation. The art director's ten
   stress items (`items/stress/`) are permanent fixtures: every exporter change must still accept them.
-- Rejections, each with its reason in plain words and its check (`check` in the report: catalog row, background,
+- Rejections, each with its reason in plain words and its check (`check` in the report: catalog row, slot, background,
   orientation, alignment, pose, proportions, body colour, figure, no item, face, weapon orientation): a row with an
-  unknown slot or profile, or a profile that does not fit its slot; a picture whose background is not the flat
+  unknown slot or profile, or a profile that does not fit its slot; a row whose slot does not fit its picture
+  (exporter 1.8: 30% or less of what differs from the master lies where the row's slot goes, 60% or more where another
+  slot goes, as a top catalogued as footwear); a picture whose background is not the flat
   magenta (its border, 12 px all round: white, another flat colour, a gradient or a scene); a mirrored picture (the
   character faces the other way: flipped back it lines up clearly better); a picture that cannot be lined up with the
   master; a figure whose shape outside the item is not the
   master's; no item in the picture; a weapon not drawn level; headwear whose face is not the master's (where the face
-  shows, its drawn lines must match the master's at 0.7 or more and be at least 0.8 as strong: a blurred face fails);
+  shows, its drawn lines must match the master's at 0.7 or more and be at least 0.8 as strong: a blurred face fails;
+  and, exporter 1.8, each feature the headwear leaves half or more uncovered (the eyes, the near brow, the nose, the
+  mouth: windows measured on the master) must match the master's in its own window at 0.85 or more, within 2 px of
+  its place: a valid hat 0.97 or more; eyes drawn 1.25 times larger or a mouth 6 px lower fail);
   a body whose proportions or pose differ from the master's.
   Negative fixtures: `catalog_negative.csv` (every row rejected but `neg08`, a smaller drawing that is lined up and
   accepted): `B01_CATALOG=catalog_negative.csv python3 build.py <out>`. The art director's made defects (X01, X02, ...)
   come from `make_invalid.py`: controlled changes of valid pictures, the same every time, each recorded in
-  `items/gate5/invalid/made.json`.
+  `items/gate5/invalid/made.json` (X05 is a valid top with a footwear row; X07 the hat with the face under it changed).
 - Split coats: each tail panel hangs from its hip joint, turns 0.45 of its thigh and swings up to 10 degrees behind it.
   Full helmets drawn smaller than the master's head are enlarged about the neck by up to 8%.
 - Skirts (exporter 1.7, the art director's skirt garment profile): a bottom whose cloth closes the gap between the
