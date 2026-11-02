@@ -34,7 +34,7 @@ export async function bench(scene: LabScene, seconds = 4, progress: (m: string) 
     await wait(seconds * 1000);
     const dt = (performance.now() - t0) / 1000;
     const f = stats(scene.frameTimes), u = stats(scene.updateTimes), d = stats(scene.drawSamples), c = stats(scene.compTimes);
-    const a256 = scene.textures.get('v4atlas256').source[0];
+    const a256 = scene.textures.get(scene.assets.atlas256.key).source[0];
     let mib = (a256.width * a256.height * 4) / 2 ** 20, note = `part atlas ${a256.width}×${a256.height}`;
     if (scene.comp) {
       const w = scene.comp.width, h = scene.comp.height;
