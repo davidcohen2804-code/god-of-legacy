@@ -1,7 +1,7 @@
 // Final 4-class kits (03_FINAL_CLASS_SKILL_ROSTER.md): exact ids, slots, timings, damage, cooldowns, air/ground use.
 // Shape sub-parameters the roster leaves open (ranges / radii / angles) are fixed here once and reused by the telegraph,
 // the hit resolver and the VFX placement, so telegraph == hitbox by construction.
-import { FinalSkill, HitEvent, HitShape, PVP_MULT, Reaction } from './SkillTypes';
+import { FinalSkill, HitEvent, HitShape, PACE, PVP_MULT, Reaction } from './SkillTypes';
 import { jobOfSlot } from './Jobs';
 
 const H = (at: number, damage: number, shape: HitShape, reaction: Reaction, extra: Partial<HitEvent> = {}): HitEvent => ({ at, damage, shape, reaction, ...extra });
@@ -1046,20 +1046,23 @@ const gambler: FinalSkill[] = [
 // everywhere now: the base pace in the open game and in PvP alike.)
 /** The combat pace and reach of every skill — in the open game and in PvP alike (a skill is the same everywhere), the same rules for every class (the duel is about how many skills you string,
  *  so every class strings them at the same rhythm):
- *  - a combo skill cancelled into from a confirmed hit strikes within ARENA_FLOW.startup ms (an ultimate within
- *    ARENA_FLOW.ultStartup); from neutral a skill keeps its own wind-up, so big moves stay readable; multi-hit
- *    skills squeezed so their hits run in at most ARENA_FLOW.active ms (never below half their length) — the same hits, faster;
+ *  - the one pace (David 2 Nov: "the skills run very fast"): every class skill's wind-up, strike, hit spacing and recovery
+ *    run PACE× its kit numbers — the basic chain, buffs, traps and counters too; a held charge's wind-up keeps its length
+ *    (the hold is the player's), and so do the actives David timed himself (OWN_LENGTH). A multi-hit skill plays its whole
+ *    length (until 2 Nov the arena squeezed one of 4+ hits into 700 ms, down to half its length: Air Volley, slowed for
+ *    David on 18 Oct, ran faster than before it);
+ *  - a combo skill cancelled into from a confirmed hit strikes within ARENA_FLOW.startup × PACE ms (an ultimate within
+ *    ARENA_FLOW.ultStartup × PACE); from neutral a skill keeps its own wind-up, so big moves stay readable;
  *  - (no blanket height: each hit reaches as high as its own attack does — its `reachUp` over the caster's feet, a
  *    projectile rises to a foe in the air only when its shape is antiAir. David: a foe high above a horizontal swing
- *    must not be hit by it. Until 17 Oct every hit reached 240 px and every shot rose to an airborne foe);
- *  - per-skill exceptions: ARENA_PACE. Not for the basic chain, charged / counter / trap skills or buffs. */
-export const ARENA_FLOW = { startup: 160, ultStartup: 400, active: 700, minSqueeze: 0.5,
+ *    must not be hit by it. Until 17 Oct every hit reached 240 px and every shot rose to an airborne foe). */
+export const ARENA_FLOW = { startup: 160, ultStartup: 400,
   /** DFO's neutral (PvP engine audit): an attack hits only within `depth` px of its own line on the floor (+ the target's
    *  radius), so a step up / down out of its line dodges it; ultimates, zones, traps and ground-placed skills keep their area.
    *  (The effects stay as wide as they are drawn.) */
   depth: 34,
   /** A committed skill that misses leaves its caster open this much longer (and can be cancelled only from a hit). */
-  whiffMs: 150,
+  whiffMs: Math.round(150 * PACE),
   /** A shot that lands from farther than this (px; not a combo follow-up) is a poke: a short flinch, no lift, no cancel —
    *  DFO: a poke from afar is a guess with a small reward, the combo starts up close. */
   pokeRange: 150, pokeStun: 140 };
@@ -1085,34 +1088,39 @@ export function hitIndex(s: FinalSkill, hit: HitEvent): number {
 export const lastOfBurst = (s: FinalSkill, hit: HitEvent): boolean => !s.chain && s.hits.length > 3 && hitIndex(s, hit) === s.hits.length - 1;
 
 export function arenaTimeScale(s: FinalSkill, followUp = false): { startup: number; active: number; recovery: number; at: number; reach?: number; antiAir?: boolean; depth?: number } | null {
-  const w = { startup: 1, active: 1, recovery: 1, at: 1 };
-  const p = ARENA_PACE[s.id];
+  const own = OWN_LENGTH.has(s.id);
+  const w = { startup: s.charge ? 1 : PACE, active: own ? 1 : PACE, recovery: PACE, at: own ? 1 : PACE };
   const dmg = s.hits.filter((h) => h.damage > 0);
   const combat = !s.chain && !s.charge && !s.counter && !s.trap && !isArenaBuff(s) && dmg.length > 0;
-  let fs = 1, sq = 1;
-  if (p) { fs = p.startup ? p.startup / s.startup : 1; sq = p.squeeze ?? 1; }
-  else if (combat) {
-    const base = s.startup * w.startup, cap = s.slot === 7 ? ARENA_FLOW.ultStartup : ARENA_FLOW.startup;
-    if (base > cap && followUp) fs = cap / base; // (a skill opened from neutral keeps its own wind-up — an ultimate too: readable, the foe can step out of it; cancelled into from a hit, it comes out at once)
-    const act = s.active * w.active;
-    if (s.slot !== 7 && dmg.length >= 4 && act > ARENA_FLOW.active) sq = Math.max(ARENA_FLOW.minSqueeze, ARENA_FLOW.active / act);
+  let fs = 1;
+  if (combat && !own && followUp) {
+    const cap = s.slot === 7 ? ARENA_FLOW.ultStartup : ARENA_FLOW.startup;
+    if (s.startup > cap) fs = cap / s.startup; // (a skill opened from neutral keeps its own wind-up — an ultimate too: readable, the foe can step out of it; cancelled into from a hit, it comes out at once)
   }
   const hitsAny = s.chain ? s.chain.stages.flat() : s.charge ? s.charge.levels.flatMap((l) => l.hits) : s.hits;
   const reach = !isArenaBuff(s) && !s.trap && hitsAny.some((h) => h.damage > 0) && !arenaWide(s) ? { depth: ARENA_FLOW.depth } : {}; // (charged / counter skills too; the height each hit reaches is its own)
-  if (fs === 1 && sq === 1 && w.startup === 1 && !('depth' in reach)) return null;
-  return { startup: w.startup * fs, active: w.active * sq, recovery: w.recovery, at: w.at * sq, ...reach };
+  if (fs === 1 && w.startup === 1 && w.active === 1 && w.recovery === 1 && w.at === 1 && !('depth' in reach)) return null;
+  return { startup: w.startup * fs, active: w.active, recovery: w.recovery, at: w.at, ...reach };
 }
-/** Super armor length multiplier of a skill's armor window (its pace: the same in and out of the arena). */
-export function armorMul(s: FinalSkill, _arena?: boolean): number { return arenaTimeScale(s)?.active ?? 1; }
-/** Per-skill exceptions to ARENA_FLOW (arena startup in ms; squeeze: active and hit-spacing factor). */
-const ARENA_PACE: Record<string, { startup?: number; squeeze?: number }> = {};
-// the Roulette keeps its whole 2 s spin (its colour lights 1 s in: the foe gets a second to react — PvP audit)
-ARENA_PACE.roulette_wheel = { squeeze: 1 };
-// David 18 Oct (01:33 / 01:42): Hunter's Rain rains its whole 5 s, the Staff Flurry its whole 3 s, in the arena too
-ARENA_PACE.arrow_storm = { squeeze: 1 };
-ARENA_PACE.staff_flurry = { squeeze: 1 };
-ARENA_PACE.quick_shot_stream = { squeeze: 1 };
-ARENA_PACE.tempest_ride = { squeeze: 1 };
+/** A moment of a skill's own timeline (ms from its cast, as the kit gives it) at the pace it plays (cast from neutral):
+ *  where its super armor ends, say. */
+export function paceTime(s: FinalSkill, t: number): number {
+  const k = arenaTimeScale(s);
+  if (!k) return t;
+  return t <= s.startup ? t * k.startup : s.startup * k.startup + (t - s.startup) * k.active;
+}
+/** The end of a skill's super armor (or shot armor) window, ms from its cast, at its pace. */
+export const armorEnd = (s: FinalSkill, end: number): number => paceTime(s, end);
+/** Kept at their own length (only their wind-up and recovery take the pace): the actives David timed himself. */
+const OWN_LENGTH = new Set([
+  // the Roulette keeps its whole 2 s spin (its colour lights 1 s in: the foe gets a second to react — PvP audit)
+  'roulette_wheel',
+  // David 18 Oct (01:33 / 01:42): Hunter's Rain rains its whole 5 s, the Staff Flurry its whole 3 s, the held Double Shot
+  // streams while held (up to 4 s), Tempest Ride rides 2.5 s
+  'arrow_storm', 'staff_flurry', 'quick_shot_stream', 'tempest_ride',
+  // Long Guard: held up to 2.5 s (David 18 Oct 01:42)
+  'long_guard',
+]);
 // Warrior links (PvP re-audit: a ~6-skill combo): each skill leads to 2–3 others only, one route per job —
 //   open (regular attack / Dash Slash / Iron Grip / the hook / Wave Slash) → launch (Rising Slash) → the air (Sky Breaker /
 //   Ground Breaker) → the court or the lion (Judgment Blade / Lion's Maw) → the finish (Impaling Rush → the Verdict). Buffs and Sanctuary lead nowhere (a list is never empty: an empty one would mean free cancel).

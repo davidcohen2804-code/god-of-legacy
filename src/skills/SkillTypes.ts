@@ -183,3 +183,9 @@ export interface FinalSkill {
 }
 
 export const PVP_MULT = 0.7;
+
+/** The fight's one pace (David 2 Nov: "the skills run very fast"): every class skill plays PACE× its kit's wind-up, strike,
+ *  hit spacing and recovery (FinalKit.arenaTimeScale), and the combat reactions keep in step (Combat: hit-stun, the juggle's
+ *  hang, holds, floor time — the foe slowed alike, so every combo links as before). Walking, running and jumping keep their
+ *  speed. The same in the open game and in PvP. */
+export const PACE = 1.35;

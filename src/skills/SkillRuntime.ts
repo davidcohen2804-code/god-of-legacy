@@ -67,7 +67,7 @@ export interface CastRun extends CastRequest {
   /** The arena: it landed only as a poke from afar (no hit-confirm cancel off it). */
   poked?: boolean;
   /** The arena's reach rules for this cast (charged levels are picked later and get them too). */
-  tune?: { reach?: number; antiAir?: boolean; depth?: number };
+  tune?: { reach?: number; antiAir?: boolean; depth?: number; at?: number };
   /** Hold-to-charge skills: the startup's scale (attack speed) and the level picked when the startup ended (0..). */
   chargeScale?: number;
   chargeLevel?: number;
@@ -291,7 +291,7 @@ export class SkillRuntime {
         const held = T.startup / (r.chargeScale ?? 1), L = r.skill.charge.levels;
         let lv = 0; L.forEach((l, i) => { if (held >= l.at - 1) lv = i; });
         lv = Math.min(L.length - 1, lv + (r.chargeUp ?? 0)); // (primed by Sheathe: levels higher)
-        r.chargeLevel = lv; r.hits = arenaReach(L[lv].hits, r.tune);
+        r.chargeLevel = lv; r.hits = arenaReach(L[lv].hits.map((h) => ({ ...h, at: Math.round(h.at * (r.tune?.at ?? 1)) })), r.tune); // (at the cast's pace, as every other skill's hits)
         // (the level's hits all land inside its active — a hit timed past it never fired: Iai Strike's draws, 70 ms apart;
         //  the recovery gives the time back, so the lock stays what it was — DFO 23 Oct)
         const end = Math.max(0, ...r.hits.map((h) => h.at)) + 20;

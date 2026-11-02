@@ -4,6 +4,7 @@
 // jump step counts once you leave the floor after the step before it landed (or cast the next one in the air). Anything
 // else in between starts the trial over. Cleared trials are kept in this browser, per class.
 import { COMBO_GUIDE, GuideRoute } from '../data/comboGuide';
+import { PACE } from '../skills/SkillTypes';
 import type { ClassId } from '../skills/SkillTypes';
 
 /** A class's trials: beginner → mid → expert, the shortest first within a level (fewest keys, then fewest presses). */
@@ -79,7 +80,7 @@ export class TrialRun {
     const st = this.route.steps[this.next];
     if (st && !st.id && air && this.ok[this.next - 1]) this.land(this.next++); // you jumped after the step before it landed
     if (this.comboId >= 0 && !held) this.fail('drop');
-    else if (this.comboId < 0 && now - this.startedAt > 2500) this.fail('miss'); // the opener never landed
+    else if (this.comboId < 0 && now - this.startedAt > 2500 * PACE) this.fail('miss'); // the opener never landed (at the fight's pace)
   }
 
   private take(id: string, castId: string, now: number): void {

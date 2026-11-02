@@ -4,6 +4,31 @@ Every balance change to any class's skills, newest first. Class chats: read this
 needs new visuals / motion (an effect sized to a new hitbox, an animation timed to a new startup), do that part.
 Values apply to the whole game (only damage may differ in PvP: arenaDmg / the arena's scaling).
 
+## 2026-11-02 — The fight's one pace: every skill 1.35× slower, the foe in step (David 15:50: "the skills run very fast")
+- **`PACE` = 1.35** (`SkillTypes.ts`, applied in `FinalKit.arenaTimeScale`): every class skill's wind-up, active, hit spacing
+  and recovery run 1.35× its kit numbers — the basic chains, buffs, traps and counters too; the open game and PvP alike.
+  Kept at their length: a held charge's wind-up (Iai Strike, Lance Thrust, Earthsplitter, Charged Deal, Sheathe — the hold
+  is the player's) and the actives David timed himself (`OWN_LENGTH`: Roulette 2 s, Hunter's Rain 5 s, Staff Flurry 3 s, the
+  held Double Shot, Tempest Ride 2.5 s, Long Guard 2.5 s — only their wind-up and recovery slow). A charged level's hits
+  are timed at the pace too (`SkillRuntime`).
+- **No more squeeze:** a skill of 4+ hits plays its whole length (the arena squeezed one into 700 ms, down to half its
+  length: Whirlwind, Air Volley, Storm Field and Rotor Staff ran 2× faster than drawn, Hundred Cuts 1.5×, Riffle Shuffle and
+  52 Pickup 1.3× — Air Volley, slowed for David on 18 Oct, ran faster than before that).
+- **Cancelled into from a hit,** a skill strikes within 216 ms (160 × 1.35), an ultimate within 540 (400 × 1.35).
+- **The foe in step** (`Combat.ts`, everywhere): hit-stun ×1.35 (counter, poke and conduct stuns too); a juggle flies the
+  same arcs at 1/1.35 the speed (gravity ÷ 1.35², launches, holds, the bounce and the slow fall ÷ 1.35: the same heights,
+  1.35× the hang); pins, the court's bind, a trap's catch, the slow fall's length, floor time (650 → 878 ms; the open game
+  430 → 581), the OTG hold (320 → 432), the quick rise (380 → 513) and the combo timeout ×1.35; the arena's stun decay,
+  heavy hang and safety caps (ms into a combo) ×1.35; a miss's extra opening 150 → 203 ms (`ARENA_FLOW.whiffMs`). Super
+  armor windows follow the paced timeline (`armorEnd`). A trial's opener has 2.5 × 1.35 s to land (`Trials.ts`).
+- **Unchanged:** walking, running, jumping and a knockdown's throw; damage, cooldowns, ranges, projectile speeds; the CC
+  holds (freeze, root, stun, curse, Levity) and every zone's lifetime and tick (a zone's own ticks that fall inside its
+  skill — Blade Storm's storm — run at the skill's pace).
+- **Checked in the game** (training, every combo trial of the five classes replayed headless at 60 fps, each key as soon
+  as the game takes it after the step before has done its hitting, and 0.2 s later): 96 of 106 runs clear — 93 before
+  the change; none lost, three more (Starfall at once, Tailwind and Talon 0.2 s later; the other 10 need inputs the replay
+  does not make: a held direction, waiting for the hawk).
+
 ## 2026-10-31 — Skill points (the rebuild's Phase 6): a skill's level sets its damage in the regular game only
 - **Skill points** (`src/game/SkillPoints.ts`, David 31 Oct 01:18): from the 1st job on, 3 a level (the advancement's level
   included: a new Swordsman at 10 has 3). Each job skill is learned with them — an active up to level 20, a passive once

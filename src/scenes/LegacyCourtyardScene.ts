@@ -111,7 +111,7 @@ import { baseLoop, ClassKey, dirOf, HERO_HEIGHT, HERO_LIFT, heroPortrait, loadBa
 import { AnimSnap, LAND_MS, Mode, RECOVER_MS, castSeed, poseQuery } from '../game/PoseState';
 import { ARENA, CombatBody, counterStun, HitOutcome, gaugeOf, Kin, MAGE, PHYS, jump, newKin, settleOnBlocks, steer, stepKin } from '../combat/Combat';
 import { FinalSkill, HitEvent } from '../skills/SkillTypes';
-import { ARCHER_STREAM, ARENA_FLOW, MAGE_HIDDEN, arenaCommits, arenaTimeScale, armorMul, finalSkill, iconUrl, kitFor, lastOfBurst } from '../skills/FinalKit';
+import { ARCHER_STREAM, ARENA_FLOW, MAGE_HIDDEN, arenaCommits, arenaTimeScale, armorEnd, finalSkill, iconUrl, kitFor, lastOfBurst, paceTime } from '../skills/FinalKit';
 import { CastRun, RT_EVENTS, SkillRuntime, Trap, STORM } from '../skills/SkillRuntime';
 import type { Projectile } from '../skills/HitGeometry';
 import { Afterimages, applyMotion, archerMotion, heroMotion, leapMotion, type Motion } from '../skills/ArcherMotion';
@@ -137,6 +137,14 @@ const D = TRAINING.dummy;
 const R = PHYS.footR;
 const P6 = STAGE6.player;
 const TOP_DEPTH = 100000;
+/** A cast's lingering hits that are its own ticks (they all fall inside the skill's length: Blade Storm's storm) run at the
+ *  cast's pace (FinalKit.arenaTimeScale); a zone or a delayed blow that outlasts its skill keeps its own timing (its
+ *  pictures are timed to it). */
+function lingerPace(run: CastRun): number {
+  const L = run.skill.linger, s = run.skill;
+  if (!L || L.at === 'target') return 1;
+  return L.startMs + (L.count - 1) * L.everyMs <= s.active + s.recovery ? (run.tune?.at ?? 1) : 1;
+}
 /** A Master's HP in his trial (the Sun Seal Plaza). */
 const TRIAL_HP = 200; // (the world's own scale, not the arena's)
 /** Hit in the world (a monster, a Master's trial): untouchable this long (ms), blinking all the while (MapleStory-style). */
@@ -383,7 +391,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Iron Grip: the foe is held in the fist between the seize and the slam. */
   private gripHeld = false;
   /** Detached lingering strikes (Ground Breaker cracks, Blade Storm phantom blades) of own casts. */
-  private lingers: { run: CastRun; x: number; y: number; next: number; left: number; struck?: Set<string>; target?: string; turn?: number }[] = [];
+  private lingers: { run: CastRun; x: number; y: number; next: number; left: number; struck?: Set<string>; target?: string; turn?: number; /** its tick (ms), when not the kit's */ every?: number }[] = [];
   /** Casts whose hold (`linger.at: 'target'`) has started — once per cast, on the first foe it caught. */
   private holdsStarted = new Set<string>();
   private cryAura?: Phaser.GameObjects.Image;
@@ -1953,7 +1961,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     for (const l of this.lingers) {
       const L = l.run.skill.linger!;
       while (l.left > 0 && now >= l.next) {
-        l.left--; l.next += L.everyMs;
+        l.left--; l.next += l.every ?? L.everyMs;
         if (L.at === 'target') { this.holdTurn(l, L); continue; }
         if (L.at === 'caster') { const c = this.casterPos(l.run.attackerId); if (c) { l.x = c.x; l.y = c.y; } } // the quake travels with you
         if (l.run.skill.id === 'spirit_hawk') { this.hawkDive(l, L); continue; }
@@ -2015,9 +2023,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     let tint: number | null = null, fill = false, alpha = 1;
     if (this.flash >= 0) { const iron = this.passives.takenMul < 1; tint = iron ? 0xc8d4e6 : 0xff9a9a; } // struck: a soft tint (MapleStory: no white flash over the body); Iron Body: steel sheen
     else if (this.body.hard.active(this.simMs)) tint = this.body.hard.kind === 'freeze' ? 0x9fd8ff : 0xb6ffb0;
-    else if (run && run.skill.armor && run.skill.id !== 'blade_storm' && run.elapsed >= run.skill.armor[0] && run.elapsed < run.skill.armor[1] + 220) { // the storm itself lights him: no tint
+    else if (run && run.skill.armor && run.skill.id !== 'blade_storm' && run.elapsed >= paceTime(run.skill, run.skill.armor[0]) && run.elapsed < armorEnd(run.skill, run.skill.armor[1]) + 220) { // the storm itself lights him: no tint
       // armor glow fades in/out smoothly (a hard on/off read as a flicker at the end of the move)
-      const a0 = run.skill.armor[0], a1 = run.skill.armor[1], e = run.elapsed;
+      const a0 = paceTime(run.skill, run.skill.armor[0]), a1 = armorEnd(run.skill, run.skill.armor[1]), e = run.elapsed;
       const w = Math.max(0, Math.min(1, (e - a0) / 120, e < a1 ? 1 : 1 - (e - a1) / 220));
       const c = (lo: number, hi: number) => Math.round(255 - (255 - lo) * w * (hi / 255));
       tint = (255 << 16) | (c(0xe0, 255) << 8) | c(0xa0, 255);
@@ -3041,8 +3049,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (s.id === 'radiant_blade') this.radiantUntil = this.simMs + s.startup + 15000;
     if (s.id === 'guard_counter') this.body.invulnUntil = this.simMs + s.startup + 600; // Aegis barrier
     if (s.id === 'rising_sun') this.body.invulnUntil = this.simMs + ct.startup + ct.active; // the samurai's defensive ultimate: nothing touches him while the sun rises
-    if (s.shotArmor) this.body.shotArmorUntil = this.simMs + s.shotArmor[1] * armorMul(s, this.arena); // a shield up: shots break on it
-    if (s.armor) this.body.armorUntil = Math.max(this.body.armorUntil, this.simMs + s.armor[1] * armorMul(s, this.arena)); // super armor from the first frame (never interrupted mid-windup), at the skill's own pace
+    if (s.shotArmor) this.body.shotArmorUntil = this.simMs + armorEnd(s, s.shotArmor[1]); // a shield up: shots break on it
+    if (s.armor) this.body.armorUntil = Math.max(this.body.armorUntil, this.simMs + armorEnd(s, s.armor[1])); // super armor from the first frame (never interrupted mid-windup), at the skill's own pace
     if (s.slot === 7) this.body.invulnUntil = this.simMs + ct.startup + ct.active; // ultimate: untouchable while it plays
     else if (this.simMs < this.warCryUntil) this.body.armorUntil = this.simMs + ct.startup + ct.active; // War Cry: super armor while attacking
     this.kage?.arm(castId, s.id, { x: k.x, y: k.y, z: k.z }); // he strikes: out of hiding; a cast while the doubles stand: its first hit that lands is the AMBUSH
@@ -3273,11 +3281,12 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const L = run.skill.linger;
     if (phase === 'active' && L && L.at !== 'target') { // every caster's lingering zone (yours, other players', the sparring knight's; a hold under a foe starts on its hit: startHold)
       const off = L.at === 'aim' ? (L.offset ?? 0) : 0, pl = L.at === 'place' ? run.place : null; // ('place': where the cast was opened on the floor)
-      this.lingers.push({ run, x: pl ? pl.x : run.origin.x + run.aim.x * off, y: pl ? pl.y : run.origin.y + run.aim.y * off, next: this.simMs + L.startMs, left: L.count });
+      const k = lingerPace(run); // (the skill's own ticks — Blade Storm's storm — run at its pace; a zone that outlasts it keeps its own)
+      this.lingers.push({ run, x: pl ? pl.x : run.origin.x + run.aim.x * off, y: pl ? pl.y : run.origin.y + run.aim.y * off, next: this.simMs + L.startMs * k, left: L.count, ...(k !== 1 ? { every: L.everyMs * k } : {}) });
     }
     if (run.own) {
       if (phase === 'active' && run.skill.through) this.throughUntil = this.simMs + run.timings.active + run.timings.recovery + 450;
-      if (phase === 'active' && run.skill.armor) this.body.armorUntil = this.simMs + Math.max(0, run.skill.armor[1] - run.timings.startup);
+      if (phase === 'active' && run.skill.armor) this.body.armorUntil = this.simMs + Math.max(0, armorEnd(run.skill, run.skill.armor[1]) - run.timings.startup);
       if (phase === 'active' && run.skill.id === 'kagemusha') this.kageStart(run);
       if (phase === 'done') this.endRun(run, false);
       return;

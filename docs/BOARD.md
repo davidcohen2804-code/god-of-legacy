@@ -31,6 +31,14 @@ The DFO PvP arena dynamics chat is the PvP director: it sets the bar per class, 
 Take the whole PvP up a level in everything — dynamics, skills, effects, hit frames, movement, camera, feel: every hit felt, every class unique and amazing, big moments that look like a cinematic, and reasons to keep playing.
 
 ## Open items
+### DFO (2 Nov, David 15:39–15:50) — back to the five original fighters; the fight slowed
+- David saw the base-character + items lab and stopped it ("looks very bad"): the game stays with the five original painted
+  fighters (Warrior, Samurai, Book Mage, Archer, Gambler) — no building a character: choose a fighter and play. The rebuild
+  below is on hold.
+- PvP "the skills run very fast" → **one pace for every skill, ×1.35** (open game and PvP alike), the foe's reactions in
+  step so every combo links as before — `docs/BALANCE_LOG.md` (2 Nov). **Class chats:** effects timed by `r.timings` / the
+  run's hits follow by themselves; an effect timed by fixed ms may now lead its slower move — check yours.
+
 ### DFO (31 Oct, David 01:29) — THE REBUILD: the approved base character, MapleStory's method, end to end (`docs/REBUILD_PLAN.md`)
 - David approved the base character (`tools/base/gpt/v3/approved_base.jpg`, `approved_poses.jpg`) and asked DFO to run the whole rebuild end to end: base body art → head / faces / hair → movement feel → clothes → female base → progression (levels, job, skill points) → skills as choreographies + effects (aimed into the depth too) → MapleStory-like monsters → world flow. **Every chat: no work on hero bodies, the base character, skills or progression without reading the plan first; requests go to DFO here.**
 
