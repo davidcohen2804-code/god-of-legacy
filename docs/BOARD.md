@@ -51,7 +51,10 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
   starlight a size up (they read as a thin line); Wind Step's wind trail rises with her leap (along the floor it read as a
   stray beam under her); a trap taken off the floor without going off (a round's reset, its owner down) now ends its
   pictures too (`SkillRuntime.dropTraps`) — an armed Vine Mine stayed drawn for good, its blink growing into a great star
-  over whoever stood there; the hero list's gold frame moves at once with the click (it lagged on the last hero).
+  over whoever stood there; the hero list's gold frame moves at once with the click (it lagged on the last hero); the
+  Gambler's heavy blows: since 18 Oct (57e51367) the code that grows and fades their painted blast ran inside a comment, so
+  every heavy blow's blast stayed on screen whole, for good — after a few skills the floor round the foe was a white-pink
+  wall (`GamblerFx.confirmed`). CI screenshots shoot the new hero screen (the job waited for the old slots and failed).
 
 ### DFO (31 Oct, David 01:29) — THE REBUILD: the approved base character, MapleStory's method, end to end (`docs/REBUILD_PLAN.md`)
 - David approved the base character (`tools/base/gpt/v3/approved_base.jpg`, `approved_poses.jpg`) and asked DFO to run the whole rebuild end to end: base body art → head / faces / hair → movement feel → clothes → female base → progression (levels, job, skill points) → skills as choreographies + effects (aimed into the depth too) → MapleStory-like monsters → world flow. **Every chat: no work on hero bodies, the base character, skills or progression without reading the plan first; requests go to DFO here.**
