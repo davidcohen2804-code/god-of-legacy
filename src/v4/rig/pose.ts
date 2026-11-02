@@ -117,12 +117,31 @@ export class RigPose {
   length(state: PoseState, i: number): number { return state.att[i]?.len ?? this.rig.bones[i].len; }
 
   /** Evaluate `anim` at `t` seconds (looping animations wrap). `chain` adds the spring offsets of the cape / hair. */
-  evaluate(anim: AnimDef, t: number, out: PoseState, chain?: ChainSim): void {
+  /** Each bone's animated values (rotation, x, y: the deltas from rest) of `anim` at `t`: a snapshot to blend from
+   *  when one animation hands over to another. */
+  localValues(anim: AnimDef, t: number, out?: Float64Array): Float64Array {
+    const tt = anim.loop ? ((t % anim.dur) + anim.dur) % anim.dur : Math.max(0, Math.min(anim.dur, t));
+    const v = out ?? new Float64Array(this.n * 3);
+    for (let i = 0; i < this.n; i++) {
+      const tl = anim.bones[this.rig.bones[i].name];
+      v[i * 3] = tl ? sample(tl.r, tt) : 0; v[i * 3 + 1] = tl ? sample(tl.x, tt) : 0; v[i * 3 + 2] = tl ? sample(tl.y, tt) : 0;
+    }
+    return v;
+  }
+
+  /** `from`: blend in from a snapshot (localValues) with weight w (0 = the snapshot, 1 = this animation). */
+  evaluate(anim: AnimDef, t: number, out: PoseState, chain?: ChainSim, from?: { v: Float64Array; w: number }): void {
     const tt = anim.loop ? ((t % anim.dur) + anim.dur) % anim.dur : Math.max(0, Math.min(anim.dur, t));
     const B = this.rig.B, w = out.world;
     for (let i = 0; i < this.n; i++) {
       const b = this.rig.bones[i], tl = anim.bones[b.name], ab = out.att[i];
-      let deg = (ab ? ab.r : b.r) + (tl ? sample(tl.r, tt) : 0) + (chain ? chain.offset(i) : 0);
+      let dr = tl ? sample(tl.r, tt) : 0, dx = tl ? sample(tl.x, tt) : 0, dy = tl ? sample(tl.y, tt) : 0;
+      if (from && from.w < 1) {
+        const f = from.v, k = from.w;
+        let d = dr - f[i * 3]; d -= 360 * Math.round(d / 360);
+        dr = f[i * 3] + d * k; dx = f[i * 3 + 1] + (dx - f[i * 3 + 1]) * k; dy = f[i * 3 + 2] + (dy - f[i * 3 + 2]) * k;
+      }
+      let deg = (ab ? ab.r : b.r) + dr + (chain ? chain.offset(i) : 0);
       const p = this.parent[i], o = i * 6;
       if (ab && p >= 0) {
         // an attachment link: the first keeps some of its stance direction when the hips tip (gravity) and stays clear
@@ -142,7 +161,7 @@ export class RigPose {
         }
       }
       const rot = deg * D2R;
-      const lx = ((ab ? ab.x : b.x) + (tl ? sample(tl.x, tt) : 0)) * B, ly = ((ab ? ab.y : b.y) + (tl ? sample(tl.y, tt) : 0)) * B;
+      const lx = ((ab ? ab.x : b.x) + dx) * B, ly = ((ab ? ab.y : b.y) + dy) * B;
       const la = Math.cos(rot), lb = Math.sin(rot), lc = -lb, ld = la;
       if (p < 0) { w[o] = la; w[o + 1] = lb; w[o + 2] = lc; w[o + 3] = ld; w[o + 4] = lx; w[o + 5] = ly; continue; }
       const q = p * 6, pa = w[q], pb = w[q + 1], pc = w[q + 2], pd = w[q + 3];

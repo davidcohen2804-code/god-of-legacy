@@ -55,7 +55,7 @@ export function buildUI(scene: LabScene, api: { runTests: (full: boolean) => Pro
     if (gold) gold.hidden = scene.art !== 'b';
     if (ember) ember.hidden = scene.art !== 'b';
     const tests = $('tests-note');
-    if (tests) tests.textContent = scene.art === 'b' ? 'Real-art tests of candidate B (switch to the placeholder for the Phase 1 tests).' : 'Phase 1 tests on the placeholder art.';
+    if (tests) tests.textContent = scene.art === 'base01' ? 'BASE-01 regression: every mix of its items through every animation, the grip, the cross-fades.' : scene.art === 'b' ? 'Real-art tests of candidate B (switch to the placeholder for the Phase 1 tests).' : 'Phase 1 tests on the placeholder art.';
   };
   segmented($('seg-art'), [['base01', 'BASE-01'], ['b', 'Candidate B (earlier)'], ['placeholder', 'Placeholder · Phase 1']], scene.art, (v) => {
     scene.setArt(v as Art);

@@ -4,6 +4,7 @@ import { bench } from './bench';
 import { LabScene } from './LabScene';
 import { runTests } from './tests';
 import { runTestsB } from './testsB';
+import { runTestsB01 } from './testsB01';
 import { buildUI } from './ui';
 import { CANVAS } from './world';
 
@@ -27,7 +28,7 @@ window.addEventListener('v4lab-ready', (e) => {
   const api = {
     game, scene, ready: true,
     /** The tests of the art on screen: Phase 1's on the placeholder, the real-art tests on candidate B. */
-    runTests: (full = false, only?: string[]) => (scene.art === 'b' ? runTestsB(scene, { full, only }, setStatus) : runTests(scene, { full }, setStatus)),
+    runTests: (full = false, only?: string[]) => (scene.art === 'b' ? runTestsB(scene, { full, only }, setStatus) : scene.art === 'base01' ? runTestsB01(scene, setStatus) : runTests(scene, { full }, setStatus)),
     bench: (seconds = 4) => bench(scene, seconds, setStatus),
     /** Recording helpers: stop the clock, then advance it by hand one frame at a time. */
     freeze: () => game.loop.sleep(),

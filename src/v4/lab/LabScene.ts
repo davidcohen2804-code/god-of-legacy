@@ -60,6 +60,9 @@ export class Actor {
   last: RigTime | null = null;
   /** The body's own forward motion in the current animation (see bodyDrive), added to the chains' speed. */
   drive = 0;
+  /** The last animation's pose when another took over, and the time since (the cross-fade). */
+  from: Float64Array | null = null;
+  fadeT = 1;
   brainT = 0; brainAct = 'idle'; targetX = 0;
   /** Swaps applied to this actor (for the demo and the tests). */
   swaps = 0;
@@ -122,9 +125,16 @@ export class Actor {
     const vxN = Math.max(-1, Math.min(1, (this.mode === 'air' ? Math.min(1, Math.abs(this.vx) / 300) : Math.min(1, this.speed / 300)) + this.drive));
     const vzN = this.mode === 'air' ? Math.max(-1, Math.min(1, this.vz / JUMP_VZ)) : 0;
     this.ch.chain.step(dt, vxN, vzN);
-    this.ch.evaluate(this.last.anim, this.last.t);
+    // a new animation takes over in a short cross-fade from where the last one was (no pop between states)
+    if (prev && prev.anim !== this.last.anim) { this.from = this.ch.pose.localValues(prev.anim, prev.t, this.from ?? undefined); this.fadeT = 0; }
+    this.fadeT += dt;
+    const k = Math.min(1, this.fadeT / FADE_S);
+    this.ch.evaluate(this.last.anim, this.last.t, this.from && k < 1 ? { v: this.from, w: 1 - (1 - k) * (1 - k) } : undefined);
   }
 }
+
+/** The cross-fade between two animations, seconds. */
+const FADE_S = 0.09;
 
 export class LabScene extends Phaser.Scene {
   assets!: LabAssets;

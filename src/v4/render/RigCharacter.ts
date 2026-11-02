@@ -88,7 +88,7 @@ export class RigCharacter {
     this.chain.setAttach(this.pose, specs);
   }
 
-  evaluate(anim: AnimDef, t: number): void { this.pose.evaluate(anim, t, this.state, this.chain); }
+  evaluate(anim: AnimDef, t: number, from?: { v: Float64Array; w: number }): void { this.pose.evaluate(anim, t, this.state, this.chain, from); }
 
   /** Place every part: `s` = output px per rig unit. */
   layout(s: number): void {
