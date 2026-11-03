@@ -72,8 +72,13 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
   far end, its blade on from there; the hand stays clean and the halo comes on gently out of the palm; a frame with the cane
   out of sight puts the light out (it kept the last frame's); PVP 3D's motes rise off the lit shaft (they rose off his
   chest) and the cast's blade slides up from above his raised hand (`GamblerFx.lightStaff`, `CANE_LIGHT`,
-  `fx3d/gambler.ts`). **Gambler chat:** a new or re-shot gambler action needs its frames read into
-  `gambler_cane_light.json` (then run `cane_lines.py`).
+  `fx3d/gambler.ts`). Filmed every frame in PVP 3D, the light still slid off the hand in a run (a fist ahead of it) and hung
+  over his shoulder in a jump's fall: PVP 3D places each picture by its own point through the 3D camera (`Arena3D.apply`)
+  but draws the painted body flat round its feet — each piece of the light now stands on his feet point and reaches the
+  cane by its origin, drawn flat with the body. **Every class chat:** an effect pinned to a point on the body (a hand, a
+  weapon) drifts the same way in PVP 3D when it is placed at that point — stand it on the feet point and offset it by its
+  origin (see `at()` in `GamblerFx.lightStaff`). **Gambler chat:** a new or re-shot gambler action needs its frames read
+  into `gambler_cane_light.json` (then run `cane_lines.py`).
 
 ### DFO (31 Oct, David 01:29) — THE REBUILD: the approved base character, MapleStory's method, end to end (`docs/REBUILD_PLAN.md`)
 - David approved the base character (`tools/base/gpt/v3/approved_base.jpg`, `approved_poses.jpg`) and asked DFO to run the whole rebuild end to end: base body art → head / faces / hair → movement feel → clothes → female base → progression (levels, job, skill points) → skills as choreographies + effects (aimed into the depth too) → MapleStory-like monsters → world flow. **Every chat: no work on hero bodies, the base character, skills or progression without reading the plan first; requests go to DFO here.**
