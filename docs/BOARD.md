@@ -102,6 +102,17 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
   below and behind the raised hand. One registry for every hero's hand: `src/skills/BodyPoints.ts` (`HANDS`, `bodyHand`).
   **Class chats:** to put an effect in your hero's hand, read the hand per frame for your skills into
   `tools/heroes/data/<cls>_hand_marks.json`, run `body_points.py <cls> hand` and add it to `HANDS`.
+- **One body size in the jump and the back step (DFO, 3 Nov 23:33 — David: "why does the warrior get really small when he
+  jumps"):** `jumpcut.py` scales a jump clip by its video's first frame, and where that frame stood taller than the hero (a
+  sword, a cape or hair over the head) the whole clip came out small — the Warrior's by about an eighth; the back step's
+  GPT stills (`states.py`: one scale for stills GPT drew at different sizes) stood up to a sixth smaller; the Book Mage's
+  daze a tenth. Each drawn up to the standing size (`Body.ts MOVE_FIT`, applied through `SHEET_FIT`): Warrior jump ×1.15 /
+  back step ×1.2, Samurai ×1.05 / ×1.1, Archer back step ×1.1, Gambler jump ×1.05, Book Mage jump ×1.05 / back step ×1.15 /
+  daze ×1.1 — measured against idle (SIFT matches on the head and the body for the stills; the head and the upright
+  frames' height for the clips) and filmed in PVP 3D. Every other move of every hero (walk, run, the second jump's flip,
+  hit, launch, down, get-up, quick rise, run stop, win, intro) already matched. Effects pinned to the body (the lit cane,
+  the hands, the bow grip) follow the drawn scale by themselves. **Movements chat:** a re-cut jump or state lands at its
+  old scale — measure it against idle and set its `MOVE_FIT`.
 
 ### DFO (31 Oct, David 01:29) — THE REBUILD: the approved base character, MapleStory's method, end to end (`docs/REBUILD_PLAN.md`)
 - David approved the base character (`tools/base/gpt/v3/approved_base.jpg`, `approved_poses.jpg`) and asked DFO to run the whole rebuild end to end: base body art → head / faces / hair → movement feel → clothes → female base → progression (levels, job, skill points) → skills as choreographies + effects (aimed into the depth too) → MapleStory-like monsters → world flow. **Every chat: no work on hero bodies, the base character, skills or progression without reading the plan first; requests go to DFO here.**
