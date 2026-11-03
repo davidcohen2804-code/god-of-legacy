@@ -11,6 +11,7 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { buildRoom, type Room } from './Room';
+import { ON_BODY } from './flag';
 import { Fx3D } from './Fx3D';
 import { ImpactFx } from '../skills/ImpactFx';
 import type { Projectile } from '../skills/HitGeometry';
@@ -617,12 +618,19 @@ export class Arena3D {
     this.fxImg.setVisible(glow);
     for (const l of this.extra) { l.before?.(); if (!l.img.visible) continue; this.renderer.setClearColor(0x000000, 0); this.renderer.render(l.scene, this.camera); this.scene.textures.get(l.key).source[0].update(); } // (a layer not shown is not drawn: a body waiting in the pool, the doubles gone)
     // every world object: placed where the 3D camera sees its floor point, scaled by its depth
-    const sw = this.scene.scale.width;
+    const sw = this.scene.scale.width, world = new Map<object, [number, number]>(); // (a body already placed: where it stood in the world)
     const visit = (o: Placed, top: boolean) => {
       if (!o.visible || o === (this.bg as unknown) || o === (this.fg as unknown) || o === (this.fxImg as unknown) || o.scrollFactorX === 0) return;
       if (o instanceof Phaser.GameObjects.Container && o.x === 0 && o.y === 0) { for (const c of o.list as Placed[]) visit(c, false); return; }
       if ((o.displayWidth ?? 0) > sw * 0.6) return; // screen-sized overlays (a darkening, a cut-in band) stay where they are drawn
       if (o instanceof Phaser.GameObjects.Graphics && o.x === 0 && o.y === 0) return; // (drawn in world space: left as is)
+      const on = ON_BODY.get(o)?.() as Placed | null | undefined;
+      if (on && on !== o) { // drawn on a fighter's body: flat with it — the body's own placement (its feet point, its scale) carried over
+        const w = world.get(on) ?? [on.x, on.y], bf = (on as Placed & { depth: number }).depth, P = this.project(w[0], bf, bf - w[1]);
+        this.saved.push([o, o.x, o.y, o.scaleX, o.scaleY]);
+        o.x = P.sx + (o.x - w[0]) * P.k; o.y = P.sy + (o.y - w[1]) * P.k; o.scaleX *= P.k; o.scaleY *= P.k;
+        return;
+      }
       const wy = o.y;
       let floor = top && o.depth > wy - 2 && o.depth - wy < 450 && Math.abs(o.depth) > 1 && o.depth < 60000 ? o.depth : NaN;
       // the ground layer (depth 2–10: the skills' floor marks, rings, craters, mines, roots): it lies on the floor where it
@@ -634,7 +642,7 @@ export class Arena3D {
         floor = best && Math.abs(best.x - o.x) < 700 && wy <= best.y + 30 ? best.y : wy;
       }
       const P = this.project(o.x, floor, floor - wy);
-      this.saved.push([o, o.x, o.y, o.scaleX, o.scaleY]);
+      this.saved.push([o, o.x, o.y, o.scaleX, o.scaleY]); world.set(o, [o.x, o.y]);
       o.x = P.sx; o.y = P.sy; o.scaleX *= P.k; o.scaleY *= P.k;
     };
     for (const o of this.scene.children.list as Placed[]) visit(o, true);

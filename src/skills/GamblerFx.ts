@@ -2,9 +2,10 @@
 // stick and burst in electric fuchsia; a staff's thick motion bands; the casino's pieces (roulette wheel, dice, coin, slot
 // machine). Presentation only — gameplay never reads any of this. Every effect runs on this module's own clock, so it
 // stops with the hit-stop like the fight does.
-import { ARENA3D } from '../arena3d/flag';
+import { ARENA3D, ON_BODY } from '../arena3d/flag';
 import { hitIndex } from './FinalKit';
 import CANE from '../data/gambler-cane.json';
+import HAND from '../data/gambler-hand.json';
 import Phaser from 'phaser';
 import type { CastRun } from './SkillRuntime';
 import type { FinalSkill, HitEvent } from './SkillTypes';
@@ -48,7 +49,7 @@ export interface GambleCtx {
   freeze(ms: number): void;
   flash(color: number, alpha: number, ms: number): void;
   /** A fighter's body sprite now (its atlas frame, flip, scale): Light Staff draws along the cane in that frame. */
-  body?(id: string): { frame: string | number; flipX: boolean; sx: number; a?: number; /** a 3D body: its cane as it is held (grip → end, px from the feet) */ line?: number[] } | null;
+  body?(id: string): { frame: string | number; flipX: boolean; sx: number; a?: number; /** a 3D body: its cane as it is held (grip → end, px from the feet) */ line?: number[]; /** the painted body's picture (ON_BODY) */ sprite?: object } | null;
 }
 
 type Step = (t: number, dt: number) => boolean;
@@ -291,10 +292,10 @@ export class GamblerFx {
    *  bet (a gold flash marks it) — and leave with the throw (the release ends the hold whenever it comes). */
   private dealHold(r: CastRun): void {
     const s = this.ctx.scene, L = r.skill.charge?.levels ?? [], full = (L[1]?.at ?? 520) * (r.chargeScale ?? 1);
-    const cards = Array.from({ length: 5 }, () => s.add.image(0, 0, this.BK).setScale(this.u * 0.27).setVisible(false));
-    const glow = this.glow(0, 0, 50); let maxed = false;
+    const cards = Array.from({ length: 5 }, () => this.onBody(s.add.image(0, 0, this.BK).setScale(this.u * 0.27).setVisible(false), r.attackerId));
+    const glow = this.onBody(this.glow(0, 0, 50), r.attackerId); let maxed = false;
     this.add(() => {
-      const h = this.ctx.hand(r.attackerId), c = this.ctx.casterPos(r.attackerId);
+      const h = this.hand(r.attackerId), c = this.ctx.casterPos(r.attackerId);
       if (r.phase !== 'startup' || !h || !c) { for (const im of cards) im.destroy(); glow.destroy(); return false; }
       const e = r.elapsed, k = clamp01(e / Math.max(1, full)), n = e >= full ? 5 : 3, side = sideOf(r);
       if (e >= full && !maxed) { maxed = true; this.pop(h.x, h.y - 16, 90, GOLD, 260); this.ctx.cam().shake(60, 0.002); }
@@ -310,6 +311,15 @@ export class GamblerFx {
    *  it looks the same in the 2D arena, and PVP 3D (which places every object by its position) puts it where it belongs. */
   private pin(g: Phaser.GameObjects.Graphics, x: number, y: number): void { g.setPosition(x, y); g.translateCanvas(-x, -y); }
   private me(r: CastRun): V3 { return this.ctx.casterPos(r.attackerId) ?? r.origin; }
+  /** His free hand as drawn now — the hand that holds the cards, flips the coin, throws (src/data/gambler-hand.json, read per
+   *  frame: David 3 Nov 01:27, the effects in his hand "under the palm, in every move"; they sat at one fixed point beside his
+   *  chest, wherever the hand was drawn). A frame not read: the scene's point. */
+  private hand(id: string): { x: number; y: number } | null {
+    const b = this.ctx.body?.(id), c = this.ctx.casterPos(id), p = b && c && !b.line ? (HAND as Record<string, number[] | null>)[String(b.frame)] : null;
+    return p && b && c ? { x: c.x + p[0] * b.sx * (b.flipX ? -1 : 1), y: c.y - c.z + p[1] * b.sx } : this.ctx.hand(id);
+  }
+  /** A picture that sits on his body (in his hand): PVP 3D draws it flat with the painted body (ON_BODY), not by its own point. */
+  private onBody<T extends object>(o: T, id: string): T { ON_BODY.set(o, () => this.ctx.body?.(id)?.sprite ?? null); return o; }
   /** The point a cast aims at on the floor (bias px ahead). */
   private ahead(r: CastRun, bias: number): { x: number; y: number } { const o = this.me(r); return { x: o.x + r.aim.x * bias, y: o.y + r.aim.y * bias }; }
 
@@ -318,7 +328,7 @@ export class GamblerFx {
   cast(r: CastRun): void {
     this.setFam(r.skill.id);
     const s = r.skill, T = r.timings, o = this.me(r), y0 = o.y - o.z, side = sideOf(r);
-    const handGlow = (ms: number, size = 40) => { const h = this.ctx.hand(r.attackerId) ?? { x: o.x + side * 26, y: y0 - 70 }; const g = this.glow(h.x, h.y, size); this.piece(g, ms, (u, im) => im.setAlpha(0.5 + 0.5 * Math.sin(u * 20)).setScale((size / 128) * (1 + u * 0.4))); };
+    const handGlow = (ms: number, size = 40) => { const h0 = this.hand(r.attackerId) ?? { x: o.x + side * 26, y: y0 - 70 }; const g = this.onBody(this.glow(h0.x, h0.y, size), r.attackerId); this.piece(g, ms, (u, im) => { const h = this.hand(r.attackerId) ?? h0; im.setPosition(h.x, h.y).setAlpha(0.5 + 0.5 * Math.sin(u * 20)).setScale((size / 128) * (1 + u * 0.4)); }); }; // (it stays in his hand as the hand moves)
     switch (s.id) {
       case 'charged_deal': this.dealHold(r); break;
       case 'fuse_slam': this.fuseFloor(r); break;
@@ -349,7 +359,7 @@ export class GamblerFx {
     this.setFam(r.skill.id);
     const o = this.me(r), y0 = o.y - o.z, side = sideOf(r);
     if (r.skill.id === 'all_in') { // the click of the fingers: a sharp star at his hand, a thin ring running out over the floor
-      const h = this.ctx.hand(r.attackerId) ?? { x: o.x + side * 40, y: y0 - 80 };
+      const h = this.hand(r.attackerId) ?? { x: o.x + side * 40, y: y0 - 80 };
       const fl = this.kit('ai_snap', h.x, h.y, 90, TOP + 5); if (fl) { const f0 = fl.scale; this.piece(fl, 220, (u, im) => im.setScale(f0 * lerp(0.5, 1.3, out3(u))).setAlpha(1 - u)); } else this.pop(h.x, h.y, 80, 0xffffff, 200);
       const rg = this.kit('ai_ring', o.x, o.y, 300, GROUND + 3); if (rg) { const rx = rg.scaleX, ry = (300 * SQUASH) / rg.height; this.piece(rg, 360, (u, im) => im.setScale(rx * lerp(0.2, 1.3, out3(u)), ry * lerp(0.2, 1.3, out3(u))).setAlpha(1 - u)); } else this.floorRing(o.x, o.y, 200, FUCHSIA_2, 320, 0, 3);
       this.ctx.flash(0xffffff, 0.08, 80);
@@ -381,7 +391,7 @@ export class GamblerFx {
       case 'riffle_shuffle': if (i === r.hits.length - 1) { const tor = this.kit('x_tornado', o.x, o.y, 260, o.y + 3); if (tor) { tor.setOrigin(0.5, 0.97); const t0 = tor.scale; this.piece(tor, 460, (u, im) => im.setScale(t0 * lerp(1, 1.3, u), t0 * lerp(0.8, 1.2, out3(u))).setFlipX(Math.floor(u * 10) % 2 === 1).setAlpha(1 - u * u)); } this.floorRing(o.x, o.y, 170, FUCHSIA_2, 380); this.shards(o.x, y0 - 50, 18, 200, 520); } break;
       case 'rotor_staff': if (i === r.hits.length - 1) { if (!this.stroke('s_thrust', o.x + side * 24, y0 - 56, 210, side, 300, d, 0, 0.05, 0.5)) this.band(o.x + side * 30, y0 - 56, 150, side > 0 ? 0 : 180, 260, 30, d); this.pop(o.x + side * 150, y0 - 56, 120); } break;
       case 'kinetic_grab': if (i === 0) { // the reach: a hand of kinetic light shoots out from his palm and clenches
-        const h = this.ctx.hand(r.attackerId) ?? { x: o.x + side * 26, y: y0 - 64 }, tx = o.x + side * 90, ty = y0 - 50;
+        const h = this.hand(r.attackerId) ?? { x: o.x + side * 26, y: y0 - 64 }, tx = o.x + side * 90, ty = y0 - 50;
         const hand = this.kit('g_hand', h.x, h.y, 150, d + 2) ?? this.kit('x_grip', h.x, h.y, 150, d + 2);
         if (hand) { const g0 = hand.scale, fist = this.ctx.scene.textures.exists('gbk-g_fist'); hand.setFlipX(side < 0).setOrigin(side > 0 ? 0.3 : 0.7, 0.5);
           this.piece(hand, 320, (u, im) => { const k = out3(clamp01(u * 2.4)); im.setPosition(lerp(h.x, tx, k), lerp(h.y, ty, k));
@@ -523,7 +533,7 @@ export class GamblerFx {
    *  A worse throw: the coin lands tails-up, grey, and he reels (the scene stuns him). */
   double(r: CastRun, worse: boolean): void {
     this.setFam(r.skill.id);
-    const c = this.me(r), s = this.ctx.scene, h = this.ctx.hand(r.attackerId) ?? { x: c.x, y: c.y - c.z - 70 };
+    const c = this.me(r), s = this.ctx.scene, h = this.hand(r.attackerId) ?? { x: c.x, y: c.y - c.z - 70 };
     const tgt = r.skill.id === 'roulette_wheel' ? (r.place ?? this.ahead(r, 200)) : this.ahead(r, 165);
     const pic = s.textures.exists('gbk-o_spin'), coin = s.add.image(h.x, h.y, pic ? 'gbk-o_spin' : 'gb-coin').setBlendMode(Phaser.BlendModes.ADD).setDepth(TOP + 6);
     const top = c.y - c.z - 190, D = 44;
@@ -543,7 +553,7 @@ export class GamblerFx {
   }
   /** Triple Down: the staff as a pillar of light comes down on the floor ahead — each blow bigger, the third shatters it. */
   private tripleSlam(r: CastRun, i: number): void {
-    const o = this.me(r), side = sideOf(r), p = this.ahead(r, 85), h = this.ctx.hand(r.attackerId) ?? { x: o.x + side * 30, y: o.y - o.z - 70 };
+    const o = this.me(r), side = sideOf(r), p = this.ahead(r, 85), h = this.hand(r.attackerId) ?? { x: o.x + side * 30, y: o.y - o.z - 70 };
     const big = i === 2, k = [0.8, 1, 1.5][i] ?? 1;
     const rod = this.kit('td_staff', p.x, p.y + 4, 64 * k, p.y + 3); // the pillar of light from his hands to the floor
     if (rod) { const L = Math.hypot(p.x - h.x, p.y - h.y) + 40; rod.setOrigin(0.5, 0.97).setDisplaySize(64 * k, L).setAngle(Math.atan2(h.x - p.x, p.y - h.y) * 57.3 * -1 + 180); const r0 = rod.scaleX, ry = rod.scaleY; this.piece(rod, 220, (u, im) => im.setScale(r0, ry * lerp(1.15, 1, out3(u))).setAlpha(1 - u * u)); }
@@ -679,7 +689,7 @@ export class GamblerFx {
         const bolt = s.add.graphics().setBlendMode(Phaser.BlendModes.ADD), teth = this.kit('g_tether', 0, 0, 100, 0);
         teth?.setOrigin(0.02, 0.5);
         this.add((t) => {
-          const p = at(), h = this.ctx.hand(by); if (!p || !h || t > 500) { bolt.destroy(); teth?.destroy(); return false; }
+          const p = at(), h = this.hand(by); if (!p || !h || t > 500) { bolt.destroy(); teth?.destroy(); return false; }
           bolt.clear().setDepth(Math.max(p.d, h.y) + 4); this.pin(bolt, p.x, p.y);
           if (teth) { const L = Math.hypot(p.x - h.x, p.y - h.y); teth.setPosition(h.x, h.y).setDepth(Math.max(p.d, h.y) + 3).setAngle(Math.atan2(p.y - h.y, p.x - h.x) * 57.3).setDisplaySize(Math.max(30, L * 1.04), 30 + 8 * Math.sin(t * 0.08)).setFlipY(Math.floor(t / 60) % 2 === 1); }
           const n = 9, jit = 10 + 6 * Math.sin(t * 0.05), pts: [number, number][] = [];
@@ -864,12 +874,14 @@ export class GamblerFx {
   }
   private showdownRow(r: CastRun): void {
     const T = r.timings, cards: Phaser.GameObjects.Container[] = [], side = sideOf(r), s = this.ctx.scene;
-    const h = this.ctx.hand(r.attackerId) ?? { x: r.origin.x, y: r.origin.y - 80 };
+    const h = this.hand(r.attackerId) ?? { x: r.origin.x, y: r.origin.y - 80 };
     if (s.textures.exists('gbk-w_fan')) { // he holds the hand up — a fan of five cards of light — then deals it out in a stream
-      const fan = this.kit('w_fan', h.x + side * 30, h.y - 46, 112, TOP + 5); // (held clear of his face and body: he reads behind it)
-      if (fan) { fan.setFlipX(side < 0); const f0 = fan.scale; this.piece(fan, T.startup + 40, (u, o) => o.setScale(f0 * lerp(0.4, 1, out3(clamp01(u * 2.5)))).setAngle(side * (1 - out3(clamp01(u * 2.5))) * -40).setAlpha(u > 0.85 ? (1 - u) / 0.15 : 1)); }
+      // (held up out of his hand, clear of his face — he reads behind it; David 3 Nov 01:27: it goes where the hand goes, up by
+      // his face, before his chest, out with the deal — it hung where the hand was at the cast. Its cards set in his fingers hid his face.)
+      const fan = this.kit('w_fan', h.x + side * 30, h.y - 46, 112, TOP + 5);
+      if (fan) { this.onBody(fan, r.attackerId).setFlipX(side < 0); const f0 = fan.scale; this.piece(fan, T.startup + 40, (u, o) => { const hh = this.hand(r.attackerId) ?? h; o.setPosition(hh.x + side * 30, hh.y - 46).setScale(f0 * lerp(0.4, 1, out3(clamp01(u * 2.5)))).setAngle(side * (1 - out3(clamp01(u * 2.5))) * -40).setAlpha(u > 0.85 ? (1 - u) / 0.15 : 1); }); }
       const st = this.kit('w_stream', h.x, h.y, 300, TOP + 5);
-      if (st) { st.setFlipX(side < 0).setOrigin(side > 0 ? 0.1 : 0.9, 0.5).setAlpha(0); const s0 = st.scale; this.piece(st, 280, (u, o) => o.setAlpha(u < 0.3 ? u / 0.3 : (1 - u) / 0.7).setScale(s0 * lerp(0.5, 1.15, out3(u)), s0 * 0.7).setPosition(h.x + side * 300 * 0.35 * out3(u), h.y), T.startup - 40); }
+      if (st) { this.onBody(st, r.attackerId).setFlipX(side < 0).setOrigin(side > 0 ? 0.1 : 0.9, 0.5).setAlpha(0); const s0 = st.scale; this.piece(st, 280, (u, o) => { const hh = this.hand(r.attackerId) ?? h; o.setAlpha(u < 0.3 ? u / 0.3 : (1 - u) / 0.7).setScale(s0 * lerp(0.5, 1.15, out3(u)), s0 * 0.7).setPosition(hh.x + side * 300 * 0.35 * out3(u), hh.y); }, T.startup - 40); } // (dealt out of the hand as it is then)
     }
     const spec = s.textures.exists('gbk-w_card'), stand = (x: number, y: number, d: number) => {
       if (!spec) return this.card(x, y, null, 0.9, d);
@@ -905,14 +917,14 @@ export class GamblerFx {
 
   private coin(r: CastRun): void {
     const T = r.timings, heads = coinOf(r.castId), s = this.ctx.scene, side = sideOf(r);
-    const h0 = this.ctx.hand(r.attackerId) ?? { x: r.origin.x, y: r.origin.y - 80 };
+    const h0 = this.hand(r.attackerId) ?? { x: r.origin.x, y: r.origin.y - 80 };
     if (s.textures.exists('gbk-o_spin')) { // flicked up off the thumb: it climbs a gold arc spinning edge-on, flashing its faces, and lands in the air over him
       const arc = this.kit('o_arc', h0.x + side * 30, h0.y - 80, 100, TOP + 3);
-      if (arc) { arc.setFlipX(side < 0).setAlpha(0); const a0 = arc.scale; this.piece(arc, T.startup + 120, (u, o) => o.setAlpha(u < 0.3 ? u / 0.3 * 0.75 : 0.75 * (1 - (u - 0.3) / 0.7)).setScale(a0 * 0.85, a0 * 0.62)); }
-      const coin = s.add.image(h0.x, h0.y, 'gbk-o_spin').setBlendMode(Phaser.BlendModes.ADD).setDepth(TOP + 4);
+      if (arc) { this.onBody(arc, r.attackerId); arc.setFlipX(side < 0).setAlpha(0); const a0 = arc.scale; this.piece(arc, T.startup + 120, (u, o) => o.setAlpha(u < 0.3 ? u / 0.3 * 0.75 : 0.75 * (1 - (u - 0.3) / 0.7)).setScale(a0 * 0.85, a0 * 0.62)); }
+      const coin = this.onBody(s.add.image(h0.x, h0.y, 'gbk-o_spin').setBlendMode(Phaser.BlendModes.ADD).setDepth(TOP + 4), r.attackerId); // (off his thumb and back over him: flat with his body in PVP 3D)
       const D = 46;
       this.piece(coin, T.startup, (u, o) => {
-        const c = this.ctx.hand(r.attackerId) ?? h0, fl = Math.cos(u * 34), face = Math.abs(fl) > 0.82;
+        const c = this.hand(r.attackerId) ?? h0, fl = Math.cos(u * 34), face = Math.abs(fl) > 0.82;
         o.setTexture(face ? (fl > 0 ? 'gbk-o_heads' : 'gbk-o_tails') : 'gbk-o_spin').setDisplaySize(face ? D : D * 0.75, D * 1.1);
         o.setPosition(c.x + side * 60 * u, c.y - Math.sin(u * Math.PI) * 150 - 40 * u).setAngle(face ? 0 : side * 15);
       });
@@ -920,7 +932,7 @@ export class GamblerFx {
         if (t < T.startup) return true;
         const c = this.ctx.casterPos(r.attackerId) ?? r.origin, x = c.x + side * 4, y = c.y - c.z - 150;
         const res = this.kit(heads ? 'o_heads' : 'o_tails', x, y, 96, TOP + 6);
-        if (res) { const k0 = res.scale; this.piece(res, 900, (u, o) => o.setScale(k0 * (u < 0.12 ? lerp(1.6, 1, u / 0.12) : 1)).setPosition(x, y - u * 26).setAlpha(u < 0.7 ? 1 : (1 - u) / 0.3)); }
+        if (res) { this.onBody(res, r.attackerId); const k0 = res.scale; this.piece(res, 900, (u, o) => o.setScale(k0 * (u < 0.12 ? lerp(1.6, 1, u / 0.12) : 1)).setPosition(x, y - u * 26).setAlpha(u < 0.7 ? 1 : (1 - u) / 0.3)); }
         this.pop(x, y, 160, heads ? GOLD : FUCHSIA, 340); this.ctx.flash(heads ? 0xffc94a : 0xff2bd6, 0.14, 120);
         const au = this.kit('o_aura', c.x, c.y + 4, 150, c.y + 3);
         if (au) { au.setOrigin(0.5, 0.95); if (!heads) au.setTint(0xff9ae8); const u0 = au.scale; this.piece(au, 900, (u, o) => o.setScale(u0 * lerp(0.8, 1.05, out3(u)), u0 * lerp(0.4, 1.1, out3(clamp01(u * 2)))).setAlpha(u < 0.6 ? 1 : (1 - u) / 0.4)); }
@@ -930,9 +942,9 @@ export class GamblerFx {
       return;
     }
     const pics = this.ctx.scene.textures.exists('gbk-c_coin_h'), cs = pics ? 26 / 420 : 0.5;
-    const coin = this.ctx.scene.add.image(h0.x, h0.y, pics ? 'gbk-c_coin_h' : 'gb-coin').setScale(cs).setDepth(TOP + 4);
+    const coin = this.onBody(this.ctx.scene.add.image(h0.x, h0.y, pics ? 'gbk-c_coin_h' : 'gb-coin').setScale(cs).setDepth(TOP + 4), r.attackerId);
     this.piece(coin, T.startup + 200, (u, o) => {
-      const c = this.ctx.hand(r.attackerId) ?? h0, fl = Math.cos(u * 30), end = u > 0.82;
+      const c = this.hand(r.attackerId) ?? h0, fl = Math.cos(u * 30), end = u > 0.82;
       if (pics) o.setTexture(end ? (heads ? 'gbk-c_coin_h' : 'gbk-c_coin_t') : fl > 0 ? 'gbk-c_coin_h' : 'gbk-c_coin_t');
       o.setPosition(c.x, c.y - Math.sin(u * Math.PI) * 150).setScale(cs, end ? cs : cs * (Math.abs(fl) * 0.95 + 0.05));
     });
@@ -1186,10 +1198,11 @@ export class GamblerFx {
   /** Ace in the Hole: the ace between two fingers, a glint gathering on it, the aim line flickering ahead, a snap. */
   private aceAim(r: CastRun): void {
     const T = r.timings, s = this.ctx.scene, side = sideOf(r);
-    const card = s.add.image(0, 0, this.acePic).setScale(this.u * 0.42).setDepth(TOP + 4);
+    const card = this.onBody(s.add.image(0, 0, this.acePic).setScale(this.u * 0.42).setDepth(TOP + 4), r.attackerId);
     const charge = this.kit('k_charge', 0, 0, 70, TOP + 3), line = s.add.graphics().setBlendMode(Phaser.BlendModes.ADD);
+    if (charge) this.onBody(charge, r.attackerId);
     this.add((t) => {
-      const h = this.ctx.hand(r.attackerId), c = this.ctx.casterPos(r.attackerId);
+      const h = this.hand(r.attackerId), c = this.ctx.casterPos(r.attackerId);
       if (t >= T.startup || !h || !c) { // the release: a sonic ring at his hand, a flash, the camera kicked
         card.destroy(); charge?.destroy(); this.piece(line, 120, (u, o) => o.setAlpha(1 - u));
         if (h) {
@@ -1200,7 +1213,7 @@ export class GamblerFx {
         return false;
       }
       const u = t / T.startup;
-      if (Math.random() < 0.5) { const a = rnd(0, Math.PI * 2), d = rnd(50, 90), m = this.glow(h.x + Math.cos(a) * d, h.y + Math.sin(a) * d, 16, FUCHSIA_2, TOP + 3); this.piece(m, 180, (uu, o) => o.setPosition(lerp(h.x + Math.cos(a) * d, h.x, out3(uu)), lerp(h.y + Math.sin(a) * d, h.y - 18, out3(uu))).setAlpha(1 - uu * 0.5)); }
+      if (Math.random() < 0.5) { const a = rnd(0, Math.PI * 2), d = rnd(50, 90), m = this.onBody(this.glow(h.x + Math.cos(a) * d, h.y + Math.sin(a) * d, 16, FUCHSIA_2, TOP + 3), r.attackerId); this.piece(m, 180, (uu, o) => o.setPosition(lerp(h.x + Math.cos(a) * d, h.x, out3(uu)), lerp(h.y + Math.sin(a) * d, h.y - 18, out3(uu))).setAlpha(1 - uu * 0.5)); }
       card.setPosition(h.x - side * 6, h.y - 18 - u * 6).setAngle(side * (-30 + u * 20) + Math.sin(t * 0.05) * 3);
       if (charge) charge.setPosition(card.x, card.y).setAngle(card.angle).setAlpha(0.4 + 0.6 * u).setScale((60 + 30 * u) / charge.width);
       line.clear().setDepth(c.y + 1); this.pin(line, h.x, c.y - c.z - 60);
@@ -1245,7 +1258,7 @@ export class GamblerFx {
       const x0 = im.x, y0 = im.y, delay = Math.min(i * 40, 120);
       im.setDepth(TOP + 3).setScale(this.u * 0.3);
       this.piece(im, 260, (u, o) => {
-        const h = this.ctx.hand(r.attackerId) ?? { x: x0, y: y0 }, q = out3(u);
+        const h = this.hand(r.attackerId) ?? { x: x0, y: y0 }, q = out3(u);
         o.setPosition(lerp(x0, h.x, q), lerp(y0, h.y, q) - Math.sin(q * Math.PI) * 60).setAngle(u * 720).setAlpha(u > 0.85 ? (1 - u) / 0.15 : 1);
       }, delay);
     });
@@ -1253,13 +1266,15 @@ export class GamblerFx {
   /** The gather's wind-up: the cards fuse into one big charged card in his hand — a glow that grows with the count. */
   private deckFuse(r: CastRun): void {
     const T = r.timings, s = this.ctx.scene, n = Math.max(0, (r.holdCount ?? 2) - 2);
-    const glow = this.glow(0, 0, 70 + n * 6, FUCHSIA, TOP + 4), card = s.add.image(0, 0, this.BK).setDepth(TOP + 5).setAlpha(0);
+    const glow = this.onBody(this.glow(0, 0, 70 + n * 6, FUCHSIA, TOP + 4), r.attackerId), card = this.onBody(s.add.image(0, 0, this.BK).setDepth(TOP + 5).setAlpha(0), r.attackerId);
     this.add((t) => {
-      const h = this.ctx.hand(r.attackerId);
+      const h = this.hand(r.attackerId);
       if (t >= T.startup || !h) { glow.destroy(); card.destroy(); return false; }
       const u = t / T.startup;
       glow.setPosition(h.x, h.y).setAlpha(0.25 + 0.5 * u).setScale(glow.scaleX);
-      card.setPosition(h.x, h.y - 6).setAlpha(clamp01((u - 0.4) / 0.3)).setScale(this.u * lerp(0.25, 0.5, out3(clamp01((u - 0.4) / 0.6)))).setAngle(Math.sin(t * 0.02) * 8);
+      // (held by its corner, out in front: in his hand now — his hand comes up by his face, and a card set on the hand hid it)
+      const side = sideOf(r);
+      card.setPosition(h.x + side * 20, h.y - 20).setAlpha(clamp01((u - 0.4) / 0.3)).setScale(this.u * lerp(0.25, 0.44, out3(clamp01((u - 0.4) / 0.6)))).setAngle(side * 14 + Math.sin(t * 0.02) * 6);
       return true;
     });
   }
@@ -1378,9 +1393,9 @@ export class GamblerFx {
     // wind-up: cards whirl in toward his hand
     this.add((t) => {
       if (t >= T.startup) return false;
-      const h = this.ctx.hand(r.attackerId); if (!h || Math.random() > 0.55) return true;
-      const a = rnd(0, Math.PI * 2), d = rnd(90, 160), im = s.add.image(h.x + Math.cos(a) * d, h.y + Math.sin(a) * d * 0.7, this.BK).setScale(this.u * 0.22).setDepth(TOP + 3);
-      this.piece(im, 200, (u, o) => { const hh = this.ctx.hand(r.attackerId) ?? h, aa = a + u * 2.5, dd = d * (1 - out3(u)); o.setPosition(hh.x + Math.cos(aa) * dd, hh.y + Math.sin(aa) * dd * 0.7).setAngle(u * 540).setAlpha(0.4 + 0.6 * u); });
+      const h = this.hand(r.attackerId); if (!h || Math.random() > 0.55) return true;
+      const a = rnd(0, Math.PI * 2), d = rnd(90, 160), im = this.onBody(s.add.image(h.x + Math.cos(a) * d, h.y + Math.sin(a) * d * 0.7, this.BK).setScale(this.u * 0.22).setDepth(TOP + 3), r.attackerId);
+      this.piece(im, 200, (u, o) => { const hh = this.hand(r.attackerId) ?? h, aa = a + u * 2.5, dd = d * (1 - out3(u)); o.setPosition(hh.x + Math.cos(aa) * dd, hh.y + Math.sin(aa) * dd * 0.7).setAngle(u * 540).setAlpha(0.4 + 0.6 * u); });
       return true;
     });
     const list: { im: Phaser.GameObjects.Image; wave: number; x: number; y: number }[] = [];
@@ -1447,13 +1462,13 @@ export class GamblerFx {
   /** Grand Slam's wind-up: energy pours into the staff over his shoulder — motes drawn in, arcs crackling, a swelling glow; dust at his feet. */
   private slamCharge(r: CastRun): void {
     const T = r.timings, s = this.ctx.scene, side = sideOf(r), o0 = this.me(r);
-    const glow = this.glow(0, 0, 120, FUCHSIA, 0), bat = s.add.graphics().setBlendMode(Phaser.BlendModes.ADD);
+    const glow = this.onBody(this.glow(0, 0, 120, FUCHSIA, 0), r.attackerId), bat = this.onBody(s.add.graphics().setBlendMode(Phaser.BlendModes.ADD), r.attackerId);
     this.ctx.dust(o0.x, o0.y, 80);
     this.add((t) => {
       const c = this.ctx.casterPos(r.attackerId);
       if (t >= T.startup || !c) { glow.destroy(); bat.destroy(); return false; }
       // the staff GROWS: a bat of light stretches out of his hands over his back shoulder, to twice his height
-      const u = t / T.startup, h = this.ctx.hand(r.attackerId) ?? { x: c.x + side * 10, y: c.y - c.z - 60 };
+      const u = t / T.startup, h = this.hand(r.attackerId) ?? { x: c.x + side * 10, y: c.y - c.z - 60 };
       const L = lerp(60, 200, out3(clamp01(u * 1.3))), ang = side > 0 ? -2.25 : -0.89, sx = h.x + Math.cos(ang) * L, sy = h.y + Math.sin(ang) * L;
       bat.clear().setDepth(c.y + 3); this.pin(bat, h.x, h.y);
       for (const [w, col, al] of [[22, FUCHSIA, 0.22], [11, FUCHSIA_2, 0.7], [4, 0xffffff, 1]] as [number, number, number][]) { bat.lineStyle(w * (0.7 + 0.3 * u), col, al); bat.lineBetween(h.x, h.y, sx, sy); }
@@ -1516,7 +1531,7 @@ export class GamblerFx {
   }
 
   private wildCard(r: CastRun): void {
-    const T = r.timings, h = this.ctx.hand(r.attackerId) ?? { x: r.origin.x, y: r.origin.y - 80 };
+    const T = r.timings, h = this.hand(r.attackerId) ?? { x: r.origin.x, y: r.origin.y - 80 };
     const j = this.card(h.x, h.y, { suit: 'S', rank: 0, joker: true }, 0.8, TOP + 5).setAlpha(0);
     this.piece(j, T.startup + 300, (u, o) => o.setAlpha(clamp01(u * 3)).setScale(lerp(0.4, 1, out3(clamp01(u * 2)))).setPosition(h.x, h.y - u * 30));
     this.pop(h.x, h.y, 90, 0xc9a8ff, 300, T.startup * 0.4);

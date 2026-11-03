@@ -58,7 +58,7 @@ import type { Monster } from '../world/Monster';
 import { AreaTitle, DialogChoice, NpcDialog } from '../ui/WorldUI';
 import { QuestState } from '../characters/CharacterTypes';
 import { PvpController } from '../pvp/PvpController';
-import { ARENA3D } from '../arena3d/flag';
+import { ARENA3D, ON_BODY } from '../arena3d/flag';
 import { HERO3D } from '../arena3d/hero3dFlag';
 import { portrait3d } from '../arena3d/heroArt3d';
 import type { Hero3D } from '../arena3d/Hero3D';
@@ -976,7 +976,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       const b3 = this.bodyShot3D(id); if (b3) return b3; // (a 3D body: its picture as it stands now)
       const sp = id === this.localId ? this.view?.sprite : id === BOT_ID ? this.bot?.view.sprite : this.pvp?.remotes.get(id)?.sprite;
       const dir = id === this.localId ? this.dir : id === BOT_ID ? this.bot?.view.dir : this.pvp?.remotes.get(id)?.dir;
-      return sp ? { key: sp.texture.key, frame: sp.frame.name, flipX: sp.flipX, ox: sp.originX, oy: sp.originY, sx: Math.abs(sp.scaleX), sy: Math.abs(sp.scaleY), a: sp.visible ? sp.alpha : 0, face: dir === 'left' ? -1 : 1 } : null;
+      return sp ? { key: sp.texture.key, frame: sp.frame.name, flipX: sp.flipX, ox: sp.originX, oy: sp.originY, sx: Math.abs(sp.scaleX), sy: Math.abs(sp.scaleY), a: sp.visible ? sp.alpha : 0, face: dir === 'left' ? -1 : 1, sprite: sp } : null;
     };
     this.fx.aliveOf = (id) => (id === this.localId ? this.dead < 0 : id === BOT_ID ? !!this.bot && !this.bot.defeated : this.pvp?.remotes.get(id)?.alive !== false);
     this.rt.events.on(RT_EVENTS.hit, (r: CastRun, i: number, o: V3) => { this.kageSwing(r, i, o); this.petals.cut(r, i, o); if (i === r.hits.length - 1) { const at = this.casterPos(r.attackerId) ?? o, nb = this.spikes.burst(r, at); if (nb) { this.arenaSnd?.stoneBurst(at, nb); this.time.delayedCall(110, () => this.spikeBurst(r, at, nb)); } } }); // (Leap Crash's landing bursts his spikes: a beat later the stone throws him up) // (Blossom Storm's cuts leave their petals)
@@ -2189,6 +2189,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const on = this.simMs >= this.radiantFrom && this.simMs < this.radiantUntil && this.dead < 0 && (this.hero3d ? !!line3 && this.hero3d.img.visible : this.view!.visible && !!pose.blade) && this.rt?.ownRun?.skill.id !== 'judgment_blade' && !this.jb; // V: no sword at all (until he lands)
     if (on && !this.beam) {
       this.beam = this.add.image(0, 0, 'radiant-blade', 0).setOrigin(17.6 / 256, 0.5).setBlendMode(Phaser.BlendModes.ADD);
+      ON_BODY.set(this.beam, () => (this.hero3d ? null : this.view?.sprite ?? null)); // (PVP 3D: the light blade drawn flat with the painted body, along its sword — it slid off the blade as the perspective bent)
       this.beamGlow = this.add.image(0, 0, 'radiant-blade', 0).setOrigin(17.6 / 256, 0.5).setBlendMode(Phaser.BlendModes.ADD).setTint(0xffd27a);
     }
     if (!this.beam || !this.beamGlow) return;

@@ -75,10 +75,22 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
   `fx3d/gambler.ts`). Filmed every frame in PVP 3D, the light still slid off the hand in a run (a fist ahead of it) and hung
   over his shoulder in a jump's fall: PVP 3D places each picture by its own point through the 3D camera (`Arena3D.apply`)
   but draws the painted body flat round its feet — each piece of the light now stands on his feet point and reaches the
-  cane by its origin, drawn flat with the body. **Every class chat:** an effect pinned to a point on the body (a hand, a
-  weapon) drifts the same way in PVP 3D when it is placed at that point — stand it on the feet point and offset it by its
-  origin (see `at()` in `GamblerFx.lightStaff`). **Gambler chat:** a new or re-shot gambler action needs its frames read
-  into `gambler_cane_light.json` (then run `cane_lines.py`).
+  cane by its origin, drawn flat with the body.
+- **The Gambler's hand effects in his hand (DFO, 3 Nov, same note):** every effect that sits in his hand — Charged Deal's
+  fan, the coin off his thumb, the ace, Call the Deck's big card and the cards homing into it, 52 Pickup's glow and its
+  whirling cards, Grand Slam's bat of light out of his hands, the double's coin, Showdown's fan — used one fixed point
+  beside his chest (`renderGambler`'s `lastHand`), wherever the hand was drawn: in the Charged Deal hold a second fan of
+  cards floated by his chest while the painted hand held its own up behind him; Showdown's fan of light hung where the hand
+  was at the cast (now it moves with the hand, held up out of it clear of his face); Call the Deck's big card is held by its
+  corner out in front (set on the hand, it hid his face). His free hand is now read per frame
+  (`tools/heroes/data/gambler_hand_marks.json` read by eye for those skills, the painted card fan found by colour in the
+  moves → `tools/heroes/hand_points.py` → `src/data/gambler-hand.json`, `GamblerFx.hand()`), and those pictures are
+  drawn flat with his body in PVP 3D. **The general tool (`ON_BODY`, `src/arena3d/flag.ts`):** a picture registered with
+  the body sprite it sits on is drawn by PVP 3D flat with that body (its feet point and scale), not by its own point —
+  the Warrior's Radiant Blade along his sword uses it too. **Every class chat:** a picture pinned to a hand or a weapon
+  drifts off it in PVP 3D (by the perspective, most at the screen's sides) unless registered there. **Gambler chat:** a
+  new or re-shot gambler action needs its frames read into `gambler_cane_light.json` / `gambler_hand_marks.json` (then
+  run `cane_lines.py` / `hand_points.py`).
 
 ### DFO (31 Oct, David 01:29) — THE REBUILD: the approved base character, MapleStory's method, end to end (`docs/REBUILD_PLAN.md`)
 - David approved the base character (`tools/base/gpt/v3/approved_base.jpg`, `approved_poses.jpg`) and asked DFO to run the whole rebuild end to end: base body art → head / faces / hair → movement feel → clothes → female base → progression (levels, job, skill points) → skills as choreographies + effects (aimed into the depth too) → MapleStory-like monsters → world flow. **Every chat: no work on hero bodies, the base character, skills or progression without reading the plan first; requests go to DFO here.**
