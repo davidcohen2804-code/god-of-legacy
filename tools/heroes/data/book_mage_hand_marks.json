@@ -1,0 +1,20 @@
+{
+  "bolt1-2": [135, 40],
+  "bolt1-3": [135, 40],
+  "bolt1-4": [142, 37],
+  "bolt2-1": [146, 46],
+  "bolt2-2": [158, 44],
+  "bolt2-3": [155, 45],
+  "bolt3-0": [72, 45],
+  "bolt3-1": [85, 42],
+  "bolt3-2": [146, 30],
+  "bolt3-3": [148, 30],
+  "lightning_chain-0": [104, 50],
+  "lightning_chain-1": [125, 46],
+  "lightning_chain-2": [118, 43],
+  "lightning_chain-3": [130, 42],
+  "arcane_wave-0": [103, 48],
+  "arcane_wave-1": [125, 40],
+  "arcane_wave-2": [108, 47],
+  "arcane_wave-3": [146, 33]
+}

@@ -91,6 +91,17 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
   drifts off it in PVP 3D (by the perspective, most at the screen's sides) unless registered there. **Gambler chat:** a
   new or re-shot gambler action needs its frames read into `gambler_cane_light.json` / `gambler_hand_marks.json` (then
   run `cane_lines.py` / `hand_points.py`).
+- **The other heroes' hand / bow effects (DFO, 3 Nov, same note):** the Archer's charge (the light gathering for Rising
+  Arrow, Fire Arrow, Piercing Arrow, Eagle Tide, Triple Arrow, Spirit Hawk, the roar, Leaping Arrow, Vine Lash) and its
+  release flash sat at one fixed point low beside her — now on her bow grip as each frame draws it
+  (`tools/heroes/data/archer_bow_marks.json` → `tools/heroes/body_points.py archer bow` → `src/data/archer-bow.json`,
+  `SkillFx.bodyPt` → `ArcherFx.bowAt`: the charge, the muzzle flash, the bow bursts, the charged arrow's aura; flat with her
+  body in PVP 3D through `Spr.on`). The Book Mage's hand (Arcane Bolt's three beats, Lightning Chain,
+  Arcane Wave) read the same way (`src/data/book_mage-hand.json`): the painted arena's light gathers in the drawn hand
+  (`MageFx.handAt`) and PVP 3D's star / seal at the book (`fx3d/book_mage.ts book()`) sit at it — they were 20–30 px
+  below and behind the raised hand. One registry for every hero's hand: `src/skills/BodyPoints.ts` (`HANDS`, `bodyHand`).
+  **Class chats:** to put an effect in your hero's hand, read the hand per frame for your skills into
+  `tools/heroes/data/<cls>_hand_marks.json`, run `body_points.py <cls> hand` and add it to `HANDS`.
 
 ### DFO (31 Oct, David 01:29) — THE REBUILD: the approved base character, MapleStory's method, end to end (`docs/REBUILD_PLAN.md`)
 - David approved the base character (`tools/base/gpt/v3/approved_base.jpg`, `approved_poses.jpg`) and asked DFO to run the whole rebuild end to end: base body art → head / faces / hair → movement feel → clothes → female base → progression (levels, job, skill points) → skills as choreographies + effects (aimed into the depth too) → MapleStory-like monsters → world flow. **Every chat: no work on hero bodies, the base character, skills or progression without reading the plan first; requests go to DFO here.**

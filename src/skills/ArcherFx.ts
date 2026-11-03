@@ -9,6 +9,7 @@ import { STORM, type CastRun, type Trap } from './SkillRuntime';
 import type { FinalSkill, HitEvent } from './SkillTypes';
 import type { Projectile, V3 } from './HitGeometry';
 import { clearLine } from '../world/WorldGeometry';
+import { ON_BODY } from '../arena3d/flag';
 
 export const ARCHER_KIT = 'archer-kit';
 export const ARCHER_KIT_URL = 'assets/final/skills/archer/kit/';
@@ -35,7 +36,9 @@ export interface ArcherCtx {
   ultimateStage(r: CastRun): void;
   targetPos?(id: string): V3 | null;
   /** Her body as drawn now (the Backstep decoy). */
-  body?(id: string): { key: string; frame: string | number; flipX: boolean; ox: number; oy: number; sx: number; sy: number } | null;
+  body?(id: string): { key: string; frame: string | number; flipX: boolean; ox: number; oy: number; sx: number; sy: number; /** her painted picture (ON_BODY) */ sprite?: object } | null;
+  /** Her bow grip as drawn now (src/data/archer-bow.json, read per frame), null when this frame was not read. */
+  bow?(id: string): { x: number; y: number } | null;
 }
 
 type Ease = (u: number) => number;
@@ -62,6 +65,8 @@ interface Spr {
   follow?: () => Pt | null; dz?: number;
   run?: CastRun;
   alive?: () => boolean;
+  /** sits on this fighter's body (her bow): PVP 3D draws it flat with the painted body (ON_BODY) */
+  on?: string;
 }
 interface Live { t: number; step(dt: number, t: number): boolean }
 interface Arrow { im: Phaser.GameObjects.Image; tr: Phaser.GameObjects.Image | null; t: number; kind: string; z0: number; whip?: Phaser.GameObjects.Image; storm?: boolean }
@@ -105,6 +110,12 @@ export class ArcherFx {
   private at(id: string, side: number, dx: number, dz: number): () => Pt | null {
     return () => { const c = this.ctx.casterPos(id); return c ? { x: c.x + side * dx, y: c.y - c.z - dz, d: c.y } : null; };
   }
+  /** Her bow grip as drawn now (where the arrow rests — read per frame: David 3 Nov 01:27, the effects in the hand "under the
+   *  palm, in every move"; they sat at one point low beside her, behind the bow when she raised it), else a point at her. */
+  private bowAt(id: string, side: number, dx: number, dz: number): () => Pt | null {
+    const at = this.at(id, side, dx, dz);
+    return () => { const b = this.ctx.bow?.(id), c = this.ctx.casterPos(id); return b && c ? { x: b.x, y: b.y, d: c.y } : at(); };
+  }
   private shake(r: CastRun | null, ms: number, k: number): void { if (!r || r.own) this.ctx.cam().shake(ms, k); }
 
   private spr(o: Spr): Phaser.GameObjects.Image | null {
@@ -121,6 +132,7 @@ export class ArcherFx {
     };
     const glowA = o.glow !== undefined ? Math.min(o.glow, 0.3) : o.add ? 0.22 : 0;
     const im = mk(false), gl = glowA ? mk(true) : null;
+    if (o.on) { const id = o.on, on = () => this.ctx.body?.(id)?.sprite ?? null; ON_BODY.set(im, on); if (gl) ON_BODY.set(gl, on); }
     let shown = false;
     this.add({ t: 0, step: (_dt, t) => {
       const e = t - (o.delay ?? 0);
@@ -227,10 +239,10 @@ export class ArcherFx {
   /** The bow's flash at the hand (the arrows come out of it). */
   private muzzle(r: CastRun, size: number, delay = 0, tint?: number): void {
     const side = sideOf(r), lv = level(r.aim.x, r.aim.y);
-    this.spr({ name: 'muzzle', w: size, life: 200, delay, tint, follow: this.at(r.attackerId, side, 14, 54), dz: 4, ox: lv.flip ? 0.85 : 0.15, flipX: lv.flip, angle: lv.ang, add: true, glow: 0.4, run: r,
+    this.spr({ name: 'muzzle', w: size, life: 200, delay, tint, follow: this.bowAt(r.attackerId, side, 14, 54), on: r.attackerId, dz: 4, ox: lv.flip ? 0.85 : 0.15, flipX: lv.flip, angle: lv.ang, add: true, glow: 0.4, run: r,
       sx: kf([0, 0.4], [0.25, 1.1, out3], [1, 1.2]), sy: kf([0, 0.6], [0.25, 1, out3], [1, 0.6]), a: kf([0, 1], [0.5, 1], [1, 0, inQ]) });
     // the release's star at the bow (David's bar: a white-hot core for 2–4 frames)
-    this.spr({ name: 'spark_s', w: size * 0.42, life: 90, delay, follow: this.at(r.attackerId, side, 18, 54), dz: 5, add: true, glow: 0.3, run: r, rot: (u) => u * 40, sx: kf([0, 0.5], [0.3, 1.15, out3], [1, 0.8]), sy: kf([0, 0.5], [0.3, 1.15, out3], [1, 0.8]), a: kf([0, 1], [0.6, 1], [1, 0]) });
+    this.spr({ name: 'spark_s', w: size * 0.42, life: 90, delay, follow: this.bowAt(r.attackerId, side, 18, 54), on: r.attackerId, dz: 5, add: true, glow: 0.3, run: r, rot: (u) => u * 40, sx: kf([0, 0.5], [0.3, 1.15, out3], [1, 0.8]), sy: kf([0, 0.5], [0.3, 1.15, out3], [1, 0.8]), a: kf([0, 1], [0.6, 1], [1, 0]) });
   }
   /** A heavy release at the bow (painted footage, ARCHER_FLIPS 'afx-release'): a cone of wind and leaves blasting out along the aim. */
   private release(r: CastRun, w: number, delay = 0, ms = 280): void { this.releaseOf(r.attackerId, r.aim.x, r.aim.y, w, delay, ms, r); }
@@ -242,13 +254,13 @@ export class ArcherFx {
   /** A painted burst at the bow along the aim (fan of light, sonic boom). */
   private bowBurst(r: CastRun, name: string, size: number, delay = 0, life = 260, tint?: number): void {
     const side = sideOf(r), lv = level(r.aim.x, r.aim.y);
-    this.spr({ name, w: size, life, delay, tint, follow: this.at(r.attackerId, side, 16, 54), dz: 4, ox: lv.flip ? 0.88 : 0.12, flipX: lv.flip, angle: lv.ang, add: true, glow: 0.3, run: r,
+    this.spr({ name, w: size, life, delay, tint, follow: this.bowAt(r.attackerId, side, 16, 54), on: r.attackerId, dz: 4, ox: lv.flip ? 0.88 : 0.12, flipX: lv.flip, angle: lv.ang, add: true, glow: 0.3, run: r,
       sx: kf([0, 0.4], [0.3, 1.05, out3], [1, 1.2]), sy: kf([0, 0.6], [0.3, 1, out3]), a: kf([0, 1], [0.5, 0.9], [1, 0, inQ]) });
   }
   /** Light gathering at the bow during a wind-up. */
   private charge(r: CastRun, name: string, size: number, ms: number, o: { tint?: number; spin?: number; dx?: number } = {}): void {
     const side = sideOf(r);
-    this.spr({ name, w: size, life: ms, follow: this.at(r.attackerId, side, o.dx ?? 30, 58), dz: 5, add: true, glow: 0.5, tint: o.tint, run: r,
+    this.spr({ name, w: size, life: ms, follow: this.bowAt(r.attackerId, side, o.dx ?? 30, 58), on: r.attackerId, dz: 5, add: true, glow: 0.5, tint: o.tint, run: r,
       sx: kf([0, 0.15], [0.85, 1, out], [1, 1.25]), sy: kf([0, 0.15], [0.85, 1, out], [1, 1.25]), a: kf([0, 0], [0.15, 0.9], [0.9, 1], [1, 0]), rot: (u) => (o.spin ?? 200) * u });
   }
 
@@ -261,7 +273,7 @@ export class ArcherFx {
       case 'quick_shot':
         if (r.stage === 1) { // the charged arrow: light gathers on the bow, then a heavy snap and a boom along the aim
           this.heavyShots.add(r.castId); this.later(2000, () => this.heavyShots.delete(r.castId));
-          this.spr({ name: 'aura_green', w: 70, life: T.startup, follow: this.at(r.attackerId, side, 14, 54), dz: 4, add: true, glow: 0.5, run: r, sx: kf([0, 0.3], [1, 1.1, out3]), sy: kf([0, 0.3], [1, 1.1, out3]), a: kf([0, 0], [0.3, 0.9], [1, 1]) });
+          this.spr({ name: 'aura_green', w: 70, life: T.startup, follow: this.bowAt(r.attackerId, side, 14, 54), on: r.attackerId, dz: 4, add: true, glow: 0.5, run: r, sx: kf([0, 0.3], [1, 1.1, out3]), sy: kf([0, 0.3], [1, 1.1, out3]), a: kf([0, 0], [0.3, 0.9], [1, 1]) });
           this.muzzle(r, 110, T.startup); if (this.ctx.scene.textures.exists('afx-release')) this.release(r, 230, T.startup); else this.bowBurst(r, 'sonic_boom', 120, T.startup, 300); // (painted footage: the charged arrow tears out in a cone of wind and leaves)
         } else this.muzzle(r, 70, T.startup);
         break;

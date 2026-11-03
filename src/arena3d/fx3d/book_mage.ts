@@ -12,6 +12,7 @@ import type { CastRun } from '../../skills/SkillRuntime';
 import { me, side, placeOf } from './kit';
 import { star, seal, funnel, frost, cloud, shell, chains, hole, crane, rider, ribbon, stillBolt, surge } from './pieces';
 import { hitIndex } from '../../skills/FinalKit';
+import { bodyHand } from '../../skills/BodyPoints';
 
 /** The palette (the hero's card): astral cyan and star gold; the chapters' own lights. */
 export const MAGE = { astral: 0x3f9dff, gold: 0xffc75a, deep: 0x2f5fe0, frost: 0x8fe0ff, ice: 0xd6f4ff, storm: 0x8fb2ff, volt: 0xb7a2ff, paper: 0xf6eedc };
@@ -19,8 +20,9 @@ const { astral: A, gold: GOLD, frost: FROST, ice: ICE, storm: STORM, volt: VOLT,
 /** The deep blue of the night sky his starlight shines out of (the painted body of his columns and funnels). */
 const NIGHT = 0x0c2257, STORMDARK = 0x1c1838, ICEDARK = 0x15384f;
 const rnd = (a: number, b: number): number => a + Math.random() * (b - a);
-/** His book (the hand that holds it), world px. */
-const book = (f: Fx3D, r: CastRun): V3 => { const c = me(f, r); return { x: c.x + side(r) * 30, y: c.y, z: c.z + 76 }; };
+/** His book (the hand that holds it), world px: the hand as each frame draws it (BodyPoints, David 3 Nov 01:27 — "under the
+ *  palm, in every move"; it was one fixed point 30 ahead, 76 up, below and behind the raised hand), else that point. */
+const book = (f: Fx3D, r: CastRun): V3 => { const h = bodyHand.of?.(r.attackerId); if (h) return h; const c = me(f, r); return { x: c.x + side(r) * 30, y: c.y, z: c.z + 76 }; };
 const T = (r: CastRun) => r.timings;
 
 // a cast's own state kept between its events (its cloud's flash, its tornado), by cast id

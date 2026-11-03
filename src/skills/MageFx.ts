@@ -149,6 +149,12 @@ export class MageFx {
   private at(id: string, side: number, dx: number, dz: number): () => Pt | null {
     return () => { const c = this.ctx.casterPos(id); return c ? { x: c.x + side * dx, y: c.y - c.z - dz, d: c.y } : null; };
   }
+  /** His hand as drawn now (read per frame: src/data/book_mage-hand.json — David 3 Nov 01:27, "under the palm, in every
+   *  move"), else a point at him (dx forward, dz up). */
+  private handAt(id: string, side: number, dx: number, dz: number): () => Pt | null {
+    const at = this.at(id, side, dx, dz);
+    return () => { const h = this.ctx.hand(id), c = this.ctx.casterPos(id); return h && c ? { x: h.x, y: h.y, d: c.y } : at(); };
+  }
 
   private spr(o: Spr): Phaser.GameObjects.Image | null {
     const s = this.ctx.scene;
@@ -459,7 +465,7 @@ export class MageFx {
   cast(r: CastRun): void {
     if (!this.ready) return;
     if (this.room) { if (r.skill.slot === 7) this.ctx.ultimateStage(r); return; } // (PVP 3D: the room draws it — the ultimate's portrait still crosses the screen)
-    const s = r.skill, T = r.timings, me = this.me(r), side = sideOf(r), hand = this.at(r.attackerId, side, 22, 70);
+    const s = r.skill, T = r.timings, me = this.me(r), side = sideOf(r), hand = this.handAt(r.attackerId, side, 22, 70);
     const own = !['page_bind', 'astral_burst', 'frost_nova', 'lightning_chain', 'blink', 'chrono_haste', 'chrono_sigil', 'arcane_ward', 'elemental_ascension', 'levity_field', 'arcane_gate', 'binding_rune', 'storm_field', 'time_collapse'].includes(s.id) && !(s.slot === 0 && r.stage !== 2); // (skills with ground art of their own: no circle under it)
     if (own && s.slot === 7) this.circle(me.x, this.floorY(me.x, me.y, me.z), s.slot === 7 ? 420 : s.slot === 0 ? 200 : 260, MageFx.EL[s.id] ?? 0, T.startup + T.active + 260, { run: r, draw: Math.max(120, T.startup), ult: s.slot === 7 }); // only the ultimate writes its circle under her: the same circle under every spell made them all read alike (David: cluttered, nothing unique)
     switch (s.id) {

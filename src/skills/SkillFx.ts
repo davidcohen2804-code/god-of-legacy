@@ -10,7 +10,9 @@ import { Projectile, V2, V3, circleCentre } from './HitGeometry';
 import { FINAL_SKILLS, hitIndex, lastOfBurst } from './FinalKit';
 import DIGITS from '../data/damage-digits.json';
 import { SamuraiFx, KIT, KIT_URL } from './SamuraiFx';
-import { ARENA3D } from '../arena3d/flag';
+import { ARENA3D, ON_BODY } from '../arena3d/flag';
+import ARCHER_BOW from '../data/archer-bow.json';
+import { HANDS, bodyHand } from './BodyPoints';
 import { MageFx, MAGE_KIT, MAGE_KIT_URL, MAGE_SHEETS } from './MageFx';
 import { ArcherFx, ARCHER_KIT, ARCHER_KIT_URL, ARCHER_FLIPS } from './ArcherFx';
 import { SKILL_BLOCKERS, WORLD_OBJECTS, clearLine } from '../world/WorldGeometry';
@@ -321,9 +323,10 @@ export class SkillFx {
     this.arch = new ArcherFx({
       scene, casterPos: (id) => this.casterPos(id), cam: () => this.cam ?? this.scene.cameras.main,
       punch: (a, ms) => this.punch(a, ms), ultimateStage: (r) => this.ultimateStage(r), targetPos: (id) => this.targetPos?.(id) ?? null, body: (id) => this.bodyOf?.(id) ?? null,
+      bow: (id) => this.bodyPt(id, ARCHER_BOW), // (her bow grip as drawn: the charge gathers and the release flashes there)
     });
     this.mage = new MageFx({
-      scene, casterPos: (id) => this.casterPos(id), cam: () => this.cam ?? this.scene.cameras.main, hand: (id) => this.handPos?.(id) ?? null,
+      scene, casterPos: (id) => this.casterPos(id), cam: () => this.cam ?? this.scene.cameras.main, hand: (id) => this.handOf(id), // (his hand as drawn: the bolt gathers in it)
       punch: (a, ms) => this.punch(a, ms), darken: (ms, a) => this.darken(ms, a), ultimateStage: (r) => this.ultimateStage(r), targetPos: (id) => this.targetPos?.(id) ?? null,
       shake: (ms, i) => (this.cam ?? this.scene.cameras.main).shake(ms, i), hitStop: (ms) => { this.hitStopLeft = Math.max(this.hitStopLeft, ms); }, flash: (c, a, ms) => this.screenFlash(c, a, ms),
     });
@@ -335,6 +338,10 @@ export class SkillFx {
       freeze: (ms) => { this.hitStopLeft = Math.max(this.hitStopLeft, ms); }, flash: (c, a, ms) => this.screenFlash(c, a, ms),
       body: (id) => this.bodyOf?.(id) ?? null, // (Light Staff: the cane's line in his current frame)
     });
+    bodyHand.of = (id) => { // (PVP 3D's pieces at the hand: the hand read on the painted body, in the world)
+      const b = this.bodyOf?.(id), t = b ? HANDS[b.key] : undefined, h = t ? this.bodyPt(id, t as Record<string, number[]>) : null, c = h ? this.casterPos(id) : null;
+      return h && c ? { x: h.x, y: c.y, z: c.y - h.y } : null;
+    };
     rt.events.on(RT_EVENTS.cast, (r: CastRun) => this.onCast(r));
     rt.events.on(RT_EVENTS.active, (r: CastRun) => this.onActive(r));
     rt.events.on(RT_EVENTS.hit, (r: CastRun, i: number, o: V3) => this.onHitFired(r, i, o));
@@ -1795,19 +1802,40 @@ export class SkillFx {
   }
 
   /** Light gathering at the bow during the wind-up, then the release flash (+ shake for heavy shots). */
+  /** A point read per frame on a hero's painted body (src/data/<cls>-<what>.json, frame px from its feet) where it is drawn now —
+   *  the picture's place, mirror, scale and turn (a flip, a lean); null when this frame was not read. (David 3 Nov 01:27: the
+   *  effects that sit on the hand "under the palm, in every move".) */
+  private bodyPt(id: string, table: Record<string, number[]>): { x: number; y: number } | null {
+    const b = this.bodyOf?.(id), sp = b?.sprite as Phaser.GameObjects.Sprite | undefined, p = b ? table[String(b.frame)] : undefined;
+    if (!b || !sp || !p) return null;
+    const q = sp.getWorldTransformMatrix().transformPoint(p[0] * (b.flipX ? -1 : 1), p[1]);
+    return { x: q.x, y: q.y };
+  }
+  /** A fighter's hand as drawn now (its hero's hand read per frame — BodyPoints.HANDS), else the scene's point for it. */
+  private handOf(id: string): { x: number; y: number } | null {
+    const b = this.bodyOf?.(id), t = b ? HANDS[b.key] : undefined;
+    return (t ? this.bodyPt(id, t as Record<string, number[]>) : null) ?? this.handPos?.(id) ?? null;
+  }
+  /** A picture that sits on a fighter's body: PVP 3D draws it flat with the painted body (ON_BODY), not by its own point. */
+  private onBody<T extends object>(o: T, id: string): T { ON_BODY.set(o, () => this.bodyOf?.(id)?.sprite ?? null); return o; }
+
   private archerCharge(r: CastRun): void {
     const [size, tint, shake] = CHARGE[r.skill.id], T = r.timings, a = r.aim;
-    const bow = () => { const c = this.casterPos(r.attackerId); return c ? { x: c.x + a.x * 30, y: c.y - c.z - 56 + a.y * 14 } : null; };
+    // (on her bow grip, where the arrow rests, as each frame draws it — src/data/archer-bow.json; it gathered at one point low
+    // beside her, behind the bow when she raised it)
+    const bow = () => { const c = this.casterPos(r.attackerId); return c ? this.bodyPt(r.attackerId, ARCHER_BOW) ?? { x: c.x + a.x * 30, y: c.y - c.z - 56 + a.y * 14 } : null; };
     const p0 = bow(); if (!p0) return;
     const painted = this.scene.textures.exists('afx-charge');
     const glow = this.scene.add.image(p0.x, p0.y, painted ? 'afx-charge' : 'arch-glow', 0).setBlendMode(painted ? Phaser.BlendModes.NORMAL : Phaser.BlendModes.ADD).setDisplaySize(8, 8).setDepth(TOP + 1).setAlpha(0.95);
     if (!painted) glow.setTint(tint);
     const core = this.scene.add.image(p0.x, p0.y, 'arch-glow').setBlendMode(Phaser.BlendModes.ADD).setDisplaySize(4, 4).setDepth(TOP + 2);
+    this.onBody(glow, r.attackerId); this.onBody(core, r.attackerId);
     const em = this.scene.add.particles(0, 0, 'arch-glow', { // motes sucked into the bow
       emitZone: { type: 'random', source: new Phaser.Geom.Circle(0, 0, size * 0.9), quantity: 1 } as never,
       moveToX: 0, moveToY: 0, lifespan: Math.max(140, Math.min(380, T.startup * 0.8)), scale: { start: 0.14, end: 0.04 }, alpha: { start: 0, end: 1 },
       tint: [tint, 0xffffff], blendMode: 'ADD', frequency: 14, quantity: 2,
     }).setDepth(TOP + 1);
+    this.onBody(em, r.attackerId);
     const t0 = this.scene.time.now, ev = this.scene.time.addEvent({ delay: 16, loop: true, callback: () => {
       const q = bow(), k = Math.min(1, (this.scene.time.now - t0) / Math.max(1, T.startup));
       if (!q || r.phase === 'done' || k >= 1) {
@@ -1826,11 +1854,11 @@ export class SkillFx {
   /** Release: a white-hot burst at the bow, a ring of light along the aim, a short shake. */
   private bowFlash(r: CastRun, power: number, tint = ARROW_TINT[r.skill.id] ?? 0x7ee35a, shake = 0): void {
     const c = this.casterPos(r.attackerId); if (!c) return;
-    const side = r.aim.x < -0.01 ? -1 : 1, x = c.x + r.aim.x * 38, y = c.y - c.z - 56 + r.aim.y * 14;
+    const g = this.bodyPt(r.attackerId, ARCHER_BOW), side = r.aim.x < -0.01 ? -1 : 1, x = g?.x ?? c.x + r.aim.x * 38, y = g?.y ?? c.y - c.z - 56 + r.aim.y * 14; // (at her bow grip as drawn)
     if (r.skill.id === 'multi_shot') { /* the three arrows come out of the muzzle flash on their own */ }
     else if (r.skill.id !== 'arrow_storm' && r.hits.some((h) => h.shape.kind === 'projectile')) this.floorFx('afx-fan', c.x + r.aim.x * 20, c.y + r.aim.y * 20, r.aim, 200 + 160 * Math.min(1.5, power), [30, 35, 45, 60, 70, 80, 90, 110], { ox: 40 / 512 });
     if (this.scene.textures.exists('afx-muzzle')) { const lv = level(r.aim.x, r.aim.y), m = r.skill.id === 'multi_shot' ? 110 : 90 + 60 * power; this.play('afx-muzzle', x, y, m, m, [30, 35, 40, 45, 50, 55, 60, 70], { ox: lv.flip ? 0.86 : 0.14, flip: lv.flip, depth: TOP + 3 })?.setAngle(lv.ang); }
-    const f = this.scene.add.image(x, y, 'arch-glow').setBlendMode(Phaser.BlendModes.ADD).setDepth(TOP + 3).setDisplaySize(40 * power, 40 * power);
+    const f = this.onBody(this.scene.add.image(x, y, 'arch-glow').setBlendMode(Phaser.BlendModes.ADD).setDepth(TOP + 3).setDisplaySize(40 * power, 40 * power), r.attackerId);
     this.scene.tweens.add({ targets: f, scale: f.scale * 1.8, alpha: 0, duration: 160, ease: 'Quad.easeOut', onComplete: () => f.destroy() });
     void side; void tint;
     if (shake > 0 && r.own) (this.cam ?? this.scene.cameras.main).shake(110, shake);
