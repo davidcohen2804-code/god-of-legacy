@@ -59,6 +59,10 @@ const lerp = (a: number, b: number, u: number) => a + (b - a) * u;
 const clamp01 = (u: number) => Math.max(0, Math.min(1, u));
 const out3 = (u: number) => 1 - Math.pow(1 - u, 3);
 
+/** Each lit cane's lit shaft as drawn this moment (Light Staff): from just under his palm (0) to the cane's far end (1), world
+ *  px (x, height z; y his depth), and when (the page's clock) — PVP 3D's motes rise off it (arena3d/fx3d/gambler.ts). */
+export const CANE_LIGHT = new Map<string, { x0: number; z0: number; x1: number; z1: number; y: number; at: number }>();
+
 export class GamblerFx {
   private live: Step[] = [];
   private incoming: Step[] = [];
@@ -1304,47 +1308,58 @@ export class GamblerFx {
     const y = at.y - at.z - 60;
     this.pop(at.x, y, 110, this.fc(FUCHSIA), 260); this.shards(at.x, y, 6, 110, 380); this.ctx.cam().shake(140, 0.008); this.ctx.freeze(70);
   }
-  /** Light Staff (David 18 Oct 18:40: "a huge light on the fighting staff, matching all his movements"): for its 8 s a thick
-   *  violet glow lies along the cane itself in every frame of every move, and a blade of light runs on out of its tip — drawn
-   *  from the cane's line in the body's current atlas frame (src/data/gambler-cane.json, marked per frame). */
+  /** Light Staff (David 18 Oct 18:40: "a huge light on the fighting staff, matching all his movements"): for its time a thick
+   *  violet glow lies along the cane itself in every frame of every move, and a blade of light runs on out of its far end —
+   *  drawn from the lit part of the cane in the body's current atlas frame (src/data/gambler-cane.json, read per frame): from
+   *  just under the hand that holds it to its far end, the hand itself left clean (David 3 Nov 01:27: "under the palm, in
+   *  every move" — it lay over the hand and the cane above it). */
   private lightStaff(r: CastRun): void {
     const s = this.ctx.scene, id = r.attackerId, T = r.timings, C = CANE as Record<string, number[] | null>;
     // (David 18 Oct 23:01: it lasts as long as the lit cane does — the scene's lightStaffOn, whatever its length — else 8 s)
     const on = (s as unknown as { lightStaffOn?: (id: string) => boolean }).lightStaffOn?.bind(s);
     let end = on ? Infinity : T.startup + 8000;
-    if (!s.textures.exists('gb-beam')) { // a beam: full along its length (soft at both ends), a soft falloff across it
-      const cv = s.textures.createCanvas('gb-beam', 128, 32)!, g = cv.getContext();
-      for (let x = 0; x < 128; x++) { const ex = Math.min(1, x / 10, (127 - x) / 10); const gr = g.createLinearGradient(0, 0, 0, 32); gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.5, `rgba(255,255,255,${ex})`); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(x, 0, 1, 32); }
+    const beam = (key: string, fadeIn: number) => { // a beam: full along its length (soft at both ends), a soft falloff across it
+      if (s.textures.exists(key)) return;
+      const cv = s.textures.createCanvas(key, 128, 32)!, g = cv.getContext();
+      for (let x = 0; x < 128; x++) { const ex = Math.min(1, x / fadeIn, (127 - x) / 10); const gr = g.createLinearGradient(0, 0, 0, 32); gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.5, `rgba(255,255,255,${ex})`); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(x, 0, 1, 32); }
       cv.refresh();
-    }
-    const mk = (tint: number, a: number) => s.add.image(0, 0, 'gb-beam').setBlendMode(Phaser.BlendModes.ADD).setTint(tint).setAlpha(0).setOrigin(0, 0.5);
-    const halo = mk(0x7a5cff, 0.55), core = mk(0xe8e0ff, 0.95), blade = mk(0x9a8cff, 0.8), bladeCore = mk(0xffffff, 0.9);
+    };
+    beam('gb-beam', 10); beam('gb-beam-in', 44); // (the halo's glow comes on gently out of the palm: no edge of light under the hand)
+    const mk = (tint: number, a: number, key = 'gb-beam') => s.add.image(0, 0, key).setBlendMode(Phaser.BlendModes.ADD).setTint(tint).setAlpha(0).setOrigin(0, 0.5);
+    const halo = mk(0x7a5cff, 0.55, 'gb-beam-in'), core = mk(0xe8e0ff, 0.95), blade = mk(0x9a8cff, 0.8), bladeCore = mk(0xffffff, 0.9);
     // (David 18 Oct 23:01: thicker — it should hide the cane under it) a solid layer of pale violet light over the shaft (not added light: it covers the dark wood)
     const cover = s.add.image(0, 0, 'gb-beam').setTint(0xc9bcff).setAlpha(0).setOrigin(0, 0.5);
     const tipStar = s.add.image(0, 0, 'gb-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xd8d0ff).setAlpha(0);
     const all = [halo, cover, core, blade, bladeCore, tipStar];
-    let last: number[] | null = null;
+    let last: number[] | null = null, seen = 0, prevT = 0;
     this.add((t) => {
       if (on && end === Infinity && t > T.startup + 200 && !on(id)) end = t + 400; // (the lit cane is over: fade out)
-      const c = this.ctx.casterPos(id), b = this.ctx.body?.(id);
-      if (t > end || !c || !b) { all.forEach((o) => this.piece(o, 180, (u, im) => im.setAlpha(im.alpha * (1 - u)))); return false; }
+      const c = this.ctx.casterPos(id), b = this.ctx.body?.(id), dt = Math.max(0, t - prevT); prevT = t;
+      if (t > end || !c || !b) { CANE_LIGHT.delete(id); all.forEach((o) => this.piece(o, 180, (u, im) => im.setAlpha(im.alpha * (1 - u)))); return false; }
       const grow = clamp01((t - T.startup * 0.4) / (T.startup * 0.8)), fade = clamp01((end - t) / 400);
-      const line = b.line ?? C[String(b.frame)] ?? last; if (!b.line && C[String(b.frame)]) last = C[String(b.frame)]!; // (a 3D body: its own cane's line)
-      if (!line || (b.a ?? 1) < 0.1) { all.forEach((o) => o.setVisible(false)); return true; }
+      // (a frame read with the cane out of sight — null — puts the light out: a quick dim, not a blink, when the cane swings
+      // behind him for a frame; a picture not in the atlas keeps the last frame's; a 3D body: its own cane's line)
+      const key = String(b.frame), read = key in C, cur = b.line ?? (read ? C[key] : last); if (cur) last = cur;
+      const lit = !!cur && (b.a ?? 1) >= 0.1; seen = lit ? Math.min(1, seen + dt / 70) : Math.max(0, seen - dt / 90);
+      const line = cur ?? last; if (!lit) CANE_LIGHT.delete(id);
+      if (!line || seen <= 0) { all.forEach((o) => o.setVisible(false)); return true; }
       const f = b.flipX ? -1 : 1, k = b.sx, fx = c.x, fy = c.y - c.z;
-      const hx = fx + line[0] * k * f, hy = fy + line[1] * k, tx = fx + line[2] * k * f, ty = fy + line[3] * k;
-      const L = Math.hypot(tx - hx, ty - hy), ang = Math.atan2(ty - hy, tx - hx) * 57.2958, d = c.y + 3, pulse = 0.85 + 0.15 * Math.sin(t * 0.012);
-      const gw = 128, gh = 32, A = grow * fade;
-      const ex = L * 0.06; // (a little past both ends of the shaft)
-      halo.setVisible(true).setPosition(hx - (tx - hx) / (L || 1) * ex, hy - (ty - hy) / (L || 1) * ex).setAngle(ang).setScale((L + ex * 2) / gw, 58 / gh).setDepth(d).setAlpha(0.6 * A * pulse);
-      cover.setVisible(true).setPosition(hx - (tx - hx) / (L || 1) * ex, hy - (ty - hy) / (L || 1) * ex).setAngle(ang).setScale((L + ex * 2) / gw, 26 / gh).setDepth(d + 0.005).setAlpha(0.92 * A);
+      const hx = fx + line[0] * k * f, hy = fy + line[1] * k, tx = fx + line[2] * k * f, ty = fy + line[3] * k; // (h: just under his palm, t: the cane's far end)
+      if (lit) CANE_LIGHT.set(id, { x0: hx, z0: c.z - line[1] * k, x1: tx, z1: c.z - line[3] * k, y: c.y, at: performance.now() });
+      const L = Math.max(1, Math.hypot(tx - hx, ty - hy)), ux = (tx - hx) / L, uy = (ty - hy) / L, ang = Math.atan2(uy, ux) * 57.2958, d = c.y + 3, pulse = 0.85 + 0.15 * Math.sin(t * 0.012);
+      const gw = 128, gh = 32, A = grow * fade * seen;
+      const ex = L * 0.06; // (a little past the far end; nothing before the start — the hand stays clean)
+      halo.setVisible(true).setPosition(hx, hy).setAngle(ang).setScale((L + ex) / gw, 58 / gh).setDepth(d).setAlpha(0.6 * A * pulse);
+      cover.setVisible(true).setPosition(hx, hy).setAngle(ang).setScale((L + ex) / gw, 26 / gh).setDepth(d + 0.005).setAlpha(0.92 * A);
       core.setVisible(true).setPosition(hx, hy).setAngle(ang).setScale(L / gw, 20 / gh).setDepth(d + 0.01).setAlpha(0.95 * A);
-      const dy = (ty - hy) / (L || 1), room = dy > 0.05 ? Math.max(8, (fy + 4 - ty) / dy) : Infinity; // (pointing down: the blade stops at the floor, never through it)
-      const BL = Math.min(L * 1.15, room) * grow; // the blade of light out of its tip, longer than the cane
-      blade.setVisible(true).setPosition(tx, ty).setAngle(ang).setScale(BL / gw, 36 / gh).setDepth(d + 0.01).setAlpha(0.8 * A * pulse);
-      bladeCore.setVisible(true).setPosition(tx, ty).setAngle(ang).setScale((BL * 0.9) / gw, 13 / gh).setDepth(d + 0.02).setAlpha(0.95 * A);
-      tipStar.setVisible(true).setPosition(tx, ty).setDisplaySize(48 + 10 * Math.sin(t * 0.02), 48 + 10 * Math.sin(t * 0.02)).setDepth(d + 0.02).setAlpha(0.9 * A);
-      if (Math.random() < 0.25 * A) { const q = Math.random(); this.pop(hx + (tx - hx + (tx - hx) * 1.1 * Math.random()) * q, hy + (ty - hy) * q * 1.6, 14, 0xb4a6ff, 220, 0, d + 0.03); }
+      const room = uy > 0.05 ? Math.max(8, (fy + 4 - ty) / uy) : Infinity; // (pointing down: the blade stops at the floor, never through it)
+      const BL = Math.min(line.length > 4 ? line[4] * k : L * 1.15, room) * grow; // the blade of light out of its far end, longer than the cane (0: none — the end points into his body)
+      blade.setVisible(BL > 1).setPosition(tx, ty).setAngle(ang).setScale(BL / gw, 36 / gh).setDepth(d + 0.01).setAlpha(0.8 * A * pulse);
+      bladeCore.setVisible(BL > 1).setPosition(tx, ty).setAngle(ang).setScale((BL * 0.9) / gw, 13 / gh).setDepth(d + 0.02).setAlpha(0.95 * A);
+      // (a short lit stub — his hand near the cane's end, as the cast ends: the star small and faint, not a ball of light on his fist)
+      const sk = clamp01((L - 14) / 34), star = (BL > 1 ? 48 : 30) * (0.55 + 0.45 * sk) + 10 * Math.sin(t * 0.02) * sk;
+      tipStar.setVisible(true).setPosition(tx, ty).setDisplaySize(star, star).setDepth(d + 0.02).setAlpha((BL > 1 ? 0.9 : 0.55) * A * (0.25 + 0.75 * sk));
+      if (Math.random() < 0.25 * A) { const q = Math.random() * (L + BL); this.pop(hx + ux * q, hy + uy * q, 14, 0xb4a6ff, 220, 0, d + 0.03); } // (a mote of light along the lit shaft and its blade)
       return true;
     });
   }

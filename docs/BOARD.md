@@ -63,6 +63,17 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
   (`Body.ts SHEET_FIT`, applied in `heroFrame`); the Warrior's sheets already matched, the Book Mage's one sheet row a touch
   down. **Class chats:** a new sheet cut by cut.py lands at the sheet scale — add its row to `SHEET_FIT` (or re-cut at the
   moves' size).
+- **The Gambler's lit cane under his palm (DFO, 3 Nov 01:27 — David: "the light in his hand sits unprofessionally — it must
+  be under the palm in every move"):** Light Staff's light lay along the whole cane from a little above its top — over the
+  hand that holds it — and the walk / run loops were marked only every few frames, so as he moved the light slid off the
+  cane (in the walk's twirl it pointed one way while the cane swung the other). The lit part is now read by eye on every
+  frame a move or a skill uses (`tools/heroes/data/gambler_cane_light.json` → `tools/heroes/cane_lines.py` →
+  `src/data/gambler-cane.json`): from just under the palm (or where the shaft comes out from behind the body) to the cane's
+  far end, its blade on from there; the hand stays clean and the halo comes on gently out of the palm; a frame with the cane
+  out of sight puts the light out (it kept the last frame's); PVP 3D's motes rise off the lit shaft (they rose off his
+  chest) and the cast's blade slides up from above his raised hand (`GamblerFx.lightStaff`, `CANE_LIGHT`,
+  `fx3d/gambler.ts`). **Gambler chat:** a new or re-shot gambler action needs its frames read into
+  `gambler_cane_light.json` (then run `cane_lines.py`).
 
 ### DFO (31 Oct, David 01:29) — THE REBUILD: the approved base character, MapleStory's method, end to end (`docs/REBUILD_PLAN.md`)
 - David approved the base character (`tools/base/gpt/v3/approved_base.jpg`, `approved_poses.jpg`) and asked DFO to run the whole rebuild end to end: base body art → head / faces / hair → movement feel → clothes → female base → progression (levels, job, skill points) → skills as choreographies + effects (aimed into the depth too) → MapleStory-like monsters → world flow. **Every chat: no work on hero bodies, the base character, skills or progression without reading the plan first; requests go to DFO here.**

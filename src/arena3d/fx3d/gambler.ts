@@ -7,6 +7,7 @@
 // Pick-up 52's card rain, the home run's crater, Overload's lightning at his feet, Card Swap's flash, the jackpot's tower,
 // All In's gold column out of a crater, Triple Down's three cracks growing.
 import type { Recipe } from '../Fx3D';
+import { CANE_LIGHT } from '../../skills/GamblerFx';
 import { C, me, side, ahead, placeOf, T } from './kit';
 
 const chest = (p: { x: number; y: number }, z = 90) => ({ x: p.x, y: p.y, z });
@@ -155,11 +156,15 @@ export const GAMBLER: Record<string, Recipe> = {
   // G — Light Staff (David 18 Oct 01:42): a thin violet blade of light slides up out of the cane in his hand; for 8 s his cane
   // is lit — violet motes stream off his hand and every staff blow's ring is drawn as long as the blade reaches (staffRing)
   light_staff: { tone: TONE.violet, own: true,
-    cast: (f, r) => { const c = me(f, r), s = side(r); f.streak({ x: c.x + s * 26, y: c.y, z: 70 }, { x: c.x + s * 70, y: c.y, z: 250 }, 0xe4dcff, { w: 8, ms: Math.max(380, T(r).startup + 200), draw: Math.max(120, T(r).startup) }); },
+    // (the blade slides up from just above his raised hand — the cast's frames hold it ~95–120 px up, 15–35 px ahead — not
+    // up through the hand from below it)
+    cast: (f, r) => { const c = me(f, r), s = side(r); f.streak({ x: c.x + s * 20, y: c.y, z: 112 }, { x: c.x + s * 48, y: c.y, z: 262 }, 0xe4dcff, { w: 8, ms: Math.max(380, T(r).startup + 200), draw: Math.max(120, T(r).startup) }); },
     active: (f, r) => {
       const id = r.attackerId, until = performance.now() + 8000; LIT.set(id, until);
       const c0 = me(f, r); f.host.ring(f.host.w3(c0.x), f.host.d3(c0.y), F.violet, 1.6, 420, 0.6);
-      for (let t = 0; t < 60000; t += 260) f.later(t, () => { if ((LIT.get(id) ?? 0) !== until || (t > 300 && !lit(r))) return; const c = f.host.casterPos(id); if (c) f.host.embers(f.host.w3(c.x), f.host.h3(c.z + 80), f.host.d3(c.y), 0xb4a6ff, 2, 1.2); }); // (as long as the cane is lit)
+      // (as long as the cane is lit) the motes rise off the lit shaft itself, under his palm to the cane's end (David 3 Nov 01:27:
+      // the light under the palm in every move — they rose off his chest); none while the cane is out of sight
+      for (let t = 0; t < 60000; t += 260) f.later(t, () => { if ((LIT.get(id) ?? 0) !== until || (t > 300 && !lit(r))) return; const p = CANE_LIGHT.get(id), q = 0.15 + Math.random() * 0.85; if (p && performance.now() - p.at < 250) f.host.embers(f.host.w3(p.x0 + (p.x1 - p.x0) * q), f.host.h3(p.z0 + (p.z1 - p.z0) * q), f.host.d3(p.y), 0xb4a6ff, 2, 1.2); });
     } },
   // V — Long Guard: held, a ward of six cards turning upright round him and a ring of runes at his feet; a catch snaps a line of
   // cards out to the striker (its hit 0) and binds him in a red star
