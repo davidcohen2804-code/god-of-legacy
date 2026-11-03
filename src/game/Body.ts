@@ -608,6 +608,20 @@ const SHEET_FIT: Record<string, Record<string, number>> = (() => {
     book_mage: { attack: 0.952 }, // (her one sheet row, the strike in the air, a little bigger than her painted moves)
   };
 })();
+/** The painted moves cut smaller than the standing body (David 3 Nov 23:33: "when the warrior jumps he becomes really
+ *  small"): the jump clips (tools/heroes/pipeline/jumpcut.py scales a clip by its video's first frame, taller than the
+ *  hero where a sword, a cape or hair stood over the head), the back step's GPT stills (tools/heroes/pipeline/states.py,
+ *  one scale for stills GPT drew at different sizes) and the Book Mage's daze. Each drawn up to the standing size,
+ *  measured against idle — SIFT matches on the head and the body (the stills), the head and the upright frames' height
+ *  (the clips). Every other move of every hero (walk, run, flip, hits, launch, down, get-up, win, intro) already matches. */
+const MOVE_FIT: Record<string, Record<string, number>> = {
+  warrior: { jump_clip: 1.15, backstep: 1.2 },
+  samurai: { jump_clip: 1.05, backstep: 1.1 },
+  archer: { backstep: 1.1 },
+  gambler: { jump_clip: 1.05 },
+  book_mage: { jump_clip: 1.05, backstep: 1.15, stunned: 1.1 },
+};
+for (const [cls, fit] of Object.entries(MOVE_FIT)) Object.assign((SHEET_FIT[cls] ??= {}), fit);
 export const isHeroClass = (cls: string): boolean => !!HEROES[cls];
 /** Portrait of a ready hero: the face cut from its card (image w / h, square at x, y of size). */
 /** A hero frame's rectangle and feet anchor in its atlas (for effects fitted to that drawing). */
