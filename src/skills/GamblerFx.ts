@@ -1346,19 +1346,28 @@ export class GamblerFx {
       const f = b.flipX ? -1 : 1, k = b.sx, fx = c.x, fy = c.y - c.z;
       const hx = fx + line[0] * k * f, hy = fy + line[1] * k, tx = fx + line[2] * k * f, ty = fy + line[3] * k; // (h: just under his palm, t: the cane's far end)
       if (lit) CANE_LIGHT.set(id, { x0: hx, z0: c.z - line[1] * k, x1: tx, z1: c.z - line[3] * k, y: c.y, at: performance.now() });
-      const L = Math.max(1, Math.hypot(tx - hx, ty - hy)), ux = (tx - hx) / L, uy = (ty - hy) / L, ang = Math.atan2(uy, ux) * 57.2958, d = c.y + 3, pulse = 0.85 + 0.15 * Math.sin(t * 0.012);
+      // (d: just in front of his body — PVP 3D takes the depth for the feet point's floor: 3 px deeper drew the light a few px above the cane)
+      const L = Math.max(1, Math.hypot(tx - hx, ty - hy)), ux = (tx - hx) / L, uy = (ty - hy) / L, ang = Math.atan2(uy, ux) * 57.2958, d = c.y + 0.5, pulse = 0.85 + 0.15 * Math.sin(t * 0.012);
       const gw = 128, gh = 32, A = grow * fade * seen;
+      // Each piece stands on his feet point and reaches its place on the cane by its origin: PVP 3D places every picture by its
+      // own point and scale there (Arena3D: its floor point through the 3D camera) but draws the body flat round its feet, so a
+      // piece placed by its own point slid off the hand as the camera's perspective bent (ahead of the hand in a run, over his
+      // head in a fall) — on the feet point it is drawn flat with the body. (The same picture in the painted arena.)
+      const at = (im: Phaser.GameObjects.Image, px: number, py: number, ox: number, oy: number) => {
+        const a = im.rotation, dx = px - fx, dy = py - fy;
+        im.setPosition(fx, fy).setDisplayOrigin(ox - (dx * Math.cos(a) + dy * Math.sin(a)) / (im.scaleX || 1e-6), oy - (-dx * Math.sin(a) + dy * Math.cos(a)) / (im.scaleY || 1e-6));
+      };
       const ex = L * 0.06; // (a little past the far end; nothing before the start — the hand stays clean)
-      halo.setVisible(true).setPosition(hx, hy).setAngle(ang).setScale((L + ex) / gw, 58 / gh).setDepth(d).setAlpha(0.6 * A * pulse);
-      cover.setVisible(true).setPosition(hx, hy).setAngle(ang).setScale((L + ex) / gw, 26 / gh).setDepth(d + 0.005).setAlpha(0.92 * A);
-      core.setVisible(true).setPosition(hx, hy).setAngle(ang).setScale(L / gw, 20 / gh).setDepth(d + 0.01).setAlpha(0.95 * A);
+      at(halo.setVisible(true).setAngle(ang).setScale((L + ex) / gw, 58 / gh).setDepth(d).setAlpha(0.6 * A * pulse), hx, hy, 0, gh / 2);
+      at(cover.setVisible(true).setAngle(ang).setScale((L + ex) / gw, 26 / gh).setDepth(d + 0.005).setAlpha(0.92 * A), hx, hy, 0, gh / 2);
+      at(core.setVisible(true).setAngle(ang).setScale(L / gw, 20 / gh).setDepth(d + 0.01).setAlpha(0.95 * A), hx, hy, 0, gh / 2);
       const room = uy > 0.05 ? Math.max(8, (fy + 4 - ty) / uy) : Infinity; // (pointing down: the blade stops at the floor, never through it)
       const BL = Math.min(line.length > 4 ? line[4] * k : L * 1.15, room) * grow; // the blade of light out of its far end, longer than the cane (0: none — the end points into his body)
-      blade.setVisible(BL > 1).setPosition(tx, ty).setAngle(ang).setScale(BL / gw, 36 / gh).setDepth(d + 0.01).setAlpha(0.8 * A * pulse);
-      bladeCore.setVisible(BL > 1).setPosition(tx, ty).setAngle(ang).setScale((BL * 0.9) / gw, 13 / gh).setDepth(d + 0.02).setAlpha(0.95 * A);
+      at(blade.setVisible(BL > 1).setAngle(ang).setScale(Math.max(BL, 1) / gw, 36 / gh).setDepth(d + 0.01).setAlpha(0.8 * A * pulse), tx, ty, 0, gh / 2);
+      at(bladeCore.setVisible(BL > 1).setAngle(ang).setScale(Math.max(BL * 0.9, 1) / gw, 13 / gh).setDepth(d + 0.02).setAlpha(0.95 * A), tx, ty, 0, gh / 2);
       // (a short lit stub — his hand near the cane's end, as the cast ends: the star small and faint, not a ball of light on his fist)
       const sk = clamp01((L - 14) / 34), star = (BL > 1 ? 48 : 30) * (0.55 + 0.45 * sk) + 10 * Math.sin(t * 0.02) * sk;
-      tipStar.setVisible(true).setPosition(tx, ty).setDisplaySize(star, star).setDepth(d + 0.02).setAlpha((BL > 1 ? 0.9 : 0.55) * A * (0.25 + 0.75 * sk));
+      at(tipStar.setVisible(true).setDisplaySize(star, star).setDepth(d + 0.02).setAlpha((BL > 1 ? 0.9 : 0.55) * A * (0.25 + 0.75 * sk)), tx, ty, tipStar.width / 2, tipStar.height / 2);
       if (Math.random() < 0.25 * A) { const q = Math.random() * (L + BL); this.pop(hx + ux * q, hy + uy * q, 14, 0xb4a6ff, 220, 0, d + 0.03); } // (a mote of light along the lit shaft and its blade)
       return true;
     });
