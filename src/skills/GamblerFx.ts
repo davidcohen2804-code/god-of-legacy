@@ -876,10 +876,12 @@ export class GamblerFx {
     const T = r.timings, cards: Phaser.GameObjects.Container[] = [], side = sideOf(r), s = this.ctx.scene;
     const h = this.hand(r.attackerId) ?? { x: r.origin.x, y: r.origin.y - 80 };
     if (s.textures.exists('gbk-w_fan')) { // he holds the hand up — a fan of five cards of light — then deals it out in a stream
-      // (held up out of his hand, clear of his face — he reads behind it; David 3 Nov 01:27: it goes where the hand goes, up by
-      // his face, before his chest, out with the deal — it hung where the hand was at the cast. Its cards set in his fingers hid his face.)
+      // (held up out of his hand, clear of his face — he reads behind it; David 3 Nov 01:27: it goes where the hand goes — it
+      // hung where the hand was at the cast — up and down with it and out with the deal, but never back over his head when
+      // the hand comes in to his chest. Its cards set in his fingers hid his face.)
+      const c0 = this.me(r), out0 = (h.x - c0.x) * side;
       const fan = this.kit('w_fan', h.x + side * 30, h.y - 46, 112, TOP + 5);
-      if (fan) { this.onBody(fan, r.attackerId).setFlipX(side < 0); const f0 = fan.scale; this.piece(fan, T.startup + 40, (u, o) => { const hh = this.hand(r.attackerId) ?? h; o.setPosition(hh.x + side * 30, hh.y - 46).setScale(f0 * lerp(0.4, 1, out3(clamp01(u * 2.5)))).setAngle(side * (1 - out3(clamp01(u * 2.5))) * -40).setAlpha(u > 0.85 ? (1 - u) / 0.15 : 1); }); }
+      if (fan) { this.onBody(fan, r.attackerId).setFlipX(side < 0); const f0 = fan.scale; this.piece(fan, T.startup + 40, (u, o) => { const hh = this.hand(r.attackerId) ?? h, c = this.me(r), out = Math.max(out0, (hh.x - c.x) * side); o.setPosition(c.x + side * (out + 30), hh.y - 46).setScale(f0 * lerp(0.4, 1, out3(clamp01(u * 2.5)))).setAngle(side * (1 - out3(clamp01(u * 2.5))) * -40).setAlpha(u > 0.85 ? (1 - u) / 0.15 : 1); }); }
       const st = this.kit('w_stream', h.x, h.y, 300, TOP + 5);
       if (st) { this.onBody(st, r.attackerId).setFlipX(side < 0).setOrigin(side > 0 ? 0.1 : 0.9, 0.5).setAlpha(0); const s0 = st.scale; this.piece(st, 280, (u, o) => { const hh = this.hand(r.attackerId) ?? h; o.setAlpha(u < 0.3 ? u / 0.3 : (1 - u) / 0.7).setScale(s0 * lerp(0.5, 1.15, out3(u)), s0 * 0.7).setPosition(hh.x + side * 300 * 0.35 * out3(u), hh.y); }, T.startup - 40); } // (dealt out of the hand as it is then)
     }
