@@ -4,6 +4,30 @@ Every balance change to any class's skills, newest first. Class chats: read this
 needs new visuals / motion (an effect sized to a new hitbox, an animation timed to a new startup), do that part.
 Values apply to the whole game (only damage may differ in PvP: arenaDmg / the arena's scaling).
 
+## 2026-11-05 (night) — The Book Mage's third style: the Fulminant Conductor's kit (David 4 Nov 14:59)
+- **His kit** (`FinalKit` `lightning`, at the fight's pace `D(ms)`; GPT's times, reaches (X ± depth: a `line` X long, 2 ×
+  depth wide — GPT's "narrow, precise depth") and juggle costs, DFO's damage — tune freely):
+  - Four-Beat Circuit (basic, faster than the Wind's): Prong Tap 5 (120 ± 16, stun D(220), push 4, J3 — GPT's 100: his
+    painted fork reaches 138 px) · Cross Contact 6 (115 ± 20, stun D(260), push 10, J4) · Rail Jab 7 (140 ± 16, stun D(300),
+    push 16, J6) · Break Stroke 10 (170 ± 20, stun D(480), push 50 + launch 35: knocked back off the floor, J12, heavy).
+    Timings 95/55/130 · 105/55/140 · 115/60/155 · 165/70/205 (D). Links into Probe Jab, Riser Prong, Return Spark.
+  - Probe Jab (slot 1): 8 at D(10) (175 ± 12, reach 160 up); stun D(320), push 12, J7; D(105)/D(55)/D(180); CD 3 s; links into
+    Closing Stroke and Riser Prong.
+  - Closing Stroke (slot 2): 9 at D(20) (150 ± 20, reach 160 up); stun D(360), push 14, J9; D(145)/D(70)/D(205); CD 5 s; links
+    into Arc Clamp and Earth Pin.
+  - Riser Prong (slot 3, the launcher): 12 at D(15) (120 ± 22, reach 170 up); stun D(700), launch 105, J18, heavy;
+    D(165)/D(70)/D(245); CD 7 s; links into Probe Jab, Return Spark, Arc Clamp.
+  - Arc Clamp (slot 6, signature): 16 at D(25) (205 ± 24, reach 190 up); stun D(620), launch 45 (the soft loft), J17, heavy;
+    D(225)/D(85)/D(310); CD 15 s; links into Earth Pin and Return Spark.
+  - Return Spark (slot 8): 10 at D(10) (115 ± 24, reach 200 up: anti-air); stun D(450), launch 50, J11; D(140)/D(70)/D(210);
+    CD 8 s; links into Arc Clamp and Earth Pin.
+  - Earth Pin (slot 11): 14 at D(20) (150 ± 24, reach 190 up); stun D(520), `slam` (in the air: into the floor, one bounce) +
+    `knockdown` light (standing: he crumples), J23, heavy; D(225)/D(80)/D(320); CD 12 s; links into Return Spark.
+  - Templates (no hits yet): Blue Needle, Faraday Fold, Zero Interval (the ultimate), Rail Slide, Insulator Split, Capacitor
+    Kick. The Polarity (each strike + or −: a + hit marks the foe, a − hit snaps the mark — +40 ms of hold inside the same hit)
+    is not in the slice yet.
+- The book's spells stay with the book here too (no element, no Prism, no rune — as the Sailwright's).
+
 ## 2026-11-05 (night) — The Book Mage's second style: the Sailwright's kit (David 4 Nov 14:59)
 - **His kit** (`FinalKit` `wind`, at the fight's pace `D(ms)`; GPT's times, reaches (X ± depth: a `line` X long, 2 × depth
   wide) and juggle costs, DFO's damage — tune freely):

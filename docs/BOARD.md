@@ -31,6 +31,23 @@ The DFO PvP arena dynamics chat is the PvP director: it sets the bar per class, 
 Take the whole PvP up a level in everything — dynamics, skills, effects, hit frames, movement, camera, feel: every hit felt, every class unique and amazing, big moments that look like a cinematic, and reasons to keep playing.
 
 ## Open items
+### DFO (4 Nov, David 14:59) — the styles, step 8: the Book Mage's Fulminant Conductor (the fan or the book tags out, the fork tags in)
+- **The Fulminant Conductor** (his third style, `Styles.ts` `book_mage`: Arcane Tome → Sailwright → Fulminant Conductor; GPT's
+  design, scratchpad styles/mage_styles.md — the book drawn out into the Fulminant Fork, a tall conductor staff crowned by two
+  silver prongs: "he becomes the circuit"): his own painted body (his approved look from the styles page, 14 GPT stills of his
+  moves on magenta, GPT sprite sheets for the idle, walk, run, jump and knockdown — PixVerse has no credits →
+  `tools/heroes/motion/book_mage_lightning` → `book_mage_lightning/body.png`, HERO_FIT 1.295: the book mage's size, his fork
+  over his head), his 13 icons (GPT, the mage icons' frame), his kit (`FinalKit` `lightning`: the four-beat chain — tap,
+  contact, thrust, break — Probe Jab, Closing Stroke, Riser Prong, Return Spark, Earth Pin and the signature Arc Clamp; six
+  templates; numbers in BALANCE_LOG) and his effects (`LightningFx`: straight thin rails of current, one brief contained spark
+  at a contact, the fork's U and V, a fork-shaped mark where it pins the floor — no chain lightning, no storm, no bolt from the
+  sky; PVP 3D answers him in electric blue).
+- GPT's Three-Current Route, whole: Arcane Bolt → Astral Lift → the switch → Cut Across → Keel Drop → the switch → Riser Prong
+  (off the bounce) → Probe Jab → Closing Stroke; his own "Polarity execution": tap → contact → Riser Prong → Probe Jab →
+  Closing Stroke → Arc Clamp → Earth Pin → Return Spark.
+- **Open (Book Mage chat):** the six templates and the Polarity (GPT's + / − strikes: a + hit marks, a − hit snaps the mark).
+- On the way: the switch back to the book is one small flash of the book's blue at his hands (from the fan or the fork).
+
 ### DFO (4 Nov, David 14:59) — the styles, step 7: the Book Mage's Sailwright (the book tags out, the war fan tags in)
 - **The Sailwright** (his second style, `Styles.ts` `book_mage`: Arcane Tome → Sailwright; GPT's design, scratchpad
   styles/mage_styles.md — the book unfolded into the Aether Sail, a seven-rib war fan: folded, one long spike; opened, one

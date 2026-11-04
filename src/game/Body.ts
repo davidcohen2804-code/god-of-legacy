@@ -596,7 +596,8 @@ const HERO_FIT: Record<string, number> = { warrior: 0.907, samurai: 1.049, arche
   samurai_assassin: 1.12, // (the Shuriken Assassin: his eyes 120 px over his feet like the katana samurai's — the same man, out of his armour)
   warrior_siege: 1.04, // (the Siege Warden: his eyes at the longsword warrior's height — 173 of 190 atlas px against 202 of 194 at 0.907)
   gambler_radiant: 1.04, // (the Radiant Duelist: the card gambler's size — his hat to boots 504 canvas px against 509, his idle 203 atlas px tall with the staff over his hat against 184)
-  book_mage_wind: 1.188 }; // (the Sailwright: cut at the book mage's standing height, 509 canvas px — 191 atlas px against 190: the same mage)
+  book_mage_wind: 1.188, // (the Sailwright: cut at the book mage's standing height, 509 canvas px — 191 atlas px against 190: the same mage)
+  book_mage_lightning: 1.295 }; // (the Fulminant Conductor: the same 509 px hair to boots; his idle 209 atlas px with the fork over his head)
 /** A hero drawing's scale in the world (atlas px to world px). */
 const heroScale = (cls: string): number => (HERO_HEIGHT / HEROES[cls].h) * (HERO_FIT[cls] ?? 1);
 /** One body size from a step into a skill (David 2 Nov 23:47: "the characters must not get smaller in a move or a skill —
@@ -682,7 +683,19 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
     mw_cut_across: { act: 'mw_cut_across', st: [0], ac: [0], rc: [0] }, // the open fan swept low across him
     mw_windward_spike: { act: 'mw_spike', st: [0], ac: [0], rc: [0] }, // the reverse-grip spike straight up
     mw_keel_drop: { act: 'mw_keel_drop', st: [0], ac: [0], rc: [0] }, // the folded fan brought down like a keel
-    style_book_mage_wind: { act: 'stance', st: [0], ac: [0], rc: [0] }, style_book_mage_book: { act: 'stance', st: [0], ac: [0], rc: [0] }, // the switch
+    // the Fulminant Conductor (Styles.ts), his own painted body (tools/heroes/motion/book_mage_lightning: GPT stills, his
+    // approved look attached in a new chat each): one held pose a beat — the forked staff's line
+    ml_four_beat: { act: 'ml_tap', st: [0], ac: [0], rc: [0] }, // Prong Tap: one prong tapped in
+    'ml_four_beat#1': { act: 'ml_cross', st: [0], ac: [0], rc: [0] }, // Cross Contact: the fork swung back across
+    'ml_four_beat#2': { act: 'ml_rail', st: [0], ac: [0], rc: [0] }, // Rail Jab: the straight two-handed thrust
+    'ml_four_beat#3': { act: 'ml_break', st: [0], ac: [0], rc: [0] }, // Break Stroke: both prongs in one flat stroke
+    ml_probe_jab: { act: 'ml_probe', st: [0], ac: [0], rc: [0] }, // the one-handed needle stab at full length
+    ml_closing_stroke: { act: 'ml_closing', st: [0], ac: [0], rc: [0] }, // the fork on its side, scooped low
+    ml_riser_prong: { act: 'ml_riser', st: [0], ac: [0], rc: [0] }, // out of a crouch, the prongs driven up
+    ml_arc_clamp: { act: 'ml_clamp', st: [0], ac: [0], rc: [0] }, // the braced two-handed clamp thrust
+    ml_return_spark: { act: 'ml_return', st: [0], ac: [0], rc: [0] }, // the rising counter cut, a knee up
+    ml_earth_pin: { act: 'ml_pin', st: [0], ac: [0], rc: [0] }, // the fork driven down to pin the floor
+    style_book_mage_wind: { act: 'stance', st: [0], ac: [0], rc: [0] }, style_book_mage_book: { act: 'stance', st: [0], ac: [0], rc: [0] }, style_book_mage_lightning: { act: 'stance', st: [0], ac: [0], rc: [0] }, // the switch
   },
   warrior: {
     // the regular attack: each strike its own move (PixVerse, 9 frames): the flat cut, the backhand down, the rising cut, then the heavy chop (finisher)

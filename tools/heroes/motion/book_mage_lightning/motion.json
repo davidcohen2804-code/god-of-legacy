@@ -1,0 +1,141 @@
+{
+  "canvas": [
+    768,
+    768
+  ],
+  "ground_y": 700,
+  "hip_x": 384,
+  "animations": {
+    "idle": {
+      "frames": 5,
+      "source": "gpt sprite sheet idle_sheet.webp (figures 1,2,3,4,5; PixVerse out of credits)",
+      "loop": true,
+      "fps": 6
+    },
+    "walk": {
+      "frames": 8,
+      "source": "gpt sprite sheet walk_sheet.webp (figures 1,2,3,4,5,6,7,8; PixVerse out of credits)",
+      "loop": true,
+      "fps": 10
+    },
+    "run": {
+      "frames": 6,
+      "source": "gpt sprite sheet run_sheet.webp (figures 1,2,3,4,5,6; PixVerse out of credits)",
+      "loop": true,
+      "fps": 12
+    },
+    "jump": {
+      "frames": 4,
+      "source": "gpt sprite sheet jump_sheet.webp (figures 1,2,4,5; PixVerse out of credits)"
+    },
+    "launched": {
+      "frames": 6,
+      "source": "gpt sprite sheet down_sheet.webp (figures 2,2,3,3,3,3; PixVerse out of credits)",
+      "loop": false,
+      "frame_ms": [
+        60,
+        60,
+        70,
+        70,
+        80,
+        80
+      ]
+    },
+    "down_impact": {
+      "frames": 2,
+      "source": "gpt sprite sheet down_sheet.webp (figures 4,4; PixVerse out of credits)",
+      "loop": false,
+      "frame_ms": [
+        60,
+        80
+      ]
+    },
+    "down": {
+      "frames": 2,
+      "source": "gpt sprite sheet down_sheet.webp (figures 4,4; PixVerse out of credits)",
+      "loop": false,
+      "frame_ms": [
+        400,
+        400
+      ]
+    },
+    "getup": {
+      "frames": 7,
+      "source": "gpt sprite sheet down_sheet.webp (figures 4,5,5,5,6,6,6; PixVerse out of credits)",
+      "loop": false,
+      "frame_ms": [
+        90,
+        90,
+        90,
+        90,
+        90,
+        90,
+        90
+      ]
+    },
+    "stance": {
+      "frames": 1,
+      "loop": false,
+      "frame_ms": [
+        500
+      ],
+      "source": "gpt still (his approved look attached, a new chat each, magenta screen): the forked staff upright beside him, his ready stance"
+    },
+    "ml_tap": {
+      "frames": 1,
+      "source": "gpt still (his approved look attached, a new chat each, magenta screen)"
+    },
+    "ml_cross": {
+      "frames": 1,
+      "source": "gpt still (his approved look attached, a new chat each, magenta screen)"
+    },
+    "ml_rail": {
+      "frames": 1,
+      "source": "gpt still (his approved look attached, a new chat each, magenta screen)"
+    },
+    "ml_break": {
+      "frames": 1,
+      "source": "gpt still (his approved look attached, a new chat each, magenta screen)"
+    },
+    "ml_probe": {
+      "frames": 1,
+      "source": "gpt still (his approved look attached, a new chat each, magenta screen)"
+    },
+    "ml_closing": {
+      "frames": 1,
+      "source": "gpt still (his approved look attached, a new chat each, magenta screen)"
+    },
+    "ml_riser": {
+      "frames": 1,
+      "source": "gpt still (his approved look attached, a new chat each, magenta screen)"
+    },
+    "ml_clamp": {
+      "frames": 1,
+      "source": "gpt still (his approved look attached, a new chat each, magenta screen)"
+    },
+    "ml_return": {
+      "frames": 1,
+      "source": "gpt still (his approved look attached, a new chat each, magenta screen)"
+    },
+    "ml_pin": {
+      "frames": 1,
+      "source": "gpt still (his approved look attached, a new chat each, magenta screen)"
+    },
+    "air_shot": {
+      "frames": 1,
+      "source": "gpt still (his approved look attached, a new chat each, magenta screen)"
+    },
+    "backstep": {
+      "frames": 1,
+      "source": "gpt still (his approved look attached, a new chat each, magenta screen)"
+    },
+    "hurt": {
+      "frames": 1,
+      "loop": false,
+      "frame_ms": [
+        300
+      ],
+      "source": "gpt still (his approved look attached, a new chat each, magenta screen)"
+    }
+  }
+}

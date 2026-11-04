@@ -169,11 +169,14 @@ export class WindFx {
     const s = r.skill, T = r.timings, side = sideOf(r), key = this.poseKey(r), deg0 = side < 0 ? 180 : 0;
     const sw = styleOfSwitch(s.id);
     if (sw) { // the switch (GPT): one thin chevron folds in at the hand, a palm-sized flash of the fan's ribs, the tip's one small curve
-      const home = sw.style !== 'wind'; // (back to the book: the ribs fold shut, the book's blue)
+      if (sw.style !== 'wind') { // (back to the book — from the fan or the fork: one small flash of the book's blue at his hands)
+        this.onClock(r, T.startup * 0.4, () => { const h = this.at(r, 22, 72); this.burst(h.x, h.y, 30, { run: r, tint: BOOK, life: 110 }); });
+        return;
+      }
       this.onClock(r, 0, () => { const h = this.at(r, 22, 74); this.spr({ name: 'mw-chev', x: h.x, y: h.y, depth: TOP + 4, w: 22, angle: deg0, life: Math.max(80, T.startup * 0.4), run: r, tint: MINT, add: true,
         mx: (u) => -side * 10 * out3(u), sx: kf([0, 1.2], [1, 0.3, inQ]), sy: kf([0, 1.2], [1, 0.3, inQ]), a: kf([0, 0.95], [1, 0, inQ]) }); });
-      this.onClock(r, T.startup * 0.4, () => { const h = this.at(r, 26, 70); this.ribs(h.x, h.y + 18, 46, side * 8, { run: r, close: home, life: 120, tint: home ? BOOK : IVORY }); this.burst(h.x, h.y, 22, { run: r, tint: home ? BOOK : MINT, life: 90 }); });
-      if (!home) this.onClock(r, T.startup, () => { const t = this.tip(r, 'stance'); this.edge(t.x + side * 8, t.y + 6, 34, side < 0 ? 200 : -20, { flip: side < 0, run: r, life: 140, h: 14 }); });
+      this.onClock(r, T.startup * 0.4, () => { const h = this.at(r, 26, 70); this.ribs(h.x, h.y + 18, 46, side * 8, { run: r, life: 120, tint: IVORY }); this.burst(h.x, h.y, 22, { run: r, tint: MINT, life: 90 }); });
+      this.onClock(r, T.startup, () => { const t = this.tip(r, 'stance'); this.edge(t.x + side * 8, t.y + 6, 34, side < 0 ? 200 : -20, { flip: side < 0, run: r, life: 140, h: 14 }); });
       return;
     }
     const hitAt = (i: number) => T.startup + (r.hits[i]?.at ?? 0);

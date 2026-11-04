@@ -340,6 +340,11 @@ export const BOOK_MAGE: Record<string, Recipe> = {
   ...Object.fromEntries(['mw_four_beat', 'mw_sail_edge', 'mw_updraft_hook', 'mw_cut_across', 'mw_windward_spike', 'mw_keel_drop'].map((id) => [id, {
     tone: 0xa8f0d8, paint: true, trail: false, own: true,
   } as Recipe])),
+  // the Fulminant Conductor (Styles.ts): his own 2D pieces (LightningFx) stay with him — the current in his fork, the room
+  // answering in electric blue; no chain lightning, no storm, no bolt from the sky of the book's spells
+  ...Object.fromEntries(['ml_four_beat', 'ml_probe_jab', 'ml_closing_stroke', 'ml_riser_prong', 'ml_arc_clamp', 'ml_return_spark', 'ml_earth_pin'].map((id) => [id, {
+    tone: 0x6cc8ff, paint: true, trail: false, own: true,
+  } as Recipe])),
 };
 
 // (the painted sheets are fetched the first time any of her spells is cast, so no spell plays its art late the first time)

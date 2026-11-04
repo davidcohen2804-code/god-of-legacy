@@ -1775,7 +1775,100 @@ const wind: FinalSkill[] = [
     description: 'Coming soon: a slide backward, one compressed edge of air swept forward ahead of him.', relations: ['Retreat'] }),
 ];
 
-export const FINAL_SKILLS: FinalSkill[] = [...warrior, ...siege, ...mage, ...wind, ...archer, ...sniper, ...cannon, ...samurai, ...shuriken, ...gambler, ...radiant];
+// The Book Mage's third style (David 4 Nov 14:59): the Fulminant Conductor, the Lightning (GPT's design, scratchpad
+// styles/mage_styles.md) — the book closed, compressed into a dark metal spine and drawn out into the Fulminant Fork, a tall
+// conductor staff crowned by two silver prongs: "he no longer summons lightning — he becomes the circuit". A weapon fighter:
+// fast contacts, narrow and precise depth, burst combos; no chain lightning, no storm field. Range 90–205 (the needle 300).
+// His numbers are GPT's (startup / active / recovery, the reach X, the juggle costs), the live ones its "Polarity execution"
+// (tap → contact → Riser Prong → Probe Jab → Closing Stroke → Arc Clamp → Earth Pin → Return Spark); the Polarity (every
+// strike + or −: a + hit marks, a − hit snaps the mark for a longer hold) is still to come. The book's spells stay with the book.
+const lightning: FinalSkill[] = [
+  S({
+    id: 'ml_four_beat', cls: 'book_mage', style: 'lightning', slot: 0, name: 'Four-Beat Circuit', roles: ['basic', 'confirm'], targeting: 'aimAssist',
+    startup: D(95), active: D(55), recovery: D(130), cooldown: 0, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [H(0, 5, RLINE(120, 16), { stun: D(220), push: 4, juggleCost: 3 }, { reachUp: 100 })],
+    // tap — return — thrust — break: a prong tapped in, the fork swung back across, the staff driven straight in, both prongs
+    // through him in one flat stroke; faster than the Wind
+    chain: { resetMs: 650, stages: [
+      [H(0, 5, RLINE(120, 16), { stun: D(220), push: 4, juggleCost: 3 }, { reachUp: 100 })], // Prong Tap (+): one prong tapped in (his painted fork reaches 138 px)
+      [H(0, 6, RLINE(115, 20), { stun: D(260), push: 10, juggleCost: 4 }, { reachUp: 110 })], // Cross Contact (−): the fork swung back across
+      [H(0, 7, RLINE(140, 16), { stun: D(300), push: 16, juggleCost: 6 }, { reachUp: 110 })], // Rail Jab (+): the straight two-handed thrust
+      [H(0, 10, RLINE(170, 20), { stun: D(480), push: 50, launch: 35, juggleCost: 12 }, { reachUp: 140, heavy: true })], // Break Stroke (−): both prongs in one flat stroke — knocked back, a pop off the floor
+    ], timings: [{ startup: D(95), active: D(55), recovery: D(130) }, { startup: D(105), active: D(55), recovery: D(140) }, { startup: D(115), active: D(60), recovery: D(155) }, { startup: D(165), active: D(70), recovery: D(205) }] },
+    cancelOnHit: ['ml_probe_jab', 'ml_riser_prong', 'ml_return_spark'],
+    description: 'Tap or hold Space: a prong tapped in, the fork swung back across, the staff driven straight through — then both prongs in one flat breaking stroke that knocks the foe back.',
+    relations: ['4-beat chain', 'Cancel into a skill on hit'],
+  }),
+  S({
+    id: 'ml_probe_jab', cls: 'book_mage', style: 'lightning', slot: 1, name: 'Probe Jab', roles: ['opener', 'precision'], targeting: 'aimAssist',
+    startup: D(105), active: D(55), recovery: D(180), cooldown: 3000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [H(D(10), 8, RLINE(175, 12), { stun: D(320), push: 12, juggleCost: 7 }, { reachUp: 160 })], // (+: the needle-thin stab, one-handed at full length)
+    cancelOnHit: ['ml_closing_stroke', 'ml_riser_prong'],
+    description: 'The staff thrust out one-handed at full length: a needle-thin stab of its two prong tips — long, fast, exact.',
+    relations: ['Opener', 'Long poke'],
+  }),
+  S({
+    id: 'ml_closing_stroke', cls: 'book_mage', style: 'lightning', slot: 2, name: 'Closing Stroke', roles: ['confirm', 'airExtender'], targeting: 'aimAssist',
+    startup: D(145), active: D(70), recovery: D(205), cooldown: 5000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [H(D(20), 9, RLINE(150, 20), { stun: D(360), push: 14, juggleCost: 9 }, { reachUp: 160 })], // (−: the fork's U scooped sideways through him: the circuit closes)
+    cancelOnHit: ['ml_arc_clamp', 'ml_earth_pin'],
+    description: 'The fork turned on its side and scooped sideways through the foe: the U of its prongs closes the circuit.',
+    relations: ['Confirm', 'Air follow-up'],
+  }),
+  S({
+    id: 'ml_riser_prong', cls: 'book_mage', style: 'lightning', slot: 3, name: 'Riser Prong', roles: ['launcher', 'antiAir'], targeting: 'aimAssist',
+    startup: D(165), active: D(70), recovery: D(245), cooldown: 7000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [H(D(15), 12, RLINE(120, 22), { stun: D(700), launch: 105, juggleCost: 18 }, { reachUp: 170, heavy: true })], // (+: out of a crouch, the twin prongs driven straight up through him)
+    cancelOnHit: ['ml_probe_jab', 'ml_return_spark', 'ml_arc_clamp'],
+    description: 'Out of a crouch, both hands drive the twin prongs straight up through the foe: he goes up. The launcher.',
+    relations: ['Launcher', 'Anti-air'],
+  }),
+  S({ id: 'ml_blue_needle', cls: 'book_mage', style: 'lightning', slot: 4, name: 'Blue Needle', roles: ['projectile', 'precision'], targeting: 'mouseProjectile', wip: true,
+    startup: D(200), active: D(70), recovery: D(250), cooldown: 7000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK, hits: [],
+    description: 'Coming soon: one fast, perfectly straight electric needle from the joined prong tips, far down the lane.', relations: ['Projectile'] }),
+  S({ id: 'ml_faraday_fold', cls: 'book_mage', style: 'lightning', slot: 5, name: 'Faraday Fold', roles: ['counter'], targeting: 'self', wip: true,
+    startup: D(75), active: D(160), recovery: D(245), cooldown: 12000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
+    description: 'Coming soon: the prongs folded into a V before him — one blow or shot is turned aside and answered with a stab.', relations: ['Guard', 'Counter'] }),
+  S({
+    id: 'ml_arc_clamp', cls: 'book_mage', style: 'lightning', slot: 6, name: 'Arc Clamp', roles: ['signature', 'airExtender'], targeting: 'aimAssist',
+    startup: D(225), active: D(85), recovery: D(310), cooldown: 15000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [H(D(25), 16, RLINE(205, 24), { stun: D(620), launch: 45, juggleCost: 17 }, { reachUp: 190, heavy: true })], // (+: the two prongs close round one foe like a clamp: a stagger and a soft loft — one strike)
+    cancelOnHit: ['ml_earth_pin', 'ml_return_spark'],
+    tags: ['signature'],
+    description: 'His signature: the staff driven out with both hands and the two prongs closing round one foe like a clamp — one brief spark where they meet, and he is lifted softly.',
+    relations: ['Signature', 'Soft loft'],
+  }),
+  S({ id: 'ml_zero_interval', cls: 'book_mage', style: 'lightning', slot: 7, name: 'Zero Interval', roles: ['ultimate'], targeting: 'aimAssist', wip: true,
+    startup: D(415), active: D(160), recovery: D(700), cooldown: 85000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
+    description: 'Coming soon: the rear foot planted, one huge straight conductor thrust — a single brilliant rail of electricity for a fraction of a second.', relations: ['Ultimate'] }),
+  S({
+    id: 'ml_return_spark', cls: 'book_mage', style: 'lightning', slot: 8, name: 'Return Spark', roles: ['antiAir', 'extender'], targeting: 'aimAssist',
+    startup: D(140), active: D(70), recovery: D(210), cooldown: 8000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [H(D(10), 10, RLINE(115, 24), { stun: D(450), launch: 50, juggleCost: 11 }, { reachUp: 200 })], // (−: the rising V counter-cut: a foe above is caught and popped a little)
+    cancelOnHit: ['ml_arc_clamp', 'ml_earth_pin'],
+    description: 'The staff swung up from low behind him in a rising V: it meets a foe over him and pops him a little.',
+    relations: ['Anti-air', 'Small pop'],
+  }),
+  S({ id: 'ml_rail_slide', cls: 'book_mage', style: 'lightning', slot: 9, name: 'Rail Slide', roles: ['gapClose'], targeting: 'mouseDir', wip: true,
+    startup: D(170), active: D(70), recovery: D(230), cooldown: 9000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
+    description: 'Coming soon: a slide forward with the staff held level like an electric lance.', relations: ['Gap close'] }),
+  S({ id: 'ml_insulator_split', cls: 'book_mage', style: 'lightning', slot: 10, name: 'Insulator Split', roles: ['projectile'], targeting: 'aimAssist', wip: true,
+    startup: D(185), active: D(90), recovery: D(265), cooldown: 9000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
+    description: 'Coming soon: one angular two-prong pressure strike projected forward off the fork.', relations: ['Mid range'] }),
+  S({
+    id: 'ml_earth_pin', cls: 'book_mage', style: 'lightning', slot: 11, name: 'Earth Pin', roles: ['knockdown', 'finisher'], targeting: 'aimAssist',
+    startup: D(225), active: D(80), recovery: D(320), cooldown: 12000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [H(D(20), 14, RLINE(150, 24), { stun: D(520), slam: true, knockdown: 'light', juggleCost: 23 }, { reachUp: 190, heavy: true })], // (−: the fork driven down to pin the floor: in the air, slammed down, one bounce; standing: he crumples)
+    cancelOnHit: ['ml_return_spark'],
+    description: 'The staff driven down two-handed so the fork pins the floor: a foe in the air is slammed into it and bounces once; a standing one crumples.',
+    relations: ['Ground bounce', 'Crumple'],
+  }),
+  S({ id: 'ml_capacitor_kick', cls: 'book_mage', style: 'lightning', slot: 12, name: 'Capacitor Kick', roles: ['escape'], targeting: 'aimAssist', wip: true,
+    startup: D(155), active: D(80), recovery: D(260), cooldown: 10000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
+    description: 'Coming soon: a close heel kick braced on the staff, and a step back out of reach.', relations: ['Retreat'] }),
+];
+
+export const FINAL_SKILLS: FinalSkill[] = [...warrior, ...siege, ...mage, ...wind, ...lightning, ...archer, ...sniper, ...cannon, ...samurai, ...shuriken, ...gambler, ...radiant];
 /** The switches into the styles (Styles.ts): a hidden cast each, never on the bar. 150 ms to the change, 240 ms in all, on
  *  the clock (its kit numbers are the fight's pace undone); no hits; she keeps her momentum. */
 export const STYLE_SWITCHES: FinalSkill[] = Object.entries(STYLES).flatMap(([cls, list]) => list.map((st) => S({
