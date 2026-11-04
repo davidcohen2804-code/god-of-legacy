@@ -1,7 +1,7 @@
 // Shared, elevation-aware hit geometry for every skill and every legal target. Pure functions (no rendering, no damage).
 // Telegraph drawing uses the same shape data (SkillFx) so the warning always matches the authoritative hitbox.
 import { clearLine, coverHit } from '../world/WorldGeometry';
-import { CoverMode, FinalSkill, HitEvent, HitShape } from './SkillTypes';
+import { CoverMode, EdgeSpec, FinalSkill, HitEvent, HitShape } from './SkillTypes';
 
 export interface V2 { x: number; y: number }
 export interface V3 { x: number; y: number; z: number }
@@ -135,16 +135,23 @@ export interface Projectile {
   zTop?: number;
   /** Shot up into the air (Spirit Bow): 1 = at 45°, 2 = straight up. It flies over the floor along a side and only strikes as it comes down. */
   loft?: number;
-  /** Where/why it ended. */
-  end?: { x: number; y: number; reason: 'target' | 'cover' | 'range' };
+  /** Where/why it ended (caught: the big star back in his hand). */
+  end?: { x: number; y: number; reason: 'target' | 'cover' | 'range' | 'caught' };
+  /** The Shuriken Assassin's big star (HitShape `edge`, SkillRuntime): its leg — out, waiting at the end of its flight, home
+   *  to his hand; how long it still waits; on its way home: its height where it turned, a foe in the air it rises to on
+   *  the way (how far along, how high), the arc over its line, how far it had to go. */
+  edge?: { leg: 'out' | 'park' | 'back'; left: number; spec: EdgeSpec; z0: number; via: { u: number; z: number } | null; loft: number; dist0: number };
 }
 
 const AIR_SHOT_DROP_PX = 240;
 
 let pidSeq = 0;
+/** A fresh projectile id (its own hit keys: the big star's way home cuts again what its way out cut). */
+export const nextPid = (): number => ++pidSeq;
 export function spawnProjectile(castId: string, hitIndex: number, skill: FinalSkill, s: Extract<HitShape, { kind: 'projectile' }>, attackerId: string, origin: V3, dir: V2, pick = 0): Projectile {
   return {
     ...(s.homing ? { homing: (s.homing * Math.PI) / 180, pick, pid: ++pidSeq } : {}),
+    ...(s.edge ? { edge: { leg: 'out' as const, left: 0, spec: s.edge, z0: 0, via: null, loft: 0, dist0: 0 } } : {}),
     castId, hitIndex, skill, attackerId, x: origin.x + dir.x * 16, y: origin.y + dir.y * 16, z: origin.z + 34, dx: dir.x, dy: dir.y,
     speed: s.speed, range: s.range, radius: s.radius, travelled: 0, ageMs: 0, pierce: !!s.pierce, explodeRadius: s.explodeRadius ?? 0,
     cover: skill.cover, done: false,

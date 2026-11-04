@@ -3,7 +3,7 @@
 // caster and per-cast/per-hit/per-target de-duplication. Damage/reactions are applied by the scene (authority rules).
 import Phaser from 'phaser';
 import { FinalSkill, HitEvent } from './SkillTypes';
-import { HitTarget, Projectile, V2, V3, burstTargets, clampAim, chainTargets, fanDirs, shapeContains, spawnProjectile, stepProjectile } from './HitGeometry';
+import { HitTarget, Projectile, V2, V3, burstTargets, clampAim, chainTargets, fanDirs, nextPid, shapeContains, spawnProjectile, stepProjectile } from './HitGeometry';
 
 export type Phase = 'startup' | 'active' | 'recovery' | 'done';
 
@@ -124,12 +124,19 @@ export const RT_EVENTS = {
   cast: 'cast', active: 'active', hit: 'hitFired', projectile: 'projectile', projectileEnd: 'projectileEnd',
   trap: 'trap', trapTrigger: 'trapTrigger', trapArm: 'trapArm', end: 'end', cancelled: 'cancelled', counter: 'counter', chain: 'chain',
   /** (p, run, point): a shot crossed a charged point and turned to lightning — for its look */ storm: 'storm',
+  /** (p, run, leg): the Shuriken Assassin's big star waits at the end of its flight ('park') or turns for his hand ('back')
+   *  — its look; caught, it ends as every projectile does (projectileEnd, `end.reason` 'caught') */ edge: 'edge',
 } as const;
+
+/** A projectile in flight with the cast and the hit it carries (the big star's way home: the recall's cast and hit). */
+type Shot = { p: Projectile; run: CastRun; hit: HitEvent };
 
 export class SkillRuntime {
   readonly events = new Phaser.Events.EventEmitter();
   runs: CastRun[] = [];
-  projectiles: { p: Projectile; run: CastRun; hit: HitEvent }[] = [];
+  projectiles: Shot[] = [];
+  /** Big stars thrown by a recall (the star was in his hand): the recall's cast and hit, for their way home. */
+  private homeHit = new WeakMap<Projectile, { run: CastRun; hit: HitEvent; i: number }>();
   traps: Trap[] = [];
   /** Thunder Rain's charged strike points (STORM), by caster. */
   charged: { x: number; y: number; until: number; by: string }[] = [];
@@ -196,6 +203,7 @@ export class SkillRuntime {
       if (!s.charges || used >= s.charges) { this.cooldownEnd.set(s.id, now + cd); this.charges.delete(s.id); }
       else this.cooldownEnd.set(s.id, now + (s.chargeGap ?? 350)); // tiny gap between charges
     }
+    if (s.takesStar) { const star = this.projectiles.find((e) => e.p.edge && e.p.attackerId === req.attackerId && !e.p.done); if (star) this.edgeCatch(star); } // (one big star: this skill throws it itself)
     this.runs.push(run);
     this.events.emit(RT_EVENTS.cast, run);
     this.world.onPhase?.(run, 'startup');
@@ -344,6 +352,11 @@ export class SkillRuntime {
     }
     if (s.kind === 'projectile') {
       const aim = this.liveAim(r, origin);
+      if (s.edge || h.recall) { // the Shuriken Assassin's big star (Return Edge): one a caster
+        const star = this.projectiles.find((e) => e.p.edge && e.p.attackerId === r.attackerId && !e.p.done);
+        if (star && h.recall) { this.edgeHome(star, r, h, i); return; } // called home: its way back carries this cast's hit
+        if (star) this.edgeCatch(star); // thrown again while it is out: back in his hand at once, then thrown from it
+      }
       const rows = s.rows ?? 1, gap = s.rowGap ?? 40;
       let pick = 0;
       const n0 = s.count ?? 1, n = n0 + (i === 0 ? r.extraShots ?? 0 : 0), spread = n > n0 && n0 > 1 && s.spread ? (s.spread * (n0 - 1)) / (n - 1) : s.spread; // (extra shots fill the same fan)
@@ -365,7 +378,12 @@ export class SkillRuntime {
           p.loft = loft; p.dx = sd; p.dy = 0; p.x = o2.x + sd * 16; p.y = o2.y;
           p.range = loft === 1 ? 380 : 120; p.speed = loft === 1 ? 560 : 240;
         }
-        this.projectiles.push({ p, run: r, hit: h });
+        let carried = h;
+        if (p.edge && h.recall) { // a recall with the star in his hand: thrown a short way (a light cut on its way out), and home at once carrying the recall's hit
+          p.edge.spec = { ...p.edge.spec, park: 0 }; p.range = Math.round(p.range * 0.6);
+          this.homeHit.set(p, { run: r, hit: h, i }); carried = this.lightCut(h, p.edge.spec);
+        }
+        this.projectiles.push({ p, run: r, hit: carried });
         this.events.emit(RT_EVENTS.projectile, p, r);
       }
       return;
@@ -431,6 +449,13 @@ export class SkillRuntime {
 
   private stepProjectiles(ms: number): void {
     for (const e of this.projectiles) {
+      const E = e.p.edge;
+      if (E?.leg === 'park') { // the big star waits at the end of its flight, spinning — then turns for his hand on its own
+        e.p.ageMs += ms; E.left -= ms;
+        if (E.left > 0) { this.world.projectileHook?.(e.p, e.run); continue; }
+        this.edgeHome(e, null, null);
+      }
+      if (E?.leg === 'back' && !this.edgeSteer(e.p)) { e.p.done = true; e.p.end = { x: e.p.x, y: e.p.y, reason: 'caught' }; this.events.emit(RT_EVENTS.projectileEnd, e.p, e.run); continue; } // (its thrower gone)
       const targets = this.world.targets(e.run);
       const pid = e.p.pid, tag = pid ? `|p${pid}|` : null;
       const already = new Set([...e.run.hitKeys].filter((k) => (tag ? k.includes(tag) : k.includes(`|${e.p.hitIndex}|`) || k.includes('|fan|'))).map((k) => k.split('|')[2]));
@@ -442,7 +467,11 @@ export class SkillRuntime {
       const hit = e.p.storm ? { ...e.hit, damage: e.hit.damage * STORM.mul, storm: true } : e.hit;
       for (const t of hits) this.deliver(e.run, hit, e.p.hitIndex, t, { x: e.p.x, y: e.p.y, z: e.p.z }, pid);
       if (!e.p.done) this.world.projectileHook?.(e.p, e.run);
+      if (e.p.done && E?.leg === 'out') { // the big star at the end of its flight (or stopped by cover): it waits there
+        E.leg = 'park'; E.left = E.spec.park; e.p.done = false; this.events.emit(RT_EVENTS.edge, e.p, e.run, 'park'); continue;
+      }
       if (e.p.done) {
+        if (E?.leg === 'back') e.p.end = { x: e.p.x, y: e.p.y, reason: 'caught' }; // home: back in his hand
         if (e.p.explodeRadius > 0) { // burst at target / cover / max range
           for (const t of burstTargets(e.p.skill, e.p.attackerId, e.p, e.p.explodeRadius, targets)) this.deliver(e.run, e.hit, e.p.hitIndex, t, { x: e.p.x, y: e.p.y, z: e.p.z });
         }
@@ -450,6 +479,56 @@ export class SkillRuntime {
       }
     }
     this.projectiles = this.projectiles.filter((e) => !e.p.done);
+  }
+
+  /** The big star turns for its thrower's hand (Return Edge): called home by a recall — its way home carries that cast and
+   *  hit (`recall.speed`, its arc `recall.loft`) — or on its own once it has waited (its light cut: EdgeSpec `back`, a
+   *  flinch that never holds a foe in the air up). It cuts again what it cut on its way out (a fresh projectile id); a foe
+   *  in the air on its way home: it rises to his body as it comes (the air combos), as a shot fired up at one does. */
+  private edgeHome(e: Shot, r: CastRun | null, h: HitEvent | null, i = e.p.hitIndex): void {
+    const p = e.p, E = p.edge!, c = this.world.casterPos(p.attackerId), pend = this.homeHit.get(p);
+    if (pend) { this.homeHit.delete(p); if (!r) { r = pend.run; h = pend.hit; i = pend.i; } } // (thrown by a recall: its way home is the recall's)
+    E.leg = 'back'; E.left = 0; p.pid = nextPid(); p.done = false; p.end = undefined;
+    p.pierce = true; p.cover = 'IGNORES_COVER'; p.travelled = 0; p.dropPerPx = 0; p.zTop = undefined; p.loft = undefined; p.homing = undefined;
+    if (r && h) { e.run = r; e.hit = { ...h, recall: undefined }; p.hitIndex = i; p.skill = r.skill; p.castId = r.castId; p.speed = h.recall?.speed ?? E.spec.speed; E.loft = h.recall?.loft ?? 0; }
+    else { e.hit = e.hit.edgeBack ? e.hit : this.lightCut(e.hit, E.spec); p.speed = E.spec.speed; E.loft = 0; }
+    E.z0 = p.z; E.dist0 = c ? Math.max(1, Math.hypot(c.x - p.x, c.y - p.y)) : 1; E.via = null;
+    if (c && !e.hit.edgeBack) { // (its own light cut takes only who stands in its way)
+      const dx = (c.x - p.x) / E.dist0, dy = (c.y - p.y) / E.dist0;
+      let best: { along: number; z: number } | null = null;
+      for (const t of this.world.targets(e.run)) {
+        if (!t.alive || t.id === p.attackerId || t.z < 24) continue;
+        const ox = t.x - p.x, oy = t.y - p.y, along = ox * dx + oy * dy, sideD = Math.abs(-ox * dy + oy * dx);
+        if (along < 10 || along > E.dist0 - 20 || sideD > t.radius + 46) continue;
+        if (!best || along < best.along) best = { along, z: t.z + t.height * 0.45 };
+      }
+      if (best) E.via = { u: best.along / E.dist0, z: best.z };
+    }
+    this.events.emit(RT_EVENTS.edge, p, e.run, 'back');
+  }
+  /** The big star's light cut (its own way home, a recall's short throw out): EdgeSpec `back` of the hit's damage, a flinch
+   *  that never holds a foe in the air up. */
+  private lightCut(h: HitEvent, E: { back: number; stun: number }): HitEvent {
+    return { ...h, damage: Math.max(1, Math.round(h.damage * E.back)), reaction: { stun: E.stun, drop: true, juggleCost: 2 }, heavy: false, lastBlow: false, recall: undefined, edgeBack: true };
+  }
+  /** The big star on its way home, steered at its thrower each step (he moves): its height from where it turned to his hand
+   *  (through a foe in the air it rises to, else over its arc). False: he is gone. */
+  private edgeSteer(p: Projectile): boolean {
+    const c = this.world.casterPos(p.attackerId), E = p.edge!;
+    if (!c) return false;
+    const dx = c.x - p.x, dy = c.y - p.y, d = Math.hypot(dx, dy), hand = c.z + 34;
+    if (d > 1e-3) { p.dx = dx / d; p.dy = dy / d; }
+    p.range = p.travelled + d;
+    const u = Math.min(1, Math.max(0, 1 - d / E.dist0)), v = E.via;
+    p.z = v ? (u < v.u ? E.z0 + (v.z - E.z0) * (u / Math.max(1e-3, v.u)) : v.z + (hand - v.z) * ((u - v.u) / Math.max(1e-3, 1 - v.u)))
+      : E.z0 + (hand - E.z0) * u + E.loft * 4 * u * (1 - u);
+    return true;
+  }
+  /** The big star thrown again while it is out: back in his hand at once (no cut on the way), thrown from there. */
+  private edgeCatch(e: Shot): void {
+    const p = e.p; if (p.done) return;
+    p.done = true; p.end = { x: p.x, y: p.y, reason: 'caught' }; p.edge!.leg = 'back';
+    this.events.emit(RT_EVENTS.projectileEnd, p, e.run);
   }
 
   private stepTraps(): void {

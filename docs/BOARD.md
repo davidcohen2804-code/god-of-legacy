@@ -31,6 +31,26 @@ The DFO PvP arena dynamics chat is the PvP director: it sets the bar per class, 
 Take the whole PvP up a level in everything — dynamics, skills, effects, hit frames, movement, camera, feel: every hit felt, every class unique and amazing, big moments that look like a cinematic, and reasons to keep playing.
 
 ## Open items
+### DFO (4 Nov, David 14:59) — the styles, step 4: the Samurai's Shuriken Assassin (the katana tags out, the shinobi tags in)
+- **The Shuriken Assassin** (his second style, `Styles.ts` `samurai`: Crimson Katana → Shuriken Assassin; GPT's design,
+  scratchpad styles/samurai_styles.md — a weapon-trajectory master, not a second swordmaster, no clones): his own painted
+  body (the anchor: the in-game samurai re-dressed by GPT — mask, black shinobi jacket, crimson sashes, four stars on his
+  back, the big gunmetal star — 12 GPT stills + PixVerse idle / walk / run / jump / hit → `tools/heroes/motion/
+  samurai_assassin` → `samurai_assassin/body.png`, HERO_FIT 1.12: his eyes at the katana samurai's height), his 13 icons (GPT,
+  the samurai icons' frame), his kit (`FinalKit` `shuriken`: the four-beat chain — wrist star, two stars into the near lanes,
+  the big star thrown, then called home through him (it launches) — Redline Recall, Piercing Quarter, the signature
+  Four-Point Eclipse, Crowstep Rise, Returning Moon; seven templates; numbers in BALANCE_LOG, 4 Nov night), **Return Edge**
+  (SkillRuntime: the big star is one real object — out, waiting at its end, home to his hand, cutting again on the way;
+  recalls carry their own hit) and his effects (`ShurikenFx`: spinning gunmetal stars with steel trails, the thin crimson
+  return line, small steel flashes and crossed cuts — no red clouds, no smoke; PVP 3D answers him in cold steel).
+- The cross-style chain (GPT's "Crimson Shadow Pursuit"): Swallow Cut → the switch → Crowstep Rise → Returning Moon →
+  Four-Point Eclipse — checked frame by frame (the probe: every link lands, the star's legs, 0 errors).
+- His class passive's extra blow (Final Cut) follows his style: one more small star across the foe (`ShurikenFx.extraStar`),
+  never the katana's ghost blade (PVP 3D: only its number, as the katana's). **Archer chat:** the same for her Extra Shot —
+  the bow's wind arrow still follows the Sniper's and the Cannoneer's blows.
+- Open (Samurai chat): the seven templates (Needle Fan, Heel Sweep, Silk Shift, Fivefold Night, Crosslane Split, Falling
+  Talon, Iron Palm Deflect) — their poses and looks are yours when you take them; DFO sets their numbers.
+
 ### DFO (4 Nov, David 14:59) — the styles, step 3: a chain of tools — the Recoil Cannoneer, the tag-in, the Glass Round into the wall
 - David (14:59): the styles must make a varied chain of different tools, never the same moves — the bow's launches and
   shots → the Sniper's held shot that throws him into the wall, more rifle hits → the Cannoneer's bombs on the floor and a

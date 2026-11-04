@@ -371,4 +371,11 @@ export const SAMURAI: Record<string, Recipe> = {
       f.pillar(c.x, c.y, C.gold, { h: 720, r: 16, ms: 720, twist: true, core: false, i: 0.5 });
       f.host.ring(f.host.w3(c.x), f.host.d3(c.y), C.gold, 3.2, 420, 0.6); }, // (no impact light on him: it washed both fighters gold at the burst — DFO)
     hit: (f, _s, _h, at, main) => { if (main) f.crack(at.x, at.y, C.gold, { r: 130, chunks: 14 }); } },
+  // the Shuriken Assassin (Styles.ts, David 4 Nov 14:59): steel, never the katana's crimson — the room answers his blows in
+  // cold polished steel (painted: on the red planks light alone turns white); no trail of the room's (his stars carry their
+  // own, drawn at their own height — ShurikenFx); a blow that throws him up: the white-hot line up through him
+  ...Object.fromEntries(['as_four_beat', 'as_redline_recall', 'as_piercing_quarter', 'as_four_point_eclipse', 'as_crowstep_rise', 'as_returning_moon'].map((id) => [id, {
+    tone: 0xa9bed8, paint: true, trail: false, own: true, // (own: no column of light on a launch — it stood white over him; the room's flash stays, in steel)
+    hit: (f, _s, h, at, main) => { if (main && (h.reaction.launch ?? 0) >= 75) rise(f, at); },
+  } as Recipe])),
 };

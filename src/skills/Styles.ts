@@ -18,6 +18,13 @@ export const STYLES: Record<string, StyleDef[]> = {
     { id: 'sniper', name: 'Deadeye Sniper', body: 'archer_sniper', accent: 0xd8925a }, // (brushed copper: the rifle's receiver)
     { id: 'cannon', name: 'Recoil Cannoneer', body: 'archer_cannon', accent: 0xe0703a }, // (warm terracotta: the breech's pressure glow)
   ],
+  // The Samurai second (David 4 Nov 14:59: a chain of different tools — a different fighter running in): the katana, his own
+  // kit, and the Shuriken Assassin (GPT's design, scratchpad styles/samurai_styles.md) — the masked shinobi with the big
+  // four-point star that goes out and comes home.
+  samurai: [
+    { id: 'katana', name: 'Crimson Katana', accent: 0xe0404e },
+    { id: 'shuriken', name: 'Shuriken Assassin', body: 'samurai_assassin', accent: 0xc4d0de }, // (polished gunmetal: the big star's steel)
+  ],
 };
 
 export const stylesOf = (cls: string): StyleDef[] => STYLES[cls] ?? [];

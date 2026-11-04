@@ -23,9 +23,17 @@ export type HitShape =
   | { kind: 'circle'; radius: number; at?: 'self' | 'place' | 'aimBias'; bias?: number; /** strikes the floor below an airborne caster */ floor?: boolean }
   | { kind: 'line'; length: number; width: number }
   | { kind: 'capsule'; radius: number } // swept along the caster's dash path
-  | { kind: 'projectile'; speed: number; range: number; radius: number; count?: number; spread?: number; /** parallel rows across the floor's depth */ rows?: number; rowGap?: number; pierce?: boolean; explodeRadius?: number; arc?: number; /** turns toward a foe (deg/s): each shot of a fan picks its own foe */ homing?: number; /** aimed up at a foe in the air in front (rises to his body as it flies): air combos */ antiAir?: boolean }
+  | { kind: 'projectile'; speed: number; range: number; radius: number; count?: number; spread?: number; /** parallel rows across the floor's depth */ rows?: number; rowGap?: number; pierce?: boolean; explodeRadius?: number; arc?: number; /** turns toward a foe (deg/s): each shot of a fan picks its own foe */ homing?: number; /** aimed up at a foe in the air in front (rises to his body as it flies): air combos */ antiAir?: boolean;
+    /** The Shuriken Assassin's big star (Return Edge): one real object out of his hand — it waits `park` ms at the end of its
+     *  flight (or where cover stopped it), then flies home to his hand at `speed` px/s, cutting what it crosses again on the
+     *  way (`back` of the hit's damage, a `stun` ms flinch that never holds a foe in the air up). One star a caster: a throw
+     *  while it is out sends it on from where it is. */
+    edge?: EdgeSpec }
   | { kind: 'chain'; corridor: number; width: number; jump: number }
   | { kind: 'placed'; radius: number }; // ground point (rune / trap / zone)
+
+/** The big star's way out and home (HitShape projectile `edge`). */
+export interface EdgeSpec { park: number; speed: number; back: number; stun: number }
 
 export interface Reaction {
   /** A foe in the air is not held up by it (he keeps falling): streams and pokes that should not juggle. */
@@ -101,6 +109,12 @@ export interface HitEvent {
   /** The blow that ends its skill (its last hit; a chain's: its last stage's last) — the foe is sent back on it
    *  (Combat: THROWN). Set once at load (FinalKit), never in the kit; the re-timed copies carry it. */
   lastBlow?: boolean;
+  /** The Shuriken Assassin: this hit calls his big star home instead of throwing it — a star of his out turns for his hand
+   *  at once (at `speed`; `loft` px of arc over its line: Rising Return, Returning Moon), its way home carrying this hit; none
+   *  out: it is thrown (the hit's own shape) and comes home at once. */
+  recall?: { speed?: number; loft?: number };
+  /** The big star's light cut on its own way home (EdgeSpec `back`). Set by the runtime, never in the kit. */
+  edgeBack?: boolean;
 }
 
 export interface FinalSkill {
@@ -123,7 +137,7 @@ export interface FinalSkill {
   /** Locomotion scalar while the action runs (0 = locked). */
   move: { startup: number; active: number; recovery: number };
   /** Dash / leap of the caster during active (px, toward aim). */
-  dash?: { distance: number; lift?: number; /** rise fast, hold at the top, drop at the end (shots from the apex) */ hang?: boolean; stopOnHit?: boolean; /** arc back down to the ground by the end of active (leap attacks) */ crash?: boolean };
+  dash?: { distance: number; lift?: number; /** rise fast, hold at the top, drop at the end (shots from the apex) */ hang?: boolean; stopOnHit?: boolean; /** arc back down to the ground by the end of active (leap attacks) */ crash?: boolean; /** locked on a foe: it stops this far short of him (px, centre to centre; default 34 — body to body) */ gap?: number };
   /** Ranged placement limit for ground target skills. */
   placeRange?: number;
   /** Ground target: opened under the nearest foe in placeRange (any side), not at the aim's distance (a catch under him). */
@@ -131,6 +145,9 @@ export interface FinalSkill {
   /** A floor bomb (the Cannoneer's): lands under the nearest foe in front inside placeRange — in the arena too (where a
    *  snapPlace is not snapped) — else ahead at the aim's distance. */
   seekFoe?: boolean;
+  /** The Shuriken Assassin: the skill throws his big star itself (its own flight is its look) — a star of his still out is
+   *  back in his hand at once when it starts (one star). */
+  takesStar?: boolean;
   /** Persistent zone / trap lifetime after active (ms). */
   zoneMs?: number;
   /** Detached lingering hits (cracks / summons): keep striking after the caster moves on or cancels. */

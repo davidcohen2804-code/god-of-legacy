@@ -1757,8 +1757,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       else return;
       const big = fa.mul >= 0.5; // Advanced Final Attack: a bigger triple cut
       if (run.skill.cls === 'archer') { this.fx!.extraArrow({ x: this.kin.x, y: this.kin.y, z: this.kin.z + 40 }, at); this.fx!.damageNumber(at, extra, false, 0, true); return; } // Extra Shot: a second arrow of wind
-      if (run.skill.cls === 'samurai') { // Final Cut: a ghost blade (Advanced: two)
-        this.fx!.ghostCut(at, side, big); if (big) this.time.delayedCall(70, () => this.fx!.ghostCut({ x: at.x, y: at.y, z: at.z + 18 }, -side, true));
+      if (run.skill.cls === 'samurai') { // Final Cut: a ghost blade (Advanced: two) — the Shuriken Assassin's: one more star
+        const st = run.skill.style;
+        this.fx!.ghostCut(at, side, big, st); if (big) this.time.delayedCall(70, () => this.fx!.ghostCut({ x: at.x, y: at.y, z: at.z + 18 }, -side, true, st));
         this.fx!.damageNumber(at, extra, false, 0, true); return;
       }
       this.fx!.finalSlash(at, side, big);
@@ -1816,7 +1817,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     let dist = d.distance * (s.id === 'lance_thrust' ? LANCE_RUSH[run.chargeLevel ?? 0] ?? 1 : 1); // (Impaling Rush held: farther)
     if (run.lock) {
       const t = this.targetsFor(run).find((x) => x.id === run.lock);
-      if (t) dist = Math.min(dist, Math.max(0, Math.hypot(t.x - run.origin.x, t.y - run.origin.y) - 34));
+      if (t) dist = Math.min(dist, Math.max(0, Math.hypot(t.x - run.origin.x, t.y - run.origin.y) - (d.gap ?? 34)));
     }
     const want = { x: run.origin.x + run.aim.x * dist * ease, y: run.origin.y + run.aim.y * dist * ease };
     const steps = Math.ceil(Math.hypot(want.x - k.x, want.y - k.y) / 2);
@@ -1850,7 +1851,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const T = run.timings, o = run.origin;
     const p = Math.max(0, Math.min(1, (run.elapsed - T.startup) / Math.max(1, T.active))), ease = 1 - (1 - p) * (1 - p);
     let dist = d.distance;
-    if (run.lock && run.lock === this.localId) dist = Math.min(d.distance, Math.max(0, Math.hypot(this.kin.x - o.x, this.kin.y - o.y) - 34));
+    if (run.lock && run.lock === this.localId) dist = Math.min(d.distance, Math.max(0, Math.hypot(this.kin.x - o.x, this.kin.y - o.y) - (d.gap ?? 34)));
     const wx = o.x + run.aim.x * dist * ease, wy = o.y + run.aim.y * dist * ease, n = Math.ceil(Math.hypot(wx - o.x, wy - o.y) / 3);
     let x = o.x, y = o.y;
     for (let i = 1; i <= n; i++) { const nx = o.x + ((wx - o.x) * i) / n, ny = o.y + ((wy - o.y) * i) / n; if (!footAllowed(nx, ny, o.z, R)) break; x = nx; y = ny; }

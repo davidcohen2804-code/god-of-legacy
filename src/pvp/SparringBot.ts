@@ -414,7 +414,7 @@ export class SparringBot {
       T = { ...T, startup: Math.max(s.charge.minMs, L[lv].at) };
     }
     let dist = s.dash?.distance ?? 0;
-    if (s.dash && s.targeting === 'mouseTarget') dist = Math.min(dist, Math.max(0, Math.hypot(p.x - k.x, p.y - k.y) - 34));
+    if (s.dash && s.targeting === 'mouseTarget') dist = Math.min(dist, Math.max(0, Math.hypot(p.x - k.x, p.y - k.y) - (s.dash.gap ?? 34)));
     if (this.body.arena && this.body.ghostUntil > w.now) this.body.ghostUntil = w.now; // an attack out of the wake-up drops its guard, as for the players
     this.cast = { s, stage, t: 0, T, origin: { x: k.x, y: k.y, z: k.z }, aim, dist };
     // its skills' super armor, as the players' (it had none: the knight's armored moves could be swatted out of their wind-up)

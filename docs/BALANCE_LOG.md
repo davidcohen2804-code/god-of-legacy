@@ -4,6 +4,41 @@ Every balance change to any class's skills, newest first. Class chats: read this
 needs new visuals / motion (an effect sized to a new hitbox, an animation timed to a new startup), do that part.
 Values apply to the whole game (only damage may differ in PvP: arenaDmg / the arena's scaling).
 
+## 2026-11-04 (night) — The Samurai's second style: the Shuriken Assassin's kit and Return Edge (David 14:59)
+- **Return Edge** (the engine: `HitShape` projectile `edge`, `HitEvent.recall`, SkillRuntime's big-star legs): his big star
+  is one real object — it flies out (piercing), waits at the end of its flight (or where cover stopped it) `park` ms, then
+  flies home to his hand at 1500 px/s, cutting what it crosses again: 40% of the hit's damage, a D(100) flinch that never
+  holds a foe in the air up (`drop`), juggle cost 2. A recall hit (`recall`) calls a star of his home at once and its way
+  home carries that skill's hit; with the star in his hand, it is thrown 60% of the skill's range (a light cut on its way
+  out) and comes home at once carrying the recall's hit. One star a caster: a throw while it is
+  out has it back in his hand first; the Eclipse takes it itself (`takesStar`). A foe in the air on its way home: it rises
+  to him (as `antiAir` shots do).
+- **His kit** (`FinalKit` `shuriken`, at the fight's pace `D(ms)`; GPT's times and juggle costs, DFO's damage — tune freely):
+  - Four-Beat Reaver (basic, arenaDmg 0.6, `farLaunch`): Needle Flick 6 (star 300 px, stun D(240), push 4, J4) · Cross
+    Needles 7 (two stars in two rows 38 px apart, 320 px, stun D(280), push 6, J7) · Four-Point Cast 9 (the big star 360 px
+    at 1250 px/s, waits D(420); stun D(350), push 60, J10) · Rising Return 12 (calls it home at 1700 px/s on a 40 px arc;
+    stun D(650), launch 90, J18). Timings 90/50/145 · 105/75/175 · 145/115/200 · 175/125/265 (D). Links into Redline
+    Recall, Crowstep Rise, Returning Moon, Four-Point Eclipse.
+  - Redline Recall (slot 3): 13, calls it home at 2000 px/s (none out: thrown 258 px — 60% of 430 — and home at once);
+    stun D(540), pull 55, launch 60, J13; D(120)/D(150)/D(260); CD 7 s; `farLaunch` `farPull`; links into Crowstep Rise,
+    Returning Moon, the Eclipse.
+  - Piercing Quarter (slot 5): 16, the big star 510 px at 1700 px/s (radius 18), waits D(260); stun D(360), push 85, J16,
+    heavy; D(240)/D(80)/D(330); CD 9 s; links into Redline Recall, the Eclipse.
+  - Four-Point Eclipse (slot 6, signature): four crossing cuts 6 each (placed r64, D(0/55/110/165), stun D(360), float, J3)
+    then the rise 14 (r70 at D(250), stun D(620), launch 95, J15, heavy); reach 230–240 up; placed under the nearest foe in
+    front within 360 px (`seekFoe`); D(230)/D(290)/D(420); CD 24 s; `farLaunch`.
+  - Crowstep Rise (slot 8): 16, a step of up to 120 px (lift 40) toward the foe it locks on (`mouseTarget`: a foe in the
+    air over him too — it carried him under one), stopping 62 px short of him, where the knee meets him (`dash.gap`, new:
+    a locked dash's stop, default 34 — at 34 the knee was inside him, he went straight up and came down on top of the
+    assassin; the player's dash, a remote's and the sparring bot's alike); the knee at D(60) as the step ends (sector
+    104 px / 90°, reach 190 up); stun D(700), launch 105, J19, heavy; D(155)/D(90)/D(250); CD 9 s; links into Returning
+    Moon, the Eclipse.
+  - Returning Moon (slot 12): 14, calls it home at 1500 px/s over a 120 px arc (none out: thrown 204 px — 60% of 340 —
+    and home at once); stun D(620), launch 75, J17; reach 230 up; D(175)/D(130)/D(260); CD 10 s; `farLaunch`; links into
+    the Eclipse.
+  - Templates (no hits yet): Needle Fan, Heel Sweep, Silk Shift, Fivefold Night (the ultimate), Crosslane Split, Falling
+    Talon, Iron Palm Deflect.
+
 ## 2026-11-04 (evening) — The Cannoneer's floor bombs come down on the foe (`seekFoe`)
 - **Arc Mortar** and **Queen's Broadside** land under the nearest foe in front inside their reach (380 / 450 px) — in the
   arena too, where a ground-target skill otherwise lands 180 px ahead of her (`seekFoe`, the scene's `resolveCast`); with

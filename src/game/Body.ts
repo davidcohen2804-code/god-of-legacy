@@ -590,7 +590,8 @@ export const HERO_LIFT = HERO_HEIGHT - 124;
  *  class gets a new idle drawing. */
 const HERO_FIT: Record<string, number> = { warrior: 0.907, samurai: 1.049, archer: 1.075, book_mage: 1.182, gambler: 0.935,
   archer_sniper: 1.051, // (the Deadeye Sniper's body: her eyes 10 canvas px higher on the idle than the bow archer's — the same woman, the same size)
-  archer_cannon: 1.051 }; // (the Recoil Cannoneer: cut at the sniper's standing height, 509 canvas px — the same woman again)
+  archer_cannon: 1.051, // (the Recoil Cannoneer: cut at the sniper's standing height, 509 canvas px — the same woman again)
+  samurai_assassin: 1.12 }; // (the Shuriken Assassin: his eyes 120 px over his feet like the katana samurai's — the same man, out of his armour)
 /** A hero drawing's scale in the world (atlas px to world px). */
 const heroScale = (cls: string): number => (HERO_HEIGHT / HEROES[cls].h) * (HERO_FIT[cls] ?? 1);
 /** One body size from a step into a skill (David 2 Nov 23:47: "the characters must not get smaller in a move or a skill —
@@ -718,6 +719,18 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
     rising_sun: { act: 'rising_sun', st: [0, 1, 2, 3], ac: [3], rc: [4, 5] },
     phantom_blades: { act: 'phantom_blades', st: [0], ac: [1, 2, 3, 2, 3], rc: [4, 5] },
     god_of_blades: { act: 'god_of_blades', st: [0, 1, 2, 3], ac: [3], rc: [4, 5] },
+    // the Shuriken Assassin (Styles.ts), his own painted body (tools/heroes/motion/samurai_assassin: GPT stills, the anchor
+    // attached in a new chat each): one held pose a beat — the stars' flight is the effect's (ShurikenFx)
+    as_four_beat: { act: 'as_flick', st: [0], ac: [0], rc: [0] }, // Needle Flick: the wrist snapped out
+    'as_four_beat#1': { act: 'as_cross', st: [0], ac: [0], rc: [0] }, // Cross Needles: the backhand fan
+    'as_four_beat#2': { act: 'as_cast', st: [0], ac: [0], rc: [0] }, // Four-Point Cast: the big star whipped out sidearm
+    'as_four_beat#3': { act: 'as_catch', st: [0], ac: [0], rc: [0] }, // Rising Return: caught overhead as it comes home
+    as_redline_recall: { act: 'as_recall', st: [0], ac: [0], rc: [0] }, // the open palm calling it home, the seal at his chest
+    as_piercing_quarter: { act: 'as_quarter', st: [0], ac: [1], rc: [1] }, // wound up overhead, then the release down the line
+    as_four_point_eclipse: { act: 'as_eclipse', st: [0], ac: [0], rc: [0] }, // steering it round him: two fingers pointed, the seal at his mask
+    as_crowstep_rise: { act: 'as_knee', st: [0], ac: [0], rc: [0] }, // the flying knee, the star raised in the rising cut
+    as_returning_moon: { act: 'as_moon', st: [0], ac: [0], rc: [1] }, // the palm calling it onto its arc, then caught overhead
+    style_samurai_shuriken: { act: 'stance', st: [0], ac: [0], rc: [0] }, style_samurai_katana: { act: 'stance', st: [0], ac: [0], rc: [0] }, // the switch
   },
   gambler: {
     charged_deal: { act: 'charged_deal', st: [0, 1], ac: [2, 3], rc: [4, 5] },

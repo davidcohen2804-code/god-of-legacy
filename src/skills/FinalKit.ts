@@ -1405,7 +1405,104 @@ const cannon: FinalSkill[] = [
     description: 'Coming soon: two shots into two lanes that pull them to the middle.', relations: ['Pull'] }),
 ];
 
-export const FINAL_SKILLS: FinalSkill[] = [...warrior, ...mage, ...archer, ...sniper, ...cannon, ...samurai, ...gambler];
+// ------------------------------------------------------------------ SAMURAI — SHURIKEN ASSASSIN (his second style)
+// David 4 Nov 14:59: the styles are a chain of different tools, each a different fighter running in — the katana samurai
+// tags out, the masked shinobi tags in. GPT's design (scratchpad styles/samurai_styles.md): a weapon-trajectory master, not
+// a second swordmaster and not a shadow-clone summoner — 80–430 px, fast and reversible (throw, reposition, recall); the big
+// four-point star is a real object out of his hand and home again (Return Edge, SkillRuntime: it cuts going out and coming
+// back, 40% and a flinch on its own way home). Live: the four-beat chain, Redline Recall, Piercing Quarter, the signature
+// Four-Point Eclipse, Crowstep Rise, Returning Moon (the katana → assassin combo: Swallow Cut, the switch, Crowstep Rise,
+// Returning Moon, Four-Point Eclipse); seven templates. GPT gives its times at the fight's pace (D); the damage is DFO's.
+const NEEDLE = (range: number, rows = 1) => ({ kind: 'projectile' as const, speed: 1700, range, radius: 10, antiAir: true, ...(rows > 1 ? { rows, rowGap: 38 } : {}) });
+/** The big star: out, a wait at the end of its flight, home at 1500 px / s cutting again (40%, a flinch). */
+const STAR = (range: number, speed: number, park = D(420), radius = 24) => ({ kind: 'projectile' as const, speed, range, radius, pierce: true, antiAir: true, edge: { park, speed: 1500, back: 0.4, stun: D(100) } });
+const shuriken: FinalSkill[] = [
+  S({
+    id: 'as_four_beat', cls: 'samurai', style: 'shuriken', arenaDmg: 0.6, slot: 0, name: 'Four-Beat Reaver', roles: ['basic', 'projectile'], targeting: 'mouseProjectile',
+    startup: D(90), active: D(50), recovery: D(145), cooldown: 0, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: { startup: 0.7, active: 0.7, recovery: 0.85 },
+    hits: [H(0, 6, NEEDLE(300), { stun: D(240), push: 4, juggleCost: 4 })],
+    // tik — tik-tik — WHIRR — CHAK!: a star flicked off the wrist, two into the near lanes, the big star thrown, then called
+    // home on an upward curve through him (it launches)
+    chain: { resetMs: 700, stages: [
+      [H(0, 6, NEEDLE(300), { stun: D(240), push: 4, juggleCost: 4 })], // Needle Flick
+      [H(0, 7, NEEDLE(320, 2), { stun: D(280), push: 6, juggleCost: 7 })], // Cross Needles: two stars into the near lanes
+      [H(0, 9, STAR(360, 1250), { stun: D(350), push: 60, juggleCost: 10 }, { reachUp: 120 })], // Four-Point Cast: the big star out
+      [H(0, 12, STAR(360, 1250), { stun: D(650), launch: 90, juggleCost: 18 }, { reachUp: 160, recall: { speed: 1700, loft: 40 } })], // Rising Return: home through him
+    ], timings: [{ startup: D(90), active: D(50), recovery: D(145) }, { startup: D(105), active: D(75), recovery: D(175) }, { startup: D(145), active: D(115), recovery: D(200) }, { startup: D(175), active: D(125), recovery: D(265) }] },
+    cancelOnHit: ['as_redline_recall', 'as_crowstep_rise', 'as_returning_moon', 'as_four_point_eclipse'], tags: ['farLaunch'], // (the star coming home launches from where it is)
+    description: 'Tap or hold Space: a star flicked off the wrist, two more into the lanes beside it, the big star thrown — it waits at the end of its flight — then called home on a rising curve straight through him, throwing him up.',
+    relations: ['4-beat chain', 'The star comes home through him'],
+  }),
+  S({ id: 'as_needle_fan', cls: 'samurai', style: 'shuriken', slot: 1, name: 'Needle Fan', roles: ['opener', 'projectile'], targeting: 'mouseProjectile', wip: true,
+    startup: D(100), active: D(100), recovery: D(190), cooldown: 4000, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK, hits: [],
+    description: 'Coming soon: three stars off the forearms across three lanes — your opener.', relations: ['Opener'] }),
+  S({ id: 'as_heel_sweep', cls: 'samurai', style: 'shuriken', slot: 2, name: 'Heel Sweep', roles: ['launcher'], targeting: 'aimAssist', wip: true,
+    startup: D(110), active: D(80), recovery: D(240), cooldown: 6000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
+    description: 'Coming soon: a low sweep and a rising heel up close that lifts him.', relations: ['Close launcher'] }),
+  S({
+    id: 'as_redline_recall', cls: 'samurai', style: 'shuriken', slot: 3, name: 'Redline Recall', roles: ['pull', 'launcher'], targeting: 'mouseProjectile',
+    startup: D(120), active: D(150), recovery: D(260), cooldown: 7000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [H(0, 13, STAR(430, 1500, 0), { stun: D(540), pull: 55, launch: 60, juggleCost: 13 }, { reachUp: 150, recall: { speed: 2000 } })],
+    cancelOnHit: ['as_crowstep_rise', 'as_returning_moon', 'as_four_point_eclipse'], tags: ['farLaunch', 'farPull'], // (made to drag him in from where the star is)
+    description: 'Snaps the big star straight back to your hand along a thin red line: whoever stands in its way is dragged toward you and lifted. With the star in your hand, it is thrown and called back at once.',
+    relations: ['Recall', 'Drags him in'],
+  }),
+  S({ id: 'as_silk_shift', cls: 'samurai', style: 'shuriken', slot: 4, name: 'Silk Shift', roles: ['mobility', 'projectile'], targeting: 'mouseDir', wip: true,
+    startup: D(135), active: D(90), recovery: D(230), cooldown: 8000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK, hits: [],
+    description: 'Coming soon: a low sidestep into the next lane with a star down it — it changes the star\'s way home.', relations: ['Reposition'] }),
+  S({
+    id: 'as_piercing_quarter', cls: 'samurai', style: 'shuriken', slot: 5, name: 'Piercing Quarter', roles: ['projectile', 'finisher'], targeting: 'mouseProjectile',
+    startup: D(240), active: D(80), recovery: D(330), cooldown: 9000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK,
+    hits: [H(0, 16, STAR(510, 1700, D(260), 18), { stun: D(360), push: 85, juggleCost: 16 }, { heavy: true, reachUp: 120 })],
+    cancelOnHit: ['as_redline_recall', 'as_four_point_eclipse'],
+    description: 'A committed overhand throw: the big star flies far and flat, cutting through everyone in its line and shoving them back; it waits at the end of its flight, then comes home, cutting again.',
+    relations: ['Long line', 'Cuts twice'],
+  }),
+  S({
+    id: 'as_four_point_eclipse', cls: 'samurai', style: 'shuriken', slot: 6, name: 'Four-Point Eclipse', roles: ['signature'], targeting: 'mouseGround',
+    startup: D(230), active: D(290), recovery: D(420), cooldown: 24000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    placeRange: 360, seekFoe: true, takesStar: true, // (round him: the nearest foe in front inside its reach, in the arena too; the big star is its own)
+    // the star flies to him and changes direction four times — four crossing cuts that hold him there — then rises through him
+    hits: [
+      ...[0, 55, 110, 165].map((t) => H(D(t), 6, { kind: 'placed', radius: 64 }, { stun: D(360), float: true, juggleCost: 3 }, { reachUp: 230 })),
+      H(D(250), 14, { kind: 'placed', radius: 70 }, { stun: D(620), launch: 95, juggleCost: 15 }, { reachUp: 240, heavy: true }),
+    ],
+    tags: ['signature', 'farLaunch'], telegraph: 'ground',
+    description: 'His signature: the big star flies to the foe and turns four times round him — four crossing cuts that hold him there — then rises straight up through him and throws him high, and comes home.',
+    relations: ['Signature', 'Four crossing cuts'],
+  }),
+  S({ id: 'as_fivefold_night', cls: 'samurai', style: 'shuriken', slot: 7, name: 'Fivefold Night', roles: ['ultimate'], targeting: 'mouseDir', wip: true,
+    startup: D(430), active: D(420), recovery: D(640), cooldown: 70000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
+    description: 'Coming soon: the four stars on his back unseal and join the one in his hand — five lanes, turned, converging on him in one five-point cut.', relations: ['Ultimate'] }),
+  S({
+    id: 'as_crowstep_rise', cls: 'samurai', style: 'shuriken', slot: 8, name: 'Crowstep Rise', roles: ['launcher', 'antiAir'], targeting: 'mouseTarget',
+    startup: D(155), active: D(90), recovery: D(250), cooldown: 9000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    dash: { distance: 120, lift: 40, gap: 62 }, // (a step into the knee — up to the foe it locks on, never under him: 220 px of reach with the cut; it stops where the knee meets him — at the 34 px body to body the knee was inside him and he came down on top of you)
+    hits: [H(D(60), 16, { kind: 'sector', range: 104, angle: 90 }, { stun: D(700), launch: 105, juggleCost: 19 }, { reachUp: 190, heavy: true })], // (the knee lands as the step ends)
+    cancelOnHit: ['as_returning_moon', 'as_four_point_eclipse'],
+    description: 'A step into a flying knee with a rising cut of the star: it meets a foe up to two heights over you and throws him high — the bridge out of the katana.',
+    relations: ['Launcher', 'Anti-air'],
+  }),
+  S({ id: 'as_crosslane_split', cls: 'samurai', style: 'shuriken', slot: 9, name: 'Crosslane Split', roles: ['pull', 'projectile'], targeting: 'mouseProjectile', wip: true,
+    startup: D(175), active: D(130), recovery: D(250), cooldown: 9000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK, hits: [],
+    description: 'Coming soon: two stars in two lanes curve in and meet, drawing the foes between them to the middle.', relations: ['Pull'] }),
+  S({ id: 'as_falling_talon', cls: 'samurai', style: 'shuriken', slot: 10, name: 'Falling Talon', roles: ['knockdown'], targeting: 'aimAssist', wip: true,
+    startup: D(145), active: D(110), recovery: D(310), cooldown: 11000, ground: false, air: true, cover: 'IGNORES_COVER', move: LOCK, hits: [],
+    description: 'Coming soon: from the air, a heel drop and a cut — a foe in the air bounces off the floor once.', relations: ['Ground bounce'] }),
+  S({ id: 'as_iron_palm', cls: 'samurai', style: 'shuriken', slot: 11, name: 'Iron Palm Deflect', roles: ['counter'], targeting: 'self', wip: true,
+    startup: D(65), active: D(180), recovery: D(290), cooldown: 13000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
+    description: 'Coming soon: a parry on the left forearm — a blow caught in it answers with a star that stuns.', relations: ['Counter'] }),
+  S({
+    id: 'as_returning_moon', cls: 'samurai', style: 'shuriken', slot: 12, name: 'Returning Moon', roles: ['airExtender', 'launcher'], targeting: 'mouseProjectile',
+    startup: D(175), active: D(130), recovery: D(260), cooldown: 10000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [H(0, 14, STAR(340, 1400, 0), { stun: D(620), launch: 75, juggleCost: 17 }, { reachUp: 230, recall: { speed: 1500, loft: 120 } })],
+    cancelOnHit: ['as_four_point_eclipse'], tags: ['farLaunch'],
+    description: 'The flying star is turned onto a steep arc home over his head — it comes down through a foe in the air and lifts him again. With the star in your hand, it is thrown a short way and comes home the same way, through him.',
+    relations: ['Recall', 'Air extender'],
+  }),
+];
+
+export const FINAL_SKILLS: FinalSkill[] = [...warrior, ...mage, ...archer, ...sniper, ...cannon, ...samurai, ...shuriken, ...gambler];
 /** The switches into the styles (Styles.ts): a hidden cast each, never on the bar. 150 ms to the change, 240 ms in all, on
  *  the clock (its kit numbers are the fight's pace undone); no hits; she keeps her momentum. */
 export const STYLE_SWITCHES: FinalSkill[] = Object.entries(STYLES).flatMap(([cls, list]) => list.map((st) => S({

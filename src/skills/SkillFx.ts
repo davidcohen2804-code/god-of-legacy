@@ -15,6 +15,8 @@ import ARCHER_BOW from '../data/archer-bow.json';
 import { HANDS, bodyHand } from './BodyPoints';
 import { MageFx, MAGE_KIT, MAGE_KIT_URL, MAGE_SHEETS } from './MageFx';
 import { ArcherFx, ARCHER_KIT, ARCHER_KIT_URL, ARCHER_FLIPS } from './ArcherFx';
+import { ShurikenFx } from './ShurikenFx';
+import { styleOfSwitch } from './Styles';
 import { SKILL_BLOCKERS, WORLD_OBJECTS, clearLine } from '../world/WorldGeometry';
 import { ImpactFx } from './ImpactFx';
 import { FxGovernor, markFxKey } from './FxGovernor';
@@ -321,6 +323,8 @@ export class SkillFx {
   /** The book mage's effects (built from its pieces). */
   private mage: MageFx;
   private arch: ArcherFx;
+  /** The Samurai's Shuriken Assassin (his second style): his stars and their way home (ShurikenFx). */
+  private shuri: ShurikenFx;
   /** The gambler's effects (drawn in code). */
   private gamb: GamblerFx;
   /** The weight of the main hits on the whole picture: bent air, a split of colour, an ultimate's zoom blur. */
@@ -340,6 +344,10 @@ export class SkillFx {
       scene, casterPos: (id) => this.casterPos(id), cam: () => this.cam ?? this.scene.cameras.main,
       punch: (a, ms) => this.punch(a, ms), darken: (ms, a) => this.darken(ms, a), ultimateStage: (r) => this.ultimateStage(r), targetPos: (id) => this.targetPos?.(id) ?? null, body: (id) => this.bodyOf?.(id) ?? null,
       bow: (id) => (this.bodyOf?.(id)?.key === 'hero-archer' ? this.bodyPt(id, ARCHER_BOW) : null), // (her bow grip as drawn: the charge gathers and the release flashes there — the bow's own body only: the Deadeye Sniper's frames share its names)
+    });
+    this.shuri = new ShurikenFx({
+      scene, casterPos: (id) => this.casterPos(id), cam: () => this.cam ?? this.scene.cameras.main, punch: (a, ms) => this.punch(a, ms),
+      body: (id) => this.bodyOf?.(id) ?? null, live: (p) => rt.projectiles.some((e) => e.p === p), targetPos: (id) => this.targetPos?.(id) ?? null,
     });
     this.mage = new MageFx({
       scene, casterPos: (id) => this.casterPos(id), cam: () => this.cam ?? this.scene.cameras.main, hand: (id) => this.handOf(id), // (his hand as drawn: the bolt gathers in it)
@@ -364,6 +372,7 @@ export class SkillFx {
     rt.events.on(RT_EVENTS.projectile, (p: Projectile, r: CastRun) => this.onProjectile(p, r));
     rt.events.on(RT_EVENTS.projectileEnd, (p: Projectile) => this.onProjectileEnd(p));
     rt.events.on(RT_EVENTS.storm, (p: Projectile, _r: CastRun, c: { x: number; y: number }) => { if (this.arch.ready) this.arch.stormTurn(p, c); }); // the archer's shot turned to lightning over Thunder Rain's charged floor
+    rt.events.on(RT_EVENTS.edge, (p: Projectile, r: CastRun, leg: string) => this.shuri.edge(p, r, leg)); // the Shuriken Assassin's big star: waiting, turning home
     rt.events.on(RT_EVENTS.trap, (t: Trap) => this.onTrap(t));
     rt.events.on(RT_EVENTS.trapTrigger, (t: Trap, fired: boolean) => this.onTrapEnd(t, fired));
     rt.events.on(RT_EVENTS.trapArm, (t: Trap) => this.onTrapArm(t));
@@ -402,6 +411,11 @@ export class SkillFx {
     if (s.cls === 'book_mage') { // the book mage: every effect built from its pieces (MageFx)
       if (s.telegraph && s.slot !== 7 && s.hits.length) this.telegraph(r);
       this.mage.cast(r);
+      return;
+    }
+    if (s.cls === 'samurai' && (s.style === 'shuriken' || styleOfSwitch(s.id))) { // the Shuriken Assassin and the switches (ShurikenFx)
+      if (s.telegraph) this.telegraph(r);
+      this.shuri.cast(r);
       return;
     }
     if (s.cls === 'samurai') { // the samurai: every effect built from its pieces (SamuraiFx)
@@ -460,7 +474,7 @@ export class SkillFx {
   }
 
   private onActive(r: CastRun): void {
-    if (r.skill.cls === 'samurai') this.sam.active(r);
+    if (r.skill.cls === 'samurai' && r.skill.style !== 'shuriken' && !styleOfSwitch(r.skill.id)) this.sam.active(r);
     if (r.skill.cls === 'book_mage') this.mage.active(r);
     if (r.skill.id === 'earthsplitter') this.earthsplit(r);
     if (r.skill.cls === 'gambler') this.gamb.active(r);
@@ -1357,7 +1371,7 @@ export class SkillFx {
 
   private onHitFired(r: CastRun, i: number, o: V3): void {
     const s = r.skill, h = r.hits[i];
-    if (s.cls === 'samurai') { this.sam.hit(r, i, o); return; }
+    if (s.cls === 'samurai') { if (s.style === 'shuriken' || styleOfSwitch(s.id)) this.shuri.hit(r, i, o); else this.sam.hit(r, i, o); return; }
     if (s.cls === 'gambler') { this.gamb.hit(r, i, o); return; }
     if (s.cls === 'book_mage') { this.mage.hit(r, i, o); return; }
     if (s.cls === 'archer' && this.arch.ready) { this.arch.hit(r, i, o); return; }
@@ -1385,7 +1399,7 @@ export class SkillFx {
   }
 
   private onProjectile(p: Projectile, r: CastRun): void {
-    if (p.skill.cls === 'samurai') { this.sam.projectile(p); return; }
+    if (p.skill.cls === 'samurai') { if (p.skill.style === 'shuriken') this.shuri.projectile(p, r); else this.sam.projectile(p); return; }
     if (p.skill.cls === 'gambler') { this.gamb.projectile(p); return; }
     if (p.skill.cls === 'book_mage') { this.mage.projectile(p, r); return; }
     if (p.skill.cls === 'archer' && this.arch.ready) { this.arch.projectile(p); return; }
@@ -1413,7 +1427,7 @@ export class SkillFx {
   }
 
   private onProjectileEnd(p: Projectile): void {
-    if (p.skill.cls === 'samurai') { this.sam.projectileEnd(p); return; }
+    if (p.skill.cls === 'samurai') { if (p.skill.style === 'shuriken') this.shuri.projectileEnd(p); else this.sam.projectileEnd(p); return; }
     if (p.skill.cls === 'gambler') { this.gamb.projectileEnd(p); return; }
     if (p.skill.cls === 'book_mage') { this.mage.projectileEnd(p); return; }
     if (p.skill.cls === 'archer' && this.arch.ready) { this.arch.projectileEnd(p); return; }
@@ -1531,6 +1545,7 @@ export class SkillFx {
       this.play(key, at.x, at.y - at.z - 38, sz, sz, [20, 22, 24, 26, 28, 30, 34, 40], { depth: TOP + 2, fadeLast: 60 }); // the samurai's hit sizes
     } else if (s.cls === 'book_mage') this.mage.confirmed(s, hit, at, !!hit.heavy || tier === 'signature' || tier === 'ultimate', crit, counter);
     else if (s.cls === 'gambler') this.gamb.confirmed(s, hit, at, !!hit.heavy || tier === 'signature' || tier === 'ultimate', crit, counter);
+    else if (s.cls === 'samurai' && s.style === 'shuriken') this.shuri.confirmed(s, hit, at, !!hit.heavy || tier === 'signature' || tier === 'ultimate', crit); // (his stars: a small steel flash, a crossed cut — ShurikenFx)
     else if (s.cls === 'samurai') this.sam.confirmed(s, hit, at, reaction, !!hit.heavy || tier === 'signature' || tier === 'ultimate', crit, from, local, counter); // (the cut of the blade on the foe and the marks of what happened to it; the ensō on a COUNTER)
     else if (s.cls === 'warrior' && this.scene.textures.exists('imp-wsparks')) { // the Judge's sparks: few hits, each one felt — normal / heavy / launch
       const row = counter ? 3 : reaction === 'launch' ? 2 : tier === 'signature' || hit.heavy || (s.hits.length > 3 && !s.chain && lastOfBurst(s, hit)) ? 1 : 0; // (a burst's last blow bursts big: Whirlwind, Impaling Rush, Blade Storm…) // (an ultimate's small blows stay small: only its heavy ones burst — Titan's Verdict's 7 + 9 small hits whited the screen)
@@ -1688,6 +1703,7 @@ export class SkillFx {
     this.sam.update(step, ms); // (the real time too: his last skill's leftovers fade through a hit-stop)
     this.mage.update(step, performance.now());
     this.arch.update(step);
+    this.shuri.update(step);
     this.gamb.update(step);
     this.impact.update(step, ms); // (its colour split and zoom blur on the real time: they never hold through a hit-stop)
     if (this.hitStopLeft > 0) this.hitStopLeft = Math.max(0, this.hitStopLeft - ms);
@@ -2460,8 +2476,8 @@ export class SkillFx {
   shinsoku(x: number, y: number, dir: number): void { this.sam.shinsoku(x, y, dir); }
   /** Willow Dodge: where he slipped aside. */
   mirageDodge(x: number, y: number, dir: number): void { this.sam.willowDodge(x, y, dir); }
-  /** Final Cut: the ghost blade that follows a hit. */
-  ghostCut(at: V3, dir: number, big = false): void { this.sam.finalCut(at, dir, big); }
+  /** Final Cut: the ghost blade that follows a hit (the Shuriken Assassin's: one more small star — never a katana's ghost). */
+  ghostCut(at: V3, dir: number, big = false, style?: string): void { if (style === 'shuriken') this.shuri.extraStar(at, dir, big); else this.sam.finalCut(at, dir, big); }
   /** God of Blades: a blade of the halo flies at a foe. */
   bladeStrike(attackerId: string, to: V3, targetId?: string): void { this.sam.bladeStrike(attackerId, to, targetId); }
   /** God of Blades: its halo is gone (the buff ended, its samurai fell or left). */
@@ -2579,6 +2595,7 @@ export class SkillFx {
     for (const h of this.hawks.values()) h.img.destroy();
     this.hawks.clear();
     this.sam.destroy();
+    this.shuri.destroy();
     this.mage.destroy();
     this.impact.destroy();
     for (const a of this.anims) { a.img.destroy(); a.glow?.destroy(); a.mix?.destroy(); }
