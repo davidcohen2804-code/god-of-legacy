@@ -61,8 +61,8 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
   Titan's Verdict 1.19 → 0.31, Impaling Rush 1.09 → 0.30 · Samurai — Hundred Cuts 3.93 → 0.31 (the samurai himself 0.44 in
   8 frames of the storm: many small cuts, thinned to their floor), Falcon Dive 1.55 → 0.31, Dragon Eclipse 1.25 → 0.28 ·
   Archer — Thunder Rain 2.52 → 0.30, Hunter's Rain 1.95 → 0.30, Vine Mine 1.64 → 0.30, Eagle Tide 1.41 → 0.30 · Gambler —
-  Dice Bomb 2.23 → 0.37, Riffle Shuffle 1.51 → 0.39, Rotor Staff 1.46 → 0.34, Jackpot 1.08 → 0.38 (the cards' many small
-  pieces, thinned to their floor) · Book Mage — her big moments are the room's 3D pieces: the silhouettes above. Lingering
+  Dice Bomb 2.13 → 0.42, Riffle Shuffle 1.60 → 0.43, Rotor Staff 1.58 → 0.36, Jackpot 1.40 → 0.49 (a few frames each: the
+  cards' and chips' many small pieces, thinned to their floor), his lit cane never thinned (Light Staff 0.39 → 0.02 counted) · Book Mage — her big moments are the room's 3D pieces: the silhouettes above. Lingering
   light after the blow cut (Judgment Blade's white 1.8% → 1.6% of the screen at its peak, 1.5% → 1.2% through its tail);
   what stays standing lies behind the fighters (after the skill a fighter stays covered: Lion's Maw's lion 768 → 468 ms,
   Vine Mine 1002 → 284 ms). Filmed before / after in PVP 3D vs the knight (a frame of each in the chat for David).
