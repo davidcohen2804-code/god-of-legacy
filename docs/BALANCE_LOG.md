@@ -10,7 +10,7 @@ Values apply to the whole game (only damage may differ in PvP: arenaDmg / the ar
   no foe in reach, 180 px ahead as before. Monsters in the open game too. (A catch's `snapPlace` keeps the arena's rule.)
 
 ## 2026-11-04 (evening) — WALL CRASH: a drive stopped by a wall comes off it, still in the combo
-- **Drives** (`fly` on a knockdown: the Glass Round's held steps, the warrior's driving blow) that meet a wall while he is
+- **Drives** (`fly` on a knockdown: the Glass Round's held steps, the Gambler's Grand Slam) that meet a wall while he is
   still in the air: he slams into it (WALL CRASH — the call, a ring of dust, the view shaken) and comes off it 30% of the
   drive's speed back, up into the air (vz 300 / PACE) in the launched state — juggleable for the follow-up (David 14:59: the
   Sniper throws him into the wall and keeps hitting him). Once a drive; a skid on the floor into a wall is no crash
