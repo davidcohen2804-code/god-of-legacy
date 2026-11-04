@@ -3496,7 +3496,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private hitFrom(run: CastRun, hit: HitEvent): { x: number; y: number } {
     if (run.skill.cls === 'samurai') {
       if (run.zone) return run.origin;
-      if (hit.shape.kind === 'placed' && run.place) return run.place;
+      if (hit.shape.kind === 'placed' && run.place && run.skill.style !== 'shuriken') return run.place; // (the Shuriken Assassin's Eclipse is his star flown out to the foe: from him — round its own spot it threw a monster back through him)
     }
     if (run.skill.cls === 'book_mage' && hit.shape.kind === 'placed' && run.place) return run.place; // (her fields pull toward their own middle — Storm Field, Time Collapse: never through her)
     return this.casterPos(run.attackerId) ?? run.origin;

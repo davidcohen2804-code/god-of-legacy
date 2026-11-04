@@ -378,12 +378,12 @@ export class SkillRuntime {
           p.loft = loft; p.dx = sd; p.dy = 0; p.x = o2.x + sd * 16; p.y = o2.y;
           p.range = loft === 1 ? 380 : 120; p.speed = loft === 1 ? 560 : 240;
         }
-        let carried = h;
-        if (p.edge && h.recall) { // a recall with the star in his hand: thrown a short way (a light cut on its way out), and home at once carrying the recall's hit
+        if (p.edge && h.recall) { // a recall with the star in his hand: thrown a short way — untouched on its way out — and home at once carrying the recall's hit
+          // (a light cut on its way out opened the cast's cancel before its blow: the Eclipse took the star mid-flight and the Moon's lift never came)
           p.edge.spec = { ...p.edge.spec, park: 0 }; p.range = Math.round(p.range * 0.6);
-          this.homeHit.set(p, { run: r, hit: h, i }); carried = this.lightCut(h, p.edge.spec);
+          this.homeHit.set(p, { run: r, hit: h, i });
         }
-        this.projectiles.push({ p, run: r, hit: carried });
+        this.projectiles.push({ p, run: r, hit: h });
         this.events.emit(RT_EVENTS.projectile, p, r);
       }
       return;
@@ -456,7 +456,7 @@ export class SkillRuntime {
         this.edgeHome(e, null, null);
       }
       if (E?.leg === 'back' && !this.edgeSteer(e.p)) { e.p.done = true; e.p.end = { x: e.p.x, y: e.p.y, reason: 'caught' }; this.events.emit(RT_EVENTS.projectileEnd, e.p, e.run); continue; } // (its thrower gone)
-      const targets = this.world.targets(e.run);
+      const targets = E?.leg === 'out' && this.homeHit.has(e.p) ? [] : this.world.targets(e.run); // (a recall's short throw out of the hand passes untouched: its blow is the way home)
       const pid = e.p.pid, tag = pid ? `|p${pid}|` : null;
       const already = new Set([...e.run.hitKeys].filter((k) => (tag ? k.includes(tag) : k.includes(`|${e.p.hitIndex}|`) || k.includes('|fan|'))).map((k) => k.split('|')[2]));
       const hits = stepProjectile(e.p, ms, targets, already);
