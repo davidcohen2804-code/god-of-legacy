@@ -679,7 +679,7 @@ export class CombatBody {
   update(now: number, ms: number, landed: boolean, impactVz: number): 'land' | 'kdImpact' | 'getupDone' | 'wallCrash' | null {
     const k = this.kin;
     let crash = false;
-    if (this.wallReady && this.push && this.push === this.lastPush && this.state === 'knockdown' && this.kdPhase === 'fall' && Math.abs(this.push.vx) > 0.12 && k.vx === 0) {
+    if (this.wallReady && this.push && this.push === this.lastPush && this.state === 'knockdown' && !k.grounded && Math.abs(this.push.vx) > 0.12 && k.vx === 0) { // (still in the air: a knockdown off the floor flies in its 'impact' phase)
       // WALL CRASH (David 4 Nov 14:59: the Sniper's held shot throws him into the wall and the rifle keeps hitting him): the
       // drive stopped dead by a wall — he slams into it and comes off it, back up into the air, still in the combo
       this.wallReady = false; crash = true;
