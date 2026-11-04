@@ -681,10 +681,12 @@ export class CombatBody {
     let crash = false;
     if (this.wallReady && this.push && this.push === this.lastPush && this.state === 'knockdown' && !k.grounded && Math.abs(this.push.vx) > 0.12 && k.vx === 0) { // (still in the air: a knockdown off the floor flies in its 'impact' phase)
       // WALL CRASH (David 4 Nov 14:59: the Sniper's held shot throws him into the wall and the rifle keeps hitting him): the
-      // drive stopped dead by a wall — he slams into it and comes off it, back up into the air, still in the combo
+      // drive stopped dead by a wall — he slams into it, pops off it and drops, and bounces off the floor once (the
+      // ground bounce: launched, juggleable) — still in the combo; hits on the way down count
       this.wallReady = false; crash = true;
       this.push = { vx: -this.push.vx * 0.3, vy: -this.push.vy * 0.3, left: 220 };
-      k.grounded = false; k.vz = Math.max(k.vz, 300 / PACE); this.state = 'launched'; this.kdPhase = 'fall';
+      k.grounded = false; k.vz = Math.max(k.vz, 140); this.state = 'knockdown'; this.kdPhase = 'fall';
+      this.bounce = this.airOver(now) < 1; this.stateEnd = Math.max(this.stateEnd, now + 420);
     }
     if (this.push) {
       const t = Math.min(ms, this.push.left); this.push.left -= t;
