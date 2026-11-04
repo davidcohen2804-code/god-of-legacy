@@ -1371,8 +1371,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.setMode('skill');
     this.dir = dirOf(run.aim.x, run.aim.y, this.dir);
     const phase = run.phase === 'startup' ? 'startup' : run.phase === 'active' ? 'active' : 'recovery';
-    const sw = styleOfSwitch(s.id);
-    if (sw && run.elapsed >= T.startup && this.style !== sw.style) this.applyStyle(sw.style); // (the switch commits: hit before it, no change)
+    this.commitSwitch(); // (the switch commits: hit before it, no change)
     if (s.id === 'tempest_ride' && run.phase === 'active') { const top = k.supportZ + TEMPEST.ride; k.grounded = false; k.vz = Math.max(-90, Math.min(280, (top - k.z) * 7)); } // she rides the tornado, lifted
     if (s.id === 'quick_shot_stream' && run.phase !== 'recovery' && !this.ci?.attackHeld) { // the stream: let go = the circle snaps shut
       this.rt!.cancelForFollowUp(run); this.endRun(run, false); this.pvp?.sendRelease({ castId: run.castId, at: -9, ax: 0, ay: 0 }); return;
@@ -2347,6 +2346,12 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.startCast(s, 0, sideAim(this.aim.x, this.aim.y, this.dir === 'left' ? -1 : 1), null, null, this.styleFollow);
     return true;
   }
+  /** A switch whose change is due (its startup run out) commits before anything reads the kit: an attack pressed on the
+   *  commit's very frame (held or buffered through the switch) is already the new style's, never the old one cancelling it. */
+  private commitSwitch(): void {
+    const run = this.rt?.ownRun, sw = run ? styleOfSwitch(run.skill.id) : null;
+    if (run && sw && run.elapsed >= run.timings.startup && this.style !== sw.style) this.applyStyle(sw.style);
+  }
   /** The switch committed (its 150 ms): the new style's kit on the bar, its body, its name called. */
   private applyStyle(style: string): void {
     const d = styleDef(this.cls, style), k = this.kin;
@@ -2974,6 +2979,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
 
   /** Start a slot now if legal (incl. hit-confirm cancel / chain continuation from the current action). */
   tryStartSlot(i: number): boolean {
+    this.commitSwitch();
     const s = this.mageVariant(this.kit[i]); // (Arcane Bolt: the element Attunement gives it)
     if (!s || !this.rt || this.dead >= 0) return false;
     if (this.inputLocked()) return false; // talking / a battle's VS, ROUND n, K.O.: no attacks (buffered ones too)
