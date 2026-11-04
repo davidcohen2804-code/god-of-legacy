@@ -52,6 +52,7 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
   world for sheets they never had (two 404s: `Body.ts` BODY_ALIAS, their hero plans' stand-ins).
 - Checked: PVP 3D films of the Three-Current start and his close launch (every hit lands, 0 errors), the open world on a
   monster (every hit lands; no 404s of his).
+- Done: 492f31be4 (his kit, icons, effects; his body: 55ea7ef11).
 
 ### DFO (4 Nov, David 14:59) — the styles, step 6: the Gambler's Radiant Duelist (the cards tag out, the Crown Staff tags in)
 - **The Radiant Duelist** (his second style, `Styles.ts` `gambler`: Card Gambler → Radiant Duelist; GPT's design, scratchpad
