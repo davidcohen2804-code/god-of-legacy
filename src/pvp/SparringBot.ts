@@ -99,6 +99,8 @@ export interface BotTrial { name: string; hp: number; centre: { x: number; y: nu
 interface BotCast { s: FinalSkill; stage: number; t: number; T: { startup: number; active: number; recovery: number }; origin: V3; aim: V2; dist: number; followRolled?: boolean; landed?: boolean; poke?: boolean }
 
 export class SparringBot {
+  /** Its body's event this frame (Fighter.update): the scene shows a WALL CRASH. */
+  lastEv: string | null = null;
   readonly kin: Kin;
   readonly body: CombatBody;
   readonly view: RemotePlayer;
@@ -231,7 +233,7 @@ export class SparringBot {
 
     if ((this.duel || this.level === 'hard') && b.state === 'knockdown' && b.kdPhase === 'down' && now - b.downAt > (this.level === 'hard' ? ARENA_TECH_MS : 260)) { if (b.quickGetup(now)) this.quickAt = now; } // a duel: it gets up quickly, like a player would
     const r = stepKin(k, ms, b.gravityScale(now));
-    b.update(now, ms, r.landed, r.impactVz);
+    this.lastEv = b.update(now, ms, r.landed, r.impactVz); // (the scene answers its body's events: a WALL CRASH)
     this.pushState();
     this.view.update(ms);
   }

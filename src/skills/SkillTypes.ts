@@ -128,6 +128,9 @@ export interface FinalSkill {
   placeRange?: number;
   /** Ground target: opened under the nearest foe in placeRange (any side), not at the aim's distance (a catch under him). */
   snapPlace?: boolean;
+  /** A floor bomb (the Cannoneer's): lands under the nearest foe in front inside placeRange — in the arena too (where a
+   *  snapPlace is not snapped) — else ahead at the aim's distance. */
+  seekFoe?: boolean;
   /** Persistent zone / trap lifetime after active (ms). */
   zoneMs?: number;
   /** Detached lingering hits (cracks / summons): keep striking after the caster moves on or cancels. */

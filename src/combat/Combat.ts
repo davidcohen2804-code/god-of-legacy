@@ -389,6 +389,10 @@ export class CombatBody {
   lastHitAt = -Infinity;
   /** One ground bounce pending (slams): the body pops back up on impact for an OTG follow-up. */
   bounce = false;
+  /** A drive (`fly`) is carrying him: if a wall stops it dead he crashes into it (WALL CRASH) and comes off it once. */
+  private wallReady = false;
+  /** The push the last update ran (a new push has not moved him yet: no wall to judge by). */
+  private lastPush: { vx: number; vy: number; left: number; skid?: number } | null = null;
   /** Max HP of this body (damage gauges are fractions of it). */
   maxHp = 100;
   /**
@@ -541,6 +545,7 @@ export class CombatBody {
         const ax = k.x - from.x, ay = this.arena ? 0 : k.y - from.y, d0 = Math.hypot(ax, ay); // (the arena: along its line)
         const dist = fly ? fly.dist * (air ? THROWN.air : 1) : Math.max((R.push ?? 0) * (this.arena ? ARENA.pushMul : this.pvp ? 1.4 : 2), T.dist) * ends * (air ? THROWN.air : 1);
         this.throwBack(d0 > 0.5 ? ax / d0 : 1, d0 > 0.5 ? ay / d0 : 0, dist, out);
+        this.wallReady = !!fly; // (a drive: a wall in its way is a WALL CRASH)
       }
       out.launchVz = k.vz;
       if (skill.endsCombo) {
@@ -671,8 +676,16 @@ export class CombatBody {
   }
 
   /** Per-frame state progression (after kinematics). `landed` = this frame's landing event. */
-  update(now: number, ms: number, landed: boolean, impactVz: number): 'land' | 'kdImpact' | 'getupDone' | null {
+  update(now: number, ms: number, landed: boolean, impactVz: number): 'land' | 'kdImpact' | 'getupDone' | 'wallCrash' | null {
     const k = this.kin;
+    let crash = false;
+    if (this.wallReady && this.push && this.push === this.lastPush && this.state === 'knockdown' && this.kdPhase === 'fall' && Math.abs(this.push.vx) > 0.12 && k.vx === 0) {
+      // WALL CRASH (David 4 Nov 14:59: the Sniper's held shot throws him into the wall and the rifle keeps hitting him): the
+      // drive stopped dead by a wall — he slams into it and comes off it, back up into the air, still in the combo
+      this.wallReady = false; crash = true;
+      this.push = { vx: -this.push.vx * 0.3, vy: -this.push.vy * 0.3, left: 220 };
+      k.grounded = false; k.vz = Math.max(k.vz, 300 / PACE); this.state = 'launched'; this.kdPhase = 'fall';
+    }
     if (this.push) {
       const t = Math.min(ms, this.push.left); this.push.left -= t;
       k.vx = this.push.vx * 1000; k.vy = this.push.vy * 1000;
@@ -682,7 +695,9 @@ export class CombatBody {
         else { this.push = null; k.vx = 0; k.vy = 0; }
       }
     }
-    let ev: 'land' | 'kdImpact' | 'getupDone' | null = null;
+    this.lastPush = this.push;
+    let ev: 'land' | 'kdImpact' | 'getupDone' | 'wallCrash' | null = crash ? 'wallCrash' : null;
+    if (landed) this.wallReady = false;
     if (now - this.lastHitAt > GAUGE.resetMs && this.state === 'free') this.gauge = { stand: 0, air: 0, down: 0 };
     if (this.arena && this.state !== 'free') this.combos.hold(now); // a long fall is still the same combo (its budget too)
     switch (this.state) {

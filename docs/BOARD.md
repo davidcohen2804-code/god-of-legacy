@@ -31,7 +31,7 @@ The DFO PvP arena dynamics chat is the PvP director: it sets the bar per class, 
 Take the whole PvP up a level in everything — dynamics, skills, effects, hit frames, movement, camera, feel: every hit felt, every class unique and amazing, big moments that look like a cinematic, and reasons to keep playing.
 
 ## Open items
-### ARCHER (4 Nov, David 14:59) — the styles as a chain of tools: the Recoil Cannoneer, the switch as a tag-in, the Gambler's whole staff lit
+### DFO (4 Nov, David 14:59) — the styles, step 3: a chain of tools — the Recoil Cannoneer, the tag-in, the Glass Round into the wall
 - David (14:59): the styles must make a varied chain of different tools, never the same moves — the bow's launches and
   shots → the Sniper's held shot that throws him into the wall, more rifle hits → the Cannoneer's bombs on the floor and a
   huge missile into it; in PvE against monsters too. The switch like a new fighter running in and taking her place; each
@@ -44,19 +44,21 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
   (GPT stills + PixVerse → `tools/heroes/motion/archer_cannon` → `archer_cannon/body.png`), her kit (`FinalKit` `cannon`:
   the four-beat chain — barrel jab, point-blank shell, a shell skipped off the floor that launches, the braced Breakshot —
   Breach Burst, Arc Mortar, Kickback Step, Crater Catch, Rolling Iron, Three-Beat Battery, Queen's Broadside, Piston Lift;
-  four templates; numbers in BALANCE_LOG, 4 Nov evening), her icons (GPT, the archer icons' frame), her effects (ArcherFx:
-  concussive muzzle blasts at the measured muzzle of each pose `CN_MUZZLE`, iron shells with warm trails, the rolling bomb,
-  lobbed shells driven by the cast's own clock so they land with their hits, floor blasts with scorch and debris, the
-  Broadside's missile shot up out of the frame and falling straight down; PVP 3D answers her in hot amber-white, never the
-  bow's green — `fx3d/archer.ts`).
+  four templates; numbers in BALANCE_LOG, 4 Nov evening), her 13 icons (GPT, the archer icons' frame), her effects
+  (ArcherFx: concussive muzzle blasts at the measured muzzle of each pose `CN_MUZZLE`, iron shells with warm trails, the
+  rolling bomb, lobbed shells driven by the cast's own clock so they land with their hits, floor blasts with scorch and
+  debris, the Broadside's missile shot up out of the frame and falling straight down; PVP 3D answers her in hot
+  amber-white, never the bow's green — `fx3d/archer.ts`).
+- **The Glass Round** (the Sniper's slot 11, live): held on one knee in three steps, the round glowing hotter; the full
+  hold throws him far — and **WALL CRASH** (Combat): a drive stopped dead by a wall comes off it, back up into the air, still
+  in the combo, so the rifle keeps hitting him (BALANCE_LOG).
 - **The Gambler** (57c6bbc7, David's ask in this chat): Light Staff lights his whole staff — from just behind his hand to
   the butt, the hand kept clean (`cane_lines.py` rear segment, `GamblerFx.lightStaff`). Gambler chat: yours to tune.
-- **Requests to DFO:** (1) her first numbers are the class chat's — tune them freely; (2) in the arena a placed skill lands
-  180 px ahead of her (no `snapPlace` there), so Arc Mortar and the Broadside fall where she faces, not under the foe — worth
-  snapping a floor bomb under the foe in front in the arena too?; (3) the room's launch pillar answers her launches (a column
-  of light) — keep it for reading, or let her own blast carry them?
-- **Next (Archer chat):** the Sniper's held Glass Round (the shot into the wall) and its follow-up; then the cross-style
-  chains for the three, then the other heroes' styles.
+- **Her floor bombs find him** (`seekFoe`): Arc Mortar and the Broadside come down under the nearest foe in front inside
+  their reach — in the arena too (a ground skill there otherwise lands 180 px ahead) and on monsters in the open game.
+- **Open (DFO):** the room's launch pillar still answers her launches (a column of light) — her own blast may carry them.
+- **Archer chat:** the Sniper and the Cannoneer are yours from here (their visuals, motion, the templates); worth your pass:
+  the Hunter's Mark over the foe is the bow's green leaf in every style.
 
 ### DFO (4 Nov, David 05:45) — the styles, step 2: the Archer switches style mid-fight + the Deadeye Sniper (a vertical slice)
 - David (4 Nov 04:27–05:45): each hero changes style in the middle of a fight — his look, his weapon and his whole kit — in

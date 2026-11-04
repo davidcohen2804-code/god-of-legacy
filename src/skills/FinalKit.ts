@@ -1264,9 +1264,22 @@ const sniper: FinalSkill[] = [
   S({ id: 'sn_perch_pivot', cls: 'archer', style: 'sniper', slot: 10, name: 'Perch Pivot', roles: ['launcher', 'mobility'], targeting: 'mouseDir', wip: true,
     startup: D(140), active: D(220), recovery: D(200), cooldown: 7000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
     description: 'Coming soon: a hop across the lane and a downward shot that launches.', relations: ['Reposition', 'Launcher'] }),
-  S({ id: 'sn_glass_round', cls: 'archer', style: 'sniper', slot: 11, name: 'Glass Round', roles: ['finisher', 'projectile'], targeting: 'mouseDir', wip: true,
-    startup: D(360), active: D(60), recovery: D(320), cooldown: 12000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
-    description: 'Coming soon: a charged round that throws him across the arena into the wall.', relations: ['Heavy punish'] }),
+  S({
+    id: 'sn_glass_round', cls: 'archer', style: 'sniper', slot: 11, name: 'Glass Round', roles: ['finisher', 'projectile'], targeting: 'mouseDir',
+    startup: D(1000), active: D(60), recovery: D(320), cooldown: 12000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, // (startup = the longest hold: a tap fires at D(200))
+    hits: [H(0, 14, SNIPER_SHOT(560, 10, 2800), { stun: D(420), push: 130 }, { heavy: true })],
+    // David 4 Nov 14:59: she holds the key and lets one shot go that throws him into the wall. Held in three steps on one
+    // knee, the round glowing hotter: a tap — a heavy shot that shoves him back; ~0.45 s — he is thrown across the floor;
+    // full — thrown far across the arena (into the wall if one is in the way), marked for the rifle's next shots
+    charge: { minMs: D(200), levels: [
+      { at: 0, hits: [H(0, 14, SNIPER_SHOT(560, 10, 2800), { stun: D(420), push: 130 }, { heavy: true })] },
+      { at: D(450), hits: [H(0, 20, { kind: 'projectile', speed: 3000, range: 620, radius: 11, pierce: true, antiAir: true }, { stun: D(520), knockdown: 'heavy', fly: { vz: 280, dist: 360 }, juggleCost: 24 }, { heavy: true, mark: 1 })] },
+      { at: D(900), hits: [H(0, 28, { kind: 'projectile', speed: 3200, range: 700, radius: 12, pierce: true, antiAir: true }, { stun: D(600), knockdown: 'heavy', fly: { vz: 320, dist: 620 }, juggleCost: 30 }, { heavy: true, mark: 1 })] },
+    ] },
+    cancelOnHit: ['sn_needlemark', 'sn_throughline', 'sn_skyline'], tags: ['farLaunch'], // (made to throw him from afar: past the poke range too)
+    description: 'Hold the key: on one knee, the round glows hotter; let go to fire. A tap shoves him back, half a second throws him across the floor, a full hold throws him far across the arena — into the wall if one is in the way — and marks him for your next shots.',
+    relations: ['Hold to charge', 'Throws into the wall', 'Marks'],
+  }),
   S({
     id: 'sn_skyline', cls: 'archer', style: 'sniper', slot: 12, name: 'Skyline Intercept', roles: ['antiAir', 'airExtender', 'projectile'], targeting: 'mouseProjectile',
     startup: D(150), active: D(50), recovery: D(230), cooldown: 6000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
@@ -1312,7 +1325,7 @@ const cannon: FinalSkill[] = [
   S({
     id: 'cn_arc_mortar', cls: 'archer', style: 'cannon', slot: 2, name: 'Arc Mortar', roles: ['launcher', 'zone'], targeting: 'mouseGround',
     startup: D(200), active: D(340), recovery: D(240), cooldown: 8000, ground: true, air: false, cover: 'ARCS_OVER_LOW_COVER', move: LOCK,
-    placeRange: 380,
+    placeRange: 380, seekFoe: true, // (it comes down on him: the nearest foe in front inside its reach)
     hits: [H(D(320), 16, { kind: 'placed', radius: 52 }, { stun: D(620), launch: 105, juggleCost: 22 }, { reachUp: 90, heavy: true, mark: 1 })],
     cancelOnHit: ['cn_crater_catch', 'cn_piston_lift', 'cn_battery'], tags: ['farLaunch'], telegraph: 'ground', // (a shell lobbed onto him: made to launch from afar)
     description: 'A shell lobbed high in an arc: it lands on the floor where you aim and bursts, throwing everyone on it into the air.',
@@ -1360,7 +1373,7 @@ const cannon: FinalSkill[] = [
   S({
     id: 'cn_broadside', cls: 'archer', style: 'cannon', slot: 7, name: 'Queen\'s Broadside', roles: ['ultimate'], targeting: 'mouseGround',
     startup: D(420), active: D(700), recovery: D(600), cooldown: 65000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, D(1100)],
-    placeRange: 450,
+    placeRange: 450, seekFoe: true, // (onto him: the nearest foe in front inside its reach)
     // braced on the spot: four heavy shells into the floor round him, then one huge missile straight down onto him
     hits: [
       ...[0, 90, 180, 270].map((t, i) => H(D(t), 12, { kind: 'placed', radius: 70 }, { stun: D(420), push: 10 }, { reachUp: 120, mark: i === 3 ? 1 : 0 })),

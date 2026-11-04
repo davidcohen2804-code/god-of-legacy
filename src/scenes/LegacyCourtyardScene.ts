@@ -1302,6 +1302,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       if (b.state === 'free' && !this.rt!.ownRun) this.setMode('land');
     }
     if (ev === 'kdImpact') this.fx!.dust(k.x, k.y - k.z, 120, 0.9, this.dustDepth(k));
+    if (ev === 'wallCrash') this.wallCrashFx(k);
     if (b.state === 'hitstun') this.setMode(this.mode === 'stunned' || (this.mode === 'hurt' && this.modeT > STUN_LONG_MS) ? 'stunned' : 'hurt'); // a long hitstun: the stunned loop
     else if (b.state === 'launched') this.setMode('launched');
     else if (b.state === 'knockdown') this.setMode(k.grounded ? 'down' : 'launched');
@@ -1884,13 +1885,20 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private skidT = 0;
   /** Depth of an actor's own dust: just over him, so whatever hides his feet (a block in front) hides it too. */
   private dustDepth(k: Kin): number { return actorDepth(k.x, k.y, k.z) + 0.3; }
+  /** A drive stopped dead by a wall (Combat's WALL CRASH): the call, a ring of dust off the wall, the view shaken. */
+  private wallCrashFx(k: Kin): void {
+    this.fx!.callout({ x: k.x, y: k.y, z: k.z + 40 }, 'WALL CRASH!!', '#ffd2a0', 0); this.fx!.shockwave(k.x, k.y - k.z, 110, 0xd8c8a8);
+    this.fx!.dust(k.x, k.y - k.z, 120, 0.9, this.dustDepth(k)); this.cameras.main.shake(160, 0.007);
+  }
   private reactionFx(ms: number): void {
     this.skidT -= ms;
+    if (this.bot?.lastEv === 'wallCrash') { this.wallCrashFx(this.bot.kin); this.bot.lastEv = null; }
     for (const e of [this.enemy, ...(this.world?.mobs ?? [])]) {
       if (!e?.alive) continue;
       const k = e.kin, sp = Math.hypot(k.vx, k.vy);
       const sam = this.cls === 'samurai'; // (a samurai's foes: dust the colour of the ground, never a white flash)
       if (k.grounded && e.body.push && sp > 140 && this.skidT <= 0) { if (sam) this.fx!.samSkid(k.x - (k.vx / sp) * 14, k.y); else this.fx!.dust(k.x - (k.vx / sp) * 14, k.y - k.z, 46, 0.7, this.dustDepth(k)); this.skidT = 55; }
+      if (e.lastEv === 'wallCrash') this.wallCrashFx(k);
       if (e.lastEv === 'kdImpact') { if (sam) this.fx!.samLanding(k.x, k.y); else { this.fx!.dust(k.x, k.y - k.z, 130, 0.95, this.dustDepth(k)); this.fx!.shockwave(k.x, k.y - k.z, 70, 0xd8c8a8); } this.cameras.main.shake(90, 0.004); }
     }
   }
@@ -3080,7 +3088,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     let aim = unit(mouse.x - k.x, mouse.y - k.y, FACE[this.dir].x, FACE[this.dir].y);
     let place: V2 | null = null, lock: string | null = null;
     if (s.targeting === 'mouseGround') {
-      const under0 = s.snapPlace && !this.arena ? this.softTarget(s.placeRange ?? 260, 0.05) : null, under = under0 && Math.abs(under0.y - k.y) <= 140 ? under0 : null; // a catch: opened under the nearest foe in front (on your side, near your line)
+      const under0 = (s.snapPlace && !this.arena) || s.seekFoe ? this.softTarget(s.placeRange ?? 260, 0.05) : null, under = under0 && Math.abs(under0.y - k.y) <= 140 ? under0 : null; // a catch: opened under the nearest foe in front (on your side, near your line); a floor bomb finds him in the arena too
       place = under && placementOk(under.x, under.y) ? { x: under.x, y: under.y } : clampPlace(k, mouse, s.placeRange ?? 260);
       if (!placementOk(place.x, place.y)) return null;
     }

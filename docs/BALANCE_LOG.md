@@ -4,6 +4,26 @@ Every balance change to any class's skills, newest first. Class chats: read this
 needs new visuals / motion (an effect sized to a new hitbox, an animation timed to a new startup), do that part.
 Values apply to the whole game (only damage may differ in PvP: arenaDmg / the arena's scaling).
 
+## 2026-11-04 (evening) — The Cannoneer's floor bombs come down on the foe (`seekFoe`)
+- **Arc Mortar** and **Queen's Broadside** land under the nearest foe in front inside their reach (380 / 450 px) — in the
+  arena too, where a ground-target skill otherwise lands 180 px ahead of her (`seekFoe`, the scene's `resolveCast`); with
+  no foe in reach, 180 px ahead as before. Monsters in the open game too. (A catch's `snapPlace` keeps the arena's rule.)
+
+## 2026-11-04 (evening) — WALL CRASH: a drive stopped by a wall comes off it, still in the combo
+- **Drives** (`fly` on a knockdown: the Glass Round's held steps, the warrior's driving blow) that meet a wall while he is
+  still in the air: he slams into it (WALL CRASH — the call, a ring of dust, the view shaken) and comes off it 30% of the
+  drive's speed back, up into the air (vz 300 / PACE) in the launched state — juggleable for the follow-up (David 14:59: the
+  Sniper throws him into the wall and keeps hitting him). Once a drive; a skid on the floor into a wall is no crash
+  (`Combat.update`, the scene's `wallCrashFx`, the sparring bot's `lastEv`).
+
+## 2026-11-04 (evening) — The Deadeye Sniper's Glass Round goes live: the held shot that throws him into the wall
+- **Glass Round** (slot 11, was a template; David 14:59: "she holds the key and lets one shot go that throws him into the
+  wall"): hold to charge on one knee (`charge`, minMs D(200), the longest hold D(1000)); a tap — 14 dmg 560 px at 2800 px/s,
+  push 130, heavy; from D(450) — 20 dmg 620 px pierce, a heavy knockdown that throws him (`fly` vz 280, 360 px), juggle cost
+  24, marks; from D(900) — 28 dmg 700 px pierce, thrown far (`fly` vz 320, 620 px: into the wall if one is in the way), juggle
+  cost 30, marks. `farLaunch` (a throw from afar, past the poke range). CD 12 s; links into Needlemark, Throughline, Skyline.
+  The class chat's first numbers — DFO: tune freely.
+
 ## 2026-11-04 (evening) — The Archer's third style: the Recoil Cannoneer's kit (David 14:59 — the styles as a chain of tools)
 - **Her kit** (`FinalKit` `cannon`, the archer chat's first numbers, at the fight's pace `D(ms)` like the sniper's; GPT's
   design: impact and momentum, 90–380 px, heavy shots, recoil steps, low-to-high launches). Live:

@@ -781,6 +781,7 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
     sn_needlemark: { act: 'stance', st: [0], ac: [0], rc: [0] },
     sn_recoil_slip: { act: 'sn_slide', st: [0], ac: [0], rc: [0] }, // slid back low on the recoil
     sn_throughline: { act: 'sn_kneel', st: [0], ac: [0], rc: [0] }, // on one knee, braced, the long shot
+    sn_glass_round: { act: 'sn_kneel', st: [0], ac: [0], rc: [0] }, // on one knee while the round charges, then the throw
     sn_four_bells: { act: 'stance', st: [0], ac: [0], rc: [0] }, // her signature from the shoulder, the eye at the scope
     sn_skyline: { act: 'sn_up', st: [0], ac: [0], rc: [0] }, // the rifle up at the sky
     style_archer_sniper: { act: 'stance', st: [0], ac: [0], rc: [0] }, style_archer_bow: { act: 'stance', st: [0], ac: [0], rc: [0] }, // the switch (its own move with the sniper body)

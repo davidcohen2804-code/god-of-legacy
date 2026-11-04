@@ -176,14 +176,14 @@ interface Shell {
   z0: number; w: number; puff: number; puffs: number; x: number; y: number;
 }
 /** A rifle round in flight (the Deadeye Sniper): a white-hot point and one thin streak behind it. */
-interface Round { head: Phaser.GameObjects.Image; tr: Phaser.GameObjects.Image; t: number }
+interface Round { head: Phaser.GameObjects.Image; tr: Phaser.GameObjects.Image; t: number; /** its weight: 1, the Glass Round more by its charge */ k: number }
 /** The rifle's copper-white (GPT: small warm muzzle flashes, one bullet streak per shot — never the bow's green wind). */
 const ROUND = 0xffe6c2;
 /** Her rifle's muzzle in the pose each shot holds (world px ahead of and over her feet, facing right — measured on her painted
  *  frames, tools/heroes/motion/archer_sniper: the hip, the shoulder, the knee, the slide, the sky). A chain stage: id#stage. */
 const SN_MUZZLE: Record<string, [number, number]> = {
   stance: [113, 107], sn_four_beat: [103, 92], 'sn_four_beat#2': [113, 107], 'sn_four_beat#3': [95, 108], sn_needlemark: [113, 107],
-  sn_recoil_slip: [96, 57], sn_throughline: [99, 74], sn_four_bells: [113, 107], sn_skyline: [76, 163],
+  sn_recoil_slip: [96, 57], sn_throughline: [99, 74], sn_four_bells: [113, 107], sn_skyline: [76, 163], sn_glass_round: [99, 74],
 };
 /** Continuity: Thunder Rain's strike points stay charged (the runtime's STORM: its window, its reach); a shot of hers crossing one turns to lightning (RT_EVENTS.storm → stormTurn) and chains (stormChain). */
 const CHARGE_MS = STORM.ms;
@@ -536,6 +536,7 @@ export class ArcherFx {
     if (!this.ready) return;
     const s = r.skill, a = r.aim;
     if (s.style === 'cannon') { this.cannonHit(r, i); return; }
+    if (s.id === 'sn_glass_round') { this.glassShot(r); return; }
     if (s.id === 'rain_of_arrows') { // the charged lightning arrows strike the floor near, middle and far — each bigger than the last; the third is a storm
       const sh = r.hits[i].shape as { bias?: number }, cx = r.origin.x + a.x * (sh.bias ?? 200), cy = r.origin.y + a.y * (sh.bias ?? 200), K = [0.7, 1, 1.25][i] ?? 1, big = i === 2; // (the third a size down: in PVP 3D it whited the fight out in blue)
       const q = this.me(r), sx = q.x + sideOf(r) * 30, sy = q.y - q.z - 58, lv = { x: cx - sx, y: cy - 20 - sy }, ang = Math.atan2(lv.y, lv.x) * (180 / Math.PI);
@@ -1020,26 +1021,59 @@ export class ArcherFx {
         break;
       }
       case 'sn_skyline': shots(); this.spr({ name: 'dust', w: 90, life: 300, delay: T.startup, x: me.x, y: me.y, depth: me.y - 1, run: r, a: kf([0, 0.6], [1, 0]) }); break;
+      case 'sn_glass_round': this.glassHold(r); break; // (the shot itself at its hit: a held skill's startup ends when she lets go)
       default: shots();
     }
+  }
+  /** Glass Round held (David 4 Nov 14:59: she holds the key, then one shot throws him into the wall): on one knee the round
+   *  glows hotter in the chamber — a glow along the barrel growing, a glint at the muzzle, the sight rings closing in on
+   *  the line ahead — and each charge step reached rings once at the muzzle. While the hold lasts (its startup). */
+  private glassHold(r: CastRun): void {
+    const side = sideOf(r), at = this.muzzleAt(r.attackerId, side, r), held = () => r.phase === 'startup';
+    const [fwd, up] = SN_MUZZLE.sn_glass_round, barrel = this.at(r.attackerId, side, fwd * 0.6, up + 2), MAX = 1400;
+    const g = (u: number) => Math.min(1, (u * MAX) / Math.max(1, r.timings.startup)); // (0 → 1 over the longest hold)
+    this.spr({ name: 'sn-flash', w: 40, life: MAX, follow: barrel, on: r.attackerId, dz: 5, glow: 0.3, tint: 0xffc890, run: r, alive: held,
+      sx: (u) => 0.5 + 1.1 * g(u), sy: (u) => (0.35 + 0.35 * g(u)) * (1 + 0.1 * Math.sin(u * 90)), a: (u) => 0.35 + 0.6 * g(u) });
+    this.spr({ name: 'sn-flash', w: 30, life: MAX, follow: at, on: r.attackerId, dz: 6, glow: 0.3, tint: 0xfff4e2, run: r, alive: held,
+      rot: (u) => 300 * u, sx: (u) => 0.5 + 0.9 * g(u), sy: (u) => 0.5 + 0.9 * g(u), a: (u) => 0.3 + 0.7 * g(u) });
+    for (let k = 0; k < 3; k++) this.spr({ name: 'sn-ring', w: 64 - k * 10, life: MAX, delay: k * 90, glow: 0.2, tint: ROUND, run: r, alive: held,
+      follow: () => { const p = at(); return p ? { x: p.x + side * (170 + k * 70), y: p.y, d: p.d + 4 } : null; },
+      sx: (u) => 1.9 - 0.9 * g(u), sy: (u) => 1.9 - 0.9 * g(u), a: (u) => Math.min(0.85, 0.2 + g(u)) });
+    for (const lv of (r.skill.charge?.levels ?? []).slice(1)) this.onClock(r, lv.at, () => { // a charge step reached
+      if (!held()) return;
+      this.spr({ name: 'sn-ring', w: 60, life: 200, follow: at, on: r.attackerId, dz: 6, glow: 0.3, tint: 0xfff4e2, run: r, sx: kf([0, 0.4], [1, 1.5, out3]), sy: kf([0, 0.4], [1, 1.5, out3]), a: kf([0, 1], [1, 0, inQ]) });
+    });
+  }
+  /** Glass Round let go: the heaviest shot of hers, by how long she held it — the flash, the air cracking open along the
+   *  shot, the kick into the floor under her knee, the view shaken. */
+  private glassShot(r: CastRun): void {
+    const side = sideOf(r), lv = r.chargeLevel ?? 0, k = [1, 1.25, 1.55][lv] ?? 1, at = this.muzzleAt(r.attackerId, side, r), me = this.me(r);
+    this.shot(r, 0, 110 * k);
+    this.spr({ name: 'sn-ring', w: 120 * k, life: 240, tint: ROUND, follow: at, dz: 4, glow: 0.3, run: r,
+      sx: kf([0, 0.2], [0.4, 0.35, out3], [1, 0.45]), sy: kf([0, 0.4], [0.4, 1, out3], [1, 1.3]), mx: (u) => side * 70 * k * u, a: kf([0, 1], [1, 0, inQ]) });
+    if (lv >= 1) this.spr({ name: 'sn-streak', w: 260 * k, h: 12, life: 200, tint: ROUND, follow: at, dz: 4, glow: 0.3, ox: side < 0 ? 1 : 0, flipX: side < 0, run: r, // the line the round tears through the air
+      sx: kf([0, 0.2], [0.3, 1, out3]), a: kf([0, 0.9], [1, 0, inQ]) });
+    this.spr({ name: 'dust_roll', x: me.x - side * 10, y: me.y + 4, oy: 0.9, depth: me.y, w: 100 * k, flipX: side > 0, life: 420, a: kf([0, 0.7], [1, 0, inQ]) });
+    this.shake(r, 110 + 60 * lv, 0.004 + 0.002 * lv); if (r.own && lv >= 1) this.ctx.punch(0.02 + 0.01 * lv, 160);
   }
   /** A round in flight: a white-hot point, one thin streak behind it (no arrow, no wind). */
   private round(p: Projectile): void {
     const s = this.ctx.scene;
     sniperTextures(s);
-    const head = s.add.image(p.x, p.y - p.z, 'sn-flash').setBlendMode(Phaser.BlendModes.ADD).setTint(0xfff6ea).setDisplaySize(18, 18).setAlpha(0);
-    const tr = s.add.image(p.x, p.y - p.z, 'sn-streak').setOrigin(1, 0.5).setBlendMode(Phaser.BlendModes.ADD).setTint(ROUND).setAlpha(0).setDisplaySize(12, 8);
-    this.rounds.set(p, { head, tr, t: 0 });
+    const k = p.skill.id === 'sn_glass_round' ? 1.3 + 0.25 * Math.max(0, p.radius - 10) : 1; // (the Glass Round: a bigger, hotter round, by its charge)
+    const head = s.add.image(p.x, p.y - p.z, 'sn-flash').setBlendMode(Phaser.BlendModes.ADD).setTint(0xfff6ea).setDisplaySize(18 * k, 18 * k).setAlpha(0);
+    const tr = s.add.image(p.x, p.y - p.z, 'sn-streak').setOrigin(1, 0.5).setBlendMode(Phaser.BlendModes.ADD).setTint(ROUND).setAlpha(0).setDisplaySize(12, 8 * k);
+    this.rounds.set(p, { head, tr, t: 0, k });
   }
   private stepRounds(dt: number): void {
     for (const [p, a] of this.rounds) {
       a.t += dt;
       let ang = level(p.dx, p.dy).ang; const flip = p.dx < -0.01, x = p.x, y = p.y - p.z - 20;
       if (p.dropPerPx < 0 && p.zTop !== undefined && p.z < p.zTop - 1) { const raw = Math.atan2(p.dropPerPx, Math.abs(p.dx) + 0.2) * (180 / Math.PI); ang = flip ? -raw : raw; } // fired up at a foe in the air: tilted up
-      const len = Math.min(170, 30 + a.t * 2.4);
+      const len = Math.min(170 * a.k, 30 + a.t * 2.4 * a.k);
       const shown = Math.max(0, Math.min(1, (a.t - 40) / 15)); // (out of the barrel first: it starts at her body, the muzzle is ~110 px ahead)
       a.head.setPosition(x, y).setDepth(p.y + 2.1).setAlpha(shown);
-      a.tr.setPosition(x, y).setFlipX(flip).setAngle(ang).setDepth(p.y + 2).setAlpha(0.85 * shown).setDisplaySize(Math.min(len, Math.max(12, (a.t - 40) * 2.1)), 8);
+      a.tr.setPosition(x, y).setFlipX(flip).setAngle(ang).setDepth(p.y + 2).setAlpha(0.85 * shown).setDisplaySize(Math.min(len, Math.max(12, (a.t - 40) * 2.1 * a.k)), 8 * a.k);
     }
   }
   // ------------------------------------------------------------------ the Recoil Cannoneer (her third style: Styles.ts)
