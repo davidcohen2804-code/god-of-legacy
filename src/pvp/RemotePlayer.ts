@@ -163,6 +163,7 @@ export class RemotePlayer {
     const s = finalSkill(id);
     if (!s || !this.alive) return;
     const t = s.chain?.timings?.[stage] ?? s;
+    if (!styleOfSwitch(s.id) && s.cls === this.meta.classId) this.style = s.style ?? baseStyle(s.cls); // (a style's skill is cast in that style's body: also when it cancelled his switch on its commit frame)
     this.skill = { id: s.id, stage, elapsed: 0, startup: t.startup, active: t.active, recovery: t.recovery, seed };
     this.dir = dir; this.aim = aim; this.mode = 'skill'; this.modeT = 0;
     if (s.id === 'kagemusha') this.kageHold = performance.now() + t.startup + t.active + t.recovery + 700; // gone until his state says where the doubles are
