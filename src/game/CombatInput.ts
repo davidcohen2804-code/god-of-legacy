@@ -38,7 +38,7 @@ export class CombatInput {
   private dirKeys: Record<DirKey, string[]>;
 
   constructor(readonly scene: Phaser.Scene, onSlot: (slot: number) => void, onJump: () => void, onToggle: (key: 'K' | 'I' | 'O' | 'J' | 'P' | 'U') => void, bindings = loadBindings(),
-    onTalk?: () => void, onPotion?: (i: 0 | 1) => void, onBackstep?: () => void) {
+    onTalk?: () => void, onPotion?: (i: 0 | 1) => void, onBackstep?: () => void, onStyle?: () => void) {
     const kb = scene.input.keyboard!;
     const b = this.bind = bindings;
     this.dirKeys = { L: ['LEFT', b.left], R: ['RIGHT', b.right], U: ['UP', b.up], D: ['DOWN', b.down] } as Record<DirKey, string[]>;
@@ -60,6 +60,7 @@ export class CombatInput {
     if (onTalk) on(b.talk, onTalk);
     if (onPotion) { on(b.hpPot, () => onPotion(0)); on(b.mpPot, () => onPotion(1)); }
     if (onBackstep) on(b.backstep, onBackstep);
+    if (onStyle) on(b.style, onStyle); // the fighting style switch (Styles.ts)
     // Keyboard-only control: the mouse never aims or steers (pointerActive stays false).
   }
 

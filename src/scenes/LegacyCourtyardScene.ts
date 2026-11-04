@@ -112,6 +112,7 @@ import { AnimSnap, LAND_MS, Mode, RECOVER_MS, castSeed, poseQuery } from '../gam
 import { ARENA, CombatBody, counterStun, HitOutcome, gaugeOf, Kin, MAGE, PHYS, jump, newKin, settleOnBlocks, steer, stepKin } from '../combat/Combat';
 import { FinalSkill, HitEvent } from '../skills/SkillTypes';
 import { ARCHER_STREAM, ARENA_FLOW, MAGE_HIDDEN, arenaCommits, arenaTimeScale, armorEnd, finalSkill, iconUrl, kitFor, lastOfBurst, paceTime } from '../skills/FinalKit';
+import { SWITCH, baseStyle, nextStyle, styleDef, styleOfSwitch, stylesOf, switchId } from '../skills/Styles';
 import { CastRun, RT_EVENTS, SkillRuntime, Trap, STORM } from '../skills/SkillRuntime';
 import type { Projectile } from '../skills/HitGeometry';
 import { Afterimages, applyMotion, archerMotion, heroMotion, leapMotion, type Motion } from '../skills/ArcherMotion';
@@ -177,7 +178,9 @@ interface LootDrop { kind: 'gold' | 'item'; id?: string; amount: number; img: Ph
 const CLOUD_FORM = { ms: 90_000, after: 10_000 };
 /** Sunfall Pass: the blaze (the pass less this much at each end), the burn (share of max HP) every tickMs, the push back. */
 const SUN = { edge: 300, burn: 0.07, tickMs: 450, push: 320 };
-const mpCost = (s: FinalSkill): number => (s.slot === 0 ? 0 : Math.min(60, Math.round(6 + (s.cooldown / 1000) * 2.2)));
+/** The style key waits this long for its first legal frame (as a skill key's buffer). */
+const SWITCH_BUFFER_MS = 220;
+const mpCost = (s: FinalSkill): number => (s.slot <= 0 ? 0 : Math.min(60, Math.round(6 + (s.cooldown / 1000) * 2.2)));
 /** The slash-trail art (radiant_blade/slash_trail.jpg, 288 cells): its arc's circle (centre as a fraction of the cell, radius px) and the angle of its bright head (deg, y down). */
 const SLASH = { cx: 189 / 288, cy: 81 / 288, r: 122, head: 190 };
 const FACE: Record<Dir, V2> = { up: { x: 0, y: -1 }, down: { x: 0, y: 1 }, left: { x: -1, y: 0 }, right: { x: 1, y: 0 } };
@@ -271,6 +274,14 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   rt?: SkillRuntime;
   fx?: SkillFx;
   kit: FinalSkill[] = [];
+  /** The fighting style worn now (Styles.ts): its kit is `kit`, its painted body the body's. */
+  style = '';
+  /** When the last style switch was cast (the switch's own cooldown), and whether it came out of a landed blow (the next
+   *  skill then counts as the combo's follow-up, as it would have out of that blow). */
+  private styleAt = -Infinity;
+  private styleFollow = false;
+  /** The style key pressed while it could not come out yet (-1: none). */
+  private styleWant = -1;
   simMs = 0;
   private castSeq = 0;
   localId = 'local';
@@ -771,6 +782,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (character.level < TEST_MIN_LEVEL) { character.level = TEST_MIN_LEVEL; character.exp = 0; CharacterStore.setProgress(character.id, TEST_MIN_LEVEL, 0); } // TESTING: start at the job advancement
     this.cls = playedClass(character) as ClassKey;
     this.stats = cleanStats(character.stats, character.level); this.statD = derive(this.stats, this.cls, character.level);
+    this.style = baseStyle(this.cls); this.styleAt = -Infinity; this.styleFollow = false; this.styleWant = -1;
     this.kit = kitFor(this.cls);
     this.gold = character.gold ?? 0; this.bag = cleanBag(character.bag ?? STARTER_BAG); this.quick = cleanQuick(character.quick); this.seen = new Set(character.seen ?? Object.keys(this.bag)); this.potionAt = [-Infinity, -Infinity]; this.drops = []; this.treasures = undefined; this.itemDmgUntil = -1; this.itemSpeedUntil = -1; this.useAt = {};
     this.simMs = 0; this.castSeq = 0; this.dead = -1; this.flash = -1; this.hitBlinkUntil = -1; this.mode = 'idle'; this.modeT = 0; this.loopT = 0;
@@ -992,7 +1004,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (isQAMode()) (window as unknown as { __combatQA: unknown }).__combatQA = { finalSkill, kitFor, WORLD_OBJECTS, footAllowed, placementOk };
 
     this.bindings = loadBindings();
-    this.ci = new CombatInput(this, (i) => this.useSlot(i), () => this.onJumpKey(), (k) => this.togglePanel(k), this.bindings, () => this.onTalk(), (i) => this.usePotion(i), () => this.onBackstepKey());
+    this.ci = new CombatInput(this, (i) => this.useSlot(i), () => this.onJumpKey(), (k) => this.togglePanel(k), this.bindings, () => this.onTalk(), (i) => this.usePotion(i), () => this.onBackstepKey(), () => this.onStyleKey());
     const stop = () => { this.ci?.reset(); };
     this.game.events.on(Phaser.Core.Events.BLUR, stop);
     this.game.events.on(Phaser.Core.Events.HIDDEN, stop);
@@ -1297,6 +1309,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     else if (this.mode === 'hurt' || this.mode === 'launched' || this.mode === 'down' || this.mode === 'getup' || this.mode === 'quickrise' || this.mode === 'stunned') this.setMode(k.grounded ? 'idle' : 'air');
     if (this.poseLock && now < this.poseLock.until) this.setMode(this.poseLock.mode); else this.poseLock = null; // the battle's intro / the winner's pose
     // Buffered action fires on the first legal frame (within the buffer window).
+    if (this.styleWant >= 0) { if (now - this.styleWant > SWITCH_BUFFER_MS || this.trySwitchStyle(nextStyle(this.cls, this.style))) this.styleWant = -1; } // (the style key: held for its first legal frame, through a hit-stop)
     const buf = this.ci!.takeBuffered();
     if (buf && this.tryStartSlot(buf.slot)) this.ci!.consumeBuffer();
     else if (!buf && this.ci!.attackHeld && this.cls === 'archer' && this.kit[0]?.id === 'quick_shot') { // archer: held past the first shot — the spirit circle's stream (David 18 Oct 01:33)
@@ -1358,6 +1371,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.setMode('skill');
     this.dir = dirOf(run.aim.x, run.aim.y, this.dir);
     const phase = run.phase === 'startup' ? 'startup' : run.phase === 'active' ? 'active' : 'recovery';
+    const sw = styleOfSwitch(s.id);
+    if (sw && run.elapsed >= T.startup && this.style !== sw.style) this.applyStyle(sw.style); // (the switch commits: hit before it, no change)
     if (s.id === 'tempest_ride' && run.phase === 'active') { const top = k.supportZ + TEMPEST.ride; k.grounded = false; k.vz = Math.max(-90, Math.min(280, (top - k.z) * 7)); } // she rides the tornado, lifted
     if (s.id === 'quick_shot_stream' && run.phase !== 'recovery' && !this.ci?.attackHeld) { // the stream: let go = the circle snaps shut
       this.rt!.cancelForFollowUp(run); this.endRun(run, false); this.pvp?.sendRelease({ castId: run.castId, at: -9, ax: 0, ay: 0 }); return;
@@ -2031,7 +2046,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       skill: run ? { id: run.skill.id, stage: run.stage, elapsed: run.elapsed, ...run.timings, seed: castSeed(run.castId) } : undefined,
     };
     const dir = this.dir; // Whirlwind spins inside its own 360° body loop
-    const pose = resolvePose(this.cls, dir, poseQuery(snap), v.wantsBase || !hasJob(this.character!), genderOf(this.character), !!this.character!.hero);
+    const pose = resolvePose(this.cls, dir, poseQuery(snap), v.wantsBase || !hasJob(this.character!), genderOf(this.character), !!this.character!.hero, false, styleDef(this.cls, this.style)?.body);
     let tint: number | null = null, fill = false, alpha = 1;
     if (this.flash >= 0) { const iron = this.passives.takenMul < 1; tint = iron ? 0xc8d4e6 : 0xff9a9a; } // struck: a soft tint (MapleStory: no white flash over the body); Iron Body: steel sheen
     else if (this.body.hard.active(this.simMs)) tint = this.body.hard.kind === 'freeze' ? 0x9fd8ff : 0xb6ffb0;
@@ -2309,6 +2324,36 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   }
 
   private onJumpKey(): void { if (this.pvpReady && this.dead < 0 && !this.inputLocked()) this.ci?.queueJump(); }
+  /** The style key (Styles.ts): on to the next style, through its switch (a cast of its own) — at once, or on the first
+   *  frame it may come out (a landed blow's cancel window, the end of a recovery). */
+  private onStyleKey(): void {
+    if (!this.view || !this.pvpReady || this.dead >= 0 || stylesOf(this.cls).length < 2) return;
+    if (this.skillBook?.open || this.cosPanel?.open || this.inputLocked()) return;
+    if (!this.trySwitchStyle(nextStyle(this.cls, this.style))) this.styleWant = this.simMs;
+  }
+  /** Into a style, by its switch: standing, moving or in the air, out of any landed blow (never an ultimate's) or late in a
+   *  recovery — a missed attack is not cancelled by it; not twice inside SWITCH.cooldownMs. She keeps her place, her
+   *  facing, her momentum; the foe keeps his state (his hit-stun, his juggle). */
+  trySwitchStyle(style: string): boolean {
+    if (style === this.style || !this.rt || this.dead >= 0 || this.inputLocked()) return false;
+    const s = finalSkill(switchId(this.cls, style)), now = this.simMs, b = this.body;
+    if (!s || now - this.styleAt < SWITCH.cooldownMs) return false;
+    if (b.state !== 'free' || this.cloudOn || now < b.curseUntil || (b.hard.active(now) && b.hard.kind !== 'root')) return false;
+    const run = this.rt.ownRun;
+    if (run && !this.cancelAllowed(run, s)) return false;
+    this.styleFollow = !!run && run.confirmedAt >= 0;
+    if (run) { this.rt.cancelForFollowUp(run); this.endRun(run, true); }
+    this.styleAt = now;
+    this.startCast(s, 0, sideAim(this.aim.x, this.aim.y, this.dir === 'left' ? -1 : 1), null, null, this.styleFollow);
+    return true;
+  }
+  /** The switch committed (its 150 ms): the new style's kit on the bar, its body, its name called. */
+  private applyStyle(style: string): void {
+    const d = styleDef(this.cls, style), k = this.kin;
+    this.style = style; this.kit = kitFor(this.cls, style);
+    this.chain = { stage: -1, lastEnd: -Infinity, skill: '' };
+    if (d) this.fx?.callout({ x: k.x, y: k.y, z: k.z + 70 }, d.name.toUpperCase(), `#${d.accent.toString(16).padStart(6, '0')}`, 0);
+  }
   /** Rising Sun's banner: his jump coming down on it springs him far back (once a landing). */
   private stepPole(now: number): void {
     const p = this.pole, k = this.kin;
@@ -2737,7 +2782,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         if (this.tagsOn) { v.setTag(this.myTag(false), PVP.labelDepth, TAG_SCALE); v.setRing(colorNum(classColor(this.cls))); } // battle: your doubles wear your tag (with no YOU) and ring
         return v;
       },
-      pose: (snap, dir) => resolvePose(this.cls, dir, poseQuery(snap), this.view!.wantsBase || !hasJob(this.character!), genderOf(this.character), !!this.character!.hero),
+      pose: (snap, dir) => resolvePose(this.cls, dir, poseQuery(snap), this.view!.wantsBase || !hasJob(this.character!), genderOf(this.character), !!this.character!.hero, false, styleDef(this.cls, this.style)?.body),
       appear: (at) => this.fx?.kageAppear(at), burst: (at) => this.fx?.kageBurst(at), fade: (at) => this.fx?.kageFade(at),
       feint: (at, face, stage) => this.fx?.kageFeint(at, face, stage),
     });
@@ -2969,7 +3014,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     }
     const target = this.resolveCast(s);
     if (!target) return false;
-    const followUp = (!!run && run.confirmedAt >= 0 && run.skill.id !== s.id) || (s.id === 'staff_vault' && this.simMs < this.gSwapOpenUntil); // a combo follow-up (hit-confirm cancel; Card Swap's bomb opens one into Staff Vault)
+    const followUp = (!!run && run.confirmedAt >= 0 && run.skill.id !== s.id) || (!!run && !!styleOfSwitch(run.skill.id) && this.styleFollow) || (s.id === 'staff_vault' && this.simMs < this.gSwapOpenUntil); // a combo follow-up (hit-confirm cancel; Card Swap's bomb opens one into Staff Vault)
     if (run) { this.rt.cancelForFollowUp(run); this.endRun(run, true); }
     this.startCast(s, stage, target.aim, target.place, target.lock, followUp);
     return true;
@@ -2978,6 +3023,13 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Hit-confirm cancel windows (and the basic chain): only after a confirmed hit, until 70% of recovery. */
   private cancelAllowed(run: CastRun, next: FinalSkill): boolean {
     const s = run.skill, T = run.timings, e = run.elapsed;
+    if (styleOfSwitch(s.id)) return e >= T.startup; // the new weapon lands in its ready pose: the next attack flows out of it
+    if (styleOfSwitch(next.id)) { // the switch: out of any landed blow (not an ultimate's), else late in a recovery — no free switch on a whiff
+      if (s.slot === 7 || styleOfSwitch(s.id)) return false;
+      if (run.confirmedAt >= 0) return e >= run.confirmedAt;
+      if (arenaCommits(s)) return false;
+      return e >= T.startup + T.active + 0.5 * T.recovery;
+    }
     const base = (id: string) => (id.startsWith('arcane_bolt') ? 'arcane_bolt' : id); // (the book mage's Attunement bolts are her Arcane Bolt: its links and its chain)
     if (base(s.id) === base(next.id) && s.chain) return e >= T.startup + Math.max(0, T.active - 20); // (a bolt has no active: the next one waited for nothing and cut it 20 ms before it fired — fast taps lost bolts)
     if (s.slot === 7) return false; // Ultimate cannot be cancelled
@@ -3325,7 +3377,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private applyKeys(b: Record<BindAction, string>): void {
     this.ci?.destroy();
     this.bindings = b;
-    this.ci = new CombatInput(this, (i) => this.useSlot(i), () => this.onJumpKey(), (k) => this.togglePanel(k), b, () => this.onTalk(), (i) => this.usePotion(i), () => this.onBackstepKey());
+    this.ci = new CombatInput(this, (i) => this.useSlot(i), () => this.onJumpKey(), (k) => this.togglePanel(k), b, () => this.onTalk(), (i) => this.usePotion(i), () => this.onBackstepKey(), () => this.onStyleKey());
     this.hud?.setKeyLabels(slotKeyLabels(b));
     this.hud?.setMenuKeys(menuKeys(b));
     this.comboGuide?.setKeys(this.guideKeys()); this.trialUi?.setKeys(this.guideKeys());
@@ -4505,7 +4557,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         if (!this.view || !this.pvpReady) return null;
         const k = this.kin, dead = this.dead >= 0;
         const cos = [...Object.entries(this.equipped).filter(([, v]) => v).map(([s, v]) => `${s}:${v}`), `gear:${this.gearCode}`].join(','); // + what is worn
-        return { x: k.x, y: k.y, z: k.z, sz: k.supportZ, dir: this.dir, anim: dead ? 'dead' : this.mode, mode: this.mode, sp: Math.hypot(k.vx, k.vy), vz: k.vz, ax: this.aim.x, ay: this.aim.y, hp: this.playerHP, alive: !dead, cos, mhp: this.maxHpNow(), iv: this.body.ghost(this.simMs), kg: this.kage?.code(k), a2: this.air2() };
+        return { x: k.x, y: k.y, z: k.z, sz: k.supportZ, dir: this.dir, anim: dead ? 'dead' : this.mode, mode: this.mode, sp: Math.hypot(k.vx, k.vy), vz: k.vz, ax: this.aim.x, ay: this.aim.y, hp: this.playerHP, alive: !dead, cos, mhp: this.maxHpNow(), iv: this.body.ghost(this.simMs), ...(this.style !== baseStyle(this.cls) ? { st: this.style } : {}), kg: this.kage?.code(k), a2: this.air2() };
       },
     }, this.vs === 'cpu' || this.vs === 'training'); // (VS CPU, TRAINING: no network — the sparring knight is in this page)
     this.pvp = pvp;

@@ -15,6 +15,7 @@ import { AnimSnap, Mode, poseQuery } from '../game/PoseState';
 import { Afterimages, applyMotion, archerMotion, heroMotion, type Motion } from '../skills/ArcherMotion';
 import { SAMURAI_AFTER, samuraiMotion, samuraiSeen } from '../skills/SamuraiMotion';
 import { finalSkill } from '../skills/FinalKit';
+import { baseStyle, styleDef, styleOfSwitch } from '../skills/Styles';
 import { KAGE, KageMode, KageSeen, decodeKage, kageFeintMotion, kageFlicker, kageSnap, kageTargets } from '../skills/Kagemusha';
 import type { HitTarget, V3 } from '../skills/HitGeometry';
 import type { BaseLook } from '../game/Body';
@@ -38,6 +39,8 @@ export class RemotePlayer {
   aim = { x: 0, y: 1 };
   private afterimg?: Afterimages;
   private skill: { id: string; stage: number; elapsed: number; startup: number; active: number; recovery: number; seed?: number } | null = null;
+  /** The fighting style he wears (Styles.ts): its painted body is drawn — changed by his switch at its commit, and by his state. */
+  style = '';
   private jbAir = false;
   private flashMs = -1;
   private deadMs = -1;
@@ -128,6 +131,7 @@ export class RemotePlayer {
 
   applyState(m: Extract<NetMsg, { t: 'state' }>): void {
     if (m.mhp) this.maxHp = m.mhp;
+    if (!(this.skill && styleOfSwitch(this.skill.id))) this.style = m.st ?? baseStyle(this.meta.classId); // (his own word on it; a switch playing here changes it at its commit)
     this.ghost = !!m.iv;
     this.lastSeen = performance.now();
     this.snaps.push({ t: this.lastSeen, x: m.x, y: m.y, z: m.z ?? 0 });
@@ -227,6 +231,7 @@ export class RemotePlayer {
     this.modeT += am;
     if (this.skill) {
       this.skill.elapsed += am;
+      const sw = styleOfSwitch(this.skill.id); if (sw && this.skill.elapsed >= this.skill.startup) this.style = sw.style; // his switch commits
       if (this.skill.elapsed >= this.skill.startup + this.skill.active + this.skill.recovery || !this.alive) { this.skill = null; if (this.mode === 'skill') { this.mode = 'recover'; this.modeT = 0; } }
     }
     let tint: number | null = null, fill = false, alpha = 1;
@@ -242,7 +247,7 @@ export class RemotePlayer {
     const seen = hid ? kageFlicker(performance.now() - this.kageHidSince) : this.meta.classId === 'samurai' && this.skill && this.alive ? samuraiSeen(this.skill.id, this.skill.elapsed, this.skill) : 1; // he vanishes (Shadow Step, Kagemusha, Dragon Eclipse)
     alpha *= seen;
     const snap: AnimSnap = { mode: this.skill ? 'skill' : this.mode, t: this.modeT, speed: this.speed, vz: this.vz, skill: this.skill ?? undefined, stunMs: 200, air2: this.air2At >= 0 ? performance.now() - this.air2At : undefined };
-    const pose = resolvePose(this.meta.classId as ClassKey, this.dir, poseQuery(snap), this.view.wantsBase, this.meta.gender === 'female' ? 'female' : 'male', !!this.meta.hero);
+    const pose = resolvePose(this.meta.classId as ClassKey, this.dir, poseQuery(snap), this.view.wantsBase, this.meta.gender === 'female' ? 'female' : 'male', !!this.meta.hero, false, styleDef(this.meta.classId, this.style)?.body);
     this.jbAir = this.skill?.id === 'judgment_blade' || (this.jbAir && this.alive && z - this.sz > 2); // Judgment Blade: no sword until the landing
     this.view.swordOff = this.jbAir;
     this.view.tagAlpha = this.deadMs >= 0 ? alpha : seen; // (as his name: it stays while he blinks or is a crane)

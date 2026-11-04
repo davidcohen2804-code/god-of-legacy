@@ -3,7 +3,7 @@
 // Key names are Phaser KeyCodes names (keydown-<NAME> events).
 
 export const SLOT_COUNT = 21;
-export type BindAction = string; // 'slot0'..'slot20' | 'jump' | 'up' | 'left' | 'down' | 'right' | 'book' | 'bag' | 'shop' | 'quests' | 'talk' | 'party'
+export type BindAction = string; // 'slot0'..'slot20' | 'jump' | 'up' | 'left' | 'down' | 'right' | 'book' | 'bag' | 'shop' | 'quests' | 'talk' | 'party' | 'style'
 
 export const DEFAULT_BINDINGS: Record<BindAction, string> = {
   slot0: 'SPACE', slot1: 'ONE', slot2: 'TWO', slot3: 'THREE', slot4: 'FOUR', slot5: 'FIVE', slot6: 'SIX', slot7: 'SEVEN',
@@ -14,6 +14,7 @@ export const DEFAULT_BINDINGS: Record<BindAction, string> = {
   stats: 'U', // the stat window
   hpPot: 'EIGHT', mpPot: 'NINE', // the potions
   backstep: 'SHIFT', // the arena's step back (DFO backstep: no cooldown)
+  style: 'BACKTICK', // switch fighting style (Styles.ts: David 4 Nov) — the key left of 1
 };
 export const ACTIONS: BindAction[] = Object.keys(DEFAULT_BINDINGS);
 

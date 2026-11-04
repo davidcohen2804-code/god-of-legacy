@@ -3,6 +3,7 @@
 // the hit resolver and the VFX placement, so telegraph == hitbox by construction.
 import { FinalSkill, HitEvent, HitShape, PACE, PVP_MULT, Reaction } from './SkillTypes';
 import { jobOfSlot } from './Jobs';
+import { STYLES, SWITCH, baseStyle, switchId } from './Styles';
 
 const H = (at: number, damage: number, shape: HitShape, reaction: Reaction, extra: Partial<HitEvent> = {}): HitEvent => ({ at, damage, shape, reaction, ...extra });
 const LOCK = { startup: 0, active: 0, recovery: 0 };
@@ -1182,13 +1183,114 @@ export const ARCHER_STREAM: FinalSkill = S({
   description: 'Hold Space past the first shot: a spirit circle turns before your bow and arrows stream out of it without a break while you hold — every fifth a heavier gold one.',
   relations: ['Held stream', 'Every 5th: gold'],
 });
-export const FINAL_SKILLS: FinalSkill[] = [...warrior, ...mage, ...archer, ...samurai, ...gambler];
+// ------------------------------------------------------------------ ARCHER — DEADEYE SNIPER (a style of her own)
+// David 4 Nov 04:27–05:45 (the styles page): she switches style mid-fight — the bow folds away, a long rifle forms in her
+// hands. GPT's design (scratchpad styles/archer_styles.md): precision and punishment, 250–650 px, weak inside 100; fast
+// positioning, short bursts, one very satisfying heavy shot; the rifle butt, recoil steps, the anti-air for room. Its
+// vertical slice first: the four-beat basic chain, the poke, the recoil step, the long punish, the signature, the anti-air;
+// the rest of its kit stands on the bar as templates. GPT gives its times at the fight's pace (D: back to kit numbers).
+const D = (ms: number) => Math.round(ms / PACE);
+const SNIPER_SHOT = (range: number, radius = 8, speed = 2100) => ({ kind: 'projectile' as const, speed, range, radius, antiAir: true });
+const sniper: FinalSkill[] = [
+  S({
+    id: 'sn_four_beat', cls: 'archer', style: 'sniper', arenaDmg: 0.6, slot: 0, name: 'Four-Beat Precision', roles: ['basic', 'projectile'], targeting: 'mouseProjectile',
+    startup: D(110), active: D(45), recovery: D(145), cooldown: 0, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: { startup: 0.7, active: 0.7, recovery: 0.85 },
+    hits: [H(0, 7, SNIPER_SHOT(380), { stun: D(240), push: 4 })],
+    // a tap, the butt, the chamber, the verdict — and the last beat throws him up for the rifle's air game
+    chain: { resetMs: 650, stages: [
+      [H(0, 7, SNIPER_SHOT(380), { stun: D(240), push: 4 })], // Quick Tap: a snap shot from the hip
+      [H(0, 8, { kind: 'sector', range: 92, angle: 100 }, { stun: D(300), push: 50 }, { reachUp: 100 })], // Stock Check: the rifle butt driven into him
+      [H(0, 10, SNIPER_SHOT(430, 9), { stun: D(320), push: 90 }, { mark: 1 })], // Chamber Shot: a round chambered, the heavier shot pushes him off
+      [H(0, 12, SNIPER_SHOT(310, 10), { stun: D(520), launch: 120, juggleCost: 24 }, { reachUp: 150, heavy: true })], // Rising Verdict: fired up from a dip — he goes up
+    ], timings: [{ startup: D(110), active: D(45), recovery: D(145) }, { startup: D(120), active: D(50), recovery: D(170) }, { startup: D(150), active: D(50), recovery: D(190) }, { startup: D(170), active: D(60), recovery: D(260) }] },
+    cancelOnHit: ['sn_needlemark', 'sn_recoil_slip', 'sn_throughline', 'sn_four_bells', 'sn_skyline'],
+    description: 'Tap or hold Space: a snap shot from the hip, the rifle butt, a chambered round that pushes him off, then a shot fired up that throws him into the air. Weak up close — keep him at the end of the barrel.',
+    relations: ['4-beat chain', 'Last beat launches'],
+  }),
+  S({
+    id: 'sn_needlemark', cls: 'archer', style: 'sniper', slot: 1, name: 'Needlemark', roles: ['opener', 'precision', 'projectile'], targeting: 'mouseProjectile',
+    startup: D(140), active: D(50), recovery: D(220), cooldown: 3000, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
+    hits: [H(0, 12, SNIPER_SHOT(470, 7, 2400), { stun: D(300), push: 6 }, { mark: 1 })],
+    cancelOnHit: ['sn_throughline', 'sn_skyline'],
+    description: 'One needle-thin shot down the line from far away: it stuns him for a moment and marks him (Hunter\'s Mark) — your opening.',
+    relations: ['Long poke', 'Opener', 'Marks'],
+  }),
+  S({ id: 'sn_stockbreaker', cls: 'archer', style: 'sniper', slot: 2, name: 'Stockbreaker', roles: ['peel'], targeting: 'aimAssist', wip: true,
+    startup: D(120), active: D(60), recovery: D(200), cooldown: 5000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
+    description: 'Coming soon: a hard rifle-butt strike for a foe who gets too close.', relations: ['Close defence'] }),
+  S({
+    id: 'sn_recoil_slip', cls: 'archer', style: 'sniper', slot: 3, name: 'Recoil Slip', roles: ['escape', 'projectile'], targeting: 'mouseProjectile',
+    startup: D(110), active: D(220), recovery: D(170), cooldown: 5000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK,
+    dash: { distance: -110, lift: 26 }, // (the shot's kick slides her back out of his reach)
+    hits: [H(0, 9, SNIPER_SHOT(220, 9), { stun: D(260), push: 30 })],
+    cancelOnHit: ['sn_needlemark', 'sn_four_beat'],
+    description: 'Fires point-blank and lets the recoil carry her back out of reach — the room the rifle needs.',
+    relations: ['Escape', 'Makes range'],
+  }),
+  S({
+    id: 'sn_throughline', cls: 'archer', style: 'sniper', slot: 4, name: 'Throughline', roles: ['finisher', 'projectile', 'precision'], targeting: 'mouseDir',
+    startup: D(230), active: D(60), recovery: D(300), cooldown: 8000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [H(0, 22, { kind: 'projectile', speed: 2600, range: 620, radius: 10, pierce: true, antiAir: true }, { stun: D(420), push: 120 }, { heavy: true, mark: 1 })],
+    cancelOnHit: ['sn_four_bells', 'sn_skyline'],
+    description: 'Braced, she sends one round straight through everything in its line — every foe on it is thrown back and marked. The long punish.',
+    relations: ['Pierces', 'Long punish', 'Marks'],
+  }),
+  S({ id: 'sn_kneecap', cls: 'archer', style: 'sniper', slot: 5, name: 'Kneecap Round', roles: ['precision'], targeting: 'mouseProjectile', wip: true,
+    startup: D(150), active: D(50), recovery: D(220), cooldown: 7000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK, hits: [],
+    description: 'Coming soon: a low shot that stops a foe running in at her.', relations: ['Stops an advance'] }),
+  S({
+    id: 'sn_four_bells', cls: 'archer', style: 'sniper', slot: 6, name: 'Deadeye: Four Bells', roles: ['signature', 'projectile', 'precision'], targeting: 'mouseDir',
+    startup: D(220), active: D(200), recovery: D(420), cooldown: 22000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    // four sight notches settle on him, four timed shots ring out like bells — the last throws him up, higher on a marked foe
+    hits: [
+      H(0, 8, SNIPER_SHOT(620, 9, 2600), { stun: D(360), push: 6 }),
+      H(D(65), 8, SNIPER_SHOT(620, 9, 2600), { stun: D(360), push: 6 }),
+      H(D(130), 8, SNIPER_SHOT(620, 9, 2600), { stun: D(360), push: 6 }),
+      H(D(200), 18, { kind: 'projectile', speed: 2800, range: 620, radius: 12, antiAir: true }, { stun: D(560), launch: 110, juggleCost: 26 }, { heavy: true, useMark: 'launch' }),
+    ],
+    cancelOnHit: ['sn_last_horizon'],
+    description: 'Her signature: four sight notches settle on him, then four timed shots ring out like bells — the fourth throws him up (higher on a marked foe).',
+    relations: ['Signature', 'Spends marks'],
+  }),
+  S({ id: 'sn_last_horizon', cls: 'archer', style: 'sniper', slot: 7, name: 'Last Horizon', roles: ['ultimate', 'projectile'], targeting: 'mouseDir', wip: true,
+    startup: D(440), active: D(160), recovery: D(650), cooldown: 65000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
+    description: 'Coming soon: three sight planes converge into one luminous shot across the whole arena.', relations: ['Ultimate'] }),
+  S({ id: 'sn_steady_chamber', cls: 'archer', style: 'sniper', slot: 8, name: 'Steady Chamber', roles: ['setup'], targeting: 'self', wip: true,
+    startup: D(120), active: D(40), recovery: D(160), cooldown: 9000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
+    description: 'Coming soon: a round chambered with care — the next rifle hit marks him and comes out faster.', relations: ['Set-up'] }),
+  S({ id: 'sn_false_sight', cls: 'archer', style: 'sniper', slot: 9, name: 'False Sight', roles: ['precision'], targeting: 'mouseProjectile', wip: true,
+    startup: D(260), active: D(50), recovery: D(220), cooldown: 9000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK, hits: [],
+    description: 'Coming soon: a feint of aim, then a sudden shot that stuns.', relations: ['Bait'] }),
+  S({ id: 'sn_perch_pivot', cls: 'archer', style: 'sniper', slot: 10, name: 'Perch Pivot', roles: ['launcher', 'mobility'], targeting: 'mouseDir', wip: true,
+    startup: D(140), active: D(220), recovery: D(200), cooldown: 7000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
+    description: 'Coming soon: a hop across the lane and a downward shot that launches.', relations: ['Reposition', 'Launcher'] }),
+  S({ id: 'sn_glass_round', cls: 'archer', style: 'sniper', slot: 11, name: 'Glass Round', roles: ['finisher', 'projectile'], targeting: 'mouseDir', wip: true,
+    startup: D(360), active: D(60), recovery: D(320), cooldown: 12000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
+    description: 'Coming soon: a charged round that throws him across the arena into the wall.', relations: ['Heavy punish'] }),
+  S({
+    id: 'sn_skyline', cls: 'archer', style: 'sniper', slot: 12, name: 'Skyline Intercept', roles: ['antiAir', 'airExtender', 'projectile'], targeting: 'mouseProjectile',
+    startup: D(150), active: D(50), recovery: D(230), cooldown: 6000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [H(0, 14, SNIPER_SHOT(320, 12, 2300), { stun: D(700), launch: 70, juggleCost: 18 }, { reachUp: 190 })],
+    cancelOnHit: ['sn_throughline', 'sn_four_bells'],
+    description: 'A shot up into the sky: it meets a foe in the air (or jumping at her) and lifts him higher — keep the juggle going, or switch style under him.',
+    relations: ['Anti-air', 'Juggle extender'],
+  }),
+];
+
+export const FINAL_SKILLS: FinalSkill[] = [...warrior, ...mage, ...archer, ...sniper, ...samurai, ...gambler];
+/** The switches into the styles (Styles.ts): a hidden cast each, never on the bar. 150 ms to the change, 240 ms in all, on
+ *  the clock (its kit numbers are the fight's pace undone); no hits; she keeps her momentum. */
+export const STYLE_SWITCHES: FinalSkill[] = Object.entries(STYLES).flatMap(([cls, list]) => list.map((st) => S({
+  id: switchId(cls, st.id), cls: cls as FinalSkill['cls'], slot: -1, name: st.name, roles: ['mobility'], targeting: 'self',
+  startup: D(SWITCH.commitMs), active: 0, recovery: D(SWITCH.totalMs - SWITCH.commitMs), cooldown: 0, ground: true, air: true, cover: 'IGNORES_COVER',
+  move: { startup: 0.5, active: 0.5, recovery: 0.8 }, hits: [], description: `Switch to ${st.name}.`, relations: [],
+})));
 // the blow that ends each skill (the foe is sent back on it: Combat, THROWN)
 for (const s of [...FINAL_SKILLS, ...mageBolts, ARCHER_STREAM]) {
   const list = s.chain ? s.chain.stages[s.chain.stages.length - 1] : s.hits, last = list?.[list.length - 1];
   if (last) last.lastBlow = true;
 }
-const BY_ID = new Map([...FINAL_SKILLS, ...mageBolts, ...Object.values(MAGE_HIDDEN), ARCHER_STREAM].map((s) => [s.id, s]));
+const BY_ID = new Map([...FINAL_SKILLS, ...mageBolts, ...Object.values(MAGE_HIDDEN), ARCHER_STREAM, ...STYLE_SWITCHES].map((s) => [s.id, s]));
 /** Old ids from earlier builds (save-data / QA migration only; never shown in the HUD/tree). */
 export const LEGACY_ALIASES: Record<string, string> = {
   iron_grip: 'thunder_circle', kinetic_grab: 'light_staff', all_in: 'long_guard', triple_down: 'staff_flurry', page_bind: 'rift_gates', // (David 18 Oct 01:42 / 01:26: replaced)
@@ -1197,7 +1299,11 @@ export const LEGACY_ALIASES: Record<string, string> = {
 };
 
 export function finalSkill(id: string): FinalSkill | undefined { return BY_ID.get(id) ?? BY_ID.get(LEGACY_ALIASES[id] ?? ''); }
-export function kitFor(cls: string): FinalSkill[] { return FINAL_SKILLS.filter((s) => s.cls === cls).sort((a, b) => a.slot - b.slot); }
+/** A class's kit in one of its styles (Styles.ts; none / its first: the class's own kit), in slot order. */
+export function kitFor(cls: string, style?: string): FinalSkill[] {
+  const st = style && style !== baseStyle(cls) ? style : undefined;
+  return FINAL_SKILLS.filter((s) => s.cls === cls && s.style === st).sort((a, b) => a.slot - b.slot);
+}
 export const isSignature = (s: FinalSkill) => s.slot === 6;
 export const isUltimate = (s: FinalSkill) => s.slot === 7;
 export function iconUrl(s: FinalSkill): string { return `assets/final/skills/${s.cls}/${s.id}/icon.png`; }

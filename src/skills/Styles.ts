@@ -1,0 +1,46 @@
+// Fighting styles (David 4 Nov 04:27–05:45 — the styles page he approved): a hero changes style in the middle of a fight —
+// his look, his weapon and his whole kit — in one quick move, even in the middle of a combo. The class's own kit is its
+// first style; each new style is a full kit of its own (FinalKit: its skills carry `style`), worn on its own painted body.
+// The Archer first: the Spirit Archer (the bow) and the Deadeye Sniper (GPT's design, scratchpad styles/archer_styles.md).
+
+export interface StyleDef {
+  id: string;
+  name: string;
+  /** Its painted body (a hero atlas key, tools/heroes/cut.py) — the class's own while it is not cut yet. */
+  body?: string;
+  /** Its colour: the switch's flash, its name on the call. */
+  accent: number;
+}
+
+export const STYLES: Record<string, StyleDef[]> = {
+  archer: [
+    { id: 'bow', name: 'Spirit Archer', accent: 0x7ee35a },
+    { id: 'sniper', name: 'Deadeye Sniper', body: 'archer_sniper', accent: 0xd8925a }, // (brushed copper: the rifle's receiver)
+  ],
+};
+
+export const stylesOf = (cls: string): StyleDef[] => STYLES[cls] ?? [];
+/** The class a style's painted body belongs to (its atlas loads with the class's own). */
+export const styleBodyClass = (body: string): string | undefined => Object.keys(STYLES).find((c) => STYLES[c].some((s) => s.body === body));
+/** The class's own style (its original kit): its skills carry no `style`. */
+export const baseStyle = (cls: string): string => STYLES[cls]?.[0]?.id ?? '';
+export const styleDef = (cls: string, id: string): StyleDef | undefined => STYLES[cls]?.find((s) => s.id === id);
+/** The style after this one (the switch key goes round them). */
+export function nextStyle(cls: string, id: string): string {
+  const list = stylesOf(cls); if (list.length < 2) return id;
+  const i = list.findIndex((s) => s.id === id);
+  return list[(i + 1) % list.length].id;
+}
+
+/** The switch into a style is a cast of its own hidden skill (FinalKit): it runs as every skill does — the cancel windows
+ *  after a landed blow, the hit-stop, being hit out of it, the PvP cast message the other screens play. */
+export const switchId = (cls: string, style: string): string => `style_${cls}_${style}`;
+export function styleOfSwitch(id: string): { cls: string; style: string } | null {
+  const m = /^style_([a-z_]+)_([a-z]+)$/.exec(id);
+  return m && styleDef(m[1], m[2]) ? { cls: m[1], style: m[2] } : null;
+}
+
+/** GPT's switch (the styles page): 0–60 ms the weapon goes (one tight accent), 60–150 the change behind a compact flash —
+ *  the new style is committed at 150 — 150–240 the new weapon lands in its ready pose and the next attack flows.
+ *  Real time (not the fight's pace), never a light column or a zoom; hit before 150 ms, no change. */
+export const SWITCH = { commitMs: 150, totalMs: 240, /** between two switches (no switching back and forth for free) */ cooldownMs: 700 };

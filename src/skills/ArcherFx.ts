@@ -10,6 +10,7 @@ import type { FinalSkill, HitEvent } from './SkillTypes';
 import type { Projectile, V3 } from './HitGeometry';
 import { clearLine } from '../world/WorldGeometry';
 import { ON_BODY } from '../arena3d/flag';
+import { STYLES, styleDef, styleOfSwitch } from './Styles';
 
 export const ARCHER_KIT = 'archer-kit';
 export const ARCHER_KIT_URL = 'assets/final/skills/archer/kit/';
@@ -70,6 +71,43 @@ interface Spr {
 }
 interface Live { t: number; step(dt: number, t: number): boolean }
 interface Arrow { im: Phaser.GameObjects.Image; tr: Phaser.GameObjects.Image | null; t: number; kind: string; z0: number; whip?: Phaser.GameObjects.Image; storm?: boolean }
+/** The rifle's own small pieces (the Deadeye Sniper), drawn once in warm white so they take its copper — the bow's painted
+ *  kit is all leaves and wind. Stand-ins until its painted sheet (GPT) comes: a star, a streak, a curl of smoke, a sight. */
+function sniperTextures(s: Phaser.Scene): void {
+  if (s.textures.exists('sn-flash')) return;
+  const mk = (key: string, w: number, h: number, draw: (g: CanvasRenderingContext2D) => void) => { const t = s.textures.createCanvas(key, w, h); if (!t) return; draw(t.getContext()); t.refresh(); };
+  mk('sn-flash', 96, 96, (g) => { // a hot round core and six short rays, soft at their tips
+    const c = 48, gr = g.createRadialGradient(c, c, 0, c, c, 26);
+    gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.4, 'rgba(255,250,240,0.8)'); gr.addColorStop(1, 'rgba(255,240,220,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 96, 96);
+    for (let k = 0; k < 6; k++) {
+      const L = k % 2 ? 30 : 46; g.save(); g.translate(c, c); g.rotate((k * Math.PI) / 3 + 0.26);
+      const lg = g.createLinearGradient(0, 0, L, 0); lg.addColorStop(0, 'rgba(255,255,255,0.95)'); lg.addColorStop(1, 'rgba(255,245,230,0)');
+      g.fillStyle = lg; g.beginPath(); g.moveTo(0, -3.2); g.lineTo(L, 0); g.lineTo(0, 3.2); g.closePath(); g.fill(); g.restore();
+    }
+  });
+  mk('sn-streak', 128, 10, (g) => { // bright at its head (the right), fading back along it, soft across
+    for (const [y, a] of [[3, 0.45], [4, 1], [5, 1], [6, 0.45]] as const) {
+      const lg = g.createLinearGradient(0, 0, 128, 0); lg.addColorStop(0, 'rgba(255,240,220,0)'); lg.addColorStop(0.7, `rgba(255,248,236,${0.6 * a})`); lg.addColorStop(1, `rgba(255,255,255,${a})`);
+      g.fillStyle = lg; g.fillRect(0, y, 128, 1);
+    }
+  });
+  mk('sn-smoke', 64, 64, (g) => { const gr = g.createRadialGradient(32, 32, 0, 32, 32, 30); gr.addColorStop(0, 'rgba(214,208,200,0.6)'); gr.addColorStop(0.6, 'rgba(200,194,186,0.25)'); gr.addColorStop(1, 'rgba(190,184,176,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); });
+  mk('sn-ring', 96, 96, (g) => { // a sight: a thin ring and four ticks
+    g.strokeStyle = 'rgba(255,250,240,0.95)'; g.lineWidth = 2.5; g.beginPath(); g.arc(48, 48, 36, 0, Math.PI * 2); g.stroke();
+    g.lineWidth = 3; for (let k = 0; k < 4; k++) { const a = (k * Math.PI) / 2, x0 = 48 + Math.cos(a) * 28, y0 = 48 + Math.sin(a) * 28, x1 = 48 + Math.cos(a) * 44, y1 = 48 + Math.sin(a) * 44; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); }
+  });
+}
+/** A rifle round in flight (the Deadeye Sniper): a white-hot point and one thin streak behind it. */
+interface Round { head: Phaser.GameObjects.Image; tr: Phaser.GameObjects.Image; t: number }
+/** The rifle's copper-white (GPT: small warm muzzle flashes, one bullet streak per shot — never the bow's green wind). */
+const ROUND = 0xffe6c2;
+/** Her rifle's muzzle in the pose each shot holds (world px ahead of and over her feet, facing right — measured on her painted
+ *  frames, tools/heroes/motion/archer_sniper: the hip, the shoulder, the knee, the slide, the sky). A chain stage: id#stage. */
+const SN_MUZZLE: Record<string, [number, number]> = {
+  stance: [113, 107], sn_four_beat: [103, 92], 'sn_four_beat#2': [113, 107], 'sn_four_beat#3': [95, 108], sn_needlemark: [113, 107],
+  sn_recoil_slip: [96, 57], sn_throughline: [99, 74], sn_four_bells: [113, 107], sn_skyline: [76, 163],
+};
 /** Continuity: Thunder Rain's strike points stay charged (the runtime's STORM: its window, its reach); a shot of hers crossing one turns to lightning (RT_EVENTS.storm → stormTurn) and chains (stormChain). */
 const CHARGE_MS = STORM.ms;
 
@@ -82,6 +120,7 @@ export class ArcherFx {
   private live: Live[] = [];
   private incoming: Live[] = [];
   private arrows = new Map<Projectile, Arrow>();
+  private rounds = new Map<Projectile, Round>();
   private fanCount = new Map<string, number>();
   private bigSpark = new Map<string, number>(); // skill → when its last big hit spark was drawn
   private released = new Set<string>(); // volleys whose release burst was drawn (Air Volley fires three rows a shot)
@@ -121,11 +160,13 @@ export class ArcherFx {
   private spr(o: Spr): Phaser.GameObjects.Image | null {
     const s = this.ctx.scene;
     if (!s.textures.exists(ARCHER_KIT)) return null;
-    const fr = s.textures.getFrame(ARCHER_KIT, o.name); if (!fr) return null;
+    const own = o.name.startsWith('sn-'); if (own) sniperTextures(s); // (the rifle's own pieces: textures of their own)
+    const key = own ? o.name : ARCHER_KIT, fname = own ? undefined : o.name;
+    const fr = s.textures.getFrame(key, fname); if (!fr) return null;
     const fw = fr.cutWidth || fr.width, fh = fr.cutHeight || fr.height;
     const bx = o.w / fw, by = (o.h ?? (o.w * fh) / fw) / fh;
     const mk = (glow: boolean) => {
-      const im = s.add.image(o.x ?? 0, o.y ?? 0, ARCHER_KIT, o.name).setOrigin(o.ox ?? 0.5, o.oy ?? 0.5).setFlip(!!o.flipX, !!o.flipY).setVisible(false)
+      const im = s.add.image(o.x ?? 0, o.y ?? 0, key, fname).setOrigin(o.ox ?? 0.5, o.oy ?? 0.5).setFlip(!!o.flipX, !!o.flipY).setVisible(false)
         .setBlendMode(glow ? Phaser.BlendModes.ADD : Phaser.BlendModes.NORMAL); // the pieces keep their own colour (normal); only a soft glow layer is added (the sunny floor never washes them out)
       if (o.tint !== undefined) im.setTint(o.tint);
       return im;
@@ -269,6 +310,8 @@ export class ArcherFx {
   cast(r: CastRun): void {
     if (!this.ready) return;
     const s = r.skill, T = r.timings, me = this.me(r), side = sideOf(r), a = r.aim;
+    if (styleOfSwitch(s.id)) { this.styleSwitch(r); return; }
+    if (s.style === 'sniper') { this.sniperCast(r); return; }
     switch (s.id) {
       case 'quick_shot':
         if (r.stage === 1) { // the charged arrow: light gathers on the bow, then a heavy snap and a boom along the aim
@@ -834,8 +877,99 @@ export class ArcherFx {
 
   // ------------------------------------------------------------------ arrows in flight
 
+  // ------------------------------------------------------------------ the Deadeye Sniper (a style of hers: Styles.ts)
+
+  /** Where the rifle's muzzle is now: at the barrel's end in the pose the skill holds (her painted body, SN_MUZZLE). */
+  private muzzleAt(id: string, side: number, r?: CastRun): () => Pt | null {
+    const [fwd, up] = (r && (SN_MUZZLE[`${r.skill.id}#${r.stage}`] ?? SN_MUZZLE[r.skill.id])) ?? SN_MUZZLE.stance;
+    return this.at(id, side, fwd, up);
+  }
+  /** One rifle shot leaving the muzzle: a small copper-white flash, a white-hot point for a few frames, a curl of smoke. */
+  private shot(r: CastRun, delay: number, size: number, up = 0): void {
+    const side = sideOf(r), lv = level(r.aim.x, r.aim.y), ang = lv.ang + (lv.flip ? up : -up), at = this.muzzleAt(r.attackerId, side, r);
+    this.spr({ name: 'sn-flash', w: size, life: 100, delay, tint: ROUND, follow: at, on: r.attackerId, dz: 4, angle: ang, glow: 0.3, run: r, // the flash, stretched along the barrel
+      sx: kf([0, 0.9], [0.3, 1.7, out3], [1, 1.9]), sy: kf([0, 0.8], [0.3, 0.75, out3], [1, 0.4]), a: kf([0, 1], [0.4, 1], [1, 0, inQ]) });
+    this.spr({ name: 'sn-flash', w: size * 0.36, life: 60, delay, follow: at, on: r.attackerId, dz: 5, glow: 0.3, run: r, a: kf([0, 1], [1, 0]) }); // its white-hot point
+    this.spr({ name: 'sn-smoke', w: size * 0.55, life: 460, delay: delay + 30, follow: at, dz: 3, run: r,
+      sx: kf([0, 0.5], [1, 1.6, out3]), sy: kf([0, 0.5], [1, 1.4, out3]), a: kf([0, 0.55], [1, 0, inQ]), my: (u) => -16 * u, mx: (u) => side * 10 * u });
+  }
+  /** A glint running along the barrel as she takes aim (a heavy shot's wind-up). */
+  private sight(r: CastRun, ms: number): void {
+    this.spr({ name: 'sn-flash', w: 26, life: ms, follow: this.muzzleAt(r.attackerId, sideOf(r), r), on: r.attackerId, dz: 5, glow: 0.3, tint: 0xfff4e2, run: r,
+      rot: (u) => 120 * u, a: kf([0, 0], [0.5, 0.8], [0.92, 1], [1, 0]) });
+  }
+  private sniperCast(r: CastRun): void {
+    const s = r.skill, T = r.timings, side = sideOf(r), me = this.me(r);
+    const shots = () => { for (const h of r.hits) if (h.shape.kind === 'projectile') this.shot(r, T.startup + h.at, r.stage === 3 ? 96 : 80, r.stage === 3 ? 20 : 0); };
+    switch (s.id) {
+      case 'sn_four_beat':
+        if (r.stage === 1) { // Stock Check: the rifle butt driven into him — a short arc of steel, no light
+          this.spr({ name: 'sn-flash', w: 70, life: 120, delay: T.startup, tint: 0xece6dc, follow: this.at(r.attackerId, side, 62, 78), dz: 5, glow: 0.2, run: r,
+            sx: kf([0, 0.6], [0.35, 1.05, out3]), sy: kf([0, 0.6], [0.35, 1.05, out3]), a: kf([0, 1], [1, 0, inQ]) });
+          break;
+        }
+        shots();
+        break;
+      case 'sn_needlemark': this.sight(r, T.startup); shots(); break;
+      case 'sn_recoil_slip': // the kick of the shot slides her back: dust under her feet
+        shots();
+        this.spr({ name: 'dust_roll', w: 116, life: 380, delay: T.startup + 20, follow: this.at(r.attackerId, side, -12, 4), dz: 2, flipX: side > 0, run: r, a: kf([0, 0.75], [1, 0, inQ]) });
+        break;
+      case 'sn_throughline': // braced: the glint along the barrel, then one heavy round and the air cracking along it
+        this.sight(r, T.startup);
+        this.shot(r, T.startup, 124);
+        this.spr({ name: 'sn-ring', w: 120, life: 220, delay: T.startup, tint: ROUND, follow: this.muzzleAt(r.attackerId, side, r), dz: 4, glow: 0.3, run: r, // the air cracking open along the shot
+          sx: kf([0, 0.2], [0.4, 0.35, out3], [1, 0.45]), sy: kf([0, 0.4], [0.4, 1, out3], [1, 1.25]), mx: (u) => side * 60 * u, a: kf([0, 1], [1, 0, inQ]) });
+        this.later(T.startup, () => this.shake(r, 120, 0.004), r);
+        break;
+      case 'sn_four_bells': { // four sight notches settle on the line, then four shots ring out like bells — the fourth the heaviest
+        const at = this.muzzleAt(r.attackerId, side, r);
+        for (let k = 0; k < 4; k++) this.spr({ name: 'sn-ring', w: 58 - k * 5, life: T.startup - k * 30, delay: k * 30, glow: 0.2, tint: ROUND, run: r,
+          follow: () => { const p = at(); return p ? { x: p.x + side * (150 + k * 55), y: p.y, d: p.d + 4 } : null; },
+          sx: kf([0, 1.8], [0.5, 1, out3]), sy: kf([0, 1.8], [0.5, 1, out3]), a: kf([0, 0], [0.4, 0.85], [0.95, 0.85], [1, 0]) });
+        r.hits.forEach((h, k) => this.shot(r, T.startup + h.at, k === 3 ? 118 : 84));
+        this.later(T.startup + (r.hits[3]?.at ?? 0), () => this.shake(r, 110, 0.004), r);
+        break;
+      }
+      case 'sn_skyline': shots(); this.spr({ name: 'dust', w: 90, life: 300, delay: T.startup, x: me.x, y: me.y, depth: me.y - 1, run: r, a: kf([0, 0.6], [1, 0]) }); break;
+      default: shots();
+    }
+  }
+  /** A round in flight: a white-hot point, one thin streak behind it (no arrow, no wind). */
+  private round(p: Projectile): void {
+    const s = this.ctx.scene;
+    sniperTextures(s);
+    const head = s.add.image(p.x, p.y - p.z, 'sn-flash').setBlendMode(Phaser.BlendModes.ADD).setTint(0xfff6ea).setDisplaySize(18, 18).setAlpha(0);
+    const tr = s.add.image(p.x, p.y - p.z, 'sn-streak').setOrigin(1, 0.5).setBlendMode(Phaser.BlendModes.ADD).setTint(ROUND).setAlpha(0).setDisplaySize(12, 8);
+    this.rounds.set(p, { head, tr, t: 0 });
+  }
+  private stepRounds(dt: number): void {
+    for (const [p, a] of this.rounds) {
+      a.t += dt;
+      let ang = level(p.dx, p.dy).ang; const flip = p.dx < -0.01, x = p.x, y = p.y - p.z - 20;
+      if (p.dropPerPx < 0 && p.zTop !== undefined && p.z < p.zTop - 1) { const raw = Math.atan2(p.dropPerPx, Math.abs(p.dx) + 0.2) * (180 / Math.PI); ang = flip ? -raw : raw; } // fired up at a foe in the air: tilted up
+      const len = Math.min(170, 30 + a.t * 2.4);
+      const shown = Math.max(0, Math.min(1, (a.t - 40) / 15)); // (out of the barrel first: it starts at her body, the muzzle is ~110 px ahead)
+      a.head.setPosition(x, y).setDepth(p.y + 2.1).setAlpha(shown);
+      a.tr.setPosition(x, y).setFlipX(flip).setAngle(ang).setDepth(p.y + 2).setAlpha(0.85 * shown).setDisplaySize(Math.min(len, Math.max(12, (a.t - 40) * 2.1)), 8);
+    }
+  }
+  /** The style switch (GPT's 240 ms): the old weapon goes in one tight accent of its colour, the change behind one compact
+   *  flash of the new style's, the new weapon lands with a glint and a soft ring at her feet — no column, no zoom. */
+  private styleSwitch(r: CastRun): void {
+    const sw = styleOfSwitch(r.skill.id); if (!sw) return;
+    const T = r.timings, side = sideOf(r), me = this.me(r), to = styleDef(sw.cls, sw.style);
+    const from = (STYLES[sw.cls] ?? []).find((x) => x.id !== sw.style), hand = this.bowAt(r.attackerId, side, 24, 58), hips = this.at(r.attackerId, side, 0, 62);
+    this.spr({ name: 'sn-flash', w: 40, life: 90, follow: hand, on: r.attackerId, dz: 5, glow: 0.3, tint: from?.accent ?? 0xffffff, run: r, rot: (u) => 90 * u, a: kf([0, 1], [1, 0, inQ]) });
+    this.spr({ name: 'sn-flash', w: 130, life: 130, delay: T.startup * 0.4, follow: hips, dz: 6, glow: 0.3, tint: to?.accent ?? 0xffffff, run: r, // the change behind one compact flash
+      sx: kf([0, 0.5], [0.4, 1, out3], [1, 1.1]), sy: kf([0, 0.5], [0.4, 1, out3], [1, 1.1]), a: kf([0, 0], [0.25, 0.7], [1, 0, inQ]) });
+    this.spr({ name: 'sn-flash', w: 44, life: 110, delay: T.startup, follow: sw.style === 'sniper' ? this.muzzleAt(r.attackerId, side, r) : hand, on: r.attackerId, dz: 5, glow: 0.3, tint: 0xfff4e2, run: r, a: kf([0, 1], [1, 0]) });
+    this.floor('shock_ring', me.x, me.y, 110, 260, { delay: T.startup, add: true, tint: to?.accent ?? 0xffffff, run: r, s: kf([0, 0.5], [1, 1.15, out3]), a: kf([0, 0.7], [1, 0, inQ]) });
+  }
+
   projectile(p: Projectile): void {
     if (!this.ready) return;
+    if (p.skill.style === 'sniper') { this.round(p); return; }
     const id = p.skill.id;
     let iron = false;
     if (id === 'multi_shot') { const n = (this.fanCount.get(p.castId) ?? 0) + 1; this.fanCount.set(p.castId, n); iron = n % 2 === 0; if (n === 1) this.later(2000, () => this.fanCount.delete(p.castId)); } // between the green arrows: iron ones
@@ -886,6 +1020,8 @@ export class ArcherFx {
     }
   }
   projectileEnd(p: Projectile): void {
+    const rd = this.rounds.get(p);
+    if (rd) { this.rounds.delete(p); rd.head.destroy(); rd.tr.destroy(); const e = p.end ?? { x: p.x, y: p.y, reason: 'range' as const }; if (e.reason !== 'target') this.pop('sn-flash', e.x, e.y - p.z - 18, 24, { life: 110, tint: ROUND }); return; }
     const a = this.arrows.get(p); if (!a) return;
     if (a.storm || p.storm) { const e = p.end ?? { x: p.x, y: p.y, reason: 'range' as const }; this.pop('elec_burst', e.x, e.y - p.z - 20, 150, { life: 240 }); this.spr({ name: 'strike', x: e.x, y: e.y + 8, oy: 0.97, depth: e.y + 3, w: 120, h: 320, life: 240, add: true, glow: 0.4, sy: kf([0, 0.2], [0.15, 1.05, out3]), a: kf([0, 1], [1, 0, inQ]) }); } // the lightning arrow lands as a strike (the chain to a second foe: stormChain)
     this.arrows.delete(p); a.im.destroy(); a.tr?.destroy(); a.whip?.destroy();
@@ -929,6 +1065,14 @@ export class ArcherFx {
   confirmed(s: FinalSkill, hit: HitEvent, at: V3, heavy: boolean, crit: boolean, counter = false): void {
     if (!this.ready) return;
     const x = at.x, y = at.y - at.z - 38, rapid = s.hits.length > 3 && !hit.heavy, launch = !!hit.reaction.launch && hit.reaction.launch >= 120;
+    if (s.style === 'sniper') { // her rounds: a small copper-white star where they strike, a ring on a heavy one — no leaves, no green
+      const big = heavy || !!hit.heavy;
+      this.pop('sn-flash', x + rnd(-4, 4), y + rnd(-4, 4), big ? 92 : 64, { life: big ? 190 : 140, tint: ROUND, glow: 0.3 });
+      if (big) this.spr({ name: 'sn-ring', x, y, depth: TOP + 4, w: 70, life: 200, tint: ROUND, glow: 0.3, sx: kf([0, 0.4], [1, 1.5, out3]), sy: kf([0, 0.4], [1, 1.5, out3]), a: kf([0, 0.9], [1, 0, inQ]) });
+      if (crit) this.pop('sn-flash', x, y, 120, { life: 220, tint: 0xfff4e2 });
+      if (launch) this.spr({ name: 'sn-streak', x, y: at.y - at.z, depth: at.y + 3, w: 150, h: 10, angle: -90, ox: 0, tint: ROUND, glow: 0.3, life: 240, sx: kf([0, 0.2], [0.3, 1, out3]), a: kf([0, 0.85], [1, 0, inQ]) }); // the shot's line up into the air with him
+      return;
+    }
     if (s.id === 'rain_of_arrows' && !counter) { this.pop('spark_cyan', x, y, 70, { life: 200 }); return; }
     if (s.id === 'sky_rain' && hit.lastBlow && this.ctx.scene.textures.exists('afx-goldhit')) { // (David 18 Oct 20:51: painted footage) the giant gold arrow driven into him, the dome of gold light bursting out
       this.flip('afx-goldhit', at.x, at.y + 30, { w: 360, ms: 700, oy: 0.85, depth: at.y + 6, glow: 0.25, a: kf([0, 1], [0.8, 1], [1, 0, inQ]) }); return;
@@ -998,11 +1142,13 @@ export class ArcherFx {
     this.incoming = [];
     this.live = cur.filter((l) => { l.t += dt; return l.step(dt, l.t); });
     this.stepArrows(dt);
+    this.stepRounds(dt);
     this.stepHawks(dt);
   }
 
   destroy(): void {
     for (const [p] of this.arrows) this.projectileEnd(p);
+    for (const [p] of this.rounds) this.projectileEnd(p);
     for (const [, h] of this.hawks) h.im.destroy();
     this.hawks.clear();
     this.live = []; this.incoming = [];

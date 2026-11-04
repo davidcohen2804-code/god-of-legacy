@@ -31,6 +31,29 @@ The DFO PvP arena dynamics chat is the PvP director: it sets the bar per class, 
 Take the whole PvP up a level in everything — dynamics, skills, effects, hit frames, movement, camera, feel: every hit felt, every class unique and amazing, big moments that look like a cinematic, and reasons to keep playing.
 
 ## Open items
+### DFO (4 Nov, David 05:45) — the styles, step 2: the Archer switches style mid-fight + the Deadeye Sniper (a vertical slice)
+- David (4 Nov 04:27–05:45): each hero changes style in the middle of a fight — his look, his weapon and his whole kit — in
+  one quick move, even mid-combo; the Archer first: the Spirit Archer (her bow) ↔ the Deadeye Sniper (GPT's design on the
+  styles page David approved). Done as one slice, filmed in PVP 3D.
+- **The switch** (`src/skills/Styles.ts`, the scene's `trySwitchStyle` / `applyStyle`): the key \` ("STYLE" in the key
+  settings). A hidden cast `style_<cls>_<style>` through SkillRuntime — the cancel windows, hit-stop, being hit out of it and
+  the PvP cast message as every skill; the change commits at 150 ms (240 in all, 700 between two), and the kit, the body and
+  their effects swap there (PvP sends `st`). Its numbers: `docs/BALANCE_LOG.md` (4 Nov).
+- **Her kit** (`FinalKit` `sniper`, 13 slots, each skill `style: 'sniper'`): six live — the basic chain (Four-Beat: hip shot,
+  stock, chambered round, the rising shot that launches), Needlemark, Recoil Slip, Throughline, Deadeye: Four Bells, Skyline
+  Intercept; seven templates ("coming soon"). Icons for all 13 (GPT, the archer icons' gold frame).
+- **Her own painted body** (`tools/heroes/motion/archer_sniper` → `python3 tools/heroes/cut.py archer_sniper` →
+  `public/assets/final/heroes/archer_sniper/body.png`, `hero-atlas.json`; Body.ts `heroPose(…, body)`: the frames from the
+  style's atlas, the class's own rules and skill plans): PixVerse idle 40, walk 43, run 16, jump 7 + 3, the hit clip
+  (launched, down, get-up); GPT stills for every skill pose (hip, stock, shoulder, knee, slide, sky, the air shot, the
+  flinch) — each in a NEW chat with the reference attached, so none drifts (the gold leaf leg armour, the stockings).
+  Her painted green bits (the hood's leaf, the brooch, the bullet tips) would key out as holes: my keyer copy fills an
+  enclosed green that differs from the screen from the cloth round it (not in the repo's `gkey.py` — Movements, worth taking?).
+- **Her effects** (ArcherFx `sniperCast`, `fx3d/archer.ts`): copper-white muzzle flashes at the painted muzzle of each pose
+  (`SN_MUZZLE`, measured on the frames), one bullet streak per round (shown once out of the barrel), sight rings, no green wind.
+  The bow's grip table (`archer-bow.json`) now applies to the bow's body only — the sniper's frames share its frame names.
+- **For the Archer chat:** the Sniper is yours from here (her visuals, motion, the seven templates); the bow is untouched.
+
 ### DFO (4 Nov, David 05:45) — the skills' pass, stage 1: the fighters read through every skill (GPT's combat-art rulebook)
 - David (4 Nov 03:20): "the skills can be improved significantly — check with GPT what to improve visually and in feel".
   Every skill of the five heroes was filmed in PVP 3D and reviewed with GPT as art director; David approved the plan

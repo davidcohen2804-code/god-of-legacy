@@ -15,6 +15,7 @@ import HEADS from '../data/head-frames.json';
 import HERO_ATLAS from '../data/hero-atlas.json';
 import { Dir } from '../world/collision';
 import { FINAL_SKILLS } from '../skills/FinalKit';
+import { styleBodyClass } from '../skills/Styles';
 
 export type ClassKey = 'warrior' | 'book_mage' | 'archer' | 'samurai' | 'gambler';
 export const DIRS: Dir[] = ['down', 'right', 'left', 'up'];
@@ -106,7 +107,7 @@ export function preloadBodies(scene: Phaser.Scene, classes?: readonly string[], 
       LS(skillKey(cls, s.id), skillPath(cls, s.id)); M(`${skillKey(cls, s.id)}-w`, skillPath(cls, s.id), cls, cs?.w ?? CELL, cs?.h ?? CELL); if (cls === 'warrior') SHEET_PATH[skillKey(cls, s.id)] = skillPath(cls, s.id); }
   }
   for (const [cls, a] of Object.entries(ATLAS)) { if (!want(cls) || heroesOnly) continue; L(atlasKey(cls), a.sheet, false); M(`${atlasKey(cls)}-w`, a.sheet, cls, 0, 0, true); }
-  for (const cls of Object.keys(HEROES)) if (want(cls) || (!heroesOnly && cls.startsWith('beginner_'))) L(heroKey(cls), `assets/final/heroes/${cls}/body.png`, false); // START HERO bodies; the painted Beginner always (every class plays it below the 1st job) — not in the PvP arena, where both fighters are heroes
+  for (const cls of Object.keys(HEROES)) if (want(cls) || want(styleBodyClass(cls) ?? cls) || (!heroesOnly && cls.startsWith('beginner_'))) L(heroKey(cls), `assets/final/heroes/${cls}/body.png`, false); // START HERO bodies (a style's own body with its class's: the Deadeye Sniper's with the Archer); the painted Beginner always (every class plays it below the 1st job) — not in the PvP arena, where both fighters are heroes
   if (want('warrior') && !heroesOnly) for (const [g, anims] of Object.entries(NAKED)) for (const anim of Object.keys(anims)) {
     L(nakedKey(g, anim), `${nakedDir(g)}/${anim}.png`, true);
     if (hasOver(g, anim)) L(overKey(g, anim), `${nakedDir(g)}/${anim}_o.png`, true); // the sword arm in front of the head
@@ -499,8 +500,8 @@ const pick = <T,>(list: T[], p: number): T => list[Math.max(0, Math.min(list.len
 /** base = draw the beginner-clothes base body (fashion cosmetics) instead of the class armour, where baked. */
 /** Pose query once the combat stance is folded into standing (bodies without stance frames). */
 type BodyQuery = Exclude<PoseQuery, { k: 'loop' }> | { k: 'loop'; state: 'idle' | 'walk' | 'run'; t: number; speed: number };
-export function resolvePose(cls: ClassKey, dir: Dir, q: PoseQuery, base = false, gender?: 'male' | 'female', hero = false, layered = false): PoseFrame {
-  if (hero && HEROES[cls]) return heroPose(cls, dir, q);
+export function resolvePose(cls: ClassKey, dir: Dir, q: PoseQuery, base = false, gender?: 'male' | 'female', hero = false, layered = false, body?: string): PoseFrame {
+  if (hero && HEROES[cls]) return heroPose(cls, dir, q, body && HEROES[body] ? body : cls); // (`body`: a style's own painted body — Styles.ts — once it is cut)
   if (base && gender && !layered && !isV3(gender) && HEROES[`beginner_${gender}`]) return heroPose(`beginner_${gender}`, dir, q); // the painted Beginner (male / female) when its body is cut (`layered`: the clean base under its look and gear layers instead — God of Legacy Studio; ?base=v3: the rebuild's base, layered, in the game too)
   BASE_MODE = base && cls === 'warrior';
   try {
@@ -587,7 +588,8 @@ export const HERO_LIFT = HERO_HEIGHT - 124;
 /** Every hero's drawing fitted to one body: the eyes of each class 120 world px over the feet (measured on the idle
  *  frames — the drawings came out between 101 and 132), so the whole cast stands the same height. Re-measure after a
  *  class gets a new idle drawing. */
-const HERO_FIT: Record<string, number> = { warrior: 0.907, samurai: 1.049, archer: 1.075, book_mage: 1.182, gambler: 0.935 };
+const HERO_FIT: Record<string, number> = { warrior: 0.907, samurai: 1.049, archer: 1.075, book_mage: 1.182, gambler: 0.935,
+  archer_sniper: 1.051 }; // (the Deadeye Sniper's body: her eyes 10 canvas px higher on the idle than the bow archer's — the same woman, the same size)
 /** A hero drawing's scale in the world (atlas px to world px). */
 const heroScale = (cls: string): number => (HERO_HEIGHT / HEROES[cls].h) * (HERO_FIT[cls] ?? 1);
 /** One body size from a step into a skill (David 2 Nov 23:47: "the characters must not get smaller in a move or a skill —
@@ -769,6 +771,18 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
     hunters_spirit: { act: 'vine_whip', st: [0, 1], ac: [2, 3], rc: [4, 5, 6] }, // Vine Lash, her own move (PixVerse): the bow lowered, the arm wound back, the whip-throw out at the foe, held as the vine coils, the yank back, the fist pulled up, recover
     arrow_storm: { act: 'arrow_storm', st: [0, 1], ac: [2], rc: [5], loop: [1, 2, 3, 4], fps: 5 },
     eagle_arrow: { act: 'eagle_tide', st: [0, 1, 2, 3, 4, 4, 4, 4], ac: [5], rc: [5, 6] }, // Eagle Tide, her own move (PixVerse): sinks into a very wide braced stance, raises, full draw held through the charge, the release, recover
+    // the Deadeye Sniper (Styles.ts), her own painted body (tools/heroes/motion/archer_sniper: GPT stills, the reference
+    // attached in a new chat each): one held pose a beat — the rifle's kick is the effect's, the body holds its aim
+    sn_four_beat: { act: 'sn_hip', st: [0], ac: [0], rc: [0] }, // Quick Tap: from the hip
+    'sn_four_beat#1': { act: 'sn_butt', st: [0], ac: [0], rc: [0] }, // Stock Check: the lunge, the stock driven out
+    'sn_four_beat#2': { act: 'stance', st: [0], ac: [0], rc: [0] }, // Chamber Shot: shouldered, the eye at the scope
+    'sn_four_beat#3': { act: 'sn_rise', st: [0], ac: [0], rc: [0] }, // Rising Verdict: dropped to a knee, fired up
+    sn_needlemark: { act: 'stance', st: [0], ac: [0], rc: [0] },
+    sn_recoil_slip: { act: 'sn_slide', st: [0], ac: [0], rc: [0] }, // slid back low on the recoil
+    sn_throughline: { act: 'sn_kneel', st: [0], ac: [0], rc: [0] }, // on one knee, braced, the long shot
+    sn_four_bells: { act: 'stance', st: [0], ac: [0], rc: [0] }, // her signature from the shoulder, the eye at the scope
+    sn_skyline: { act: 'sn_up', st: [0], ac: [0], rc: [0] }, // the rifle up at the sky
+    style_archer_sniper: { act: 'stance', st: [0], ac: [0], rc: [0] }, style_archer_bow: { act: 'stance', st: [0], ac: [0], rc: [0] }, // the switch (its own move with the sniper body)
   },
 };
 
@@ -783,19 +797,20 @@ function heroFrame(cls: string, dir: Dir, act: string, i: number): PoseFrame {
   return { key: heroKey(cls), frame: `${name}-${idx}`, wkey: `${heroKey(cls)}-w`, ox: flip ? 1 - f[4] / f[2] : f[4] / f[2], oy: f[5] / f[3], scale: k, flip, anchor: null, top: HERO_HEIGHT, blade }; // Phaser mirrors a flipped frame about its middle, not its origin: the feet point is mirrored with it
 }
 
-function heroPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
-  const H = (act: string, i: number) => heroFrame(cls, dir, act, i);
+function heroPose(cls: string, dir: Dir, q: PoseQuery, body = cls): PoseFrame {
+  // (a style's body — Styles.ts: the frames are its own atlas's; the class's own rules and skill plans still apply)
+  const H = (act: string, i: number) => heroFrame(body, dir, act, i);
   switch (q.k) {
     case 'loop':
       // standing: one still drawing (separately painted idle frames make the whole body tremble); only the cloth moves
       if (q.state === 'idle') { // painted breathing loop when there is one (15 fps), else one still drawing + the cloth
-        const n = HEROES[cls].actions.idle.length;
+        const n = HEROES[body].actions.idle.length;
         return n > 1 ? H('idle', Math.floor((q.t * 15) / 1000) % n) : { ...H('idle', 0), cloth: true };
       }
       if (q.state === 'alert') return { ...H('stance', 0), cloth: true };
       { // the legs keep pace with the ground: one cycle per the distance its two widest strides carry the body (no sliding feet)
-        const st = q.state === 'walk' ? 'walk' : 'run', h = HEROES[cls], n = h.actions[st].length;
-        const dist = (h.cycle?.[st] ?? h.h) * heroScale(cls), sp = Math.max(st === 'walk' ? 120 : 180, q.speed);
+        const st = q.state === 'walk' ? 'walk' : 'run', h = HEROES[body], n = h.actions[st].length;
+        const dist = (h.cycle?.[st] ?? h.h) * heroScale(body), sp = Math.max(st === 'walk' ? 120 : 180, q.speed);
         return H(st, (q.t * n * sp) / dist / 1000);
       }
     case 'jump': {
@@ -803,19 +818,19 @@ function heroPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
       // stretches over the burst, Shinsoku lies into the dash, Wind Leap tucks into the somersault, Levitate floats upright
       const a2 = q.air2;
       { // the second jump's somersault (a PixVerse flip, 7 frames over FLIP_MS), then the jump clip's fall by the vertical speed
-        const F = HEROES[cls].actions.djump_flip;
+        const F = HEROES[body].actions.djump_flip;
         if (a2 !== undefined && a2 >= 0 && F && F.length >= 4 && a2 < FLIP_MS) return H('djump_flip', Math.min(F.length - 1, Math.floor((a2 / FLIP_MS) * F.length)));
       }
-      if (a2 !== undefined && a2 >= 0 && HEROES[cls].actions.djump) {
+      if (a2 !== undefined && a2 >= 0 && HEROES[body].actions.djump) {
         if (cls === 'book_mage') return { ...H('djump', Math.floor(a2 / 450) % 2), cloth: true };
         if (cls === 'archer' && a2 < 440) return H('djump', a2 < 200 ? 0 : 1);
-        if (cls === 'samurai' && a2 < 380) return HEROES[cls].actions.djump.length >= 4 ? H('djump', a2 < 70 ? 0 : a2 < 150 ? 1 : a2 < 290 ? 2 : 3) : H('djump', a2 < 110 ? 0 : 1);
+        if (cls === 'samurai' && a2 < 380) return HEROES[body].actions.djump.length >= 4 ? H('djump', a2 < 70 ? 0 : a2 < 150 ? 1 : a2 < 290 ? 2 : 3) : H('djump', a2 < 110 ? 0 : 1);
         if (cls === 'warrior' && a2 < 560 && q.phase !== 'fall') return H('djump', a2 < 160 ? 0 : 1);
         if (cls === 'gambler' && a2 < 440) return H('djump', a2 < 180 ? 0 : 1); // Card Step: the tuck and the flick, then the long stride
       }
-      if (!HEROES[cls].actions.jump) return H('stance', 0);
+      if (!HEROES[body].actions.jump) return H('stance', 0);
       { // the jump clip (7 frames: crouch, spring, rise, apex, fall, reach down, landing) — picked by the vertical speed
-        const J = HEROES[cls].actions.jump_clip;
+        const J = HEROES[body].actions.jump_clip;
         if (J && J.length >= 7) {
           if (q.phase === 'takeoff') return H('jump_clip', 0);
           if (q.phase === 'land') return H('jump_clip', 6);
@@ -823,33 +838,33 @@ function heroPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
           return H('jump_clip', v > 300 ? 1 : v > 110 ? 2 : v > -110 ? 3 : v > -300 ? 4 : 5);
         }
       }
-      if (HEROES[cls].actions.jump.length >= 4) return H('jump', { takeoff: 0, rise: 1, apex: 2, fall: 3, land: 0 }[q.phase]); // painted: crouch, rise, apex, reach down
+      if (HEROES[body].actions.jump.length >= 4) return H('jump', { takeoff: 0, rise: 1, apex: 2, fall: 3, land: 0 }[q.phase]); // painted: crouch, rise, apex, reach down
       return H('jump', { takeoff: 0, rise: 1, apex: 1, fall: 2, land: 0 }[q.phase]);
     }
     case 'airAttack': {
-      if (HEROES[cls].actions.finisher) return H('finisher', 3 + Math.min(2, Math.floor(q.p * 3))); // the air strike
-      if (HEROES[cls].actions.air_shot) return H('air_shot', Math.min(5, Math.floor(q.p * 6))); // the shot in the air
+      if (HEROES[body].actions.finisher) return H('finisher', 3 + Math.min(2, Math.floor(q.p * 3))); // the air strike
+      if (HEROES[body].actions.air_shot) return H('air_shot', Math.min(5, Math.floor(q.p * 6))); // the shot in the air
       return STRIKES.has(cls) ? H('attack', q.p < 0.4 ? 0 : 1) : H('attack', q.p < 0.4 ? 1 : 3);
     }
     case 'launched': { // painted: 0–1 rising, 2–3 the peak, 4–5 falling (by the vertical speed)
-      const A = HEROES[cls].actions;
+      const A = HEROES[body].actions;
       if (!A.launched || A.launched.length < 6) return H('jump', 1);
       const v = q.vz;
       return H('launched', v > 260 ? 0 : v > 90 ? 1 : v > 0 ? 2 : v > -90 ? 3 : v > -260 ? 4 : 5);
     }
-    case 'hurt': { const n = HEROES[cls].actions.hurt?.length ?? 0; return n ? H('hurt', Math.min(n - 1, Math.floor(q.p * n))) : H('stance', 0); }
+    case 'hurt': { const n = HEROES[body].actions.hurt?.length ?? 0; return n ? H('hurt', Math.min(n - 1, Math.floor(q.p * n))) : H('stance', 0); }
     case 'down': { // the slam (down_impact over the first 30 %), then lying (down, looping)
-      const A = HEROES[cls].actions;
+      const A = HEROES[body].actions;
       if (q.p < 0.3 && A.down_impact) return H('down_impact', Math.min(A.down_impact.length - 1, Math.floor((q.p / 0.3) * A.down_impact.length)));
       if (A.down) return H('down', Math.floor(((q.p - 0.3) / 0.7) * A.down.length * 2) % A.down.length);
       return H('stance', 0);
     }
-    case 'getup': { const n = HEROES[cls].actions.getup?.length ?? 0; return n ? H('getup', Math.min(n - 1, Math.floor(q.p * n))) : H('stance', 0); }
+    case 'getup': { const n = HEROES[body].actions.getup?.length ?? 0; return n ? H('getup', Math.min(n - 1, Math.floor(q.p * n))) : H('stance', 0); }
     case 'skill': {
       const sk = FINAL_SKILLS.find((s) => s.id === q.id);
       const winding = q.elapsed < q.startup, after = q.elapsed >= q.startup + q.active;
       const plan = (sk?.chain && q.stage > 0 ? HERO_PLANS[cls]?.[`${q.id}#${q.stage}`] : undefined) ?? HERO_PLANS[cls]?.[q.id]; // a chain stage may have its own moves (id#stage)
-      if (plan && HEROES[cls].actions[plan.act]) { // the skill's own drawn moves, spread over its startup / active / recovery
+      if (plan && HEROES[body].actions[plan.act]) { // the skill's own drawn moves, spread over its startup / active / recovery
         if (plan.loop && !winding && !after) return H(plan.act, plan.loop[Math.floor(((q.elapsed - q.startup) * (plan.fps ?? 10)) / 1000) % plan.loop.length]);
         const list = winding ? plan.st : !after ? plan.ac : plan.rc;
         const p = winding ? q.elapsed / Math.max(1, q.startup) : !after ? (q.elapsed - q.startup) / Math.max(1, q.active) : (q.elapsed - q.startup - q.active) / Math.max(1, q.recovery);
@@ -859,7 +874,7 @@ function heroPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
         const st = Math.max(0, q.stage) % 4, hit = [1, 2, 3, 4][st];
         return H('attack', winding ? (st === 0 ? 0 : hit - 1) : !after ? hit : st === 3 ? 5 : hit);
       }
-      if (sk?.chain && HEROES[cls].actions.finisher && q.stage >= 3) return H('finisher', winding ? 0 : after ? 2 : 1); // the chain's heavy last strike
+      if (sk?.chain && HEROES[body].actions.finisher && q.stage >= 3) return H('finisher', winding ? 0 : after ? 2 : 1); // the chain's heavy last strike
       if (STRIKES.has(cls)) { // the strike pair: the chain's stage for the regular attack, a fixed one per skill until skill sheets come
         let st = 0; for (const c of q.id) st = (st * 31 + c.charCodeAt(0)) >>> 0;
         const pair = sk?.chain ? Math.max(0, q.stage) % 3 : st % 3;
@@ -870,12 +885,12 @@ function heroPose(cls: string, dir: Dir, q: PoseQuery): PoseFrame {
       if (!after) return H('attack', 3);
       return H('attack', q.elapsed - q.startup - q.active < q.recovery * 0.5 ? 4 : 5);
     }
-    case 'backstep': { const A = HEROES[cls].actions; if (!A.backstep) return H('jump', 1); return H('backstep', Math.min(A.backstep.length - 1, Math.floor(q.p * A.backstep.length))); }
-    case 'quickrise': { const A = HEROES[cls].actions; if (!A.quickrise) return H('getup', A.getup ? Math.min(A.getup.length - 1, Math.floor(q.p * A.getup.length)) : 0); return H('quickrise', Math.min(A.quickrise.length - 1, Math.floor(q.p * A.quickrise.length))); }
-    case 'stunned': { const A = HEROES[cls].actions; if (!A.stunned) return H('hurt', A.hurt ? A.hurt.length - 1 : 0); return H('stunned', Math.floor(q.t / 110) % A.stunned.length); }
-    case 'win': { const A = HEROES[cls].actions; if (!A.win) return H('stance', 0); return H('win', Math.min(A.win.length - 1, Math.floor(q.t / 90))); }
-    case 'intro': { const A = HEROES[cls].actions; if (!A.intro) return H('idle', 0); return H('intro', Math.min(A.intro.length - 1, Math.floor((q.t / Math.max(1, q.ms)) * A.intro.length))); }
-    case 'runstop': { const A = HEROES[cls].actions; if (!A.runstop) return H('stance', 0); return H('runstop', Math.min(A.runstop.length - 1, Math.floor(q.p * A.runstop.length))); }
+    case 'backstep': { const A = HEROES[body].actions; if (!A.backstep) return H('jump', 1); return H('backstep', Math.min(A.backstep.length - 1, Math.floor(q.p * A.backstep.length))); }
+    case 'quickrise': { const A = HEROES[body].actions; if (!A.quickrise) return H('getup', A.getup ? Math.min(A.getup.length - 1, Math.floor(q.p * A.getup.length)) : 0); return H('quickrise', Math.min(A.quickrise.length - 1, Math.floor(q.p * A.quickrise.length))); }
+    case 'stunned': { const A = HEROES[body].actions; if (!A.stunned) return H('hurt', A.hurt ? A.hurt.length - 1 : 0); return H('stunned', Math.floor(q.t / 110) % A.stunned.length); }
+    case 'win': { const A = HEROES[body].actions; if (!A.win) return H('stance', 0); return H('win', Math.min(A.win.length - 1, Math.floor(q.t / 90))); }
+    case 'intro': { const A = HEROES[body].actions; if (!A.intro) return H('idle', 0); return H('intro', Math.min(A.intro.length - 1, Math.floor((q.t / Math.max(1, q.ms)) * A.intro.length))); }
+    case 'runstop': { const A = HEROES[body].actions; if (!A.runstop) return H('stance', 0); return H('runstop', Math.min(A.runstop.length - 1, Math.floor(q.p * A.runstop.length))); }
     default: return H('stance', 0); // hit / pushed back / getting up / death (the ghost): the combat stance
   }
 }

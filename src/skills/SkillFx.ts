@@ -181,7 +181,7 @@ function preloadSkillFxOwn(scene: Phaser.Scene, classes?: readonly string[]): vo
   if (ULT_PORTRAIT) for (const cls of Object.keys(ULT_GLINT)) if (want(cls) && !scene.textures.exists(ultPortraitKey(cls))) scene.load.image(ultPortraitKey(cls), `${F}/heroes/${cls}/${cls === 'book_mage' ? 'ult' : 'vs'}.webp`); // (the ultimate's portrait; the book mage's own: her VS pose with white glowing eyes and lightning — David 18 Oct 01:26)
   const L = (k: string, p: string, w: number, h = w) => { if (!scene.textures.exists(k)) scene.load.spritesheet(k, p, { frameWidth: w, frameHeight: h }); };
   // (templates — wip skills — have no art loaded yet)
-  for (const s of FINAL_SKILLS) { if (VFX_ALIAS[s.id] || s.id === 'thunder_circle' || s.wip || s.cls === 'samurai' || s.cls === 'book_mage' || s.cls === 'gambler' || !want(s.cls)) continue; const big = isBig(s) ? 384 : 256, c = VFX_CELL[s.id]; L(vfxKey(s.id), `${F}/skills/${s.cls}/${s.id}/vfx.png`, c?.[0] ?? big, c?.[1] ?? big); } // (the samurai: pieces, SamuraiFx)
+  for (const s of FINAL_SKILLS) { if (VFX_ALIAS[s.id] || s.id === 'thunder_circle' || s.wip || s.style || s.cls === 'samurai' || s.cls === 'book_mage' || s.cls === 'gambler' || !want(s.cls)) continue; const big = isBig(s) ? 384 : 256, c = VFX_CELL[s.id]; L(vfxKey(s.id), `${F}/skills/${s.cls}/${s.id}/vfx.png`, c?.[0] ?? big, c?.[1] ?? big); } // (the samurai: pieces, SamuraiFx)
   for (const [id, p] of Object.entries(PROJECTILE_SHEETS)) { const cls = FINAL_SKILLS.find((s) => s.id === id)!.cls; if (want(cls)) L(`proj-${id}`, `${F}/projectiles/${cls}/${id}.${p.ext ?? 'png'}`, p.cell); }
   for (const v of Object.values(IMPACT)) L(v.key, v.path, v.cell);
   if (want('warrior')) L('imp-wsparks', `${F}/impact/warrior_sparks.png`, 256); // the warrior's hit sparks: rows normal / heavy / launch / counter (GPT)
@@ -339,7 +339,7 @@ export class SkillFx {
     this.arch = new ArcherFx({
       scene, casterPos: (id) => this.casterPos(id), cam: () => this.cam ?? this.scene.cameras.main,
       punch: (a, ms) => this.punch(a, ms), ultimateStage: (r) => this.ultimateStage(r), targetPos: (id) => this.targetPos?.(id) ?? null, body: (id) => this.bodyOf?.(id) ?? null,
-      bow: (id) => this.bodyPt(id, ARCHER_BOW), // (her bow grip as drawn: the charge gathers and the release flashes there)
+      bow: (id) => (this.bodyOf?.(id)?.key === 'hero-archer' ? this.bodyPt(id, ARCHER_BOW) : null), // (her bow grip as drawn: the charge gathers and the release flashes there — the bow's own body only: the Deadeye Sniper's frames share its names)
     });
     this.mage = new MageFx({
       scene, casterPos: (id) => this.casterPos(id), cam: () => this.cam ?? this.scene.cameras.main, hand: (id) => this.handOf(id), // (his hand as drawn: the bolt gathers in it)

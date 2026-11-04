@@ -15,6 +15,8 @@ const SUN = 0xffe27a;
  *  SPIRIT cyan-green beasts of light (hawk, wolf, eagle, the spirit arrow). FIRE is Fireball Arrow only, STORM Thunder Rain, SUN the two rains. */
 /** Each recipe's `tone`: the colour the room answers its blows in (light, floor mark / ring, embers). */
 const WIND = 0xd4ffd0, THORN = 0x3fae3a, SPIRIT = 0x6cffe2;
+/** The Deadeye Sniper's rifle (Styles.ts): brushed copper, its rounds copper-white. */
+const COPPER = 0xd8925a, ROUND = 0xffe6c2;
 /** The small star at the bow on a release (David's bar, the deer archer 06): two short crossing streaks, white core + its colour, ~120 ms. */
 const bowStar = (f: Parameters<NonNullable<Recipe['fired']>>[0], o: { x: number; y: number; z: number }, color: number, s = 1): void => {
   const L = 34 * s, z = Math.max(40, o.z);
@@ -94,4 +96,9 @@ export const ARCHER: Record<string, Recipe> = {
   arrow_storm: { tone: SUN, own: true, fired: (f, r, i, o) => { const last = i === r.hits.length - 1, big = i % 5 === 4 || last; if (big) f.crack(o.x, o.y, SUN, { r: last ? 90 : 60, chunks: 0, ms: 700, quiet: true }); f.later(60, () => f.host.ring(f.host.w3(o.x), f.host.d3(o.y), SUN, big ? 1.6 : 1.0, 240, 0.45)); } }, // (David 18 Oct 20:51: the rain on the mark is painted footage now — ArcherFx's flipbook; the room keeps a ring per volley and a glowing crack on the beat's)
   // Eagle Tide: a great crest of spirit wind runs the length of the arena with the eagle, a streak over it
   eagle_arrow: { tone: SPIRIT, own: true, active: (f, r) => { const c = me(f, r); f.wave(c.x, c.y, r.aim.x, r.aim.y, SPIRIT, { len: 760, ms: 360, h: 150, w: 150 }); f.streak({ x: c.x, y: c.y, z: 90 }, { x: c.x + r.aim.x * 780, y: c.y + r.aim.y * 400, z: 90 }, SPIRIT, { w: 26, ms: 420, draw: 90 }); } },
+  // the Deadeye Sniper (Styles.ts, David 4 Nov): rifle rounds — one thin hot copper-white streak each, a small warm star at
+  // the muzzle on every shot; her blows answered in copper, never the bow's green wind
+  ...Object.fromEntries(['sn_four_beat', 'sn_needlemark', 'sn_recoil_slip', 'sn_throughline', 'sn_four_bells', 'sn_skyline'].map((id) => [id, {
+    tone: COPPER, trail: { c: ROUND, w: id === 'sn_throughline' ? 7 : 4, len: 18, i: 2.6 }, fired: (f, _r, _i, o) => bowStar(f, o, ROUND, 0.8),
+  } as Recipe])),
 };

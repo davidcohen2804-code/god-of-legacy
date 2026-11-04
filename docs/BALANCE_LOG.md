@@ -4,6 +4,19 @@ Every balance change to any class's skills, newest first. Class chats: read this
 needs new visuals / motion (an effect sized to a new hitbox, an animation timed to a new startup), do that part.
 Values apply to the whole game (only damage may differ in PvP: arenaDmg / the arena's scaling).
 
+## 2026-11-04 — The Archer's second style: the Deadeye Sniper's kit, and switching style mid-fight (David 05:45)
+- **The switch** (`Styles.ts` SWITCH, a hidden cast `style_archer_<style>`): 150 ms to the change (hit before it: no change),
+  240 ms in all, 700 ms between two switches, a 220 ms key buffer. Out of a landed blow it cancels like a link (never out
+  of an ultimate or another switch), and the new style's next attack counts as the combo's follow-up.
+- **Her kit** (`FinalKit` `sniper`, every number at the fight's pace: `D(ms)` = ms / PACE, so it plays at `ms`). Live:
+  Four-Beat Precision (the basic chain, arenaDmg 0.6: Quick Tap 7 dmg 380 px shot · Stock Check 8 dmg 92 px sector push 50 ·
+  Chamber Shot 10 dmg 430 px push 90, marks · Rising Verdict 12 dmg 310 px launch 120, juggle cost 24, heavy; reset 650 ms),
+  Needlemark (12 dmg, 470 px at 2400 px/s, marks; CD 3 s), Recoil Slip (9 dmg 220 px, she slides back 110 px; CD 5 s),
+  Throughline (22 dmg pierce 620 px at 2600 px/s, push 120, marks; CD 8 s), Deadeye: Four Bells (8 · 8 · 8 · 18 dmg at
+  0 / 65 / 130 / 200 ms, the fourth launches 110 — higher on a marked foe; CD 22 s), Skyline Intercept (14 dmg 320 px,
+  reach up 190, launch 70, juggle cost 18; CD 6 s). Seven templates (Stockbreaker, Kneecap Round, Last Horizon, Steady
+  Chamber, False Sight, Perch Pivot, Glass Round) have their slots and numbers but no hits yet ("coming soon").
+
 ## 2026-11-02 (evening) — Bodies never slide into each other; a pull stops at the blade (David 18:43: "every move perfect")
 - **Attack glides** (the lunge in to a soft-locked foe, Dash Slash's skid after the dash) stop 58 px from a foe's centre in
   the arena (the training partner, the knight, another player: `GLIDE_GAP`, `crowdsFoe`) — Dash Slash skidded into the foe
