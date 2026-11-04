@@ -31,6 +31,28 @@ The DFO PvP arena dynamics chat is the PvP director: it sets the bar per class, 
 Take the whole PvP up a level in everything — dynamics, skills, effects, hit frames, movement, camera, feel: every hit felt, every class unique and amazing, big moments that look like a cinematic, and reasons to keep playing.
 
 ## Open items
+### DFO (4 Nov, David 14:59) — the styles, step 7: the Book Mage's Sailwright (the book tags out, the war fan tags in)
+- **The Sailwright** (his second style, `Styles.ts` `book_mage`: Arcane Tome → Sailwright; GPT's design, scratchpad
+  styles/mage_styles.md — the book unfolded into the Aether Sail, a seven-rib war fan: folded, one long spike; opened, one
+  triangular sail; "controlled force, not weather"): his own painted body (his approved look from the styles page, 13 GPT
+  stills of his moves on magenta, GPT sprite sheets for the idle, walk, run, jump and knockdown — PixVerse has no credits →
+  `tools/heroes/motion/book_mage_wind` → `book_mage_wind/body.png`, HERO_FIT 1.188: the book mage's size), his 13 icons (GPT,
+  the mage icons' frame), his kit (`FinalKit` `wind`: the four-beat chain — prick, reverse edge, the fan flared open, the
+  snap shut that lifts — Sail Edge, Updraft Hook, Windward Spike, Keel Drop and the signature Cut Across; seven templates;
+  numbers in BALANCE_LOG) and his effects (`WindFx`: thin pale-mint pressure edges, kite triangles, short pressure lines —
+  no tornado, no storm, no lasting zone; PVP 3D answers him in pale mint).
+- The cross-style chain (GPT's "Three-Current Route", its first two currents): Arcane Bolt → Astral Lift → the switch →
+  Cut Across → Keel Drop → Windward Spike; his own close launch: prick → reverse edge → Updraft Hook → Sail Edge → Cut
+  Across → Keel Drop → Windward Spike.
+- **Open (Book Mage chat):** the seven templates and the Tack (GPT's chevron marks: a few hits leave one, Luff Step, Cut
+  Across and Slipwake spend one for a new angle — +24 px across the lane at the start, +10 depth); then the third style,
+  the Fulminant Conductor (Lightning), is DFO's next step.
+- On the way: the book's spells stay with the book — his fan's hits carry no element, no Prism, weave no rune; the
+  switches neither attune the bolt nor spend a Grand Weave. Fixed: the book mage's Rift Gates and Tempest Ride asked the
+  world for sheets they never had (two 404s: `Body.ts` BODY_ALIAS, their hero plans' stand-ins).
+- Checked: PVP 3D films of the Three-Current start and his close launch (every hit lands, 0 errors), the open world on a
+  monster (every hit lands; no 404s of his).
+
 ### DFO (4 Nov, David 14:59) — the styles, step 6: the Gambler's Radiant Duelist (the cards tag out, the Crown Staff tags in)
 - **The Radiant Duelist** (his second style, `Styles.ts` `gambler`: Card Gambler → Radiant Duelist; GPT's design, scratchpad
   styles/gambler_styles.md — the cane unfolded into the Crown Staff, a two-handed staff of solid violet-white light; a stage

@@ -335,6 +335,11 @@ export const BOOK_MAGE: Record<string, Recipe> = {
       const a = rnd(0, Math.PI * 2), d = rnd(60, 130); f.flip(STRIKE, { x: c.x + Math.cos(a) * d, y: c.y + Math.sin(a) * d * 0.5, z: 0 }, { frame: STRIKE_F, from: 0, to: 11, fps: 40, w: 130, mode: 'up', foot: true, through: 0.55, glow: 0.3, flipX: Math.random() < 0.5 });
     },
   },
+  // the Sailwright (Styles.ts): his own 2D pieces (WindFx) stay with him — the fan's thin pale-mint pressure edges, the room
+  // answering in the same colour; no seals, no storms, no tornado of the book's spells
+  ...Object.fromEntries(['mw_four_beat', 'mw_sail_edge', 'mw_updraft_hook', 'mw_cut_across', 'mw_windward_spike', 'mw_keel_drop'].map((id) => [id, {
+    tone: 0xa8f0d8, paint: true, trail: false, own: true,
+  } as Recipe])),
 };
 
 // (the painted sheets are fetched the first time any of her spells is cast, so no spell plays its art late the first time)

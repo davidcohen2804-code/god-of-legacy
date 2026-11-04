@@ -4,6 +4,29 @@ Every balance change to any class's skills, newest first. Class chats: read this
 needs new visuals / motion (an effect sized to a new hitbox, an animation timed to a new startup), do that part.
 Values apply to the whole game (only damage may differ in PvP: arenaDmg / the arena's scaling).
 
+## 2026-11-05 (night) — The Book Mage's second style: the Sailwright's kit (David 4 Nov 14:59)
+- **His kit** (`FinalKit` `wind`, at the fight's pace `D(ms)`; GPT's times, reaches (X ± depth: a `line` X long, 2 × depth
+  wide) and juggle costs, DFO's damage — tune freely):
+  - Four-Beat Airfoil (basic): Fan Prick 6 (120 ± 18, stun D(240), push 6, J4 — GPT's 100: his painted fan reaches 146 px)
+    · Wane Backhand 7 (115 ± 22, stun D(280), push 12, J5) · Rib Rake 8 (130 ± 28, stun D(330), push 10, J7) · Keel Flick
+    11 (145 ± 24, stun D(500), launch 60, J12, heavy). Timings 120/60/145 · 125/65/150 · 145/75/165 · 180/70/220 (D). Links
+    into Sail Edge, Updraft Hook, Windward Spike.
+  - Sail Edge (slot 1): 9 at D(25) (155 ± 22, reach 150 up); stun D(330), push 20 (a foe in the air carried on), J8;
+    D(155)/D(85)/D(210); CD 3.5 s; links into Updraft Hook and Cut Across.
+  - Updraft Hook (slot 3, the launcher): 12 at D(15) (125 ± 26, reach 170 up: anti-air); stun D(700), launch 105, J18, heavy;
+    D(180)/D(75)/D(235); CD 7 s; links into Sail Edge, Windward Spike, Cut Across.
+  - Cut Across (slot 6, signature): 17 at D(30) (205 ± 34, reach 190 up); stun D(650), launch 60 (the air pop) + push 45
+    (the carry), J18, heavy; D(245)/D(110)/D(300); CD 14 s; links into Keel Drop and Windward Spike.
+  - Windward Spike (slot 8): 10 at D(10) (100 ± 30, reach 200 up: anti-air); stun D(450), launch 55, J12; D(165)/D(80)/D(230);
+    CD 8 s; links into Cut Across and Keel Drop.
+  - Keel Drop (slot 11): 14 at D(20) (150 ± 28, reach 190 up); stun D(520), `slam` (in the air: into the floor, one bounce)
+    + `knockdown` light (standing: he crumples), J22, heavy; D(215)/D(100)/D(325); CD 12 s; links into Windward Spike.
+  - Templates (no hits yet): Luff Step, Skimming Edge, Mastguard, Sky Loom (the ultimate), Kite Needle, Tackline Draw,
+    Slipwake. The Tack (the chevron marks a few of his hits leave, spent by Luff Step, Cut Across and Slipwake for a new
+    angle) is not in the slice yet.
+- **The book's spells stay with the book:** his fan's hits carry no element (no Elemental Ascension, Conductor, Shatter or
+  Prism) and weave no Spell Weave rune; neither they nor the switches attune the Arcane Bolt or spend a Grand Weave.
+
 ## 2026-11-04 (late night) — The Gambler's second style: the Radiant Duelist's kit (David 14:59)
 - **His kit** (`FinalKit` `radiant`, at the fight's pace `D(ms)`; GPT's times, reaches (X ± depth: a `line` X long, 2 × depth
   wide) and juggle costs, DFO's damage — tune freely):

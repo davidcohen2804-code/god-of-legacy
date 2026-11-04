@@ -2497,7 +2497,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private mageFlags(): number { const M = this.passives.mage; return (this.simMs < this.mage.ascUntil ? 1 : 0) | (M.conductor ? 2 : 0) | (M.shatter ? 4 : 0) | (this.mage.pageChill > 0 ? 8 : 0); }
   /** A mage hit as its caster's state makes it: every damaging hit both elements under Elemental Ascension; his passives. */
   private mageHit(run: CastRun, hit: HitEvent, tid?: string, at?: V3): HitEvent {
-    if (run.skill.cls !== 'book_mage') return hit;
+    if (run.skill.cls !== 'book_mage' || run.skill.style) return hit; // (the Sailwright's fan: no element, no Prism — the book's spells stay with the book)
     if ((run.skill.id === 'page_bind' || run.skill.id === 'paper_curse') && at && hit.damage >= 0) this.dropPages(run, at); // (the torn pages fall where they struck)
     const f = run.own ? (this.mageFlags() & 7) | ((run.mf ?? 0) & 8) : (run.mf ?? 0);
     if (f) {
@@ -3156,7 +3156,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const pb = this.petals.draw(s); // (the blossom draw: his Iai takes the petals in the scabbard)
     const run = this.rt!.start({ castId, skill: s, stage, attackerId: this.localId, own: true, origin: from, aim, place, lock, followUp, ...(mf ? { mf } : {}), ...(pb ? { petals: pb } : {}), ...(fold ? { extraShots: fold } : {}) });
     this.trialUi?.cast(s.id.startsWith('arcane_bolt') ? 'arcane_bolt' : s.id, castId, !k.grounded, this.simMs); // (training: the trial's next key? — an Attunement bolt is the trial's Arcane Bolt)
-    if (s.cls === 'book_mage') this.mageCast(s, run);
+    if (s.cls === 'book_mage' && !s.style && !styleOfSwitch(s.id)) this.mageCast(s, run); // (a spell: the Sailwright's fan and the switches neither attune, nor spend a Grand Weave)
     if (s.cls === 'gambler') this.gamblerStarted(s);
     if (s.chain) this.chain = { stage, lastEnd: Infinity, skill: s.id };
     this.setMode('skill');
@@ -3682,7 +3682,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       if (this.orbs.cast !== run.castId) { this.orbs.cast = run.castId; this.orbs.n = Math.min(ORBS.max, this.orbs.n + 1); }
       this.orbs.lastAt = this.simMs;
     }
-    if (run?.own && s.cls === 'book_mage' && damage > 0) this.weaveHit(run);
+    if (run?.own && s.cls === 'book_mage' && !s.style && damage > 0) this.weaveHit(run); // (Spell Weave: a spell that hits — not the Sailwright's fan)
     if (run?.own && s.cls === 'gambler') this.gambleConfirm(run, hit, target, at, damage, crit);
     if (run?.own && damage > 0 && s.linger?.at === 'target') this.startHold(run, target); // a hold under the foe it caught
     this.fx!.confirmed(s, hit, at, damage, reaction, true, idx, crit, run ? this.hitFrom(run, hit) : undefined, counter);

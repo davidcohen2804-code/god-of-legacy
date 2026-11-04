@@ -1687,7 +1687,95 @@ const radiant: FinalSkill[] = [
   }),
 ];
 
-export const FINAL_SKILLS: FinalSkill[] = [...warrior, ...siege, ...mage, ...archer, ...sniper, ...cannon, ...samurai, ...shuriken, ...gambler, ...radiant];
+// The Book Mage's second style (David 4 Nov 14:59): the Sailwright, the Wind (GPT's design, scratchpad
+// styles/mage_styles.md) — the book unfolded into the Aether Sail, a monumental seven-rib war fan: folded, one long spike for
+// thrusts; opened, one strong triangular sail for cuts. "Wind is controlled force, not weather": thin pressure edges, no
+// tornado, no storm, no lasting zone. Mid range (90–205), a depth game. His numbers are GPT's (startup / active / recovery,
+// the reach X and its depth ±, the juggle costs), the live ones its close launch (Fan Prick → Wane Backhand → Updraft Hook →
+// Sail Edge → Cut Across → Keel Drop → Windward Spike); the Tack (the chevron marks a few hits leave, spent for a new angle)
+// is still to come. The book's spells stay with the book: his fan's hits carry no element and weave no rune.
+const wind: FinalSkill[] = [
+  S({
+    id: 'mw_four_beat', cls: 'book_mage', style: 'wind', slot: 0, name: 'Four-Beat Airfoil', roles: ['basic', 'confirm'], targeting: 'aimAssist',
+    startup: D(120), active: D(60), recovery: D(145), cooldown: 0, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [H(0, 6, RLINE(120, 18), { stun: D(240), push: 6, juggleCost: 4 }, { reachUp: 100 })],
+    // point — reverse point — opening fan — upward closing snap: the folded fan's tip pricked in, its back edge whipped
+    // across, the fan flared open upward through him, snapped shut on the way up
+    chain: { resetMs: 700, stages: [
+      [H(0, 6, RLINE(120, 18), { stun: D(240), push: 6, juggleCost: 4 }, { reachUp: 100 })], // Fan Prick: the folded tip pricked straight in (his painted fan reaches 146 px)
+      [H(0, 7, RLINE(115, 22), { stun: D(280), push: 12, juggleCost: 5 }, { reachUp: 110 })], // Wane Backhand: the reverse edge
+      [H(0, 8, RLINE(130, 28), { stun: D(330), push: 10, juggleCost: 7 }, { reachUp: 130 })], // Rib Rake: the fan flared open, swept upward
+      [H(0, 11, RLINE(145, 24), { stun: D(500), launch: 60, juggleCost: 12 }, { reachUp: 150, heavy: true })], // Keel Flick: snapped shut on the way up, a short hop-launch
+    ], timings: [{ startup: D(120), active: D(60), recovery: D(145) }, { startup: D(125), active: D(65), recovery: D(150) }, { startup: D(145), active: D(75), recovery: D(165) }, { startup: D(180), active: D(70), recovery: D(220) }] },
+    cancelOnHit: ['mw_sail_edge', 'mw_updraft_hook', 'mw_windward_spike'],
+    description: 'Tap or hold Space: the folded fan pricked in, its back edge whipped across, the fan flared open upward through the foe — then snapped shut on the way up, lifting him.',
+    relations: ['4-beat chain', 'Cancel into a skill on hit'],
+  }),
+  S({
+    id: 'mw_sail_edge', cls: 'book_mage', style: 'wind', slot: 1, name: 'Sail Edge', roles: ['confirm', 'airExtender'], targeting: 'aimAssist',
+    startup: D(155), active: D(85), recovery: D(210), cooldown: 3500, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [H(D(25), 9, RLINE(155, 22), { stun: D(330), push: 20, juggleCost: 8 }, { reachUp: 150 })], // (one pale pressure blade flung off the open fan's rim: a stagger, a foe in the air carried on)
+    cancelOnHit: ['mw_updraft_hook', 'mw_cut_across'],
+    description: 'The fan flicked open: one thin pressure blade leaves its rim — the foe staggers, and one in the air is carried on.',
+    relations: ['Confirm', 'Air carry'],
+  }),
+  S({ id: 'mw_luff_step', cls: 'book_mage', style: 'wind', slot: 2, name: 'Luff Step', roles: ['mobility'], targeting: 'mouseDir', wip: true,
+    startup: D(145), active: D(70), recovery: D(185), cooldown: 5000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
+    description: 'Coming soon: a sidestep across the lane and one diagonal cut as he goes — a new angle.', relations: ['Sidestep'] }),
+  S({
+    id: 'mw_updraft_hook', cls: 'book_mage', style: 'wind', slot: 3, name: 'Updraft Hook', roles: ['launcher', 'antiAir'], targeting: 'aimAssist',
+    startup: D(180), active: D(75), recovery: D(235), cooldown: 7000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [H(D(15), 12, RLINE(125, 26), { stun: D(700), launch: 105, juggleCost: 18 }, { reachUp: 170, heavy: true })], // (the folded fan hooked up from below: one rising crescent of air takes him up)
+    cancelOnHit: ['mw_sail_edge', 'mw_windward_spike', 'mw_cut_across'],
+    description: 'The folded fan hooked up from below him: one rising crescent of air throws the foe up. The launcher.',
+    relations: ['Launcher', 'Anti-air'],
+  }),
+  S({ id: 'mw_skimming_edge', cls: 'book_mage', style: 'wind', slot: 4, name: 'Skimming Edge', roles: ['projectile'], targeting: 'mouseProjectile', wip: true,
+    startup: D(190), active: D(95), recovery: D(265), cooldown: 7000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK, hits: [],
+    description: 'Coming soon: one low, thin slice of air sent skimming along the floor, far.', relations: ['Low projectile'] }),
+  S({ id: 'mw_mastguard', cls: 'book_mage', style: 'wind', slot: 5, name: 'Mastguard', roles: ['counter'], targeting: 'self', wip: true,
+    startup: D(65), active: D(180), recovery: D(255), cooldown: 11000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
+    description: 'Coming soon: the fan opened before him as a tight sail — one blow or shot glances off it, and he pushes back.', relations: ['Guard', 'Counter'] }),
+  S({
+    id: 'mw_cut_across', cls: 'book_mage', style: 'wind', slot: 6, name: 'Cut Across', roles: ['signature', 'airExtender'], targeting: 'aimAssist',
+    startup: D(245), active: D(110), recovery: D(300), cooldown: 14000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [H(D(30), 17, RLINE(205, 34), { stun: D(650), launch: 60, push: 45, juggleCost: 18 }, { reachUp: 190, heavy: true })], // (one huge diagonal sail cut, an S of air: the foe popped up and carried across)
+    cancelOnHit: ['mw_keel_drop', 'mw_windward_spike'],
+    tags: ['signature'],
+    description: 'His signature: the open fan swept through one huge diagonal cut, an S of pale air — the foe is popped up and carried across the lane.',
+    relations: ['Signature', 'Air pop', 'Carry'],
+  }),
+  S({ id: 'mw_sky_loom', cls: 'book_mage', style: 'wind', slot: 7, name: 'Sky Loom', roles: ['ultimate'], targeting: 'aimAssist', wip: true,
+    startup: D(440), active: D(180), recovery: D(690), cooldown: 85000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
+    description: 'Coming soon: the fan opened overhead drives one gigantic kite-shaped blade of air far down the lane.', relations: ['Ultimate'] }),
+  S({
+    id: 'mw_windward_spike', cls: 'book_mage', style: 'wind', slot: 8, name: 'Windward Spike', roles: ['antiAir', 'extender'], targeting: 'aimAssist',
+    startup: D(165), active: D(80), recovery: D(230), cooldown: 8000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [H(D(10), 10, RLINE(100, 30), { stun: D(450), launch: 55, juggleCost: 12 }, { reachUp: 200 })], // (the folded fan in a reverse grip spiked straight up: a foe above is caught and lifted a little)
+    cancelOnHit: ['mw_cut_across', 'mw_keel_drop'],
+    description: 'The folded fan turned in a reverse grip and spiked straight up: it meets a foe over him and lifts him a little.',
+    relations: ['Anti-air', 'Small lift'],
+  }),
+  S({ id: 'mw_kite_needle', cls: 'book_mage', style: 'wind', slot: 9, name: 'Kite Needle', roles: ['projectile', 'precision'], targeting: 'mouseProjectile', wip: true,
+    startup: D(215), active: D(90), recovery: D(285), cooldown: 9000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK, hits: [],
+    description: 'Coming soon: one small, fast kite-shaped dart of air off the fan\'s tip, flying straight and far.', relations: ['Projectile'] }),
+  S({ id: 'mw_tackline_draw', cls: 'book_mage', style: 'wind', slot: 10, name: 'Tackline Draw', roles: ['pull'], targeting: 'aimAssist', wip: true,
+    startup: D(205), active: D(85), recovery: D(265), cooldown: 10000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
+    description: 'Coming soon: a taut line of air hooks the foe and draws him in toward the fan.', relations: ['Pull'] }),
+  S({
+    id: 'mw_keel_drop', cls: 'book_mage', style: 'wind', slot: 11, name: 'Keel Drop', roles: ['knockdown', 'finisher'], targeting: 'aimAssist',
+    startup: D(215), active: D(100), recovery: D(325), cooldown: 12000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [H(D(20), 14, RLINE(150, 28), { stun: D(520), slam: true, knockdown: 'light', juggleCost: 22 }, { reachUp: 190, heavy: true })], // (the folded fan brought down like a heavy keel: in the air, slammed into the floor, one bounce; standing: he crumples)
+    cancelOnHit: ['mw_windward_spike'],
+    description: 'The folded fan brought down like a heavy keel: a foe in the air is slammed into the floor and bounces once; a standing one crumples.',
+    relations: ['Ground bounce', 'Crumple'],
+  }),
+  S({ id: 'mw_slipwake', cls: 'book_mage', style: 'wind', slot: 12, name: 'Slipwake', roles: ['escape'], targeting: 'self', wip: true,
+    startup: D(135), active: D(75), recovery: D(225), cooldown: 10000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
+    description: 'Coming soon: a slide backward, one compressed edge of air swept forward ahead of him.', relations: ['Retreat'] }),
+];
+
+export const FINAL_SKILLS: FinalSkill[] = [...warrior, ...siege, ...mage, ...wind, ...archer, ...sniper, ...cannon, ...samurai, ...shuriken, ...gambler, ...radiant];
 /** The switches into the styles (Styles.ts): a hidden cast each, never on the bar. 150 ms to the change, 240 ms in all, on
  *  the clock (its kit numbers are the fight's pace undone); no hits; she keeps her momentum. */
 export const STYLE_SWITCHES: FinalSkill[] = Object.entries(STYLES).flatMap(([cls, list]) => list.map((st) => S({

@@ -39,6 +39,12 @@ export const STYLES: Record<string, StyleDef[]> = {
     { id: 'card', name: 'Card Gambler', accent: 0xff3ad6 },
     { id: 'radiant', name: 'Radiant Duelist', body: 'gambler_radiant', accent: 0xd9c8ff }, // (violet-white: the Crown Staff's light)
   ],
+  // The Book Mage fifth: the book of spells, her own kit, and the Sailwright (GPT's design, scratchpad styles/mage_styles.md)
+  // — the book unfolded into the Aether Sail, a seven-rib war fan: controlled force, not weather.
+  book_mage: [
+    { id: 'book', name: 'Arcane Tome', accent: 0x9fb4ff },
+    { id: 'wind', name: 'Sailwright', body: 'book_mage_wind', accent: 0xa8f0d8 }, // (pale mint: the fan's rim)
+  ],
 };
 
 export const stylesOf = (cls: string): StyleDef[] => STYLES[cls] ?? [];

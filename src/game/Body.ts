@@ -34,7 +34,8 @@ const BODY_ALIAS: Record<string, string> = { lions_maw: 'war_cry', shield_charge
   thunder_circle: 'sanctuary', // (Thunder Circle has no drawn body of its own: the oath's planted sword, as its hero plan — its missing sheet failed to load in the world)
   // the book mage's new spells borrow its drawn casts until their own come (the mage spec)
   arcane_bolt_frost: 'arcane_bolt', arcane_bolt_storm: 'arcane_bolt', arcane_bolt_arcane: 'arcane_bolt', blink: 'arcane_bolt', glacial_spikes: 'frost_nova', chrono_haste: 'astral_burst',
-  levity_field: 'storm_field', origami_flock: 'arcane_wave', chrono_sigil: 'binding_rune', arcane_ward: 'frost_nova', arcane_gate: 'binding_rune', paper_curse: 'lightning_chain', elemental_ascension: 'storm_field', page_bind: 'arcane_wave' };
+  levity_field: 'storm_field', origami_flock: 'arcane_wave', chrono_sigil: 'binding_rune', arcane_ward: 'frost_nova', arcane_gate: 'binding_rune', paper_curse: 'lightning_chain', elemental_ascension: 'storm_field', page_bind: 'arcane_wave',
+  rift_gates: 'arcane_bolt', tempest_ride: 'storm_field' }; // (as their hero plans' stand-ins: Blink's and Storm Field's — their missing sheets were two 404s in the world)
 /** Skills that play the regular attack's movement (one strike of the basic chain sheet) instead of their own body. */
 const POSE_AS_BASIC: Record<string, number> = { wave_slash: 0 };
 export const bodyIdOf = (id: string) => BODY_ALIAS[id] ?? id;
@@ -594,7 +595,8 @@ const HERO_FIT: Record<string, number> = { warrior: 0.907, samurai: 1.049, arche
   archer_cannon: 1.051, // (the Recoil Cannoneer: cut at the sniper's standing height, 509 canvas px — the same woman again)
   samurai_assassin: 1.12, // (the Shuriken Assassin: his eyes 120 px over his feet like the katana samurai's — the same man, out of his armour)
   warrior_siege: 1.04, // (the Siege Warden: his eyes at the longsword warrior's height — 173 of 190 atlas px against 202 of 194 at 0.907)
-  gambler_radiant: 1.04 }; // (the Radiant Duelist: the card gambler's size — his hat to boots 504 canvas px against 509, his idle 203 atlas px tall with the staff over his hat against 184)
+  gambler_radiant: 1.04, // (the Radiant Duelist: the card gambler's size — his hat to boots 504 canvas px against 509, his idle 203 atlas px tall with the staff over his hat against 184)
+  book_mage_wind: 1.188 }; // (the Sailwright: cut at the book mage's standing height, 509 canvas px — 191 atlas px against 190: the same mage)
 /** A hero drawing's scale in the world (atlas px to world px). */
 const heroScale = (cls: string): number => (HERO_HEIGHT / HEROES[cls].h) * (HERO_FIT[cls] ?? 1);
 /** One body size from a step into a skill (David 2 Nov 23:47: "the characters must not get smaller in a move or a skill —
@@ -669,6 +671,18 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
     binding_rune: { act: 'binding_rune', st: [1, 2], ac: [3], rc: [4, 5] }, // she drops low and slaps her palm flat on the floor: the rune is laid
     blink: { act: 'blink', st: [1], ac: [2], rc: [3] }, // the coat whirls round her as she vanishes
     rift_gates: { act: 'blink', st: [1], ac: [2], rc: [3] }, tempest_ride: { act: 'storm_field', st: [0, 1, 2], ac: [3, 4, 4, 4], rc: [5] }, // (David 18 Oct 01:26: stand-ins until the Book Mage chat's own)
+    // the Sailwright (Styles.ts), his own painted body (tools/heroes/motion/book_mage_wind: GPT stills, his look attached in a
+    // new chat each; the open fan: the open look attached too): one held pose a beat — the fan folded or open
+    mw_four_beat: { act: 'mw_prick', st: [0], ac: [0], rc: [0] }, // Fan Prick: the folded fan's tip pricked straight out
+    'mw_four_beat#1': { act: 'mw_backhand', st: [0], ac: [0], rc: [0] }, // Wane Backhand: the reverse edge across
+    'mw_four_beat#2': { act: 'mw_rake', st: [0], ac: [0], rc: [0] }, // Rib Rake: the fan flared open, swept up
+    'mw_four_beat#3': { act: 'mw_keel', st: [0], ac: [0], rc: [0] }, // Keel Flick: snapped shut, the hop up
+    mw_sail_edge: { act: 'mw_sail_edge', st: [0], ac: [0], rc: [0] }, // the fan flicked open level, its rim out
+    mw_updraft_hook: { act: 'mw_updraft', st: [0], ac: [0], rc: [0] }, // the folded fan hooked up from low
+    mw_cut_across: { act: 'mw_cut_across', st: [0], ac: [0], rc: [0] }, // the open fan swept low across him
+    mw_windward_spike: { act: 'mw_spike', st: [0], ac: [0], rc: [0] }, // the reverse-grip spike straight up
+    mw_keel_drop: { act: 'mw_keel_drop', st: [0], ac: [0], rc: [0] }, // the folded fan brought down like a keel
+    style_book_mage_wind: { act: 'stance', st: [0], ac: [0], rc: [0] }, style_book_mage_book: { act: 'stance', st: [0], ac: [0], rc: [0] }, // the switch
   },
   warrior: {
     // the regular attack: each strike its own move (PixVerse, 9 frames): the flat cut, the backhand down, the rising cut, then the heavy chop (finisher)

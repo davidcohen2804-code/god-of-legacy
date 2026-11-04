@@ -14,6 +14,7 @@ import { ARENA3D, ON_BODY } from '../arena3d/flag';
 import ARCHER_BOW from '../data/archer-bow.json';
 import { HANDS, bodyHand } from './BodyPoints';
 import { MageFx, MAGE_KIT, MAGE_KIT_URL, MAGE_SHEETS } from './MageFx';
+import { WindFx } from './WindFx';
 import { ArcherFx, ARCHER_KIT, ARCHER_KIT_URL, ARCHER_FLIPS } from './ArcherFx';
 import { ShurikenFx } from './ShurikenFx';
 import { WardenFx } from './WardenFx';
@@ -329,6 +330,8 @@ export class SkillFx {
   private shuri: ShurikenFx;
   private ward: WardenFx;
   private duel: RadiantFx;
+  /** The Book Mage's Sailwright (his second style): the fan's pressure edges (WindFx). */
+  private wind: WindFx;
   /** The gambler's effects (drawn in code). */
   private gamb: GamblerFx;
   /** The weight of the main hits on the whole picture: bent air, a split of colour, an ultimate's zoom blur. */
@@ -355,6 +358,7 @@ export class SkillFx {
     });
     this.ward = new WardenFx({ scene, casterPos: (id) => this.casterPos(id), cam: () => this.cam ?? this.scene.cameras.main, punch: (a, ms) => this.punch(a, ms) });
     this.duel = new RadiantFx({ scene, casterPos: (id) => this.casterPos(id), cam: () => this.cam ?? this.scene.cameras.main, punch: (a, ms) => this.punch(a, ms) });
+    this.wind = new WindFx({ scene, casterPos: (id) => this.casterPos(id), cam: () => this.cam ?? this.scene.cameras.main, punch: (a, ms) => this.punch(a, ms) });
     this.mage = new MageFx({
       scene, casterPos: (id) => this.casterPos(id), cam: () => this.cam ?? this.scene.cameras.main, hand: (id) => this.handOf(id), // (his hand as drawn: the bolt gathers in it)
       punch: (a, ms) => this.punch(a, ms), darken: (ms, a) => this.darken(ms, a), ultimateStage: (r) => this.ultimateStage(r), targetPos: (id) => this.targetPos?.(id) ?? null,
@@ -413,6 +417,10 @@ export class SkillFx {
         const c = this.casterPos(r.attackerId); if (!c) return;
         this.play('afx-volley', c.x + (left ? -20 : 20), c.y - c.z - 60, 460, 230, [35, 40, 45, 50, 60, 70, 80, 100], { ox: left ? 0.86 : 0.14, oy: 0.2, flip: left, depth: TOP + 2 })?.setAngle(left ? 18 : -18); // tilted toward level: the volley sweeps across the floor
       });
+    }
+    if (s.cls === 'book_mage' && (s.style === 'wind' || styleOfSwitch(s.id))) { // the Sailwright and the switches (WindFx): the fan's cut air, no spells
+      this.wind.cast(r);
+      return;
     }
     if (s.cls === 'book_mage') { // the book mage: every effect built from its pieces (MageFx)
       if (s.telegraph && s.slot !== 7 && s.hits.length) this.telegraph(r);
@@ -489,7 +497,7 @@ export class SkillFx {
 
   private onActive(r: CastRun): void {
     if (r.skill.cls === 'samurai' && r.skill.style !== 'shuriken' && !styleOfSwitch(r.skill.id)) this.sam.active(r);
-    if (r.skill.cls === 'book_mage') this.mage.active(r);
+    if (r.skill.cls === 'book_mage' && r.skill.style !== 'wind' && !styleOfSwitch(r.skill.id)) this.mage.active(r);
     if (r.skill.id === 'earthsplitter') this.earthsplit(r);
     if (r.skill.cls === 'gambler' && r.skill.style !== 'radiant' && !styleOfSwitch(r.skill.id)) this.gamb.active(r); // (the Duelist's light is drawn on his own clock)
     this.dropTele(r, true); // VFX timelines are pre-scheduled from the cast; telegraphs end here
@@ -1387,7 +1395,7 @@ export class SkillFx {
     const s = r.skill, h = r.hits[i];
     if (s.cls === 'samurai') { if (s.style === 'shuriken' || styleOfSwitch(s.id)) this.shuri.hit(r, i, o); else this.sam.hit(r, i, o); return; }
     if (s.cls === 'gambler') { if (s.style === 'radiant' || styleOfSwitch(s.id)) return; this.gamb.hit(r, i, o); return; } // (the Duelist's strikes: drawn on his cast's clock, RadiantFx)
-    if (s.cls === 'book_mage') { this.mage.hit(r, i, o); return; }
+    if (s.cls === 'book_mage') { if (s.style === 'wind' || styleOfSwitch(s.id)) return; this.mage.hit(r, i, o); return; } // (the Sailwright's cuts: drawn on his cast's clock, WindFx)
     if (s.cls === 'archer' && this.arch.ready) { this.arch.hit(r, i, o); return; }
     // Multi-hit area skills: a short pulse per tick so every discrete hit reads (VFX timeline already running).
     if (i > 0 && s.cls !== 'archer' && s.id !== 'titans_verdict' && (h.shape.kind === 'circle' || h.shape.kind === 'placed')) { // (Titan's Verdict: its own art — the 240 px pulse per blow stacked into the white blob in PVP 3D) // (archer areas carry their own art: no area-sized flash)
@@ -1557,7 +1565,8 @@ export class SkillFx {
       const rapid = s.hits.length > 3 && !hit.heavy; // storms / volleys: small sparks, never a white-out
       const sz = rapid ? 64 : tier === 'ultimate' || hit.heavy ? 140 : 86, key = this.scene.textures.exists('afx-hit') ? 'afx-hit' : (this.impactFlip = !this.impactFlip) ? 'afx-impact' : 'afx-impact-b';
       this.play(key, at.x, at.y - at.z - 38, sz, sz, [20, 22, 24, 26, 28, 30, 34, 40], { depth: TOP + 2, fadeLast: 60 }); // the samurai's hit sizes
-    } else if (s.cls === 'book_mage') this.mage.confirmed(s, hit, at, !!hit.heavy || tier === 'signature' || tier === 'ultimate', crit, counter);
+    } else if (s.cls === 'book_mage' && s.style === 'wind') this.wind.confirmed(s, hit, at, !!hit.heavy || tier === 'signature' || tier === 'ultimate', crit); // (cut air: a sharp burst of short pressure lines — WindFx)
+    else if (s.cls === 'book_mage') this.mage.confirmed(s, hit, at, !!hit.heavy || tier === 'signature' || tier === 'ultimate', crit, counter);
     else if (s.cls === 'gambler' && s.style === 'radiant') this.duel.confirmed(s, hit, at, !!hit.heavy || tier === 'signature' || tier === 'ultimate', crit); // (the staff's light: a white contact, a faceted spade on a heavy blow — RadiantFx)
     else if (s.cls === 'gambler') this.gamb.confirmed(s, hit, at, !!hit.heavy || tier === 'signature' || tier === 'ultimate', crit, counter);
     else if (s.cls === 'warrior' && s.style === 'siege') this.ward.confirmed(s, hit, at, !!hit.heavy || tier === 'signature' || tier === 'ultimate', crit); // (iron on iron: one small ivory spark, hot scrapes — WardenFx)
@@ -1722,6 +1731,7 @@ export class SkillFx {
     this.shuri.update(step);
     this.ward.update(step);
     this.duel.update(step);
+    this.wind.update(step);
     this.gamb.update(step);
     this.impact.update(step, ms); // (its colour split and zoom blur on the real time: they never hold through a hit-stop)
     if (this.hitStopLeft > 0) this.hitStopLeft = Math.max(0, this.hitStopLeft - ms);
@@ -2620,6 +2630,7 @@ export class SkillFx {
     this.shuri.destroy();
     this.ward.destroy();
     this.duel.destroy();
+    this.wind.destroy();
     this.mage.destroy();
     this.impact.destroy();
     for (const a of this.anims) { a.img.destroy(); a.glow?.destroy(); a.mix?.destroy(); }
