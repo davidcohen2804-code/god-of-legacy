@@ -28,7 +28,7 @@ Values apply to the whole game (only damage may differ in PvP: arenaDmg / the ar
   - Four-Point Eclipse (slot 6, signature): four crossing cuts 6 each (placed r64, D(0/55/110/165), stun D(360), float, J3)
     then the rise 14 (r70 at D(250), stun D(620), launch 95, J15, heavy); reach 230–240 up; placed under the nearest foe in
     front within 360 px (`seekFoe`); D(230)/D(290)/D(420); CD 24 s; `farLaunch`. Its blows come from him, not from its
-    spot (`hitFrom`: round its own spot a monster was thrown back through him).
+    spot (`hitFrom`: from its spot a struck monster leaned and tumbled toward him).
   - Crowstep Rise (slot 8): 16, a step of up to 120 px (lift 40) toward the foe it locks on (`mouseTarget`: a foe in the
     air over him too — it carried him under one), stopping 62 px short of him, where the knee meets him (`dash.gap`, new:
     a locked dash's stop, default 34 — at 34 the knee was inside him, he went straight up and came down on top of the

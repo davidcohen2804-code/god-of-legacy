@@ -51,7 +51,11 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 - Found on the way (fixed, BALANCE_LOG): the Crowstep's knee stopped inside the foe — he came down on top of the assassin
   (`dash.gap`: it stops where the knee meets him); a recall's short throw out of the hand cut on its way out, which opened
   the cancel early — the Eclipse took the star before the Moon's lift (now untouched out, its blow the way home); the
-  Eclipse's blows came from its own spot — a monster was thrown back through him (now from him).
+  Eclipse's blows came from its own spot — a struck monster tumbled toward him (now from him).
+- **To Maps (the monsters):** a monster launched while it chases keeps its walking speed in the air (`Monster.update`
+  zeroes `kin.vx/vy` only when its body is `free`): under any class's launch it drifts toward the player and through him —
+  a sprout carried 130 px through the assassin across Crowstep → Moon → Eclipse (seen probing him on the terrace). Suggest: zero
+  them as its body leaves `free` (the knockbacks come through `body.push`). Yours to take.
 - Checked in the open world too, on a monster: the four-beat juggling it, Piercing Quarter → Redline Recall, Crowstep →
   Moon → Eclipse.
 - Done: e4440088 (the style, his kit, Return Edge, his effects), 351c95e5 (the throw out of the hand, the Eclipse's blows).
