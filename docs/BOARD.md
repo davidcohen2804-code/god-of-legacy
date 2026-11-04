@@ -59,6 +59,9 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 - **Open (DFO):** the room's launch pillar still answers her launches (a column of light) — her own blast may carry them.
 - **Archer chat:** the Sniper and the Cannoneer are yours from here (their visuals, motion, the templates); worth your pass:
   the Hunter's Mark over the foe is the bow's green leaf in every style.
+- Done: 57c6bbc7 (the staff), 6f24b0f5 (the Cannoneer, the tag-in), b507bd0a (her icons, the rings, the missile), 58f8cc77
+  (the Glass Round, WALL CRASH, seekFoe), 005c9ee5 + ba57ce9a (the crash: off the floor too; pops off the wall into a floor
+  bounce). Filmed in PVP 3D: the bow → the rifle's held shot into the wall → the cannon's bomb and missile, in one combo.
 
 ### DFO (4 Nov, David 05:45) — the styles, step 2: the Archer switches style mid-fight + the Deadeye Sniper (a vertical slice)
 - David (4 Nov 04:27–05:45): each hero changes style in the middle of a fight — his look, his weapon and his whole kit — in
