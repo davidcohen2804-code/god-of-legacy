@@ -1,0 +1,139 @@
+{
+  "canvas": [
+    768,
+    768
+  ],
+  "ground_y": 700,
+  "hip_x": 384,
+  "animations": {
+    "idle": {
+      "frames": 5,
+      "source": "gpt sprite sheet idle_sheet.webp (figures 1,2,3,4,5; PixVerse out of credits)",
+      "loop": true,
+      "fps": 6
+    },
+    "walk": {
+      "frames": 8,
+      "source": "gpt sprite sheet walk_sheet.webp (figures 1,2,3,4,5,6,7,8; PixVerse out of credits)",
+      "loop": true,
+      "fps": 10
+    },
+    "run": {
+      "frames": 6,
+      "source": "gpt sprite sheet run_sheet.webp (figures 1,2,3,4,5,6; PixVerse out of credits)",
+      "loop": true,
+      "fps": 12
+    },
+    "jump": {
+      "frames": 4,
+      "source": "gpt sprite sheet jump_sheet.webp (figures 1,2,4,5; PixVerse out of credits)"
+    },
+    "launched": {
+      "frames": 6,
+      "source": "gpt sprite sheet down_sheet.webp (figures 2,2,3,3,3,3; PixVerse out of credits)",
+      "loop": false,
+      "frame_ms": [
+        60,
+        60,
+        70,
+        70,
+        80,
+        80
+      ]
+    },
+    "down_impact": {
+      "frames": 2,
+      "source": "gpt sprite sheet down_sheet.webp (figures 4,4; PixVerse out of credits)",
+      "loop": false,
+      "frame_ms": [
+        60,
+        80
+      ]
+    },
+    "down": {
+      "frames": 2,
+      "source": "gpt sprite sheet down_sheet.webp (figures 4,4; PixVerse out of credits)",
+      "loop": false,
+      "frame_ms": [
+        400,
+        400
+      ]
+    },
+    "getup": {
+      "frames": 7,
+      "source": "gpt sprite sheet down_sheet.webp (figures 4,5,5,5,6,6,6; PixVerse out of credits)",
+      "loop": false,
+      "frame_ms": [
+        90,
+        90,
+        90,
+        90,
+        90,
+        90,
+        90
+      ]
+    },
+    "mw_prick": {
+      "frames": 1,
+      "source": "gpt still (his look attached, a new chat each; the open fan: the open look attached too)"
+    },
+    "mw_backhand": {
+      "frames": 1,
+      "source": "gpt still (his look attached, a new chat each; the open fan: the open look attached too)"
+    },
+    "mw_rake": {
+      "frames": 1,
+      "source": "gpt still (his look attached, a new chat each; the open fan: the open look attached too)"
+    },
+    "mw_keel": {
+      "frames": 1,
+      "source": "gpt still (his look attached, a new chat each; the open fan: the open look attached too)"
+    },
+    "mw_sail_edge": {
+      "frames": 1,
+      "source": "gpt still (his look attached, a new chat each; the open fan: the open look attached too)"
+    },
+    "mw_updraft": {
+      "frames": 1,
+      "source": "gpt still (his look attached, a new chat each; the open fan: the open look attached too)"
+    },
+    "mw_cut_across": {
+      "frames": 1,
+      "source": "gpt still (his look attached, a new chat each; the open fan: the open look attached too)"
+    },
+    "mw_spike": {
+      "frames": 1,
+      "source": "gpt still (his look attached, a new chat each; the open fan: the open look attached too)"
+    },
+    "mw_keel_drop": {
+      "frames": 1,
+      "source": "gpt still (his look attached, a new chat each; the open fan: the open look attached too)"
+    },
+    "air_shot": {
+      "frames": 1,
+      "source": "gpt still (his look attached, a new chat each; the open fan: the open look attached too)"
+    },
+    "backstep": {
+      "frames": 1,
+      "source": "gpt still (his look attached, a new chat each; the open fan: the open look attached too)"
+    },
+    "stance": {
+      "frames": 1,
+      "loop": false,
+      "frame_ms": [
+        500
+      ],
+      "source": "gpt still (his look attached, a new chat each; the open fan: the open look attached too): the folded fan across him, his ready stance"
+    },
+    "hurt": {
+      "frames": 1,
+      "loop": false,
+      "frame_ms": [
+        300
+      ],
+      "source": "gpt still (his look attached, a new chat each; the open fan: the open look attached too)"
+    }
+  },
+  "refs": "scratchpad mw_art/gpt (GPT chats in scratchpad pvp/gpt_chats.md)",
+  "note": "the Sailwright (the Book Mage's Wind style): every move from GPT on a magenta screen (the mint fan; PixVerse had no credits) \u2014 his stills one new chat each with his approved look attached (the open look too for the open fan), his idle, walk, run, jump and knockdown from GPT sprite sheets; the stills scaled by his head (his stance stands his look's 509), the sheets by the idle's standing height (x1.075 over their heads), the hips from the legs (mw_still.py / mw_sheet.py)"
+}

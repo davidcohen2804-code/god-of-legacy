@@ -49,6 +49,7 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
   away while he holds the staff (it is back with the cards).
 - Checked: PVP 3D films of the Double Bluff and his own chain (0 errors), the open world on a monster (every hit lands, no
   404s).
+- Done: da7183811 (his body, kit, icons, effects).
 
 ### DFO (4 Nov, David 14:59) — the styles, step 5: the Warrior's Siege Warden (the longsword tags out, the iron gate tags in)
 - **The Siege Warden** (his second style, `Styles.ts` `warrior`: Lion Longsword → Siege Warden; GPT's design, scratchpad
