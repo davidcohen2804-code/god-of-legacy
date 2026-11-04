@@ -1248,7 +1248,7 @@ const sniper: FinalSkill[] = [
       H(D(130), 8, SNIPER_SHOT(620, 9, 2600), { stun: D(360), push: 6 }),
       H(D(200), 18, { kind: 'projectile', speed: 2800, range: 620, radius: 12, antiAir: true }, { stun: D(560), launch: 110, juggleCost: 26 }, { heavy: true, useMark: 'launch' }),
     ],
-    cancelOnHit: ['sn_last_horizon'],
+    cancelOnHit: ['sn_last_horizon'], tags: ['signature', 'farLaunch'], // (the arena: made to launch from afar — its fourth bell keeps its lift past the poke range)
     description: 'Her signature: four sight notches settle on him, then four timed shots ring out like bells — the fourth throws him up (higher on a marked foe).',
     relations: ['Signature', 'Spends marks'],
   }),
@@ -1271,7 +1271,7 @@ const sniper: FinalSkill[] = [
     id: 'sn_skyline', cls: 'archer', style: 'sniper', slot: 12, name: 'Skyline Intercept', roles: ['antiAir', 'airExtender', 'projectile'], targeting: 'mouseProjectile',
     startup: D(150), active: D(50), recovery: D(230), cooldown: 6000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
     hits: [H(0, 14, SNIPER_SHOT(320, 12, 2300), { stun: D(700), launch: 70, juggleCost: 18 }, { reachUp: 190 })],
-    cancelOnHit: ['sn_throughline', 'sn_four_bells'],
+    cancelOnHit: ['sn_throughline', 'sn_four_bells'], tags: ['farLaunch'], // (the arena: an anti-air from afar — it lifts a foe jumping in past the poke range)
     description: 'A shot up into the sky: it meets a foe in the air (or jumping at her) and lifts him higher — keep the juggle going, or switch style under him.',
     relations: ['Anti-air', 'Juggle extender'],
   }),

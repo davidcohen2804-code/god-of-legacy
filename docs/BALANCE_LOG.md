@@ -4,6 +4,12 @@ Every balance change to any class's skills, newest first. Class chats: read this
 needs new visuals / motion (an effect sized to a new hitbox, an animation timed to a new startup), do that part.
 Values apply to the whole game (only damage may differ in PvP: arenaDmg / the arena's scaling).
 
+## 2026-11-04 (afternoon) — The Deadeye Sniper's two far launchers keep their lift past the poke range
+- **Deadeye: Four Bells** and **Skyline Intercept** take the arena's `farLaunch` (as the bow's own far launcher): GPT's
+  design has them launch from 620 / 320 px, but past the poke range (150 px) a shot that is not a follow-up was a poke, so
+  the fourth bell never threw him and the anti-air never lifted a foe jumping in (seen in the showreel). The rest of her
+  kit stays a poke from afar (Needlemark, Throughline, the chain's beats): from across the arena she flinches him, no more.
+
 ## 2026-11-04 — The Archer's second style: the Deadeye Sniper's kit, and switching style mid-fight (David 05:45)
 - **The switch** (`Styles.ts` SWITCH, a hidden cast `style_archer_<style>`): 150 ms to the change (hit before it: no change),
   240 ms in all, 700 ms between two switches, a 220 ms key buffer. Out of a landed blow it cancels like a link (never out
