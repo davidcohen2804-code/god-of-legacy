@@ -287,6 +287,12 @@ export class ArcherFx {
     return { stop: () => { dead = true; } };
   }
 
+  /** A ring of pushed air lying on the floor (the rifle's and the cannon's: plain, warm-white — the kit's shock ring is the
+   *  bow's, painted with leaves): grows and fades; `s` its scale over its life. */
+  private airRing(x: number, y: number, w: number, life: number, o: { delay?: number; tint?: number; run?: CastRun; s?: (u: number) => number; a?: (u: number) => number } = {}): void {
+    const sc = o.s ?? (() => 1);
+    this.spr({ name: 'cn-ring', x, y, depth: GROUND + 3, w, life, delay: o.delay, tint: o.tint ?? 0xffe6c8, glow: 0.3, run: o.run, sx: sc, sy: (u) => 0.42 * sc(u), a: o.a });
+  }
   /** A burst / spark: pops out, spreads a little, fades. */
   private pop(name: string, x: number, y: number, size: number, o: { depth?: number; life?: number; glow?: number; angle?: number; delay?: number; add?: boolean; run?: CastRun; tint?: number; flip?: boolean } = {}): void {
     this.spr({ name, x, y, depth: o.depth ?? TOP + 4, w: size, life: o.life ?? 240, delay: o.delay, add: o.add ?? true, run: o.run, tint: o.tint, angle: o.angle ?? rnd(-15, 15), glow: o.glow ?? 0.45, flipX: o.flip,
@@ -1123,7 +1129,7 @@ export class ArcherFx {
     this.spr({ name: 'cn-blast', x, y: y - 26 * k, depth: y + 6, w: 120 * k, life: 200, glow: 0.3, tint: HOT, sx: kf([0, 0.4], [0.25, 1.1, out3], [1, 1.25]), sy: kf([0, 0.4], [0.25, 1.1, out3], [1, 1.25]), a: kf([0, 1], [0.4, 1], [1, 0, inQ]) });
     this.spr({ name: 'cn-blast', x, y: y + 6, oy: 0.92, depth: y + 5, w: 110 * k, life: 320, glow: 0.25, tint: 0xffd4a8, // its body punching up
       sx: kf([0, 0.5], [0.3, 1, out3], [1, 1.1]), sy: kf([0, 0.3], [0.25, 1.35, out3], [1, 1.5]), a: kf([0, 1], [0.45, 0.9], [1, 0, inQ]) });
-    this.floor('shock_ring', x, y, 170 * k, 420, { add: true, tint: 0xffd0a0, s: kf([0, 0.3], [1, 1.4, out3]), a: kf([0, 1], [1, 0, inQ]) });
+    this.airRing(x, y, 170 * k, 420, { tint: 0xffd0a0, s: kf([0, 0.3], [1, 1.4, out3]), a: kf([0, 1], [1, 0, inQ]) });
     if (flat) this.floor('scorch_ring', x, y, 130 * k, 1800, { a: kf([0, 0.9], [0.6, 0.6], [1, 0]) });
     if (flat && k >= 1) this.floor('crater', x, y, 150 * k, 1600, { a: kf([0, 0], [0.04, 1], [0.6, 0.85], [1, 0]) });
     if (k >= 0.8) this.spr({ name: 'debris', x, y: y + 6, oy: 0.95, depth: y + 4, w: 150 * k, life: 600, my: (u) => -26 * k * out(u), sy: kf([0, 0.4], [0.3, 1.1, out3]), a: kf([0, 1], [0.6, 1], [1, 0, inQ]) });
@@ -1147,7 +1153,7 @@ export class ArcherFx {
   /** The four-beat's third shell skipping off the floor: a puff of dust, a small ring of pushed air, a spark. */
   private cnSkip(x: number, y: number): void {
     this.spr({ name: 'dust', x, y: y + 4, oy: 0.85, depth: y + 1, w: 70, life: 380, sx: kf([0, 0.5], [1, 1.3, out3]), a: kf([0, 0.8], [1, 0, inQ]) });
-    this.floor('shock_ring', x, y, 60, 260, { add: true, tint: 0xffd0a0, s: kf([0, 0.4], [1, 1.2, out3]), a: kf([0, 0.9], [1, 0, inQ]) });
+    this.airRing(x, y, 60, 260, { tint: 0xffd0a0, s: kf([0, 0.4], [1, 1.2, out3]), a: kf([0, 0.9], [1, 0, inQ]) });
     this.pop('cn-blast', x, y - 6, 34, { life: 110, tint: HOT, glow: 0.3 });
   }
   /** A shell lobbed high onto the floor (Arc Mortar, the Broadside's four): out of the muzzle when the cast's clock reaches
@@ -1180,17 +1186,17 @@ export class ArcherFx {
   /** The Broadside's missile: shot up out of the frame at `launch`, its mark spreading on the floor, then falling straight
    *  down out of the sky onto (tx, ty) as the cast's clock reaches `land` (its hit: the great blast, cannonHit). */
   private missile(r: CastRun, tx: number, ty: number, launch: number, land: number): void {
-    const sc = this.ctx.scene, side = sideOf(r), at = this.cnMuzzleAt(r.attackerId, side, r), FALL = 230;
+    const sc = this.ctx.scene, side = sideOf(r), at = this.cnMuzzleAt(r.attackerId, side, r), FALL = 300;
     this.onClock(r, launch, () => { // the launch: the biggest shot of hers, a missile tearing up out of the barrel and away
       const L = this.cnLine(r, 58), p = at(); if (!p) return;
       this.cnShot(r, 1.9, 58, at);
-      const a = (Math.atan2(L.dy, L.dx) * 180) / Math.PI - 90, len = 120, D = 760, mx = (u: number) => L.dx * D * inQ(u), my = (u: number) => L.dy * D * inQ(u);
-      this.spr({ name: 'cn-missile', x: p.x + L.dx * len, y: p.y + L.dy * len, ox: 0.5, oy: 0.98, depth: TOP + 3, w: 34, h: 120, angle: a, life: 170, mx, my });
-      this.spr({ name: 'cn-flame', x: p.x, y: p.y, ox: 0.5, oy: 1, depth: TOP + 2.9, w: 30, h: 70, angle: a, life: 170, glow: 0.3, mx, my, sy: (u) => 0.8 + 0.4 * Math.abs(Math.sin(u * 40)) });
+      const a = (Math.atan2(L.dy, L.dx) * 180) / Math.PI - 90, len = 78, D = 900, go = (u: number) => u * (0.55 + 0.45 * u), mx = (u: number) => L.dx * D * go(u), my = (u: number) => L.dy * D * go(u); // (out of the barrel at once, faster and faster)
+      this.spr({ name: 'cn-missile', x: p.x + L.dx * len, y: p.y + L.dy * len, ox: 0.5, oy: 0.98, depth: TOP + 3, w: 22, h: 78, angle: a, life: 150, mx, my });
+      this.spr({ name: 'cn-flame', x: p.x, y: p.y, ox: 0.5, oy: 1, depth: TOP + 2.9, w: 26, h: 60, angle: a, life: 150, glow: 0.3, mx, my, sy: (u) => 0.8 + 0.4 * Math.abs(Math.sin(u * 40)) });
       for (let n = 0; n < 3; n++) this.spr({ name: 'cn-smoke', x: p.x + L.dx * n * 40, y: p.y + L.dy * n * 40, depth: TOP + 1, w: 90 - n * 12, life: 1100, delay: n * 40,
         sx: kf([0, 0.5], [1, 1.9, out3]), sy: kf([0, 0.5], [1, 1.7, out3]), a: kf([0, 0], [0.1, 0.7], [1, 0, inQ]), my: (u) => -30 * u });
       const q = this.me(r);
-      this.floor('shock_ring', q.x, q.y, 140, 380, { add: true, tint: 0xffd0a0, s: kf([0, 0.4], [1, 1.3, out3]), a: kf([0, 0.8], [1, 0, inQ]) });
+      this.airRing(q.x, q.y, 140, 380, { tint: 0xffd0a0, s: kf([0, 0.4], [1, 1.3, out3]), a: kf([0, 0.8], [1, 0, inQ]) });
       this.shake(r, 160, 0.006);
     });
     const warn = launch + 140;
@@ -1203,7 +1209,7 @@ export class ArcherFx {
       cannonTextures(sc);
       const v = this.ctx.cam().worldView, y0 = Math.min(ty - 640, v.y - 60), H = ty - y0, MH = 162;
       const im = sc.add.image(tx, y0, 'cn-missile').setOrigin(0.5, 0.98).setDisplaySize(46, MH).setDepth(TOP + 3);
-      const fl = sc.add.image(tx, y0, 'cn-flame').setOrigin(0.5, 1).setDisplaySize(40, 96).setBlendMode(Phaser.BlendModes.ADD).setDepth(TOP + 2.9);
+      const fl = sc.add.image(tx, y0, 'cn-flame').setOrigin(0.5, 1).setDisplaySize(44, 110).setBlendMode(Phaser.BlendModes.ADD).setDepth(TOP + 2.9);
       const tr = sc.add.image(tx, y0, 'cn-trail').setOrigin(1, 0.5).setAngle(90).setBlendMode(Phaser.BlendModes.ADD).setTint(TERRA).setDepth(TOP + 2.8);
       let u = 0, puff = 0;
       this.add({ t: 0, step: (dt) => {
@@ -1212,7 +1218,7 @@ export class ArcherFx {
         if (u >= 1) { im.destroy(); fl.destroy(); tr.destroy(); return false; }
         const y = y0 + H * inQ(u), tail = y - MH * 0.95;
         im.setPosition(tx, y);
-        fl.setPosition(tx, tail).setDisplaySize(40, 96 * (0.85 + 0.3 * Math.abs(Math.sin(u * 50))));
+        fl.setPosition(tx, tail).setDisplaySize(44, 110 * (0.85 + 0.3 * Math.abs(Math.sin(u * 50))));
         tr.setPosition(tx, tail).setDisplaySize(Math.min(520, 60 + H * inQ(u)), 22).setAlpha(0.8);
         if ((puff += dt) >= 30) { puff = 0; this.spr({ name: 'cn-smoke', x: tx + rnd(-6, 6), y: tail - rnd(0, 40), depth: TOP + 2.7, w: 70, life: 600, sx: kf([0, 0.6], [1, 1.7, out3]), sy: kf([0, 0.6], [1, 1.7, out3]), a: kf([0, 0.55], [1, 0, inQ]) }); }
         return true;
@@ -1226,7 +1232,7 @@ export class ArcherFx {
     if (land.length < 5) return;
     this.ctx.darken?.(land[4] - 40, 0.42);
     this.spr({ name: 'dust', x: me.x, y: me.y + 4, oy: 0.85, depth: me.y + 1, w: 150, life: 520, sx: kf([0, 0.5], [1, 1.4, out3]), a: kf([0, 0.8], [1, 0, inQ]) }); // she plants her feet
-    this.floor('shock_ring', me.x, me.y, 120, 360, { add: true, tint: 0xffd0a0, run: r, s: kf([0, 0.5], [1, 1.2, out3]), a: kf([0, 0.7], [1, 0, inQ]) });
+    this.airRing(me.x, me.y, 120, 360, { tint: 0xffd0a0, run: r, s: kf([0, 0.5], [1, 1.2, out3]), a: kf([0, 0.7], [1, 0, inQ]) });
     const FL = Math.max(120, Math.min(260, land[0] - 40));
     this.breech(r, land[3] - FL + 40, 1.3);
     BROADSIDE.forEach(([ox, oy], i) => this.lob(r, i, c.x + ox, c.y + oy, land[i] - FL, land[i], 32, 40));
@@ -1276,9 +1282,12 @@ export class ArcherFx {
       case 'cn_broadside':
         if (i < 4) { const [ox, oy] = BROADSIDE[i] ?? [0, 0]; this.cnBoom(r, c.x + ox, c.y + oy, 0.85); break; }
         this.cnBoom(r, c.x, c.y, 2.1); // the missile: the whole floor shakes
-        this.spr({ name: 'cn-blast', x: c.x, y: c.y + 8, oy: 0.95, depth: c.y + 6, w: 200, life: 460, glow: 0.3, tint: 0xffe6c8, // a pillar of blast up out of the floor
-          sx: kf([0, 0.5], [0.2, 0.9, out3], [1, 0.8]), sy: kf([0, 0.4], [0.2, 2.6, out3], [1, 3]), a: kf([0, 1], [0.5, 0.85], [1, 0, inQ]) });
-        this.floor('shock_ring', c.x, c.y, 300, 600, { add: true, delay: 80, tint: 0xffe0b8, s: kf([0, 0.3], [1, 1.7, out3]), a: kf([0, 0.9], [1, 0, inQ]) }); // a second ring running out over the floor
+        this.spr({ name: 'cn-blast', x: c.x, y: c.y + 8, oy: 0.92, depth: c.y + 6, w: 300, life: 460, glow: 0.3, tint: 0xffe6c8, // a dome of blast up out of the floor (no column of light: it is iron, not magic)
+          sx: kf([0, 0.6], [0.2, 1.15, out3], [1, 1.3]), sy: kf([0, 0.2], [0.2, 0.85, out3], [1, 1]), a: kf([0, 1], [0.5, 0.85], [1, 0, inQ]) });
+        for (let n = 0; n < 6; n++) { const dx = rnd(-30, 30), top = 150 + n * 26; // the smoke climbing out of it, spreading at its head
+          this.spr({ name: 'cn-smoke', x: c.x + dx, y: c.y - 20, depth: c.y + 5, w: 110 + n * 16, life: 1500, delay: 80 + n * 60,
+            my: (u) => -top * out(u), mx: (u) => dx * 0.6 * u, sx: kf([0, 0.5], [1, 2, out3]), sy: kf([0, 0.5], [1, 1.6, out3]), a: kf([0, 0], [0.1, 0.75], [0.7, 0.5], [1, 0, inQ]) }); }
+        this.airRing(c.x, c.y, 300, 600, { delay: 80, tint: 0xffe0b8, s: kf([0, 0.3], [1, 1.7, out3]), a: kf([0, 0.9], [1, 0, inQ]) }); // a second ring running out over the floor
         break;
       case 'cn_piston_lift': this.cnLift(r); break;
       default: this.cnShot(r, 1);
@@ -1338,7 +1347,8 @@ export class ArcherFx {
     this.spr({ name: 'sn-flash', w: 130, life: 130, delay: T.startup * 0.4, follow: hips, dz: 6, glow: 0.3, tint: to?.accent ?? 0xffffff, run: r, // the change behind one compact flash
       sx: kf([0, 0.5], [0.4, 1, out3], [1, 1.1]), sy: kf([0, 0.5], [0.4, 1, out3], [1, 1.1]), a: kf([0, 0], [0.25, 0.7], [1, 0, inQ]) });
     this.spr({ name: 'sn-flash', w: 44, life: 110, delay: T.startup, follow: sw.style === 'sniper' ? this.muzzleAt(r.attackerId, side, r) : sw.style === 'cannon' ? this.cnMuzzleAt(r.attackerId, side) : hand, on: r.attackerId, dz: 5, glow: 0.3, tint: 0xfff4e2, run: r, a: kf([0, 1], [1, 0]) });
-    this.floor('shock_ring', me.x, me.y, 110, 260, { delay: T.startup, add: true, tint: to?.accent ?? 0xffffff, run: r, s: kf([0, 0.5], [1, 1.15, out3]), a: kf([0, 0.7], [1, 0, inQ]) });
+    if (sw.style === 'bow') this.floor('shock_ring', me.x, me.y, 110, 260, { delay: T.startup, add: true, tint: to?.accent ?? 0xffffff, run: r, s: kf([0, 0.5], [1, 1.15, out3]), a: kf([0, 0.7], [1, 0, inQ]) });
+    else this.airRing(me.x, me.y, 110, 260, { delay: T.startup, tint: to?.accent ?? 0xffffff, run: r, s: kf([0, 0.5], [1, 1.15, out3]), a: kf([0, 0.7], [1, 0, inQ]) }); // (the bow's ring is painted with its leaves: the rifle and the cannon get a plain ring of pushed air)
   }
 
   projectile(p: Projectile): void {
@@ -1465,7 +1475,7 @@ export class ArcherFx {
       if (launch) this.spr({ name: 'cn-trail', x, y: at.y - at.z, depth: at.y + 3, w: 150, h: 14, angle: -90, ox: 0, tint: TERRA, glow: 0.3, life: 240, sx: kf([0, 0.2], [0.3, 1, out3]), a: kf([0, 0.8], [1, 0, inQ]) }); // the blast's line up into the air with him
       if (hit.reaction.slam) this.later(110, () => { // Crater Catch: driven down into the floor — a ring and a crater on the floor under him
         const fx = at.x, fy = at.y;
-        this.floor('shock_ring', fx, fy, 150, 380, { add: true, tint: 0xffd0a0, s: kf([0, 0.4], [1, 1.3, out3]), a: kf([0, 0.9], [1, 0, inQ]) });
+        this.airRing(fx, fy, 150, 380, { tint: 0xffd0a0, s: kf([0, 0.4], [1, 1.3, out3]), a: kf([0, 0.9], [1, 0, inQ]) });
         if (!this.in3d()) this.floor('crater', fx, fy, 130, 1400, { a: kf([0, 0], [0.05, 1], [0.6, 0.85], [1, 0]) });
         this.spr({ name: 'dust', x: fx, y: fy + 4, oy: 0.85, depth: fy + 1, w: 140, life: 520, sx: kf([0, 0.5], [1, 1.4, out3]), a: kf([0, 0.85], [1, 0, inQ]) });
       });

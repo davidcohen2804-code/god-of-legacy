@@ -104,10 +104,11 @@ export const ARCHER: Record<string, Recipe> = {
     tone: COPPER, trail: { c: ROUND, w: id === 'sn_throughline' ? 7 : 4, len: 18, i: 2.6 }, fired: (f, _r, _i, o) => bowStar(f, o, ROUND, 0.8),
   } as Recipe])),
   // the Recoil Cannoneer (Styles.ts, David 4 Nov 14:59): concussive, never the bow's green — her blows answered in a hot
-  // amber-white (terracotta drowned in the red planks), a short warm trail behind each shell (none behind the rolling bomb:
-  // it rolls); the floor bombs tear the planks; the missile's blast is hers (ArcherFx), so the room adds no column of light
+  // amber-white (terracotta drowned in the red planks); no trail of the room's (her shells carry their own, drawn out of
+  // the muzzle's height — the room's ran level at her chest under them); the floor bombs tear the planks; the missile's
+  // blast is hers (ArcherFx), so the room adds no column of light
   ...Object.fromEntries(['cn_four_beat', 'cn_breach_burst', 'cn_arc_mortar', 'cn_kickback', 'cn_crater_catch', 'cn_rolling_iron', 'cn_battery', 'cn_broadside', 'cn_piston_lift'].map((id) => [id, {
-    tone: BLAST, paint: true, trail: id === 'cn_rolling_iron' ? false : { c: BLAST, w: id === 'cn_battery' ? 9 : 7, len: 9, i: 2 },
+    tone: BLAST, paint: true, trail: false,
     ...(id === 'cn_arc_mortar' || id === 'cn_broadside' || id === 'cn_rolling_iron' ? { hit: (f, _s, _h, at, main) => { if (main) f.crack(at.x, at.y, BLAST, { r: id === 'cn_broadside' ? 140 : 90, chunks: id === 'cn_broadside' ? 14 : 8, up: 1.1 }); } } as Recipe : {}),
     ...(id === 'cn_broadside' ? { own: true } : {}),
   } as Recipe])),
