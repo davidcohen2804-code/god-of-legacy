@@ -48,6 +48,14 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 - His class passive's extra blow (Final Cut) follows his style: one more small star across the foe (`ShurikenFx.extraStar`),
   never the katana's ghost blade (PVP 3D: only its number, as the katana's). **Archer chat:** the same for her Extra Shot —
   the bow's wind arrow still follows the Sniper's and the Cannoneer's blows.
+- Found on the way (fixed, BALANCE_LOG): the Crowstep's knee stopped inside the foe — he came down on top of the assassin
+  (`dash.gap`: it stops where the knee meets him); a recall's short throw out of the hand cut on its way out, which opened
+  the cancel early — the Eclipse took the star before the Moon's lift (now untouched out, its blow the way home); the
+  Eclipse's blows came from its own spot — a monster was thrown back through him (now from him).
+- Checked in the open world too, on a monster: the four-beat juggling it, Piercing Quarter → Redline Recall, Crowstep →
+  Moon → Eclipse.
+- Done: e4440088 (the style, his kit, Return Edge, his effects), 351c95e5 (the throw out of the hand, the Eclipse's blows).
+  Filmed in PVP 3D: Swallow Cut → the switch → Crowstep Rise → Returning Moon → Four-Point Eclipse, then each skill.
 - Open (Samurai chat): the seven templates (Needle Fan, Heel Sweep, Silk Shift, Fivefold Night, Crosslane Split, Falling
   Talon, Iron Palm Deflect) — their poses and looks are yours when you take them; DFO sets their numbers.
 
