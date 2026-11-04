@@ -103,7 +103,8 @@ export function preloadBodies(scene: Phaser.Scene, classes?: readonly string[], 
   for (const cls of SHEET_CLASSES) {
     if (!want(cls) || heroesOnly) continue;
     for (const st of Object.keys(MOVE_COLS).filter((x) => x !== 'react' || cls === 'warrior')) { L(sheetKey(cls, st), sheetPath(cls, st), true); M(`${sheetKey(cls, st)}-w`, sheetPath(cls, st), cls); if (cls === 'warrior') SHEET_PATH[sheetKey(cls, st)] = sheetPath(cls, st); }
-    for (const s of FINAL_SKILLS.filter((x) => x.cls === cls && !BODY_ALIAS[x.id] && !(x.id in POSE_AS_BASIC))) { const cs = CELLS[s.id]; const LS = (k: string, p: string) => { if (!scene.textures.exists(k)) scene.load.spritesheet(k, p, { frameWidth: cs?.w ?? CELL, frameHeight: cs?.h ?? CELL }); };
+    // (a style's skills play on its own painted body: no sheet of their own — the Siege Warden's 13 were 404s in the world)
+    for (const s of FINAL_SKILLS.filter((x) => x.cls === cls && !x.style && !BODY_ALIAS[x.id] && !(x.id in POSE_AS_BASIC))) { const cs = CELLS[s.id]; const LS = (k: string, p: string) => { if (!scene.textures.exists(k)) scene.load.spritesheet(k, p, { frameWidth: cs?.w ?? CELL, frameHeight: cs?.h ?? CELL }); };
       LS(skillKey(cls, s.id), skillPath(cls, s.id)); M(`${skillKey(cls, s.id)}-w`, skillPath(cls, s.id), cls, cs?.w ?? CELL, cs?.h ?? CELL); if (cls === 'warrior') SHEET_PATH[skillKey(cls, s.id)] = skillPath(cls, s.id); }
   }
   for (const [cls, a] of Object.entries(ATLAS)) { if (!want(cls) || heroesOnly) continue; L(atlasKey(cls), a.sheet, false); M(`${atlasKey(cls)}-w`, a.sheet, cls, 0, 0, true); }

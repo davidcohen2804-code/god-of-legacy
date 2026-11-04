@@ -1,7 +1,7 @@
 // The Warrior's Siege Warden (Styles.ts, GPT's design — scratchpad styles/warrior_styles.md): the effects of his kit, drawn
 // in code from small pieces of their own. GPT's rules for its look: body mechanics, steel scrapes, one small ivory-white
 // spark — no constant golden energy, no holy light, no magic lion, no eruption, no light pillar; the gate itself is the show
-// (his painted poses): its wings swing open (iron crescents), bite shut (two toothed arcs meeting), crash down (a crack in
+// (his painted poses): its wings swing open (iron crescents), bite shut (two crescents meeting on him), crash down (a crack in
 // the floor and its dust). Presentation only — gameplay never reads any of it; timing comes from the cast's own clock, so
 // every client draws the same, and the effect clock stops with the hit-stop.
 import Phaser from 'phaser';
@@ -39,20 +39,13 @@ const GATE: Record<string, [number, number]> = {
   ws_lions_clamp: [50, 58], ws_drawbridge_lift: [44, 112], ws_anvil_drop: [40, 96], ws_royal_portcullis: [40, 70], stance: [22, 64],
 };
 
-/** His pieces, drawn once on canvases: an iron crescent (a wing's sweep), a toothed jaw, a hot scrape, a floor crack, dust. */
+/** His pieces, drawn once on canvases: an iron crescent (a wing's sweep, its bite), a hot scrape, a floor crack, dust. */
 function textures(s: Phaser.Scene): void {
   if (s.textures.exists('wd-wing')) return;
   const mk = (key: string, w: number, h: number, draw: (g: CanvasRenderingContext2D) => void) => { const t = s.textures.createCanvas(key, w, h); if (!t) return; draw(t.getContext()); t.refresh(); };
   mk('wd-wing', 128, 64, (g) => { // a heavy crescent of moved air behind an iron wing: thick, its leading edge white-hot, thinning to the horns
     const gr = g.createLinearGradient(0, 0, 0, 64); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.35, 'rgba(214,224,236,0.8)'); gr.addColorStop(1, 'rgba(150,164,180,0)');
     g.fillStyle = gr; g.beginPath(); g.moveTo(2, 58); g.quadraticCurveTo(64, -22, 126, 58); g.quadraticCurveTo(64, 18, 2, 58); g.closePath(); g.fill();
-  });
-  mk('wd-jaw', 96, 48, (g) => { // one wing's toothed edge seen biting: a dark-steel bar with blunt iron teeth, a bright rim
-    g.fillStyle = 'rgba(70,78,88,0.95)'; g.fillRect(4, 6, 88, 14);
-    g.fillStyle = 'rgba(214,224,236,1)'; g.fillRect(4, 5, 88, 3);
-    for (let k = 0; k < 7; k++) { const x = 8 + k * 12.5; g.fillStyle = 'rgba(96,104,116,0.95)'; g.beginPath(); g.moveTo(x, 20); g.lineTo(x + 8, 20); g.lineTo(x + 6, 34); g.lineTo(x + 2, 34); g.closePath(); g.fill();
-      g.fillStyle = 'rgba(232,238,246,0.9)'; g.fillRect(x + 1, 20, 2, 12); }
-    g.strokeStyle = 'rgba(230,190,110,0.9)'; g.lineWidth = 1.5; g.strokeRect(4.5, 6.5, 87, 13); // (its gold rim)
   });
   mk('wd-flash', 64, 64, (g) => { // a small hot spark of iron on iron: a white core and four short rays
     const c = 32, gr = g.createRadialGradient(c, c, 0, c, c, 13); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
@@ -141,10 +134,12 @@ export class WardenFx {
     this.spr({ name: 'wd-wing', x, y, depth: TOP + 3, w, angle, flipX: o.flip, flipY: o.flipY, life: o.life ?? 190, delay: o.delay, run: o.run, tint: STEEL, glow: 0.25, add: true,
       sx: kf([0, 0.55], [0.3, 1.05, out3], [1, 1.12]), sy: kf([0, 0.7], [0.3, 1, out3], [1, 0.75]), a: kf([0, 0], [0.08, 0.95], [0.5, 0.8], [1, 0, inQ]) });
   }
-  /** The two toothed edges meeting on a point (the clamp's bite): from `gap` apart to shut in `ms`, then gone. */
+  /** The two wings biting shut on a point (the clamp, the portcullis): two iron crescents, their hot edges facing each other,
+   *  from `gap` apart to shut in `ms` — the air the wings move as they close, never a drawn gate over his own painted one. */
   private bite(x: number, y: number, w: number, gap: number, ms: number, o: { delay?: number; run?: CastRun } = {}): void {
-    for (const s of [-1, 1]) this.spr({ name: 'wd-jaw', x, y, depth: TOP + 3, w, delay: o.delay, run: o.run, life: ms + 160, flipY: s > 0, oy: s < 0 ? 1 : 0,
-      my: (u) => { const k = Math.min(1, (u * (ms + 160)) / ms); return s * gap * (1 - out3(k)); }, a: kf([0, 0], [0.1, 1], [0.75, 1], [1, 0, inQ]) });
+    for (const s of [-1, 1]) this.spr({ name: 'wd-wing', x, y: y + s * 8, depth: TOP + 3, w, delay: o.delay, run: o.run, life: ms + 140, flipY: s < 0, tint: STEEL, glow: 0.25, add: true,
+      my: (u) => { const k = Math.min(1, (u * (ms + 140)) / ms); return s * gap * (1 - out3(k)); },
+      sx: (u) => 0.7 + 0.4 * Math.min(1, (u * (ms + 140)) / ms), sy: kf([0, 0.8], [1, 0.6]), a: kf([0, 0], [0.12, 0.85], [0.7, 0.9], [1, 0, inQ]) });
   }
   private dust(x: number, y: number, w: number, delay = 0): void {
     this.spr({ name: 'wd-dust', x, y, oy: 0.7, depth: y + 1, w, delay, life: 440, sx: kf([0, 0.5], [1, 1.6, out3]), sy: kf([0, 0.35], [1, 0.6, out3]), a: kf([0, 0.75], [1, 0, inQ]) });

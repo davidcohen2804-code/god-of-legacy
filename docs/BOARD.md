@@ -40,12 +40,17 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
   HERO_FIT 1.04: his eyes at the longsword warrior's height), his 13 icons (GPT, the warrior icons' frame), his kit
   (`FinalKit` `siege`: the four-beat chain — knuckle, elbow, the gates flung open under him, the gate slammed shut — Threshold
   Check, Lion's Clamp, Drawbridge Lift, Anvil Drop, the signature Royal Portcullis; seven templates; numbers in BALANCE_LOG)
-  and his effects (`WardenFx`: iron crescents of the wings, the toothed jaws biting shut, hot scrapes, the floor cracking
-  under the anvil — no golden energy; PVP 3D answers him in dark steel, no light pillars).
+  and his effects (`WardenFx`: iron crescents of the wings — flung open, and biting shut on the foe — hot scrapes, the floor
+  cracking under the anvil — no golden energy, no drawn gate over his painted one; PVP 3D answers him in dark steel, no
+  light pillars).
 - The cross-style chain (GPT's "The Lion's Judgment"): Rising Slash → the switch → Drawbridge Lift → Anvil Drop → Royal
   Portcullis.
 - **Open (Warrior chat):** the seven templates and GATE PRESSURE (GPT's two charges); his run / jump / knockdown are GPT
-  sheets for now — PixVerse clips when its credits are back (DFO).
+  sheets for now — PixVerse clips when its credits are back (DFO; its page still shows 310 but the server says 0).
+- Checked: PVP 3D films of the chain and the kit (0 errors), the open world on a monster (every hit lands; the gold orbs
+  round him are the warrior's own Combo Orbs). Fixed on the way: the world asked for a sheet for each of his 13 skills
+  (`Body.ts`: a style's skills have no sheet of their own — 13 404s gone).
+- Done: a653d6c58 (his body, kit, icons, effects), this push (the bite as two crescents, the 404s).
 
 ### DFO (4 Nov, David 14:59) — the styles, step 4: the Samurai's Shuriken Assassin (the katana tags out, the shinobi tags in)
 - **The Shuriken Assassin** (his second style, `Styles.ts` `samurai`: Crimson Katana → Shuriken Assassin; GPT's design,
