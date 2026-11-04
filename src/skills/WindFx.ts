@@ -219,6 +219,19 @@ export class WindFx {
         this.onClock(r, Math.max(0, hitAt(0) - 30), () => { const t = this.tip(r); this.line(t.x, t.y + 120, t.x, t.y - 14, 6, { run: r }); });
         this.onClock(r, hitAt(0), () => { const t = this.tip(r); this.burst(t.x, t.y, 34, { run: r }); this.kite(t.x, t.y, 20, -90, 30, { run: r }); });
         break;
+      case 'mw_sky_loom': { // his ultimate (GPT): the sail opened overhead — its seven ribs flash, short lines drawn in to it — then
+        // driven down: one gigantic kite-shaped blade of air goes far down the lane, two long edges with it; no storm, no tornado
+        this.onClock(r, T.startup * 0.2, () => { const h = this.at(r, 11, 200); this.ribs(h.x, h.y + 90, 170, 0, { run: r, life: 260 }); this.burst(h.x, h.y, 40, { run: r, life: 160 }); });
+        this.onClock(r, T.startup * 0.45, () => { const h = this.at(r, 11, 200); for (const a of [-150, -110, -70, -30]) this.line(h.x + Math.cos((a * Math.PI) / 180) * 120, h.y - Math.sin((a * Math.PI) / 180) * -60, h.x, h.y, 4, { run: r, life: 160 }); });
+        this.onClock(r, Math.max(0, hitAt(0) - 40), () => { const h = this.at(r, 60, 70);
+          this.spr({ name: 'mw-kite', x: h.x, y: h.y, depth: TOP + 4, w: 300, h: 110, angle: deg0, flipX: side < 0, life: 260, run: r, tint: MINT, add: true, glow: 0.25,
+            mx: (u) => side * 300 * out3(u), sx: kf([0, 0.5], [0.3, 1, out3], [1, 0.8]), a: kf([0, 0], [0.08, 1], [0.7, 0.85], [1, 0, inQ]) });
+          this.edge(h.x + side * 120, h.y - 40, 320, deg0, { flip: side < 0, h: 60, life: 230, run: r, mx: (u) => side * 140 * out3(u) });
+          this.edge(h.x + side * 120, h.y + 40, 320, deg0, { flip: side < 0, flipY: true, h: 60, life: 230, run: r, mx: (u) => side * 140 * out3(u) }); });
+        this.onClock(r, hitAt(0), () => { const h = this.at(r, 200, 70); this.burst(h.x, h.y, 70, { run: r, life: 150 }); this.lines(h.x, h.y, 6, deg0, 70, 46, { run: r });
+          this.ctx.punch(0.03, 190); this.shake(r, 200, 0.0045); });
+        break;
+      }
       case 'mw_keel_drop': { // the folded fan brought down like a keel: a line falling to the floor, a sharp flat burst where it strikes
         this.onClock(r, T.startup * 0.55, () => { const h = this.at(r, 100, 210); this.line(h.x, h.y, h.x - side * 10, h.y + 170, 6, { run: r, life: 120 }); });
         this.onClock(r, hitAt(0), () => { const c = this.me(r), x = c.x + side * 100, y = c.y - 4;

@@ -4,6 +4,27 @@ Every balance change to any class's skills, newest first. Class chats: read this
 needs new visuals / motion (an effect sized to a new hitbox, an animation timed to a new startup), do that part.
 Values apply to the whole game (only damage may differ in PvP: arenaDmg / the arena's scaling).
 
+## 2026-11-05 (night) — Every style's ultimate (David 4 Nov 14:59: each style its own fighter)
+- **Six new ultimates** (slot 7, at the fight's pace `D(ms)`; GPT's beats and reaches (X ± depth: a `line` X long, 2 ×
+  depth wide), DFO's damage — tune freely; each ends the combo and, as every ultimate, cannot be hit while it plays):
+  - Siege Warden — The Last Drawbridge: 14 at D(80) (220 ± 48, reach 170 up; stun D(700), pull 40, J10: the catch) · 22 at
+    D(150) (160 ± 48, reach 220 up; stun D(900), launch 155, J15, heavy: the catapult) · 40 at D(300) (200 ± 48, reach 340
+    up; stun D(700), `slam` + `knockdown` heavy, J15, heavy: the sentence); D(390)/D(360)/D(620); CD 70 s.
+  - Radiant Duelist — Final Ovation: the Impossible Vault (a dash of 90 px, 90 up, over his planted staff, crashing down 90
+    px short of the foe it locks on) → 48 at D(10) (260 ± 36, reach 260 up; stun D(800), `knockdown` heavy, J30, heavy);
+    D(500)/D(180)/D(590); CD 70 s; locks on the first foe ahead.
+  - Sailwright — Sky Loom: 50 at D(40) (335 ± 36, reach 280 up; stun D(800), push 60, `knockdown` heavy, J30, heavy);
+    D(440)/D(180)/D(690); CD 85 s.
+  - Fulminant Conductor — Zero Interval: 50 at D(20) (340 ± 28, reach 220 up; stun D(800), push 50, `knockdown` light, J30,
+    heavy); D(415)/D(160)/D(700); CD 85 s.
+  - Deadeye Sniper — Last Horizon: 56, one round (3200 px/s, 700 px, ± 24, pierces, rises to a foe in the air); stun D(800),
+    push 160, `knockdown` heavy, heavy; D(440)/D(160)/D(650); CD 65 s; `farLaunch` (the arena: no poke from afar — it
+    throws him down past the poke range too, as her other long shots).
+  - Shuriken Assassin — Fivefold Night: 10 at D(60) (the spread; stun D(600), J5) · 10 at D(180) (the reverse; stun D(600),
+    pull 30, J5) · 40 at D(300) (the converge; stun D(700), `slam` + `knockdown` heavy, J30, heavy, reach 300 up), all
+    500 ± 65 (reach 200 up for the first two); D(430)/D(420)/D(640); CD 70 s; locks on the first foe ahead.
+- The Recoil Cannoneer's Broadside keeps its numbers (the ultimate's dark and her own portrait play with it now).
+
 ## 2026-11-05 (night) — The Book Mage's third style: the Fulminant Conductor's kit (David 4 Nov 14:59)
 - **His kit** (`FinalKit` `lightning`, at the fight's pace `D(ms)`; GPT's times, reaches (X ± depth: a `line` X long, 2 ×
   depth wide — GPT's "narrow, precise depth") and juggle costs, DFO's damage — tune freely):

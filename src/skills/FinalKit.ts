@@ -1252,9 +1252,15 @@ const sniper: FinalSkill[] = [
     description: 'Her signature: four sight notches settle on him, then four timed shots ring out like bells — the fourth throws him up (higher on a marked foe).',
     relations: ['Signature', 'Spends marks'],
   }),
-  S({ id: 'sn_last_horizon', cls: 'archer', style: 'sniper', slot: 7, name: 'Last Horizon', roles: ['ultimate', 'projectile'], targeting: 'mouseDir', wip: true,
-    startup: D(440), active: D(160), recovery: D(650), cooldown: 65000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
-    description: 'Coming soon: three sight planes converge into one luminous shot across the whole arena.', relations: ['Ultimate'] }),
+  S({
+    id: 'sn_last_horizon', cls: 'archer', style: 'sniper', slot: 7, name: 'Last Horizon', roles: ['ultimate', 'projectile', 'finisher'], targeting: 'mouseDir',
+    startup: D(440), active: D(160), recovery: D(650), cooldown: 65000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    // on one knee, braced: three sight planes converge on the line, then one committed luminous round to the horizon (GPT)
+    hits: [H(0, 56, { kind: 'projectile', speed: 3200, range: 700, radius: 24, pierce: true, antiAir: true }, { stun: D(800), push: 160, knockdown: 'heavy' }, { heavy: true })], // (±24 across the lane; a strong knockback: thrown far)
+    cancelOnHit: [], endsCombo: true, tags: ['ultimate', 'farLaunch'], // (the arena: made to throw him down from afar — past the poke range too)
+    description: 'Her ultimate: down on one knee, three sight planes close on one line — then a single luminous round goes through everything to the horizon and throws it far.',
+    relations: ['Ultimate', 'Pierces', 'Knockback'],
+  }),
   S({ id: 'sn_steady_chamber', cls: 'archer', style: 'sniper', slot: 8, name: 'Steady Chamber', roles: ['setup'], targeting: 'self', wip: true,
     startup: D(120), active: D(40), recovery: D(160), cooldown: 9000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
     description: 'Coming soon: a round chambered with care — the next rifle hit marks him and comes out faster.', relations: ['Set-up'] }),
@@ -1416,6 +1422,7 @@ const cannon: FinalSkill[] = [
 const NEEDLE = (range: number, rows = 1) => ({ kind: 'projectile' as const, speed: 1700, range, radius: 10, antiAir: true, ...(rows > 1 ? { rows, rowGap: 38 } : {}) });
 /** The big star: out, a wait at the end of its flight, home at 1500 px / s cutting again (40%, a flinch). */
 const STAR = (range: number, speed: number, park = D(420), radius = 24) => ({ kind: 'projectile' as const, speed, range, radius, pierce: true, antiAir: true, edge: { park, speed: 1500, back: 0.4, stun: D(100) } });
+const RLINE = (length: number, depth: number): HitShape => ({ kind: 'line', length, width: depth * 2 });
 const shuriken: FinalSkill[] = [
   S({
     id: 'as_four_beat', cls: 'samurai', style: 'shuriken', arenaDmg: 0.6, slot: 0, name: 'Four-Beat Reaver', roles: ['basic', 'projectile'], targeting: 'mouseProjectile',
@@ -1471,9 +1478,20 @@ const shuriken: FinalSkill[] = [
     description: 'His signature: the big star flies to the foe and turns four times round him — four crossing cuts that hold him there — then rises straight up through him and throws him high, and comes home.',
     relations: ['Signature', 'Four crossing cuts'],
   }),
-  S({ id: 'as_fivefold_night', cls: 'samurai', style: 'shuriken', slot: 7, name: 'Fivefold Night', roles: ['ultimate'], targeting: 'mouseDir', wip: true,
-    startup: D(430), active: D(420), recovery: D(640), cooldown: 70000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
-    description: 'Coming soon: the four stars on his back unseal and join the one in his hand — five lanes, turned, converging on him in one five-point cut.', relations: ['Ultimate'] }),
+  S({
+    id: 'as_fivefold_night', cls: 'samurai', style: 'shuriken', slot: 7, name: 'Fivefold Night', roles: ['ultimate', 'finisher'], targeting: 'mouseTarget',
+    startup: D(430), active: D(420), recovery: D(640), cooldown: 70000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    // unseal — spread — reverse — converge — catch (GPT): the four stars on his back join the one in his hand, fly out in five
+    // lanes, turn, and close on him in one five-point crossing strike, then come home (500 X ± 65 across the lanes)
+    hits: [
+      H(D(60), 10, RLINE(500, 65), { stun: D(600), juggleCost: 5 }, { reachUp: 200 }), // the spread: the five lanes pass through him
+      H(D(180), 10, RLINE(500, 65), { stun: D(600), pull: 30, juggleCost: 5 }, { reachUp: 200 }), // the reverse: turned back through him
+      H(D(300), 40, RLINE(500, 65), { stun: D(700), slam: true, knockdown: 'heavy', juggleCost: 30 }, { reachUp: 300, heavy: true }), // the converge: in the air, slammed down, one bounce; standing, thrown down
+    ],
+    cancelOnHit: [], endsCombo: true, tags: ['ultimate'],
+    description: 'His ultimate: the four stars on his back unseal and join the one in his hand — five lanes out, turned, and closed on the foe in one five-point crossing strike, then all five come home.',
+    relations: ['Ultimate', 'Five lanes', 'Ground bounce'],
+  }),
   S({
     id: 'as_crowstep_rise', cls: 'samurai', style: 'shuriken', slot: 8, name: 'Crowstep Rise', roles: ['launcher', 'antiAir'], targeting: 'mouseTarget',
     startup: D(155), active: D(90), recovery: D(250), cooldown: 9000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
@@ -1508,6 +1526,7 @@ const shuriken: FinalSkill[] = [
 // crush, iron and leverage (no holy fire, no lightning, no light swords: those stay the longsword's). GPT's times (at the
 // fight's pace, D) and juggle costs; DFO's damage. The vertical slice: the four-beat chain, Threshold Check, Lion's Clamp,
 // Drawbridge Lift, Anvil Drop, Royal Portcullis, the longsword's Rising Slash → the switch route; the rest templates.
+/** A thrust's or a swing's reach as GPT gives it: X ahead of him, ± depth across the lane (a line X long, 2 × depth wide). */
 const siege: FinalSkill[] = [
   S({
     id: 'ws_four_beat', cls: 'warrior', style: 'siege', slot: 0, name: 'Four-Beat Portcullis', roles: ['basic', 'confirm'], targeting: 'aimAssist',
@@ -1568,9 +1587,20 @@ const siege: FinalSkill[] = [
     description: 'His signature: the gate opens wide, he advances, it snaps shut on the foe like a portcullis — then the locked gate is driven straight up, throwing him high.',
     relations: ['Signature', 'Shut, then up'],
   }),
-  S({ id: 'ws_last_drawbridge', cls: 'warrior', style: 'siege', slot: 7, name: 'The Last Drawbridge', roles: ['ultimate'], targeting: 'self', wip: true,
-    startup: D(390), active: D(360), recovery: D(620), cooldown: 70000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
-    description: 'Coming soon: the gate anchored and opened to its widest — what it catches is catapulted up, then the locked gate slams down on it.', relations: ['Ultimate'] }),
+  S({
+    id: 'ws_last_drawbridge', cls: 'warrior', style: 'siege', slot: 7, name: 'The Last Drawbridge', roles: ['ultimate', 'finisher'], targeting: 'aimAssist',
+    startup: D(390), active: D(360), recovery: D(620), cooldown: 70000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    // unfold — catch — catapult — sentence (GPT): anchored, the gate opened to its widest span; its jaws shut on what is in
+    // front of him, the whole body levers it up, and the locked gate is raised overhead and slammed down on it
+    hits: [
+      H(D(80), 14, RLINE(220, 48), { stun: D(700), pull: 40, juggleCost: 10 }, { reachUp: 170 }), // the catch: drawn into the jaws
+      H(D(150), 22, RLINE(160, 48), { stun: D(900), launch: 155, juggleCost: 15 }, { reachUp: 220, heavy: true }), // the catapult
+      H(D(300), 40, RLINE(200, 48), { stun: D(700), slam: true, knockdown: 'heavy', juggleCost: 15 }, { reachUp: 340, heavy: true }), // the sentence: in the air, slammed down, one bounce; standing, thrown down
+    ],
+    cancelOnHit: [], endsCombo: true, tags: ['ultimate'],
+    description: 'His ultimate: anchored, the gate opened to its widest span — what it catches in its jaws is catapulted up with his whole body, then the locked gate is raised overhead and slammed down on it. No magic: iron, leverage and weight.',
+    relations: ['Ultimate', 'Catch', 'Ground bounce'],
+  }),
   S({ id: 'ws_rearguard_step', cls: 'warrior', style: 'siege', slot: 8, name: 'Rearguard Step', roles: ['mobility'], targeting: 'mouseDir', wip: true,
     startup: D(115), active: D(90), recovery: D(230), cooldown: 8000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
     description: 'Coming soon: a step back with one wing turned in front of him, its edge striking.', relations: ['Reposition'] }),
@@ -1600,7 +1630,6 @@ const siege: FinalSkill[] = [
 // His numbers are GPT's (startup / active / recovery, the reach X and its depth ±), the live ones its "Gentleman's Lesson"
 // (jab → thrust → Crown Raise → Royal Turn → Collect the Debt → Curtain Call) and his signature; the House Edge (the gold
 // facets a sweet-spot hit earns, staked on All In) is still to come — All In plays its unstaked "Probe" for now.
-const RLINE = (length: number, depth: number): HitShape => ({ kind: 'line', length, width: depth * 2 });
 const radiant: FinalSkill[] = [
   S({
     id: 'rd_four_beat', cls: 'gambler', style: 'radiant', slot: 0, name: 'Four-Beat Flourish', roles: ['basic', 'confirm'], targeting: 'aimAssist',
@@ -1663,9 +1692,16 @@ const radiant: FinalSkill[] = [
     description: 'His signature: the staff level, the grip turned slowly through his palms, a confident nod — then one extraordinarily straight crown thrust. He has told you exactly what is coming.',
     relations: ['Signature', 'Telegraphed thrust'],
   }),
-  S({ id: 'rd_final_ovation', cls: 'gambler', style: 'radiant', slot: 7, name: 'The Final Ovation', roles: ['ultimate'], targeting: 'self', wip: true,
-    startup: D(500), active: D(180), recovery: D(590), cooldown: 70000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
-    description: 'Coming soon: the staff planted upright like a performer taking applause, an impossible horizontal vault, and the crown brought down as a solid faceted head of light.', relations: ['Ultimate'] }),
+  S({
+    id: 'rd_final_ovation', cls: 'gambler', style: 'radiant', slot: 7, name: 'The Final Ovation', roles: ['ultimate', 'finisher'], targeting: 'mouseTarget',
+    startup: D(500), active: D(180), recovery: D(590), cooldown: 70000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    dash: { distance: 90, lift: 90, crash: true, gap: 90 }, // (the Impossible Vault: up and over his planted staff toward him)
+    // the Invitation — the Impossible Vault — the Crown Descends — the Impact (GPT): one heavy blow, a hard knockdown, no bounce
+    hits: [H(D(10), 48, RLINE(260, 36), { stun: D(800), knockdown: 'heavy', juggleCost: 30 }, { reachUp: 260, heavy: true })],
+    cancelOnHit: [], endsCombo: true, tags: ['ultimate'],
+    description: 'His ultimate: the staff planted upright like a performer taking his applause — an impossible vault round it — and the crown, swelled into a solid faceted head of light, brought down in one diagonal blow. He straightens his hat.',
+    relations: ['Ultimate', 'Hard knockdown'],
+  }),
   S({ id: 'rd_read_the_room', cls: 'gambler', style: 'radiant', slot: 8, name: 'Read the Room', roles: ['counter'], targeting: 'self', wip: true,
     startup: D(95), active: D(110), recovery: D(310), cooldown: 13000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
     description: 'Coming soon: the staff held diagonally — a frontal blow is turned aside and answered with a swift ferrule counter.', relations: ['Parry'] }),
@@ -1745,9 +1781,15 @@ const wind: FinalSkill[] = [
     description: 'His signature: the open fan swept through one huge diagonal cut, an S of pale air — the foe is popped up and carried across the lane.',
     relations: ['Signature', 'Air pop', 'Carry'],
   }),
-  S({ id: 'mw_sky_loom', cls: 'book_mage', style: 'wind', slot: 7, name: 'Sky Loom', roles: ['ultimate'], targeting: 'aimAssist', wip: true,
-    startup: D(440), active: D(180), recovery: D(690), cooldown: 85000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
-    description: 'Coming soon: the fan opened overhead drives one gigantic kite-shaped blade of air far down the lane.', relations: ['Ultimate'] }),
+  S({
+    id: 'mw_sky_loom', cls: 'book_mage', style: 'wind', slot: 7, name: 'Sky Loom', roles: ['ultimate', 'finisher'], targeting: 'aimAssist',
+    startup: D(440), active: D(180), recovery: D(690), cooldown: 85000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    // the sail opened overhead, then driven down across him: one gigantic kite-shaped blade of air far down the lane (GPT)
+    hits: [H(D(40), 50, RLINE(335, 36), { stun: D(800), push: 60, knockdown: 'heavy', juggleCost: 30 }, { reachUp: 280, heavy: true })], // (a knockdown on the ground, the air's ender)
+    cancelOnHit: [], endsCombo: true, tags: ['ultimate'],
+    description: 'His ultimate: the fan opened overhead into its full sail, then driven down — one gigantic kite-shaped blade of air goes far down the lane and throws whatever it meets to the floor.',
+    relations: ['Ultimate', 'Long reach', 'Knockdown'],
+  }),
   S({
     id: 'mw_windward_spike', cls: 'book_mage', style: 'wind', slot: 8, name: 'Windward Spike', roles: ['antiAir', 'extender'], targeting: 'aimAssist',
     startup: D(165), active: D(80), recovery: D(230), cooldown: 8000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
@@ -1838,9 +1880,15 @@ const lightning: FinalSkill[] = [
     description: 'His signature: the staff driven out with both hands and the two prongs closing round one foe like a clamp — one brief spark where they meet, and he is lifted softly.',
     relations: ['Signature', 'Soft loft'],
   }),
-  S({ id: 'ml_zero_interval', cls: 'book_mage', style: 'lightning', slot: 7, name: 'Zero Interval', roles: ['ultimate'], targeting: 'aimAssist', wip: true,
-    startup: D(415), active: D(160), recovery: D(700), cooldown: 85000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
-    description: 'Coming soon: the rear foot planted, one huge straight conductor thrust — a single brilliant rail of electricity for a fraction of a second.', relations: ['Ultimate'] }),
+  S({
+    id: 'ml_zero_interval', cls: 'book_mage', style: 'lightning', slot: 7, name: 'Zero Interval', roles: ['ultimate', 'finisher'], targeting: 'aimAssist',
+    startup: D(415), active: D(160), recovery: D(700), cooldown: 85000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    // braced, the rear foot planted — then one huge straight conductor thrust: a single brilliant rail of current (GPT)
+    hits: [H(D(20), 50, RLINE(340, 28), { stun: D(800), push: 50, knockdown: 'light', juggleCost: 30 }, { reachUp: 220, heavy: true })], // (standing: he crumples; in the air: driven down)
+    cancelOnHit: [], endsCombo: true, tags: ['ultimate'],
+    description: 'His ultimate: the rear foot planted, then one huge straight thrust of the forked staff — a single brilliant rail of current runs far down the lane for a fraction of a second.',
+    relations: ['Ultimate', 'Long reach', 'Crumple'],
+  }),
   S({
     id: 'ml_return_spark', cls: 'book_mage', style: 'lightning', slot: 8, name: 'Return Spark', roles: ['antiAir', 'extender'], targeting: 'aimAssist',
     startup: D(140), active: D(70), recovery: D(210), cooldown: 8000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,

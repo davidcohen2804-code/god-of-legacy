@@ -100,8 +100,8 @@ export const ARCHER: Record<string, Recipe> = {
   eagle_arrow: { tone: SPIRIT, own: true, active: (f, r) => { const c = me(f, r); f.wave(c.x, c.y, r.aim.x, r.aim.y, SPIRIT, { len: 760, ms: 360, h: 150, w: 150 }); f.streak({ x: c.x, y: c.y, z: 90 }, { x: c.x + r.aim.x * 780, y: c.y + r.aim.y * 400, z: 90 }, SPIRIT, { w: 26, ms: 420, draw: 90 }); } },
   // the Deadeye Sniper (Styles.ts, David 4 Nov): rifle rounds — one thin hot copper-white streak each, a small warm star at
   // the muzzle on every shot; her blows answered in copper, never the bow's green wind
-  ...Object.fromEntries(['sn_four_beat', 'sn_needlemark', 'sn_recoil_slip', 'sn_throughline', 'sn_four_bells', 'sn_skyline', 'sn_glass_round'].map((id) => [id, {
-    tone: COPPER, trail: { c: ROUND, w: id === 'sn_throughline' || id === 'sn_glass_round' ? 7 : 4, len: 18, i: 2.6 }, fired: (f, _r, _i, o) => bowStar(f, o, ROUND, 0.8),
+  ...Object.fromEntries(['sn_four_beat', 'sn_needlemark', 'sn_recoil_slip', 'sn_throughline', 'sn_four_bells', 'sn_skyline', 'sn_glass_round', 'sn_last_horizon'].map((id) => [id, {
+    tone: COPPER, trail: { c: ROUND, w: id === 'sn_last_horizon' ? 10 : id === 'sn_throughline' || id === 'sn_glass_round' ? 7 : 4, len: 18, i: 2.6 }, fired: (f, _r, _i, o) => bowStar(f, o, ROUND, id === 'sn_last_horizon' ? 1.4 : 0.8),
   } as Recipe])),
   // the Recoil Cannoneer (Styles.ts, David 4 Nov 14:59): concussive, never the bow's green — her blows answered in a hot
   // amber-white (terracotta drowned in the red planks); no trail of the room's (her shells carry their own, drawn out of

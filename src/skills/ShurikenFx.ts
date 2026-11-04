@@ -240,6 +240,7 @@ export class ShurikenFx {
         this.flash(0, 0, 30, { follow: hand, on: id, life: 180, tint: 0xffd4d8, delay: T.startup * 0.5, run: r });
         break;
       case 'as_four_point_eclipse': this.eclipse(r); break;
+      case 'as_fivefold_night': this.fivefold(r); break;
       case 'as_crowstep_rise': { // the step into the knee: dust at the take-off, the rising cut of the star
         const c = this.me(r); this.dust(c.x - side * 10, c.y, 80, T.startup * 0.6);
         this.onClock(r, T.startup, () => { const p = hand(); if (!p) return; this.arc(p.x + side * 10, p.y + 18, 120, side < 0 ? 128 : 52, 230, { flip: side < 0, run: r }); });
@@ -250,6 +251,70 @@ export class ShurikenFx {
 
   active(_r: CastRun): void { /* (each skill's timeline runs from its cast, on its own clock) */ }
 
+  /** Fivefold Night (his ultimate — GPT: unseal, spread, reverse, converge, catch; no dragon, no black sun, no clones): the
+   *  four stars unsealed round him glint one by one as the hand star joins them; at the throw the five fly out in five lanes
+   *  through the foe (the spread), turn beyond him and cut back through him crossed (the reverse — a crimson line each),
+   *  swing out to five points round him and close on him at once — five crossed cuts, the room shakes (the converge) — then
+   *  fly home to his back and his hand (the catch). The stars are drawn for the whole flight (his painted pose holds them
+   *  only while they are unsealed); each follows the foe as it flies (in the air too). */
+  private fivefold(r: CastRun): void {
+    const T = r.timings, side = sideOf(r), id = r.attackerId;
+    const BACK: [number, number][] = [[42, 79], [-24, 112], [37, 106], [-34, 85], [13, 144]]; // (the four unsealed and the hand star: world px ahead of / over his feet, facing right — read off his pose)
+    const home = (k: number): { x: number; y: number } => { const c = this.me(r), [dx, dz] = BACK[k]; return { x: c.x + side * dx, y: c.y - c.z - dz }; };
+    for (let k = 0; k < 5; k++) this.onClock(r, T.startup * (0.2 + k * 0.12), () => { const p = home(k); this.flash(p.x, p.y, 30, { life: 160, run: r }); }); // unsealed one by one: a glint on each
+    const pre = `${r.castId}|`;
+    const foeId = (): string | null => { for (const k of r.hitKeys) if (k.startsWith(pre)) { const rest = k.slice(pre.length); return rest.slice(rest.indexOf('|') + 1); } return r.lock ?? null; };
+    const guess = { x: 0, y: 0, fy: 0 }; // (no foe: a point down his line)
+    const foe = (): { x: number; y: number; fy: number } => { const f = foeId(), t = f ? this.ctx.targetPos?.(f) : null; return t ? { x: t.x, y: t.y - t.z - 50, fy: t.y } : guess; };
+    const h0 = r.hits[0]?.at ?? 0, h1 = r.hits[1]?.at ?? h0, h2 = r.hits[2]?.at ?? h1; // (ms after the throw, at the cast's pace)
+    const LANE = [-56, -28, 0, 28, 56], RIM = 150, RAD = 130;
+    const ang = (k: number) => ((-90 + k * 72) * Math.PI) / 180; // (a five-point star's points round him)
+    // each star's flight after the hand, as points round the foe (read where he is as it flies) at its times: through him in
+    // its lane, out beyond him fanned, back through him crossed, out to its point round him, into him
+    const rel = (k: number): [number, number, number][] => [
+      [h0, 0, LANE[k]], [(h0 + h1) / 2, side * RIM, LANE[k] * 1.6], [h1, 0, -LANE[k]],
+      [(h1 + h2) / 2, Math.cos(ang(k)) * RAD, Math.sin(ang(k)) * RAD * 0.7], [h2, 0, 0]];
+    this.onClock(r, T.startup, () => {
+      const c = this.me(r); guess.x = c.x + side * 240; guess.y = c.y - c.z - 60; guess.fy = c.y;
+      for (let k = 0; k < 5; k++) {
+        const p0 = home(k), R = rel(k), ts = [0, ...R.map((q) => q[0])];
+        let ly = 0;
+        const at = (t: number): { x: number; y: number } => { // a smooth curve through the points at their times (Hermite, tangents from the neighbours)
+          const f = foe(), P = [p0, ...R.map((q) => ({ x: f.x + q[1], y: f.y + q[2] }))], n = P.length - 1;
+          let i = 0; while (i < n - 1 && t > ts[i + 1]) i++;
+          const dt = Math.max(1, ts[i + 1] - ts[i]), u = Math.max(0, Math.min(1, (t - ts[i]) / dt));
+          const tan = (j: number) => { const a = P[Math.max(0, j - 1)], b = P[Math.min(n, j + 1)], d = Math.max(1, ts[Math.min(n, j + 1)] - ts[Math.max(0, j - 1)]); return { x: (b.x - a.x) / d, y: (b.y - a.y) / d }; };
+          const m0 = tan(i), m1 = tan(i + 1), u2 = u * u, u3 = u2 * u;
+          const a0 = 2 * u3 - 3 * u2 + 1, b0 = u3 - 2 * u2 + u, a1 = -2 * u3 + 3 * u2, b1 = u3 - u2;
+          return { x: a0 * P[i].x + b0 * dt * m0.x + a1 * P[i + 1].x + b1 * dt * m1.x, y: a0 * P[i].y + b0 * dt * m0.y + a1 * P[i + 1].y + b1 * dt * m1.y };
+        };
+        this.spr({ name: 'as-big', x: 0, y: 0, depth: TOP + 3, w: 46, life: h2, run: r, tint: STEEL, glow: 0.2,
+          mx: (u) => { const q = at(u * h2); ly = q.y; return q.x; }, my: () => ly, rot: (u) => side * 2200 * u, a: kf([0, 0.7], [0.06, 1], [1, 1]) });
+        const f = foe(), e = { x: f.x + side * RIM, y: f.y + LANE[k] * 1.6 };
+        this.line('as-trail', p0.x, p0.y, e.x, e.y, 4, h0 + 140, { tint: STEEL, run: r, a: kf([0, 0], [0.15, 0.85], [1, 0, inQ]) }); // the spread: five lanes through him
+      }
+    });
+    this.onClock(r, T.startup + (h0 + h1) / 2, () => { const f = foe(); // the reverse: back through him, crossed — the crimson return lines
+      for (let k = 0; k < 5; k++) { const x0 = f.x + side * RIM, y0 = f.y + LANE[k] * 1.6, x1 = f.x - side * 60, y1 = f.y - LANE[k] * 2.2; this.line('as-red', x0, y0, x1, y1, 3, 220, { tint: CRIMSON, run: r }); }
+    });
+    this.onClock(r, T.startup + (h1 + h2) / 2, () => { const f = foe(); // the converge: five steel tracks closing on him
+      for (let k = 0; k < 5; k++) this.line('as-trail', f.x + Math.cos(ang(k)) * RAD, f.y + Math.sin(ang(k)) * RAD * 0.7, f.x, f.y, 5, 200, { tint: STEEL, run: r, a: kf([0, 0], [0.2, 1], [1, 0, inQ]) });
+    });
+    this.onClock(r, T.startup + h2, () => { const f = foe(); // five crossed cuts at once; then the five fly home, the hand star caught
+      for (let k = 0; k < 5; k++) this.spr({ name: 'as-x', x: f.x, y: f.y, depth: TOP + 4, w: 78, life: 230, run: r, tint: GLINT, glow: 0.3, add: true, angle: k * 36,
+        sx: kf([0, 0.4], [0.25, 1.1, out3], [1, 1.2]), sy: kf([0, 0.4], [0.25, 1.1, out3], [1, 1.2]), a: kf([0, 1], [0.5, 0.9], [1, 0, inQ]) });
+      this.flash(f.x, f.y, 76, { life: 210 }); this.dust(f.x, f.fy, 110); this.ctx.punch(0.03, 190); this.shake(r, 220, 0.005);
+      const CATCH: [number, number] = [36, 132]; // (his hand in the catch: the last frame of the move)
+      for (let k = 0; k < 5; k++) {
+        const to = (): { x: number; y: number } => { const c = this.me(r), [dx, dz] = k === 4 ? CATCH : BACK[k]; return { x: c.x + side * dx, y: c.y - c.z - dz }; };
+        let ly = 0;
+        this.spr({ name: 'as-big', x: 0, y: 0, depth: TOP + 3, w: 40, life: 280, delay: 70, run: r, tint: STEEL,
+          mx: (u) => { const g = to(), w = out3(u); ly = f.y + (g.y - f.y) * w - 40 * Math.sin(Math.PI * u); return f.x + (g.x - f.x) * w; }, my: () => ly,
+          rot: (u) => -side * 1400 * u, a: k === 4 ? kf([0, 1], [1, 1]) : kf([0, 1], [0.8, 1], [1, 0, inQ]) });
+      }
+      this.later(350, () => { const c = this.ctx.casterPos(id); if (c) this.caughtAt(c.x + side * CATCH[0], c.y - c.z - CATCH[1]); }, r);
+    });
+  }
   /** Four-Point Eclipse: the big star flies out to him (two fingers steering it), turns four times round him — four crossing
    *  cuts through him from four sides, each on its hit — then rises straight up through him and flies home to the hand. */
   private eclipse(r: CastRun): void {

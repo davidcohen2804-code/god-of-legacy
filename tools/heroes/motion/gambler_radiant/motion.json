@@ -144,6 +144,14 @@
     "rd_bet": {
       "frames": 2,
       "source": "gpt stills: stance \u2192 rd_allin (All In: the grip turned, then the thrust)"
+    },
+    "rd_invite": {
+      "frames": 1,
+      "source": "gpt (his ultimate portrait: the approved look attached, keyed and cut at his head size)"
+    },
+    "rd_ovation": {
+      "frames": 4,
+      "source": "gpt stills: rd_invite \u2192 rd_vault \u2192 rd_debt \u2192 rd_curtain (The Final Ovation: the Invitation, the Impossible Vault, the Crown Descends, the Impact)"
     }
   },
   "refs": "scratchpad rd_art/gpt (GPT chats in scratchpad pvp/gpt_chats.md)",

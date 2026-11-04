@@ -136,6 +136,14 @@
         300
       ],
       "source": "gpt still (his approved look attached, a new chat each, magenta screen)"
+    },
+    "ml_zero": {
+      "frames": 1,
+      "source": "gpt (his ultimate portrait: the approved look attached, keyed and cut at his head size)"
+    },
+    "ml_zeroint": {
+      "frames": 2,
+      "source": "gpt stills: ml_clamp \u2192 ml_zero (Zero Interval: braced, then the one huge straight thrust)"
     }
   }
 }

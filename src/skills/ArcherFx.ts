@@ -183,7 +183,7 @@ const ROUND = 0xffe6c2;
  *  frames, tools/heroes/motion/archer_sniper: the hip, the shoulder, the knee, the slide, the sky). A chain stage: id#stage. */
 const SN_MUZZLE: Record<string, [number, number]> = {
   stance: [113, 107], sn_four_beat: [103, 92], 'sn_four_beat#2': [113, 107], 'sn_four_beat#3': [95, 108], sn_needlemark: [113, 107],
-  sn_recoil_slip: [96, 57], sn_throughline: [99, 74], sn_four_bells: [113, 107], sn_skyline: [76, 163], sn_glass_round: [99, 74],
+  sn_recoil_slip: [96, 57], sn_throughline: [99, 74], sn_last_horizon: [99, 74], sn_four_bells: [113, 107], sn_skyline: [76, 163], sn_glass_round: [99, 74],
 };
 /** Continuity: Thunder Rain's strike points stay charged (the runtime's STORM: its window, its reach); a shot of hers crossing one turns to lightning (RT_EVENTS.storm → stormTurn) and chains (stormChain). */
 const CHARGE_MS = STORM.ms;
@@ -1020,6 +1020,20 @@ export class ArcherFx {
         this.later(T.startup + (r.hits[3]?.at ?? 0), () => this.shake(r, 110, 0.004), r);
         break;
       }
+      case 'sn_last_horizon': { // her ultimate (GPT): three sight planes close on the line one after another, the glint at the
+        // scope, then one luminous round — the air cracking open along it — to the horizon; no screen flash
+        this.ctx.ultimateStage(r);
+        const at = this.muzzleAt(r.attackerId, side, r);
+        for (let k = 0; k < 3; k++) this.spr({ name: 'sn-ring', w: 150 - k * 34, life: Math.max(80, T.startup - k * 70), delay: k * 70, glow: 0.25, tint: ROUND, run: r,
+          follow: () => { const p = at(); return p ? { x: p.x + side * (130 + k * 110), y: p.y, d: p.d + 4 } : null; },
+          sx: kf([0, 2.4], [0.6, 1, out3]), sy: kf([0, 2.4], [0.6, 1, out3]), a: kf([0, 0], [0.3, 0.9], [0.95, 0.9], [1, 0]) });
+        this.sight(r, T.startup);
+        this.shot(r, T.startup, 170);
+        for (const k of [0, 1]) this.spr({ name: 'sn-ring', w: 160, life: 260, delay: T.startup + k * 40, tint: ROUND, follow: at, dz: 4, glow: 0.3, run: r,
+          sx: kf([0, 0.2], [0.4, 0.35, out3], [1, 0.45]), sy: kf([0, 0.4], [0.4, 1, out3], [1, 1.3]), mx: (u) => side * (80 + k * 120) * u, a: kf([0, 1], [1, 0, inQ]) });
+        this.later(T.startup, () => { this.shake(r, 200, 0.006); if (r.own) this.ctx.punch(0.03, 180); }, r);
+        break;
+      }
       case 'sn_skyline': shots(); this.spr({ name: 'dust', w: 90, life: 300, delay: T.startup, x: me.x, y: me.y, depth: me.y - 1, run: r, a: kf([0, 0.6], [1, 0]) }); break;
       case 'sn_glass_round': this.glassHold(r); break; // (the shot itself at its hit: a held skill's startup ends when she lets go)
       default: shots();
@@ -1264,6 +1278,7 @@ export class ArcherFx {
   private broadside(r: CastRun): void {
     const T = r.timings, me = this.me(r), c = r.place ?? { x: me.x + r.aim.x * 300, y: me.y + r.aim.y * 300 }, land = r.hits.map((h) => T.startup + h.at);
     if (land.length < 5) return;
+    this.ctx.ultimateStage(r); // (her own splash, the Cannoneer's — no longer the bow archer's: SkillFx picks the style's)
     this.ctx.darken?.(land[4] - 40, 0.42);
     this.spr({ name: 'dust', x: me.x, y: me.y + 4, oy: 0.85, depth: me.y + 1, w: 150, life: 520, sx: kf([0, 0.5], [1, 1.4, out3]), a: kf([0, 0.8], [1, 0, inQ]) }); // she plants her feet
     this.airRing(me.x, me.y, 120, 360, { tint: 0xffd0a0, run: r, s: kf([0, 0.5], [1, 1.2, out3]), a: kf([0, 0.7], [1, 0, inQ]) });

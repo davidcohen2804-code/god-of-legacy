@@ -38,7 +38,7 @@ const sideOf = (r: CastRun) => (r.aim.x < -0.01 ? -1 : 1);
 const TIP: Record<string, [number, number]> = {
   ml_four_beat: [138, 96], 'ml_four_beat#1': [102, 94], 'ml_four_beat#2': [145, 78], 'ml_four_beat#3': [102, 83],
   ml_probe_jab: [171, 95], ml_closing_stroke: [99, 48], ml_riser_prong: [79, 157], ml_arc_clamp: [127, 82], ml_return_spark: [92, 154],
-  ml_earth_pin: [34, -3], stance: [-34, 157],
+  ml_earth_pin: [34, -3], ml_zero_interval: [87, 115], stance: [-34, 157],
 };
 
 /** His pieces, drawn once on canvases: a rail of current (a thrust's), a thin arc (a stroke's), a contained spark, the
@@ -213,6 +213,17 @@ export class LightningFx {
         this.onClock(r, T.startup * 0.55, () => { const h = this.at(r, 88, 96); this.shape('ml-v', h.x, h.y, 70, side * 18, { flip: side < 0, run: r, life: 130, grow: true }); });
         this.onClock(r, hitAt(0), () => { const t = this.tip(r); this.spark(t.x, t.y, 32, { run: r }); });
         break;
+      case 'ml_zero_interval': { // his ultimate (GPT): braced, the current gathered at the prong tips (two tiny contained sparks, a
+        // rail drawn back along the staff) — then one huge straight thrust: a single brilliant blade-like rail of current far down
+        // the lane for a fraction of a second; no chain, no bolt from the sky, no screen-wide flash
+        this.onClock(r, T.startup * 0.35, () => { const t = this.tip(r, 'ml_arc_clamp'); this.spark(t.x - 5, t.y, 18, { run: r, tint: VOLT, life: 160 }); this.spark(t.x + 5, t.y, 18, { run: r, tint: VOLT, life: 160, delay: 40 }); });
+        this.onClock(r, T.startup * 0.6, () => { const t = this.tip(r, 'ml_arc_clamp'); this.rail(t.x + side * 10, t.y, t.x - side * 170, t.y, 6, { run: r, life: 180 }); });
+        this.onClock(r, Math.max(0, hitAt(0) - 20), () => { const t = this.tip(r);
+          this.rail(t.x - side * 60, t.y, t.x + side * 360, t.y, 20, { run: r, life: 150 }); this.rail(t.x, t.y, t.x + side * 380, t.y, 8, { run: r, life: 120 });
+          this.spark(t.x, t.y, 40, { run: r, life: 110 }); });
+        this.onClock(r, hitAt(0), () => { const t = this.tip(r); this.spark(t.x + side * 300, t.y, 52, { run: r, life: 120 }); this.ctx.punch(0.032, 190); this.shake(r, 200, 0.0045); });
+        break;
+      }
       case 'ml_earth_pin': { // the fork driven down to pin the floor: a rail falling, the fork's mark in the floor, one flat spark
         this.onClock(r, T.startup * 0.55, () => { const h = this.at(r, 80, 210); this.rail(h.x, h.y, h.x - side * 30, h.y + 200, 7, { run: r, life: 110 }); });
         this.onClock(r, hitAt(0), () => { const c = this.me(r), x = c.x + side * 92, y = c.y - 2;

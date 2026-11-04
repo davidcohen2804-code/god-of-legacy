@@ -200,6 +200,25 @@ export class WardenFx {
           this.crack(x, c.y + 2, 150); this.dust(x - 30, c.y, 90); this.dust(x + 30, c.y, 90); this.flash(x, c.y - 24, 52, { run: r }); this.sparks(x, c.y - 10, 5, { up: true, run: r });
           this.ctx.punch(0.02, 140); this.shake(r, 120, 0.003); });
         break;
+      case 'ws_last_drawbridge': { // his ultimate (GPT: unfold / catch / catapult / sentence — no magic lion, no eruption, no
+        // light pillar): the wings flung to their widest, the jaws biting shut, one great crescent heaving up through him, the
+        // locked gate slammed down: the planks crack wide round it, the dust of the whole floor, the room shakes
+        const t1 = hitAt(0), t2 = hitAt(1), t3 = hitAt(2), at = (dx: number, dz: number) => { const c = this.me(r); return { x: c.x + side * dx, y: c.y - c.z - dz, c }; };
+        this.onClock(r, T.startup * 0.45, () => { const g = at(42, 108);
+          this.wing(g.x - side * 14, g.y + 40, 150, side < 0 ? 235 : -55, { flip: side < 0, life: 230, run: r }); this.wing(g.x + side * 22, g.y + 22, 140, side < 0 ? 305 : 55, { flip: side < 0, flipY: true, life: 230, run: r });
+          this.dust(g.c.x - side * 18, g.c.y, 110); this.shake(r, 90, 0.0018); });
+        this.onClock(r, T.startup + Math.max(0, r.hits[0].at - 70), () => { const g = at(50, 58); this.bite(g.x + side * 26, g.y, 110, 70, 70, { run: r }); });
+        this.onClock(r, t1, () => { const g = at(50, 58); this.flash(g.x + side * 26, g.y, 54, { run: r }); this.sparks(g.x + side * 26, g.y, 6, { run: r }); this.shake(r, 90, 0.0024); });
+        this.onClock(r, t2, () => { const g = at(44, 112);
+          this.wing(g.c.x + side * 56, g.c.y - g.c.z - 80, 190, side < 0 ? 250 : -70, { flip: side < 0, life: 260, run: r });
+          this.streak(g.c.x + side * 60, g.c.y - g.c.z, g.c.x + side * 60, g.c.y - g.c.z - 230, 8, 280, { run: r }); this.flash(g.x, g.y, 50, { run: r });
+          this.dust(g.c.x + side * 34, g.c.y, 120); this.ctx.punch(0.022, 140); });
+        this.onClock(r, t3, () => { const c = this.me(r), x = c.x + side * 70;
+          this.crack(x, c.y + 2, 260); this.dust(x - side * 60, c.y, 130); this.dust(x, c.y, 150); this.dust(x + side * 60, c.y, 130);
+          this.flash(x, c.y - 30, 78, { run: r }); this.sparks(x, c.y - 12, 9, { up: true, run: r }); this.wing(x, c.y - c.z - 40, 170, side < 0 ? 180 : 0, { flip: side < 0, flipY: true, life: 200, run: r });
+          this.ctx.punch(0.032, 190); this.shake(r, 220, 0.0055); });
+        break;
+      }
       case 'ws_royal_portcullis': { // open wide as he advances; shut on him like a portcullis; driven straight up, locked
         const t1 = hitAt(0), t2 = hitAt(1);
         this.onClock(r, T.startup * 0.6, () => { const g = this.gate(r); this.bite(g.x + side * 30, g.y, 96, 70, Math.max(80, t1 - T.startup * 0.6), { run: r }); this.wing(g.x, g.y, 120, side < 0 ? 180 : 0, { flip: side < 0, life: 200, run: r }); });

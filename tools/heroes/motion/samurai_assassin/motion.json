@@ -132,6 +132,16 @@
     "as_moon": {
       "frames": 2,
       "source": "gpt stills: the recall (as_recall), then the catch overhead (as_catch)"
+    },
+    "as_unseal": {
+      "frames": 1,
+      "ground_y": 840,
+      "source": "gpt (his ultimate portrait: the anchor attached, keyed keeping the four unsealed stars, cut at the anchor size)"
+    },
+    "as_fivefold": {
+      "frames": 5,
+      "ground_y": 840,
+      "source": "gpt stills: as_unseal \u2192 as_cast \u2192 as_eclipse \u2192 as_recall \u2192 as_catch (Fivefold Night: unseal, spread, reverse, converge, catch)"
     }
   },
   "hit_source": "pixverse as_hit.mp4 (433532602315716; its screen drifted to teal: keyed by its border colour, the rim cut, colour matched to the idle)",

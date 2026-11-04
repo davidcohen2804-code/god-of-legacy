@@ -142,6 +142,10 @@
     "ws_lionclamp": {
       "frames": 2,
       "source": "gpt stills: ws_clamp \u2192 ws_close"
+    },
+    "ws_last": {
+      "frames": 6,
+      "source": "gpt stills: ws_open \u2192 ws_clamp \u2192 ws_close \u2192 ws_lift \u2192 ws_anvil \u2192 ws_close (The Last Drawbridge: unfold, catch, catapult, raise, sentence)"
     }
   },
   "refs": "tools/heroes/refs/warrior_siege_*_green.jpg",

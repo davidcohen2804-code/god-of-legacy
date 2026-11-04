@@ -132,6 +132,16 @@
         300
       ],
       "source": "gpt still (his look attached, a new chat each; the open fan: the open look attached too)"
+    },
+    "mw_loom": {
+      "frames": 1,
+      "ground_y": 840,
+      "source": "gpt (his ultimate portrait: the approved look attached, keyed and cut at his head size; the sail opened overhead)"
+    },
+    "mw_skyloom": {
+      "frames": 2,
+      "ground_y": 840,
+      "source": "gpt stills: mw_loom \u2192 mw_cut_across (the Sky Loom: the sail opened overhead, then driven down across)"
     }
   },
   "refs": "scratchpad mw_art/gpt (GPT chats in scratchpad pvp/gpt_chats.md)",

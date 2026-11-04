@@ -31,6 +31,36 @@ The DFO PvP arena dynamics chat is the PvP director: it sets the bar per class, 
 Take the whole PvP up a level in everything — dynamics, skills, effects, hit frames, movement, camera, feel: every hit felt, every class unique and amazing, big moments that look like a cinematic, and reasons to keep playing.
 
 ## Open items
+### DFO (4 Nov, David 14:59) — the styles, step 9: every style's ultimate, each with its own portrait
+- **Seven ultimates, one per style** (slot 7; GPT's beats — scratchpad styles/*_styles.md; each style's own portrait is its
+  ultimate's splash — GPT, from the style's approved look: `heroes/<body>/ult.webp`, the glint on it `SkillFx` ULT_GLINT):
+  - the Siege Warden's **Last Drawbridge** (`ws_last_drawbridge`, poses ws_last 1–6): the gate's wings catch him and draw
+    him into its jaws, the catapult throws him up, the sentence slams him down — one bounce (WardenFx: the wings, the bite,
+    the catapult's streak, the planks split under the gate);
+  - the Radiant Duelist's **Final Ovation** (`rd_final_ovation`, poses rd_invite, rd_ovation 1–4): the invitation (a bow,
+    the crown's light), the Impossible Vault up and over his planted staff, the staff brought down on him (RadiantFx: the
+    crown, the vault's arcs, the descending spade, the burst);
+  - the Sailwright's **Sky Loom** (`mw_sky_loom`, poses mw_loom, mw_skyloom 1–2): the seven ribs flash, one giant kite of
+    pressure woven and driven through him (WindFx);
+  - the Fulminant Conductor's **Zero Interval** (`ml_zero_interval`, poses ml_zero, ml_zeroint 1–2): the fork drawn back,
+    then one straight rail of current through him at no interval (LightningFx);
+  - the Deadeye Sniper's **Last Horizon** (`sn_last_horizon`, pose sn_kneel): kneeling, three rings of the sight closing,
+    one round down the whole lane (ArcherFx);
+  - the Recoil Cannoneer's **Broadside** (in since step 3): now with the ultimate's dark and her own portrait;
+  - the Shuriken Assassin's **Fivefold Night** (`as_fivefold_night`, poses as_unseal — from his portrait: the four stars
+    unsealed round him — as_cast, as_eclipse, as_recall, as_catch): the five stars thrown in five lanes through him, turned
+    back crossed, closed on him from five points at once, caught (ShurikenFx).
+- Numbers: BALANCE_LOG (2026-11-05, every style's ultimate). PVP 3D answers each in its style's colour (the planks split
+  under the Warden's and the Assassin's; the Sniper's round a heavier streak).
+- `tools/heroes/cut.py`: an action may set its own `ground_y` (a pose reaching over his head on a taller canvas, 1280 × 908,
+  the floor at 840).
+- **Open (class chats):** the styles' other templates and mechanics (the Tack, the Polarity, the House Edge, the Gate
+  Pressure).
+- On the way: the Sniper's Last Horizon keeps its knockdown from afar (`farLaunch`: a shot past the poke range was a
+  140 ms flinch).
+- Checked: PVP 3D probes of each ultimate on the partner (every hit lands — the Fivefold Night on a foe in the air too;
+  each style's own portrait staged; 0 errors, no 404s).
+
 ### DFO (4 Nov, David 14:59) — the styles, step 8: the Book Mage's Fulminant Conductor (the fan or the book tags out, the fork tags in)
 - **The Fulminant Conductor** (his third style, `Styles.ts` `book_mage`: Arcane Tome → Sailwright → Fulminant Conductor; GPT's
   design, scratchpad styles/mage_styles.md — the book drawn out into the Fulminant Fork, a tall conductor staff crowned by two
@@ -47,6 +77,9 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
   Closing Stroke → Arc Clamp → Earth Pin → Return Spark.
 - **Open (Book Mage chat):** the six templates and the Polarity (GPT's + / − strikes: a + hit marks, a − hit snaps the mark).
 - On the way: the switch back to the book is one small flash of the book's blue at his hands (from the fan or the fork).
+- Checked: PVP 3D films of the Three-Current Route and his Polarity execution (every hit lands, 0 errors), the open world on
+  a monster (every hit lands; no 404s of his).
+- Done: 1b4495183 (his kit, icons, effects and body).
 
 ### DFO (4 Nov, David 14:59) — the styles, step 7: the Book Mage's Sailwright (the book tags out, the war fan tags in)
 - **The Sailwright** (his second style, `Styles.ts` `book_mage`: Arcane Tome → Sailwright; GPT's design, scratchpad

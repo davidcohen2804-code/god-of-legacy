@@ -683,6 +683,7 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
     mw_cut_across: { act: 'mw_cut_across', st: [0], ac: [0], rc: [0] }, // the open fan swept low across him
     mw_windward_spike: { act: 'mw_spike', st: [0], ac: [0], rc: [0] }, // the reverse-grip spike straight up
     mw_keel_drop: { act: 'mw_keel_drop', st: [0], ac: [0], rc: [0] }, // the folded fan brought down like a keel
+    mw_sky_loom: { act: 'mw_skyloom', st: [0], ac: [1], rc: [1] }, // the ultimate: the sail opened overhead (his portrait's pose), then driven down across
     // the Fulminant Conductor (Styles.ts), his own painted body (tools/heroes/motion/book_mage_lightning: GPT stills, his
     // approved look attached in a new chat each): one held pose a beat — the forked staff's line
     ml_four_beat: { act: 'ml_tap', st: [0], ac: [0], rc: [0] }, // Prong Tap: one prong tapped in
@@ -695,6 +696,7 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
     ml_arc_clamp: { act: 'ml_clamp', st: [0], ac: [0], rc: [0] }, // the braced two-handed clamp thrust
     ml_return_spark: { act: 'ml_return', st: [0], ac: [0], rc: [0] }, // the rising counter cut, a knee up
     ml_earth_pin: { act: 'ml_pin', st: [0], ac: [0], rc: [0] }, // the fork driven down to pin the floor
+    ml_zero_interval: { act: 'ml_zeroint', st: [0], ac: [1], rc: [1] }, // the ultimate: braced, then the one huge thrust (his portrait's pose)
     style_book_mage_wind: { act: 'stance', st: [0], ac: [0], rc: [0] }, style_book_mage_book: { act: 'stance', st: [0], ac: [0], rc: [0] }, style_book_mage_lightning: { act: 'stance', st: [0], ac: [0], rc: [0] }, // the switch
   },
   warrior: {
@@ -736,6 +738,7 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
     ws_drawbridge_lift: { act: 'ws_drawbridge', st: [0], ac: [1], rc: [1] }, // the wings low and open, then heaved up overhead
     ws_anvil_drop: { act: 'ws_anvil', st: [0], ac: [0], rc: [0] }, // the hop with the folded gate overhead
     ws_royal_portcullis: { act: 'ws_royal', st: [0], ac: [1, 2], rc: [2] }, // open wide as he advances, shut on him, driven up
+    ws_last_drawbridge: { act: 'ws_last', st: [0], ac: [1, 2, 3, 4, 5], rc: [5] }, // the ultimate: unfolded wide; the jaws open, shut; heaved up overhead; the gate raised folded; slammed down
     style_warrior_siege: { act: 'stance', st: [0], ac: [0], rc: [0] }, style_warrior_longsword: { act: 'stance', st: [0], ac: [0], rc: [0] }, // the switch
   },
   samurai: {
@@ -772,6 +775,7 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
     as_four_point_eclipse: { act: 'as_eclipse', st: [0], ac: [0], rc: [0] }, // steering it round him: two fingers pointed, the seal at his mask
     as_crowstep_rise: { act: 'as_knee', st: [0], ac: [0], rc: [0] }, // the flying knee, the star raised in the rising cut
     as_returning_moon: { act: 'as_moon', st: [0], ac: [0], rc: [1] }, // the palm calling it onto its arc, then caught overhead
+    as_fivefold_night: { act: 'as_fivefold', st: [0], ac: [1, 2, 3, 4], rc: [4] }, // the ultimate: the stars unsealed round him (his portrait's pose), thrown, steered, called home, caught
     style_samurai_shuriken: { act: 'stance', st: [0], ac: [0], rc: [0] }, style_samurai_katana: { act: 'stance', st: [0], ac: [0], rc: [0] }, // the switch
   },
   gambler: {
@@ -816,6 +820,7 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
     rd_collect_debt: { act: 'rd_debt', st: [0], ac: [1], rc: [1] }, // levered up the planted staff, then the crown driven down
     rd_all_in: { act: 'rd_bet', st: [0], ac: [1], rc: [1] }, // the grip turned in his ready stance, then the straight thrust
     rd_curtain_call: { act: 'rd_curtain', st: [0], ac: [0], rc: [0] }, // the full body turn, the crown swelled, brought down
+    rd_final_ovation: { act: 'rd_ovation', st: [0, 0, 1, 1, 1, 2, 2], ac: [3], rc: [3] }, // the ultimate: the Invitation (his portrait's pose), the vault, the crown driven down, the impact
     style_gambler_radiant: { act: 'stance', st: [0], ac: [0], rc: [0] }, style_gambler_card: { act: 'stance', st: [0], ac: [0], rc: [0] }, // the switch
   },
   archer: {
@@ -849,6 +854,7 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
     sn_needlemark: { act: 'stance', st: [0], ac: [0], rc: [0] },
     sn_recoil_slip: { act: 'sn_slide', st: [0], ac: [0], rc: [0] }, // slid back low on the recoil
     sn_throughline: { act: 'sn_kneel', st: [0], ac: [0], rc: [0] }, // on one knee, braced, the long shot
+    sn_last_horizon: { act: 'sn_kneel', st: [0], ac: [0], rc: [0] }, // the ultimate: on one knee, braced (her portrait's pose), the shot to the horizon
     sn_glass_round: { act: 'sn_kneel', st: [0], ac: [0], rc: [0] }, // on one knee while the round charges, then the throw
     sn_four_bells: { act: 'stance', st: [0], ac: [0], rc: [0] }, // her signature from the shoulder, the eye at the scope
     sn_skyline: { act: 'sn_up', st: [0], ac: [0], rc: [0] }, // the rifle up at the sky

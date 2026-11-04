@@ -360,22 +360,24 @@ def motion_frames(mdir, frames, rig_cyc):
             out += [f for f in frames if f[0] == act]
             continue
         spreads = []
-        try:  # an action's frames may sit on a wider canvas with the hips elsewhere (motion.json "hip_x"; default 384)
-            hipx = float(json.load(open(os.path.join(mdir, 'motion.json')))['animations'][act].get('hip_x', 384))
+        try:  # an action's frames may sit on a wider canvas with the hips elsewhere (motion.json "hip_x"; default 384), or a
+            # taller one with the floor lower (motion.json "ground_y"; default 700: an ultimate's pose reaching high overhead)
+            ma0 = json.load(open(os.path.join(mdir, 'motion.json')))['animations'][act]
+            hipx, gy = float(ma0.get('hip_x', 384)), int(ma0.get('ground_y', 700))
         except Exception:
-            hipx = 384.0
+            hipx, gy = 384.0, 700
         for f in files:
             rgba = np.array(Image.open(f).convert('RGBA'))
             a = rgba[..., 3] > 40
             ys, xs = np.where(a.any(1))[0], np.where(a.any(0))[0]
             crop = rgba[ys[0]:ys[-1] + 1, xs[0]:xs[-1] + 1]
-            low = a[max(0, 700 - 40):701]
+            low = a[max(0, gy - 40):gy + 1]
             cols = np.where(low.any(0))[0]
             if len(cols):
                 spreads.append(cols[-1] - cols[0])
             im = Image.fromarray(crop)
             im = im.resize((max(1, round(im.width * k)), max(1, round(im.height * k))), Image.LANCZOS)
-            out.append((act, np.array(im), (hipx - xs[0]) * k, (700 - ys[0]) * k))
+            out.append((act, np.array(im), (hipx - xs[0]) * k, (gy - ys[0]) * k))
         try:  # a cycle set by hand (atlas px, or canvas px from a video's measured travel) wins over the measured one
             ma = json.load(open(os.path.join(mdir, 'motion.json')))['animations'][act]
         except Exception:

@@ -20,7 +20,7 @@ import { ArcherFx, ARCHER_KIT, ARCHER_KIT_URL, ARCHER_FLIPS } from './ArcherFx';
 import { ShurikenFx } from './ShurikenFx';
 import { WardenFx } from './WardenFx';
 import { RadiantFx } from './RadiantFx';
-import { styleOfSwitch } from './Styles';
+import { STYLES, styleDef, styleOfSwitch } from './Styles';
 import { SKILL_BLOCKERS, WORLD_OBJECTS, clearLine } from '../world/WorldGeometry';
 import { ImpactFx } from './ImpactFx';
 import { FxGovernor, markFxKey } from './FxGovernor';
@@ -75,7 +75,11 @@ const cutAnimKey = (id: string): string => `cutin-anim-${id}`;
 const ULT_PORTRAIT = true;
 /** Where the glint sits on each splash (fractions of its width / height), below the top of the screen (the HUD): the
  *  warrior's blade, the samurai's blade, the archer's arrowhead, the book's light, the gambler's cards. */
-const ULT_GLINT: Record<string, [number, number]> = { warrior: [0.79, 0.27], samurai: [0.8, 0.29], archer: [0.965, 0.265], book_mage: [0.19, 0.27], gambler: [0.83, 0.16] };
+const ULT_GLINT: Record<string, [number, number]> = { warrior: [0.79, 0.27], samurai: [0.8, 0.29], archer: [0.965, 0.265], book_mage: [0.19, 0.27], gambler: [0.83, 0.16],
+  // each style's own splash (David 4 Nov 14:59: a different fighter — heroes/<its body>/ult.webp, GPT from its approved look):
+  // the rifle's muzzle, the cannon's, the raised star, the gate's top, the spade jewel, the fan's crown, the fork's prongs
+  archer_sniper: [0.97, 0.314], archer_cannon: [0.94, 0.08], samurai_assassin: [0.666, 0.07], warrior_siege: [0.561, 0.05], gambler_radiant: [0.254, 0.035],
+  book_mage_wind: [0.539, 0.035], book_mage_lightning: [0.97, 0.322] };
 const ultPortraitKey = (cls: string): string => `ult-portrait-${cls}`;
 /** Orientation of each final VFX sheet: 'dir' sheets are drawn pointing right and rotate with the aim. */
 /** Upright sheets whose bottom edge is the ground line (drawn standing on the impact point). */
@@ -184,7 +188,11 @@ export function preloadSkillFx(scene: Phaser.Scene, classes?: readonly string[])
 }
 function preloadSkillFxOwn(scene: Phaser.Scene, classes?: readonly string[]): void {
   const want = (cls: string) => !classes || classes.includes(cls);
-  if (ULT_PORTRAIT) for (const cls of Object.keys(ULT_GLINT)) if (want(cls) && !scene.textures.exists(ultPortraitKey(cls))) scene.load.image(ultPortraitKey(cls), `${F}/heroes/${cls}/${cls === 'book_mage' ? 'ult' : 'vs'}.webp`); // (the ultimate's portrait; the book mage's own: her VS pose with white glowing eyes and lightning — David 18 Oct 01:26)
+  if (ULT_PORTRAIT) for (const cls of ['warrior', 'samurai', 'archer', 'book_mage', 'gambler']) {
+    if (!want(cls)) continue;
+    if (!scene.textures.exists(ultPortraitKey(cls))) scene.load.image(ultPortraitKey(cls), `${F}/heroes/${cls}/${cls === 'book_mage' ? 'ult' : 'vs'}.webp`); // (the ultimate's portrait; the book mage's own: her VS pose with white glowing eyes and lightning — David 18 Oct 01:26)
+    for (const st of STYLES[cls] ?? []) if (st.body && ULT_GLINT[st.body] && !scene.textures.exists(ultPortraitKey(st.body))) scene.load.image(ultPortraitKey(st.body), `${F}/heroes/${st.body}/ult.webp`); // (each style's own)
+  }
   const L = (k: string, p: string, w: number, h = w) => { if (!scene.textures.exists(k)) scene.load.spritesheet(k, p, { frameWidth: w, frameHeight: h }); };
   // (templates — wip skills — have no art loaded yet)
   for (const s of FINAL_SKILLS) { if (VFX_ALIAS[s.id] || s.id === 'thunder_circle' || s.wip || s.style || s.cls === 'samurai' || s.cls === 'book_mage' || s.cls === 'gambler' || !want(s.cls)) continue; const big = isBig(s) ? 384 : 256, c = VFX_CELL[s.id]; L(vfxKey(s.id), `${F}/skills/${s.cls}/${s.id}/vfx.png`, c?.[0] ?? big, c?.[1] ?? big); } // (the samurai: pieces, SamuraiFx)
@@ -424,10 +432,12 @@ export class SkillFx {
     }
     if (s.cls === 'book_mage' && (s.style === 'lightning' || styleOfSwitch(s.id)?.style === 'lightning')) { // the Fulminant Conductor and the switch into him (LightningFx): the current in the fork, no spells
       this.light.cast(r);
+      if (s.slot === 7) this.ultimateStage(r); // (his ultimate: the dark, his own splash, the flash at its blow)
       return;
     }
     if (s.cls === 'book_mage' && (s.style === 'wind' || styleOfSwitch(s.id))) { // the Sailwright and the switches into him and back to the book (WindFx): the fan's cut air, no spells
       this.wind.cast(r);
+      if (s.slot === 7) this.ultimateStage(r); // (his ultimate: the dark, his own splash, the flash at its blow)
       return;
     }
     if (s.cls === 'book_mage') { // the book mage: every effect built from its pieces (MageFx)
@@ -437,15 +447,18 @@ export class SkillFx {
     }
     if (s.cls === 'warrior' && (s.style === 'siege' || styleOfSwitch(s.id))) { // the Siege Warden and the switches (WardenFx): no sword, no light
       this.ward.cast(r);
+      if (s.slot === 7) this.ultimateStage(r); // (his ultimate: the dark, his own splash, the flash at its blow)
       return;
     }
     if (s.cls === 'gambler' && (s.style === 'radiant' || styleOfSwitch(s.id))) { // the Radiant Duelist and the switches (RadiantFx): the staff's light, no cards
       this.duel.cast(r);
+      if (s.slot === 7) this.ultimateStage(r); // (his ultimate: the dark, his own splash, the flash at its blow)
       return;
     }
     if (s.cls === 'samurai' && (s.style === 'shuriken' || styleOfSwitch(s.id))) { // the Shuriken Assassin and the switches (ShurikenFx)
       if (s.telegraph) this.telegraph(r);
       this.shuri.cast(r);
+      if (s.slot === 7) this.ultimateStage(r); // (his ultimate: the dark, his own splash)
       return;
     }
     if (s.cls === 'samurai') { // the samurai: every effect built from its pieces (SamuraiFx)
@@ -1288,7 +1301,8 @@ export class SkillFx {
     this.scene.tweens.add({ targets: this.dark, fillAlpha: 0.55, duration: Math.min(220, r.timings.startup) });
     // The cut-in. David's reference (18:23): the hero's portrait full height from the side with a star glint, the fight
     // going on beside it — else the 3:1 painted banner across the screen (MapleStory 5th-job style).
-    const cutKey = CUTIN[r.skill.id], portrait = ultPortraitKey(r.skill.cls);
+    const body = r.skill.style ? styleDef(r.skill.cls, r.skill.style)?.body : undefined; // (a style's ultimate: its own fighter's splash)
+    const cutKey = CUTIN[r.skill.id], portrait = body && this.scene.textures.exists(ultPortraitKey(body)) ? ultPortraitKey(body) : ultPortraitKey(r.skill.cls);
     const out = this.cutOut(r);
     if (ULT_PORTRAIT && this.scene.textures.exists(portrait)) { this.ultPortrait(r, portrait, out); this.impact.quietUntil = this.scene.time.now + out + 160; }
     else if (cutKey && this.scene.textures.exists(cutKey)) {
@@ -1361,7 +1375,7 @@ export class SkillFx {
     const S = (X: number, Y: number) => ({ x: W / 2 + (X - W / 2) / z, y: H / 2 + (Y - H / 2) / z }); // (a screen point under the camera's zoom)
     const y0 = -dh * 0.06, xIn = right ? W - dw * 0.9 : -dw * 0.1, xFrom = right ? W + 10 : -dw - 10, drift = (right ? -1 : 1) * W * 0.02;
     const img = this.scene.add.image(0, 0, key).setOrigin(0, 0).setScrollFactor(0).setDepth(TOP + 50).setFlipX(right).setDisplaySize(dw / z, dh / z);
-    const g = ULT_GLINT[r.skill.cls] ?? [0.5, 0.2], gx = (right ? 1 - g[0] : g[0]) * dw, gy = g[1] * dh, gs = (H * 0.42) / 256;
+    const g = ULT_GLINT[key.replace('ult-portrait-', '')] ?? ULT_GLINT[r.skill.cls] ?? [0.5, 0.2], gx = (right ? 1 - g[0] : g[0]) * dw, gy = g[1] * dh, gs = (H * 0.42) / 256;
     const glint = this.scene.add.image(0, 0, this.glintTex()).setScrollFactor(0).setDepth(TOP + 51).setBlendMode(Phaser.BlendModes.ADD).setScale(0);
     let t = 0;
     const place = () => {

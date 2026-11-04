@@ -216,6 +216,20 @@ export class RadiantFx {
           this.ctx.punch(0.022, 140); this.shake(r, 100, 0.0026); });
         break;
       }
+      case 'rd_final_ovation': { // his ultimate (GPT): the Invitation — the crown a brilliant point above his head; the
+        // Impossible Vault — one great crescent round the planted staff; the Crown Descends — the jewel swelling into a solid
+        // faceted head; the Impact — one clean bounded crown-shaped arc, the spade on the floor, the room shakes
+        const at = (dx: number, dz: number) => { const c = c0(); return { x: c.x + side * dx, y: c.y - c.z - dz }; };
+        this.onClock(r, T.startup * 0.08, () => { const t = at(-25, 135); this.flash(t.x, t.y, 44, { run: r, life: 200 }); this.spade(t.x, t.y - 6, 26, { run: r, life: 260 }); this.motes(t.x, t.y, 5, { up: true, run: r }); });
+        this.onClock(r, T.startup * 0.34, () => { const h = hips(70); this.arc(h.x, h.y - 30, 230, side < 0 ? 200 : -20, { flip: side < 0, life: 220, run: r }); });
+        this.onClock(r, T.startup * 0.55, () => { const h = hips(90); this.arc(h.x + side * 20, h.y - 10, 200, side < 0 ? 160 : 20, { flip: side < 0, flipY: true, life: 200, run: r }); });
+        this.onClock(r, T.startup * 0.78, () => { const t = this.tip(r, 'rd_collect_debt'); this.spade(t.x, t.y - 80, 40, { run: r, life: Math.max(120, T.startup * 0.22), tall: 1.3 }); });
+        this.onClock(r, hitAt(0), () => { const t = this.tip(r, 'rd_curtain_call');
+          this.arc(t.x - side * 30, t.y - 40, 260, side < 0 ? 140 : 40, { flip: side < 0, flipY: true, life: 200, run: r });
+          this.spade(t.x, t.y - 30, 70, { run: r, life: 240 }); this.flash(t.x, t.y - 12, 84, { run: r }); this.ring(t.x, t.y + 2, 220, { run: r, life: 280 }); this.motes(t.x, t.y - 8, 9, { up: true, run: r });
+          this.ctx.punch(0.034, 200); this.shake(r, 220, 0.005); });
+        break;
+      }
       case 'rd_curtain_call': // the full body turn, the crown swelled into a faceted head: a great crescent down, the head's spade on the floor
         this.onClock(r, T.startup * 0.55, () => { const h = hips(70); this.arc(h.x + side * 30, h.y - 10, 190, side < 0 ? 150 : 30, { flip: side < 0, flipY: true, life: 140, run: r }); });
         this.onClock(r, hitAt(0), () => { const t = this.tip(r);
