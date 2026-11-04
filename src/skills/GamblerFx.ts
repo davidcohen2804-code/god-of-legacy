@@ -3,6 +3,7 @@
 // machine). Presentation only — gameplay never reads any of this. Every effect runs on this module's own clock, so it
 // stops with the hit-stop like the fight does.
 import { ARENA3D, ON_BODY } from '../arena3d/flag';
+import { holdFx } from './FxGovernor';
 import { hitIndex } from './FinalKit';
 import CANE from '../data/gambler-cane.json';
 import HAND from '../data/gambler-hand.json';
@@ -1348,6 +1349,7 @@ export class GamblerFx {
     const cover = s.add.image(0, 0, 'gb-beam').setTint(0xc9bcff).setAlpha(0).setOrigin(0, 0.5);
     const tipStar = s.add.image(0, 0, 'gb-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xd8d0ff).setAlpha(0);
     const all = [halo, cover, core, blade, bladeCore, tipStar];
+    all.forEach((o) => holdFx(o)); // (the lit cane is his weapon: the effects' budget never thins it over him)
     let last: number[] | null = null, seen = 0, prevT = 0;
     this.add((t) => {
       if (on && end === Infinity && t > T.startup + 200 && !on(id)) end = t + 400; // (the lit cane is over: fade out)

@@ -221,6 +221,8 @@ const BLINK_MS = 160;
 const GEAR_DEPTH: Record<GearPiece, number> = { pants: 0.001, shoes: 0.0013, top: 0.0016, topo: 0.0085, sword: 0.009 };
 
 export class ActorView {
+  /** Every fighter drawn now (the effects' budget keeps them readable through the skills' pictures: FxGovernor). */
+  static readonly live = new Set<ActorView>();
   /** The arena's depth (set by the scene, null elsewhere): a body further back on the floor is drawn a little smaller,
    *  one nearer a little bigger — the stage reads as a room, not a strip (presentation only: hitboxes are untouched). */
   static depthScale: ((y: number) => number) | null = null;
@@ -334,6 +336,7 @@ export class ActorView {
     this.sprite = scene.add.sprite(x, y, '__DEFAULT');
     this.weapon = scene.add.sprite(x, y, '__DEFAULT').setVisible(false);
     this.weaponGlow = scene.add.sprite(x, y, '__DEFAULT').setVisible(false).setBlendMode(Phaser.BlendModes.ADD);
+    ActorView.live.add(this);
   }
 
   // ---- ready heroes standing still: the cape / robe behind the body sways (a displacement map built from the drawing:
@@ -682,6 +685,7 @@ export class ActorView {
   }
 
   destroy(): void {
+    ActorView.live.delete(this);
     for (const t of this.trails) t.g.destroy(); this.trails = [];
     this.blendGhost?.destroy();
     this.sprite.destroy(); this.weapon.destroy(); this.weaponGlow.destroy(); this.shadow.destroy(); this.ring.destroy();

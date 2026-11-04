@@ -663,7 +663,7 @@ export class Fx3D {
     if (flipReady(this, IMPACT_SHEET)) { // (David 18 Oct 20:49, "not professional": the white ball and its shell were drawn in code — a painted burst now, tinted to the blow, its white-hot heart kept, the struck one seen through it)
       // (nothing of it under the planks: a burst bigger than the blow's height hung under the floor and lay over it toward the
       //  eye as a white splash with rays; a blow at the floor — a slam — erupts out of the planks)
-      this.flip(IMPACT_SHEET, at.z < r ? { x: at.x, y: at.y, z: Math.max(at.z, r * 0.3) } : at, { grid: [4, 4], fps: 38, w: r * 4.4, mode: 'up', tint: color, core: 0.95, coreMs: 90, gain: 1.1, through: 0.65, glow: 0.2, rot: (Math.random() - 0.5) * 16, flipX: Math.random() < 0.5, ground: true });
+      this.flip(IMPACT_SHEET, at.z < r ? { x: at.x, y: at.y, z: Math.max(at.z, r * 0.3) } : at, { grid: [4, 4], fps: 38, w: r * 4.4, mode: 'up', tint: color, core: 0.95, coreMs: 90, gain: 1.1, through: 0.42, glow: 0.2, rot: (Math.random() - 0.5) * 16, flipX: Math.random() < 0.5, ground: true });
     } else { // (the sheet not in yet: the code-drawn flash)
       this.orb(at, 0xffffff, { r0: r * 0.6, r1: r, ms: 95, a: 0.85, i: 1.5 }); // (a flash, never a white-out: gone in ~6 frames)
       this.later(40, () => this.dome(at.x, at.y, color, { r: r * 1.7, ms: 280, a: 0.55, i: 1.5, hold: 1, paint: o.paint })); // (its colour bursts out as a shell, its rim burning: the blow seen through it)
@@ -918,7 +918,7 @@ export class Fx3D {
     const L = this.lastImpact, laid = this.clock - L.t < 260 && Math.hypot(L.x - at.x, L.y - at.y) < 140;
     if (main && !laid && !rc.noImpact) this.impact(at, col, { r: [46, 62, 90][big], embers: [8, 12, 20][big], cracks: at.z < 70 && react !== 'launch' && react !== 'float', paint: rc.paint });
     if (rc.own || !main) return;
-    if (big === 2) { this.pillar(at.x, at.y, col, { h: 640, r: 48, ms: 640 }); this.crack(at.x, at.y, col, { r: 150, chunks: 16 }); return; }
+    if (big === 2) { this.pillar(at.x, at.y, col, { h: 600, r: 44, ms: 540, i: 1.05 }); this.crack(at.x, at.y, col, { r: 150, chunks: 16 }); return; } // (an ultimate's last blow: one golden column, its white heart softer and shorter — at 640 / 1.35 / 640 ms it burnt the struck one out of the picture, GPT's review, DFO stage 1)
     if (react === 'launch') this.pillar(at.x, at.y, col, { h: 360, r: 24, ms: 380, core: false });
   }
   /** Where and when the last impact() went off (a recipe's own main hit: the shared one is not laid over it). */

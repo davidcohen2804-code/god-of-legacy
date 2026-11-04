@@ -17,6 +17,8 @@ import { MageFx, MAGE_KIT, MAGE_KIT_URL, MAGE_SHEETS } from './MageFx';
 import { ArcherFx, ARCHER_KIT, ARCHER_KIT_URL, ARCHER_FLIPS } from './ArcherFx';
 import { SKILL_BLOCKERS, WORLD_OBJECTS, clearLine } from '../world/WorldGeometry';
 import { ImpactFx } from './ImpactFx';
+import { FxGovernor, markFxKey } from './FxGovernor';
+import { ActorView } from '../game/ActorView';
 
 const F = 'assets/final';
 /** Skills that borrow another skill's VFX sheet (no art of their own). */
@@ -24,6 +26,10 @@ const VFX_ALIAS: Record<string, string> = { radiant_blade: 'war_cry', iron_oath:
 const vfxKey = (id: string) => `vfx-${VFX_ALIAS[id] ?? id}`;
 const isBig = (s: FinalSkill) => s.slot === 6 || s.slot === 7;
 const TOP = 100000;
+/** The world's darkening and flashes (big skills): over the floor, under everyone — the room darkens / lights up round
+ *  the fight, the fighters and the skills' pictures stay as bright as they are (GPT's rulebook, DFO stage 1: over the
+ *  whole picture they hid the fighters — Dragon Eclipse, Rising Sun, the ultimates' staging). */
+const DARK_DEPTH = 11; // (the floor marks are 2–10)
 /** Damage numbers, as the MapleStory client draws them: a number appears at once (no pop), rises at one steady speed
  *  (0.25 px every 8 ms step there), stays solid for 250 ms, then fades out over 500 ms. The lines of a column sit one row
  *  apart (30 px after a normal line, 36 after a critical one there): normal lines never touch, a bigger critical may. The
@@ -164,6 +170,13 @@ const CHARGE: Record<string, [number, number, number]> = {
 
 /** Skill effects of the given classes (all classes when omitted: the PvP arena can hold any class); shared sheets always. */
 export function preloadSkillFx(scene: Phaser.Scene, classes?: readonly string[]): void {
+  // every key asked for here is an effect's picture: the effects' budget knows them by it (FxGovernor)
+  const ld = scene.load as unknown as Record<string, (...a: unknown[]) => unknown>, ms = ['image', 'spritesheet', 'atlas', 'multiatlas'] as const;
+  const orig = ms.map((m) => ld[m]);
+  ms.forEach((m, i) => { ld[m] = function (this: unknown, key: unknown, ...rest: unknown[]) { if (typeof key === 'string') markFxKey(key); return orig[i].call(this, key, ...rest); }; });
+  try { preloadSkillFxOwn(scene, classes); } finally { ms.forEach((m, i) => { ld[m] = orig[i]; }); }
+}
+function preloadSkillFxOwn(scene: Phaser.Scene, classes?: readonly string[]): void {
   const want = (cls: string) => !classes || classes.includes(cls);
   if (ULT_PORTRAIT) for (const cls of Object.keys(ULT_GLINT)) if (want(cls) && !scene.textures.exists(ultPortraitKey(cls))) scene.load.image(ultPortraitKey(cls), `${F}/heroes/${cls}/${cls === 'book_mage' ? 'ult' : 'vs'}.webp`); // (the ultimate's portrait; the book mage's own: her VS pose with white glowing eyes and lightning — David 18 Oct 01:26)
   const L = (k: string, p: string, w: number, h = w) => { if (!scene.textures.exists(k)) scene.load.spritesheet(k, p, { frameWidth: w, frameHeight: h }); };
@@ -313,7 +326,10 @@ export class SkillFx {
   /** The weight of the main hits on the whole picture: bent air, a split of colour, an ultimate's zoom blur. */
   readonly impact: ImpactFx;
 
+  /** The effects' budget: the fighters read through every picture (put behind them / thinned before each frame is drawn). */
+  readonly gov: FxGovernor;
   constructor(private scene: Phaser.Scene, rt: SkillRuntime, private casterPos: (id: string) => V3 | null, private cam?: Phaser.Cameras.Scene2D.Camera) {
+    this.gov = new FxGovernor(scene);
     this.sam = new SamuraiFx({
       scene, casterPos: (id) => this.casterPos(id), cam: () => this.cam ?? this.scene.cameras.main, hand: (id) => this.handPos?.(id) ?? null,
       callout: (at, text, color, row) => this.callout(at, text, color, row), punch: (a, ms) => this.punch(a, ms), darken: (ms, a) => this.darken(ms, a), ultimateStage: (r) => this.ultimateStage(r),
@@ -1221,8 +1237,8 @@ export class SkillFx {
   /** Ultimate staging: brief local darkening around the caster (never the whole UI), class glint. */
   private ultimateStage(r: CastRun): void {
     const cam = this.cam ?? this.scene.cameras.main;
-    if (!this.dark) this.dark = this.scene.add.rectangle(0, 0, 4000, 3000, 0x05030a, 0).setOrigin(0, 0).setDepth(TOP - 10).setScrollFactor(1);
-    this.dark.setPosition(cam.worldView.x - 200, cam.worldView.y - 200);
+    if (!this.dark) this.dark = this.scene.add.rectangle(0, 0, 4000, 3000, 0x05030a, 0).setOrigin(0, 0).setDepth(DARK_DEPTH).setScrollFactor(1);
+    this.dark.setPosition(cam.worldView.x - 200, cam.worldView.y - 200).setDepth(this.darkDepth());
     const arch = r.skill.cls === 'archer';
     this.darkLeft = arch ? r.timings.startup + 260 : r.timings.startup + r.timings.active + 160; // archer: the dark lifts as the rain lands (the storm is seen in full colour)
     this.scene.tweens.add({ targets: this.dark, fillAlpha: 0.55, duration: Math.min(220, r.timings.startup) });
@@ -1667,6 +1683,7 @@ export class SkillFx {
 
   update(ms: number, projectiles: Projectile[]): void {
     const step = this.hitStopLeft > 0 ? 0 : ms;
+    this.gov.tick(step); // (the budget's clock: the lights' tails hold through a hit-stop, as the effects do)
     this.stepHawks(ms);
     this.sam.update(step, ms); // (the real time too: his last skill's leftovers fade through a hit-stop)
     this.mage.update(step, performance.now());
@@ -1733,6 +1750,7 @@ export class SkillFx {
       return true;
     });
     if (this.dark && this.darkLeft > 0) {
+      this.dark.setDepth(this.darkDepth());
       this.darkLeft -= ms;
       if (this.darkLeft <= 0) this.scene.tweens.add({ targets: this.dark, fillAlpha: 0, duration: 200 });
     }
@@ -2534,13 +2552,22 @@ export class SkillFx {
   /** A soft additive flash of light over the whole view. */
   screenFlash(color: number, alpha: number, ms: number): void {
     const cam = this.cam ?? this.scene.cameras.main, v = cam.worldView;
-    const f = this.scene.add.rectangle(v.x - 100, v.y - 100, v.width + 200, v.height + 200, color, alpha).setOrigin(0, 0).setDepth(TOP + 40).setBlendMode(Phaser.BlendModes.ADD);
-    this.scene.tweens.add({ targets: f, alpha: 0, duration: ms, ease: 'Quad.easeOut', onComplete: () => f.destroy() });
+    // (the rulebook — no full-screen flash over the fight: the room lights up behind the fighters, a glare at most;
+    //  over them it washed the struck one out — GPT's review, DFO stage 1)
+    const f = this.scene.add.rectangle(v.x - 100, v.y - 100, v.width + 200, v.height + 200, color, Math.min(alpha, 0.16)).setOrigin(0, 0).setDepth(this.darkDepth() + 0.5).setBlendMode(Phaser.BlendModes.ADD);
+    this.scene.tweens.add({ targets: f, alpha: 0, duration: Math.min(ms, 160), ease: 'Quad.easeOut', onComplete: () => f.destroy() });
+  }
+  /** Where the darkening / a flash lies: just under the fighter furthest back (and his shadow) — what stands behind
+   *  the fight darkens, the fighters and every effect drawn with them do not; never under the floor marks' layer. */
+  private darkDepth(): number {
+    let m = Infinity;
+    for (const v of ActorView.live) { const b = v.sprite; if (b.scene === this.scene && b.active && b.visible) m = Math.min(m, b.depth); }
+    return Number.isFinite(m) ? Math.max(DARK_DEPTH, m - 2) : DARK_DEPTH;
   }
   darken(ms: number, alpha: number): void {
     const cam = this.cam ?? this.scene.cameras.main;
-    if (!this.dark) this.dark = this.scene.add.rectangle(0, 0, 4000, 3000, 0x05030a, 0).setOrigin(0, 0).setDepth(TOP - 10);
-    this.dark.setPosition(cam.worldView.x - 200, cam.worldView.y - 200);
+    if (!this.dark) this.dark = this.scene.add.rectangle(0, 0, 4000, 3000, 0x05030a, 0).setOrigin(0, 0).setDepth(DARK_DEPTH);
+    this.dark.setPosition(cam.worldView.x - 200, cam.worldView.y - 200).setDepth(this.darkDepth());
     this.darkLeft = Math.max(this.darkLeft, ms);
     this.scene.tweens.add({ targets: this.dark, fillAlpha: alpha, duration: 200 });
   }

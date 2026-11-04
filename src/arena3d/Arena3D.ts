@@ -104,6 +104,16 @@ const mix = (a: number, b: number, t: number): number => {
   return (c(16) << 16) | (c(8) << 8) | c(0);
 };
 const r01 = Math.random;
+/** The fighters read through the skills' 3D pieces in front of them (GPT's combat-art rulebook, DFO stage 1 — David
+ *  4 Nov 05:45): after those pieces are drawn, each fighter's own silhouette takes back this share of their light and
+ *  cover over his body — the burst, the arc, the column still read whole round him, he reads inside it. */
+const SEE_THROUGH = 0.7;
+/** ?nofxgov: the effects drawn as they were, no budget (tests). */
+const NO_BUDGET = typeof location !== 'undefined' && new URLSearchParams(location.search).has('nofxgov');
+const ERASE_VS = `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
+const ERASE_FS = `uniform sampler2D map; uniform vec4 uRect; uniform float uK; uniform float uFlip; varying vec2 vUv;
+void main() { float u = mix(vUv.x, 1.0 - vUv.x, uFlip); vec2 st = vec2(mix(uRect.x, uRect.z, u), mix(uRect.w, uRect.y, vUv.y));
+  float a = texture2D(map, st).a; a = smoothstep(0.08, 0.6, a) * uK; gl_FragColor = vec4(0.0, 0.0, 0.0, a); }`;
 
 /** A soft round sprite (white, fading to the edge) for the particles: `core` keeps a solid middle (chips, embers). */
 function dotTexture(core: number): THREE.Texture {
@@ -125,6 +135,14 @@ export class Arena3D {
   private fg: Phaser.GameObjects.Image;
   /** The skills' glow in front of the fighters (Fx3D), added over the picture. */
   private glow3 = new THREE.Scene();
+  /** The fighters' silhouettes, each a quad cut to its body's frame: drawn over the pieces in front of them to take part
+   *  of them back (SEE_THROUGH). Screen px, y down (an orthographic camera over the picture). */
+  private eraseScene = new THREE.Scene();
+  private eraseCam = new THREE.OrthographicCamera(0, 1, 0, -1, -10, 10);
+  private erasers: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>[] = [];
+  private eraseGeo = new THREE.PlaneGeometry(1, 1);
+  /** The room's own in the front layer (its railing, the blows' dust and chips, its lights): never taken back. */
+  private roomFront = new Set<THREE.Object3D>();
   private fxImg: Phaser.GameObjects.Image;
   /** 3D layers of their own (the 3D hero test, ?hero3d=1): each drawn alone into its own picture, which is sorted
    *  among the 2D bodies at its depth (as a painted fighter is), under the railing. */
@@ -222,6 +240,7 @@ export class Arena3D {
     // the blows on the whole picture land where this camera shows them
     ImpactFx.screenOf = (x, y, z) => this.project(x, y, z);
     ImpactFx.drawnAt = (x, wy) => this.drawnAt(x, wy);
+    for (const o of this.front3.children) this.roomFront.add(o); // (everything there now is the room's: the skills' pieces come later)
     this.fx.warm(this.renderer);
     scene.events.on(Phaser.Scenes.Events.PRE_RENDER, this.apply, this);
     scene.events.on(Phaser.Scenes.Events.RENDER, this.restore, this);
@@ -610,11 +629,25 @@ export class Arena3D {
     if (this.composer) this.composer.render(); else this.renderer.render(this.scene3, this.camera);
     this.scene.textures.get('arena3d-bg').source[0].update(); // (uploaded now: the next render draws over the canvas)
     this.renderer.setClearColor(0x000000, 0);
-    this.renderer.render(this.front3, this.camera);
+    const cut = this.prepareErasers(); // (the fighters' silhouettes where the picture shows them this frame)
+    const fxFront = cut ? this.front3.children.filter((o) => o.visible && !this.roomFront.has(o)) : [];
+    if (fxFront.length) { // the skills' solid pieces in front first, the fighters taken out of them, then the railing over all
+      const room = [...this.roomFront].filter((o) => o.visible && !(o as THREE.Light).isLight);
+      for (const o of room) o.visible = false;
+      this.renderer.render(this.front3, this.camera);
+      this.drawErasers();
+      for (const o of room) o.visible = true;
+      for (const o of fxFront) o.visible = false;
+      const ac = this.renderer.autoClear; this.renderer.autoClear = false; this.renderer.clearDepth();
+      this.renderer.render(this.front3, this.camera);
+      this.renderer.autoClear = ac;
+      for (const o of fxFront) o.visible = true;
+    } else this.renderer.render(this.front3, this.camera);
     this.scene.textures.get('arena3d-fg').source[0].update();
-    // the skills' glow in front of the fighters: drawn alone, added over the picture (none drawn when there is none)
+    // the skills' glow in front of the fighters: drawn alone, added over the picture (none drawn when there is none);
+    // the fighters read through it (their silhouettes take part of it back)
     const glow = this.glow3.children.some((o) => o.visible);
-    if (glow) { this.renderer.render(this.glow3, this.camera); this.scene.textures.get('arena3d-fx').source[0].update(); }
+    if (glow) { this.renderer.render(this.glow3, this.camera); if (cut) this.drawErasers(); this.scene.textures.get('arena3d-fx').source[0].update(); }
     this.fxImg.setVisible(glow);
     for (const l of this.extra) { l.before?.(); if (!l.img.visible) continue; this.renderer.setClearColor(0x000000, 0); this.renderer.render(l.scene, this.camera); this.scene.textures.get(l.key).source[0].update(); } // (a layer not shown is not drawn: a body waiting in the pool, the doubles gone)
     // every world object: placed where the 3D camera sees its floor point, scaled by its depth
@@ -695,6 +728,66 @@ export class Arena3D {
     for (const [b, e] of this.shades) if (!seen.has(b)) { e.c.destroy(); e.dark.destroy(); e.lit.destroy(); this.shades.delete(b); }
   }
 
+  /** Each fighter's silhouette placed where this frame shows his body (the same placement as `apply` gives it: his
+   *  floor point through the 3D camera, scaled by its depth). Returns whether any is shown. */
+  private prepareErasers(): boolean {
+    this.eraseFrame++;
+    if (NO_BUDGET) return false;
+    const W = this.scene.scale.width, H = this.scene.scale.height, cam = this.eraseCam;
+    if (cam.right !== W || cam.bottom !== -H) { cam.left = 0; cam.right = W; cam.top = 0; cam.bottom = -H; cam.updateProjectionMatrix(); }
+    let n = 0;
+    for (const { body } of this.bodies) {
+      if (!body.active || !body.visible || body.alpha < 0.2 || Math.abs(body.rotation) > 0.02) continue;
+      const f = body.frame, tex = f ? this.eraseTex(body.texture.key, f) : null;
+      if (!f || !tex || !f.source.width) continue;
+      const wy = body.y, dp = body.depth;
+      const floor = dp > wy - 2 && dp - wy < 450 && Math.abs(dp) > 1 && dp < 60000 ? dp : wy;
+      const P = this.project(body.x, floor, floor - wy);
+      const dw = f.realWidth * Math.abs(body.scaleX) * P.k, dh = f.realHeight * Math.abs(body.scaleY) * P.k;
+      if (dw < 4 || dh < 4) continue;
+      let m = this.erasers[n];
+      if (!m) {
+        m = new THREE.Mesh(this.eraseGeo, new THREE.ShaderMaterial({
+          uniforms: { map: { value: tex }, uRect: { value: new THREE.Vector4() }, uK: { value: SEE_THROUGH }, uFlip: { value: 0 } },
+          vertexShader: ERASE_VS, fragmentShader: ERASE_FS, transparent: true, depthTest: false, depthWrite: false,
+          blending: THREE.CustomBlending, blendEquation: THREE.AddEquation, blendSrc: THREE.ZeroFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
+          blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneMinusSrcAlphaFactor,
+        }));
+        m.frustumCulled = false; this.erasers.push(m); this.eraseScene.add(m);
+      }
+      const u = m.material.uniforms, sw = f.source.width, sh = f.source.height, flip = body.flipX;
+      u.map.value = tex;
+      (u.uRect.value as THREE.Vector4).set(f.cutX / sw, 1 - f.cutY / sh, (f.cutX + f.cutWidth) / sw, 1 - (f.cutY + f.cutHeight) / sh);
+      u.uFlip.value = flip ? 1 : 0;
+      // (a flipped sprite mirrors round its origin: the picture's centre moves to the other side of it)
+      const cx = P.sx + (flip ? body.originX - 0.5 : 0.5 - body.originX) * dw, cy = P.sy + (0.5 - body.originY) * dh;
+      m.position.set(cx, -cy, 0); m.scale.set(dw, dh, 1); m.visible = true;
+      n++;
+    }
+    for (let i = n; i < this.erasers.length; i++) this.erasers[i].visible = false;
+    return n > 0;
+  }
+
+  /** A body's picture (its frame's own source image) for the silhouettes, cached; a drawn canvas (a dressed body built
+   *  over a few frames) is read again now and then. */
+  private eraseTexs = new Map<string, { t: THREE.Texture; canvas: boolean; at: number }>();
+  private eraseFrame = 0;
+  private eraseTex(key: string, f: Phaser.Textures.Frame): THREE.Texture | null {
+    const k = `${key}#${f.sourceIndex}`, img = f.source.image as HTMLImageElement | HTMLCanvasElement | undefined;
+    if (!img || !(img instanceof HTMLImageElement || img instanceof HTMLCanvasElement)) return null;
+    let e = this.eraseTexs.get(k);
+    if (!e) { const t = new THREE.Texture(img); t.needsUpdate = true; e = { t, canvas: img instanceof HTMLCanvasElement, at: this.eraseFrame }; this.eraseTexs.set(k, e); }
+    else if (e.canvas && this.eraseFrame - e.at > 45) { e.t.needsUpdate = true; e.at = this.eraseFrame; }
+    return e.t;
+  }
+
+  /** The fighters' silhouettes over what was just drawn: each takes back SEE_THROUGH of it (colour and cover). */
+  private drawErasers(): void {
+    const ac = this.renderer.autoClear; this.renderer.autoClear = false;
+    this.renderer.render(this.eraseScene, this.eraseCam);
+    this.renderer.autoClear = ac;
+  }
+
   private restore(): void {
     for (let i = this.saved.length - 1; i >= 0; i--) { const [o, x, y, sx, sy] = this.saved[i]; o.x = x; o.y = y; o.scaleX = sx; o.scaleY = sy; }
     this.saved.length = 0;
@@ -718,6 +811,7 @@ export class Arena3D {
     this.scene.events.off(Phaser.Scenes.Events.RENDER, this.restore, this);
     for (const b of [this.dustB, this.dustF, this.chipB, this.chipF, this.glowB, this.glowF]) b?.dispose();
     this.fx?.dispose();
+    for (const m of this.erasers) m.material.dispose(); this.eraseGeo.dispose(); for (const e of this.eraseTexs.values()) e.t.dispose(); this.eraseTexs.clear();
     for (const t of this.gameTex.values()) t.dispose();
     this.gameTex.clear();
     for (const e of this.shades.values()) { e.c.destroy(); e.dark.destroy(); e.lit.destroy(); }

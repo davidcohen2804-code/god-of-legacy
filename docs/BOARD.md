@@ -31,6 +31,45 @@ The DFO PvP arena dynamics chat is the PvP director: it sets the bar per class, 
 Take the whole PvP up a level in everything — dynamics, skills, effects, hit frames, movement, camera, feel: every hit felt, every class unique and amazing, big moments that look like a cinematic, and reasons to keep playing.
 
 ## Open items
+### DFO (4 Nov, David 05:45) — the skills' pass, stage 1: the fighters read through every skill (GPT's combat-art rulebook)
+- David (4 Nov 03:20): "the skills can be improved significantly — check with GPT what to improve visually and in feel".
+  Every skill of the five heroes was filmed in PVP 3D and reviewed with GPT as art director; David approved the plan
+  (05:45): **first every existing skill readable (this stage), then the new switchable styles — the Archer first
+  (switching styles mid-fight + the Sniper).** The styles' designs: the "סגנונות God of Legacy" page David approved.
+- **The effects' budget (`src/skills/FxGovernor.ts`)** — before each frame is drawn, presentation only, put back right
+  after the frame (no effect's own code, tween or depth ever sees it); the same in the open game and PvP:
+  - a fighter may be covered by effects drawn over him up to **30%** (each picture's density × its overlap with his drawn
+    box). Past that, the big masses (a burst, a cloud, a column: ≥ 45% of his box and dense) go just behind him; what is
+    still over in front (trails, beams) is thinned (keeping ≥ 35% of its opacity);
+  - near-white added light is held to **2.2% of the screen**;
+  - **one peak, then a fast decay:** a light still fading 240 ms after it fell from its peak (the effects' clock: a
+    hit-stop holds it) goes out faster (× e^(−t/150 ms)); a light that settles and holds keeps its level;
+  - what stays standing (alive 1.5 s: a zone, a planted trap, a summon) may cover a fighter only **15%** — past it, it lies
+    behind him and still reads round him;
+  - what is the fighter himself is never touched: pictures on his body (`ON_BODY`) and his weapon's own light —
+    **`holdFx(o)`** (the Gambler's lit cane is marked);
+  - `?nofxgov` draws everything as it was (tests).
+- **PVP 3D:** the skills' 3D pieces in front of the fighters (Fx3D's solid and glow layers) give back 70% over each
+  fighter's silhouette (`Arena3D`, SEE_THROUGH): the burst, the arc, the column read whole round him, he reads inside it.
+  The shared main impact is seen through more (through 0.65 → 0.42); an ultimate's last-blow pillar softer and shorter
+  (h 640 → 600, r 48 → 44, 640 → 540 ms, i 1.05).
+- **Darkening and flashes:** a skill's darkening and every screen flash lie just under the fighter furthest back (over the
+  floor marks): the room darkens / lights up round the fight, the fighters and their effects keep their own light. A
+  screen flash is at most 0.16 and 160 ms.
+- Measured — every skill of every hero cast on the knight, the share of each fighter hidden frame by frame, worst frame
+  before → after: Warrior — Judgment Blade 1.99 → 0.30, Lion's Maw 1.47 → 0.30,
+  Titan's Verdict 1.19 → 0.31, Impaling Rush 1.09 → 0.30 · Samurai — Hundred Cuts 3.93 → 0.31 (the samurai himself 0.44 in
+  8 frames of the storm: many small cuts, thinned to their floor), Falcon Dive 1.55 → 0.31, Dragon Eclipse 1.25 → 0.28 ·
+  Archer — Thunder Rain 2.52 → 0.30, Hunter's Rain 1.95 → 0.30, Vine Mine 1.64 → 0.30, Eagle Tide 1.41 → 0.30 · Gambler —
+  Dice Bomb 2.23 → 0.37, Riffle Shuffle 1.51 → 0.39, Rotor Staff 1.46 → 0.34, Jackpot 1.08 → 0.38 (the cards' many small
+  pieces, thinned to their floor) · Book Mage — her big moments are the room's 3D pieces: the silhouettes above. Lingering
+  light after the blow cut (Judgment Blade's white 1.8% → 1.6% of the screen at its peak, 1.5% → 1.2% through its tail);
+  what stays standing lies behind the fighters (after the skill a fighter stays covered: Lion's Maw's lion 768 → 468 ms,
+  Vine Mine 1002 → 284 ms). Filmed before / after in PVP 3D vs the knight (a frame of each in the chat for David).
+- **Class chats:** nothing to redo — every effect, old or new, is under the same budget by itself. Mark a picture that
+  is your hero's own (held in his hand, worn on him) with `holdFx(o)` or `ON_BODY`, so it is never thinned. Samurai: the
+  lit body copies Dragon Eclipse draws over its darkness (`eclipseRims`) are no longer needed — the darkness lies under
+  the fighters now; keep the crimson rim if you like it, drop the copy when you next touch the skill.
 ### DFO (2 Nov, David 15:39–15:50) — back to the five original fighters; the fight slowed
 - David saw the base-character + items lab and stopped it ("looks very bad"): the game stays with the five original painted
   fighters (Warrior, Samurai, Book Mage, Archer, Gambler) — no building a character: choose a fighter and play. The rebuild
