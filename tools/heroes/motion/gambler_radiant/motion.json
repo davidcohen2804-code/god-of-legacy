@@ -1,0 +1,151 @@
+{
+  "canvas": [
+    768,
+    768
+  ],
+  "ground_y": 700,
+  "hip_x": 384,
+  "animations": {
+    "idle": {
+      "frames": 5,
+      "source": "gpt sprite sheet idle_sheet_2.webp (figures 1,2,3,4,5; PixVerse out of credits)",
+      "loop": true,
+      "fps": 6
+    },
+    "walk": {
+      "frames": 8,
+      "source": "gpt sprite sheet walk_sheet.webp (figures 1,2,3,4,5,6,7,8; PixVerse out of credits)",
+      "loop": true,
+      "fps": 10
+    },
+    "run": {
+      "frames": 6,
+      "source": "gpt sprite sheet run_sheet.webp (figures 1,2,3,4,5,6; PixVerse out of credits)",
+      "loop": true,
+      "fps": 12
+    },
+    "jump": {
+      "frames": 4,
+      "source": "gpt sprite sheet jump_sheet.webp (figures 1,2,4,5; PixVerse out of credits)"
+    },
+    "launched": {
+      "frames": 6,
+      "source": "gpt sprite sheet down_sheet2.webp (figures 2,2,3,3,3,3; PixVerse out of credits)",
+      "loop": false,
+      "frame_ms": [
+        60,
+        60,
+        70,
+        70,
+        80,
+        80
+      ]
+    },
+    "down_impact": {
+      "frames": 2,
+      "source": "gpt sprite sheet down_sheet2.webp (figures 4,4; PixVerse out of credits)",
+      "loop": false,
+      "frame_ms": [
+        60,
+        80
+      ]
+    },
+    "down": {
+      "frames": 2,
+      "source": "gpt sprite sheet down_sheet2.webp (figures 4,4; PixVerse out of credits)",
+      "loop": false,
+      "frame_ms": [
+        400,
+        400
+      ]
+    },
+    "getup": {
+      "frames": 7,
+      "source": "gpt sprite sheet down_sheet2.webp (figures 4,5,5,5,6,6,6; PixVerse out of credits)",
+      "loop": false,
+      "frame_ms": [
+        90,
+        90,
+        90,
+        90,
+        90,
+        90,
+        90
+      ]
+    },
+    "rd_knock": {
+      "frames": 1,
+      "source": "gpt still (his look attached, a new chat each)"
+    },
+    "rd_measure": {
+      "frames": 1,
+      "source": "gpt still (his look attached, a new chat each)"
+    },
+    "rd_spindle": {
+      "frames": 1,
+      "source": "gpt still (his look attached, a new chat each)"
+    },
+    "rd_bow": {
+      "frames": 1,
+      "source": "gpt still (his look attached, a new chat each)"
+    },
+    "rd_raise": {
+      "frames": 1,
+      "source": "gpt still (his look attached, a new chat each)"
+    },
+    "rd_turn": {
+      "frames": 1,
+      "source": "gpt still (his look attached, a new chat each)"
+    },
+    "rd_vault": {
+      "frames": 1,
+      "source": "gpt still (his look attached, a new chat each)"
+    },
+    "rd_drive": {
+      "frames": 1,
+      "source": "gpt still (his look attached, a new chat each)"
+    },
+    "rd_allin": {
+      "frames": 1,
+      "source": "gpt still (his look attached, a new chat each)"
+    },
+    "rd_curtain": {
+      "frames": 1,
+      "source": "gpt still (his look attached, a new chat each)"
+    },
+    "air_shot": {
+      "frames": 1,
+      "source": "gpt still (his look attached, a new chat each)"
+    },
+    "backstep": {
+      "frames": 1,
+      "source": "gpt still (his look attached, a new chat each)"
+    },
+    "stance": {
+      "frames": 1,
+      "loop": false,
+      "frame_ms": [
+        500
+      ],
+      "source": "gpt still (his look attached, a new chat each): his two-handed ready stance"
+    },
+    "hurt": {
+      "frames": 1,
+      "loop": false,
+      "frame_ms": [
+        300
+      ],
+      "source": "gpt still (his look attached, a new chat each)"
+    },
+    "rd_debt": {
+      "frames": 2,
+      "source": "gpt stills: rd_vault \u2192 rd_drive (Collect the Debt)"
+    },
+    "rd_bet": {
+      "frames": 2,
+      "source": "gpt stills: stance \u2192 rd_allin (All In: the grip turned, then the thrust)"
+    }
+  },
+  "refs": "scratchpad rd_art/gpt (GPT chats in scratchpad pvp/gpt_chats.md)",
+  "note": "the Radiant Duelist (the Gambler's second style): every move from GPT (PixVerse had no credits) \u2014 his stills one new chat each with his approved look attached, his idle, walk, run, jump and knockdown from GPT sprite sheets; the stills scaled by his head x1.10 (GPT drew them with a bigger head than his look), the hips and feet from the body without the staff (rd_still.py / rd_sheet.py)"
+}

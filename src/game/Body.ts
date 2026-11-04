@@ -593,7 +593,8 @@ const HERO_FIT: Record<string, number> = { warrior: 0.907, samurai: 1.049, arche
   archer_sniper: 1.051, // (the Deadeye Sniper's body: her eyes 10 canvas px higher on the idle than the bow archer's — the same woman, the same size)
   archer_cannon: 1.051, // (the Recoil Cannoneer: cut at the sniper's standing height, 509 canvas px — the same woman again)
   samurai_assassin: 1.12, // (the Shuriken Assassin: his eyes 120 px over his feet like the katana samurai's — the same man, out of his armour)
-  warrior_siege: 1.04 }; // (the Siege Warden: his eyes at the longsword warrior's height — 173 of 190 atlas px against 202 of 194 at 0.907)
+  warrior_siege: 1.04, // (the Siege Warden: his eyes at the longsword warrior's height — 173 of 190 atlas px against 202 of 194 at 0.907)
+  gambler_radiant: 1.04 }; // (the Radiant Duelist: the card gambler's size — his hat to boots 504 canvas px against 509, his idle 203 atlas px tall with the staff over his hat against 184)
 /** A hero drawing's scale in the world (atlas px to world px). */
 const heroScale = (cls: string): number => (HERO_HEIGHT / HEROES[cls].h) * (HERO_FIT[cls] ?? 1);
 /** One body size from a step into a skill (David 2 Nov 23:47: "the characters must not get smaller in a move or a skill —
@@ -776,6 +777,19 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
     'cut_the_deck#3': { act: 'cut_rise', st: [0, 1], ac: [2, 3], rc: [4] },
     card_swap: { act: 'card_swap', st: [1, 2], ac: [3, 4], rc: [5] }, // (his own: the card flicked, the low dash to it, the stop)
     jackpot: { act: 'jackpot', st: [0, 0, 1, 1, 2, 3], ac: [4, 4], rc: [5] },
+    // the Radiant Duelist (Styles.ts), his own painted body (tools/heroes/motion/gambler_radiant: GPT stills, his look attached in a
+    // new chat each): one held pose a beat — the staff's line drawn
+    rd_four_beat: { act: 'rd_knock', st: [0], ac: [0], rc: [0] }, // Knock: the ferrule jabbed out from the middle grip
+    'rd_four_beat#1': { act: 'rd_measure', st: [0], ac: [0], rc: [0] }, // Measure: the fencer's lunge, the crown driven straight in
+    'rd_four_beat#2': { act: 'rd_spindle', st: [0], ac: [0], rc: [0] }, // Spindle: the staff spun level round his hips
+    'rd_four_beat#3': { act: 'rd_bow', st: [0], ac: [0], rc: [0] }, // Bow: the staff levered up overhead
+    rd_opening_bid: { act: 'rd_measure', st: [0], ac: [0], rc: [0] }, // the foot slide, the crown snapped straight out
+    rd_crown_raise: { act: 'rd_raise', st: [0], ac: [0], rc: [0] }, // the ferrule ripped up across his body
+    rd_royal_turn: { act: 'rd_turn', st: [0], ac: [0], rc: [0] }, // the pivot, his back half turned, the staff braced across it
+    rd_collect_debt: { act: 'rd_debt', st: [0], ac: [1], rc: [1] }, // levered up the planted staff, then the crown driven down
+    rd_all_in: { act: 'rd_bet', st: [0], ac: [1], rc: [1] }, // the grip turned in his ready stance, then the straight thrust
+    rd_curtain_call: { act: 'rd_curtain', st: [0], ac: [0], rc: [0] }, // the full body turn, the crown swelled, brought down
+    style_gambler_radiant: { act: 'stance', st: [0], ac: [0], rc: [0] }, style_gambler_card: { act: 'stance', st: [0], ac: [0], rc: [0] }, // the switch
   },
   archer: {
     quick_shot: { act: 'double_shot', st: [0, 1], ac: [2, 3, 4, 5], rc: [5] },

@@ -1594,7 +1594,100 @@ const siege: FinalSkill[] = [
     description: 'Coming soon: the wings spread flat and sweep a wide slice of the floor, drawing the foes to his lane.', relations: ['Sweep'] }),
 ];
 
-export const FINAL_SKILLS: FinalSkill[] = [...warrior, ...siege, ...mage, ...archer, ...sniper, ...cannon, ...samurai, ...shuriken, ...gambler];
+// The Gambler's second style (David 4 Nov 14:59: a chain of different tools, a different fighter running in): the Radiant
+// Duelist (GPT's design, scratchpad styles/gambler_styles.md) — the cane unfolded into the Crown Staff, a two-handed staff of
+// solid violet-white light: a stage fencer's thrusts, pivots and pole vaults, one dominant trail per strike. Mid range (105–190).
+// His numbers are GPT's (startup / active / recovery, the reach X and its depth ±), the live ones its "Gentleman's Lesson"
+// (jab → thrust → Crown Raise → Royal Turn → Collect the Debt → Curtain Call) and his signature; the House Edge (the gold
+// facets a sweet-spot hit earns, staked on All In) is still to come — All In plays its unstaked "Probe" for now.
+const RLINE = (length: number, depth: number): HitShape => ({ kind: 'line', length, width: depth * 2 });
+const radiant: FinalSkill[] = [
+  S({
+    id: 'rd_four_beat', cls: 'gambler', style: 'radiant', slot: 0, name: 'Four-Beat Flourish', roles: ['basic', 'confirm'], targeting: 'aimAssist',
+    startup: D(125), active: D(45), recovery: D(155), cooldown: 0, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [H(0, 6, RLINE(115, 20), { stun: D(250), push: 6, juggleCost: 6 }, { reachUp: 100 })],
+    // jab — thrust — rotate — finish: the ferrule punched out, the crown driven straight in, the staff spun round the hips,
+    // the rising overhead lever strike that lifts him
+    chain: { resetMs: 700, stages: [
+      [H(0, 6, RLINE(115, 20), { stun: D(250), push: 6, juggleCost: 6 }, { reachUp: 100 })], // Knock: the short ferrule jab
+      [H(0, 7, RLINE(145, 20), { stun: D(290), push: 14, juggleCost: 7 }, { reachUp: 100 })], // Measure: the crown thrust
+      [H(0, 8, RLINE(120, 31), { stun: D(330), push: 10, juggleCost: 8 }, { reachUp: 110 })], // Spindle: the hip-level rotation
+      [H(0, 11, RLINE(175, 28), { stun: D(520), launch: 65, juggleCost: 12 }, { reachUp: 140, heavy: true })], // Bow: the rising overhead lever strike
+    ], timings: [{ startup: D(125), active: D(45), recovery: D(155) }, { startup: D(145), active: D(50), recovery: D(170) }, { startup: D(165), active: D(80), recovery: D(190) }, { startup: D(210), active: D(65), recovery: D(260) }] },
+    cancelOnHit: ['rd_opening_bid', 'rd_crown_raise', 'rd_royal_turn'],
+    description: 'Tap or hold Space: a quick jab of the gold ferrule, the crown thrust straight in, the staff spun round his hips — then a rising overhead strike that lifts him.',
+    relations: ['4-beat chain', 'Cancel into a skill on hit'],
+  }),
+  S({
+    id: 'rd_opening_bid', cls: 'gambler', style: 'radiant', slot: 1, name: 'Opening Bid', roles: ['opener', 'precision'], targeting: 'aimAssist',
+    startup: D(160), active: D(65), recovery: D(210), cooldown: 5000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [H(D(20), 8, RLINE(160, 20), { stun: D(320), push: 18, juggleCost: 8 }, { reachUp: 100 })], // (a foot slide, the crown snapped straight at the chest)
+    cancelOnHit: ['rd_crown_raise'],
+    description: 'A foot slide and the spade crown snaps straight out at his chest — a long, exact poke: your opener.',
+    relations: ['Opener', 'Into Crown Raise'],
+  }),
+  S({
+    id: 'rd_crown_raise', cls: 'gambler', style: 'radiant', slot: 2, name: 'Crown Raise', roles: ['launcher', 'antiAir'], targeting: 'aimAssist',
+    startup: D(185), active: D(80), recovery: D(280), cooldown: 9000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [H(D(20), 12, RLINE(120, 28), { stun: D(700), launch: 105, juggleCost: 18 }, { reachUp: 170, heavy: true })], // (the staff across his body, the ferrule ripped up diagonally: ~420 ms in the air)
+    cancelOnHit: ['rd_royal_turn', 'rd_all_in'],
+    description: 'The staff across his body, its lower end ripped up on a diagonal: he goes up — it meets a foe over you too. The launcher.',
+    relations: ['Launcher', 'Anti-air'],
+  }),
+  S({ id: 'rd_under_the_table', cls: 'gambler', style: 'radiant', slot: 3, name: 'Under the Table', roles: ['knockdown'], targeting: 'aimAssist', wip: true,
+    startup: D(195), active: D(90), recovery: D(260), cooldown: 8000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
+    description: 'Coming soon: the lower half of the staff swept along the floor at ankle height — he trips and goes down.', relations: ['Trip'] }),
+  S({
+    id: 'rd_royal_turn', cls: 'gambler', style: 'radiant', slot: 4, name: 'Royal Turn', roles: ['extender', 'pull', 'airExtender'], targeting: 'aimAssist',
+    startup: D(165), active: D(125), recovery: D(270), cooldown: 8000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [H(D(40), 10, RLINE(135, 39), { stun: D(420), pull: 30, float: true, juggleCost: 12 }, { reachUp: 170 })], // (a 270° pivot on the lead foot, the staff braced across him: drawn to his line, floated ~340 ms)
+    cancelOnHit: ['rd_crown_raise', 'rd_collect_debt', 'rd_all_in'],
+    description: 'A three-quarter pivot on his lead foot with the staff braced across him: one turning blow that draws the foe to his line and holds him up a beat.',
+    relations: ['Pull', 'Float'],
+  }),
+  S({
+    id: 'rd_collect_debt', cls: 'gambler', style: 'radiant', slot: 5, name: 'Collect the Debt', roles: ['knockdown', 'extender'], targeting: 'mouseTarget',
+    startup: D(235), active: D(65), recovery: D(330), cooldown: 12000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    dash: { distance: 60, lift: 80, crash: true, gap: 70 }, // (the ferrule planted, his body levered up the staff — the crown driven down two-handed)
+    hits: [H(D(15), 14, RLINE(170, 30), { stun: D(520), slam: true, knockdown: 'light', juggleCost: 22 }, { reachUp: 210, heavy: true })], // (in the air: slammed into the floor, one bounce; standing: he crumples)
+    cancelOnHit: ['rd_curtain_call'],
+    description: 'He plants the staff, levers himself up it like a pole vaulter and drives the crown down two-handed: a foe in the air is slammed into the floor and bounces once; a standing one crumples.',
+    relations: ['Ground bounce', 'Crumple'],
+  }),
+  S({
+    id: 'rd_all_in', cls: 'gambler', style: 'radiant', slot: 6, name: 'All In: Called Crown', roles: ['signature', 'precision'], targeting: 'aimAssist',
+    startup: D(280), active: D(65), recovery: D(385), cooldown: 18000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [H(0, 17, RLINE(190, 22), { stun: D(650), push: 70, juggleCost: 16 }, { reachUp: 120, heavy: true })], // (the unstaked bet — "Probe": a strong stagger; the House Edge's facets are to come)
+    cancelOnHit: ['rd_curtain_call'],
+    tags: ['signature'],
+    description: 'His signature: the staff level, the grip turned slowly through his palms, a confident nod — then one extraordinarily straight crown thrust. He has told you exactly what is coming.',
+    relations: ['Signature', 'Telegraphed thrust'],
+  }),
+  S({ id: 'rd_final_ovation', cls: 'gambler', style: 'radiant', slot: 7, name: 'The Final Ovation', roles: ['ultimate'], targeting: 'self', wip: true,
+    startup: D(500), active: D(180), recovery: D(590), cooldown: 70000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
+    description: 'Coming soon: the staff planted upright like a performer taking applause, an impossible horizontal vault, and the crown brought down as a solid faceted head of light.', relations: ['Ultimate'] }),
+  S({ id: 'rd_read_the_room', cls: 'gambler', style: 'radiant', slot: 8, name: 'Read the Room', roles: ['counter'], targeting: 'self', wip: true,
+    startup: D(95), active: D(110), recovery: D(310), cooldown: 13000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
+    description: 'Coming soon: the staff held diagonally — a frontal blow is turned aside and answered with a swift ferrule counter.', relations: ['Parry'] }),
+  S({ id: 'rd_long_odds', cls: 'gambler', style: 'radiant', slot: 9, name: 'Long Odds', roles: ['projectile'], targeting: 'mouseProjectile', wip: true,
+    startup: D(250), active: D(85), recovery: D(305), cooldown: 11000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK, hits: [],
+    description: 'Coming soon: a thrust from the hip that lets go one compact diamond of light, flying straight and far.', relations: ['Projectile'] }),
+  S({ id: 'rd_high_stakes', cls: 'gambler', style: 'radiant', slot: 10, name: 'High-Stakes Vault', roles: ['gapClose'], targeting: 'mouseTarget', wip: true,
+    startup: D(185), active: D(95), recovery: D(290), cooldown: 12000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
+    description: 'Coming soon: the staff planted and a pole vault forward over it, striking with its other end.', relations: ['Gap close'] }),
+  S({ id: 'rd_side_bet', cls: 'gambler', style: 'radiant', slot: 11, name: 'Side Bet', roles: ['pull'], targeting: 'mouseDir', wip: true,
+    startup: D(190), active: D(75), recovery: D(285), cooldown: 10000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
+    description: 'Coming soon: a diagonal step across the floor, the staff guided round his hip into a hooked thrust that pulls.', relations: ['Pull'] }),
+  S({
+    id: 'rd_curtain_call', cls: 'gambler', style: 'radiant', slot: 12, name: 'Curtain Call', roles: ['finisher', 'knockdown'], targeting: 'aimAssist',
+    startup: D(220), active: D(75), recovery: D(360), cooldown: 14000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [H(D(20), 15, RLINE(165, 32), { stun: D(600), knockdown: 'heavy', juggleCost: 16 }, { reachUp: 190, heavy: true })], // (the upper end swelled into a thick faceted head, a full two-handed body turn: a hard knockdown — out of the air driven down, no bounce)
+    description: 'The staff swung from behind his shoulder in a full two-handed body turn, its crown swelled into a thick faceted head: he is spiked down hard. His hat never moves.',
+    relations: ['Finisher', 'Hard knockdown'],
+  }),
+];
+
+export const FINAL_SKILLS: FinalSkill[] = [...warrior, ...siege, ...mage, ...archer, ...sniper, ...cannon, ...samurai, ...shuriken, ...gambler, ...radiant];
 /** The switches into the styles (Styles.ts): a hidden cast each, never on the bar. 150 ms to the change, 240 ms in all, on
  *  the clock (its kit numbers are the fight's pace undone); no hits; she keeps her momentum. */
 export const STYLE_SWITCHES: FinalSkill[] = Object.entries(STYLES).flatMap(([cls, list]) => list.map((st) => S({

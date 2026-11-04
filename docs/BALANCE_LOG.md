@@ -4,6 +4,28 @@ Every balance change to any class's skills, newest first. Class chats: read this
 needs new visuals / motion (an effect sized to a new hitbox, an animation timed to a new startup), do that part.
 Values apply to the whole game (only damage may differ in PvP: arenaDmg / the arena's scaling).
 
+## 2026-11-04 (late night) — The Gambler's second style: the Radiant Duelist's kit (David 14:59)
+- **His kit** (`FinalKit` `radiant`, at the fight's pace `D(ms)`; GPT's times, reaches (X ± depth: a `line` X long, 2 × depth
+  wide) and juggle costs, DFO's damage — tune freely):
+  - Four-Beat Flourish (basic): Knock 6 (115 ± 20, stun D(250), push 6, J6) · Measure 7 (145 ± 20, stun D(290), push 14,
+    J7) · Spindle 8 (120 ± 31, stun D(330), push 10, J8) · Bow 11 (175 ± 28, stun D(520), launch 65, J12, heavy). Timings
+    125/45/155 · 145/50/170 · 165/80/190 · 210/65/260 (D). Links into Opening Bid, Crown Raise, Royal Turn.
+  - Opening Bid (slot 1): 8 at D(20) (160 ± 20); stun D(320), push 18, J8; D(160)/D(65)/D(210); CD 5 s; links into Crown Raise.
+  - Crown Raise (slot 2): 12 at D(20) (120 ± 28, reach 170 up: anti-air); stun D(700), launch 105, J18, heavy;
+    D(185)/D(80)/D(280); CD 9 s; links into Royal Turn and All In.
+  - Royal Turn (slot 4): 10 at D(40) (135 ± 39, reach 170 up); stun D(420), pull 30, `float`, J12; D(165)/D(125)/D(270);
+    CD 8 s; links into Crown Raise, Collect the Debt, All In.
+  - Collect the Debt (slot 5): 14 at D(15) after a vault of up to 60 px (lift 80, locked, stopping 70 px short), 170 ± 30,
+    reach 210 up; stun D(520), `slam` (in the air: into the floor, one bounce) + `knockdown` light (standing: he crumples),
+    J22, heavy; D(235)/D(65)/D(330); CD 12 s; links into Curtain Call (once he has landed: it is a ground move).
+  - All In: Called Crown (slot 6, signature): 17 (190 ± 22); stun D(650), push 70, J16, heavy — GPT's unstaked "Probe";
+    D(280)/D(65)/D(385); CD 18 s; links into Curtain Call. The House Edge (the gold facets a hit in the outer quarter of a
+    reach earns, staked on All In for the relaunches) is not in the slice yet.
+  - Curtain Call (slot 12): 15 at D(20) (165 ± 32, reach 190 up); stun D(600), `knockdown` heavy (out of the air: driven
+    down, no bounce), J16, heavy; D(220)/D(75)/D(360); CD 14 s; links into nothing.
+  - Templates (no hits yet): Under the Table, The Final Ovation (the ultimate), Read the Room, Long Odds, High-Stakes Vault,
+    Side Bet.
+
 ## 2026-11-04 (late night) — The Warrior's second style: the Siege Warden's kit (David 14:59)
 - **His kit** (`FinalKit` `siege`, at the fight's pace `D(ms)`; GPT's times and juggle costs, DFO's damage — tune freely):
   - Four-Beat Portcullis (basic): Iron Knuckle 7 (sector 85 px / 100°, stun D(250), push 4, J4) · Gate Elbow 8 (100 px,

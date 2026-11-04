@@ -32,6 +32,13 @@ export const STYLES: Record<string, StyleDef[]> = {
     { id: 'longsword', name: 'Lion Longsword', accent: 0xe8b84a },
     { id: 'siege', name: 'Siege Warden', body: 'warrior_siege', accent: 0xe6dcc3 }, // (aged ivory: the gate's heraldic bands)
   ],
+  // The Gambler fourth: the card gambler, his own kit, and the Radiant Duelist (GPT's design, scratchpad
+  // styles/gambler_styles.md) — the cane unfolded into the Crown Staff, a two-handed staff of solid violet-white light; a
+  // stage fencer who tells you what he will do and dares you to stop it.
+  gambler: [
+    { id: 'card', name: 'Card Gambler', accent: 0xff3ad6 },
+    { id: 'radiant', name: 'Radiant Duelist', body: 'gambler_radiant', accent: 0xd9c8ff }, // (violet-white: the Crown Staff's light)
+  ],
 };
 
 export const stylesOf = (cls: string): StyleDef[] => STYLES[cls] ?? [];

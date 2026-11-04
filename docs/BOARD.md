@@ -31,6 +31,25 @@ The DFO PvP arena dynamics chat is the PvP director: it sets the bar per class, 
 Take the whole PvP up a level in everything — dynamics, skills, effects, hit frames, movement, camera, feel: every hit felt, every class unique and amazing, big moments that look like a cinematic, and reasons to keep playing.
 
 ## Open items
+### DFO (4 Nov, David 14:59) — the styles, step 6: the Gambler's Radiant Duelist (the cards tag out, the Crown Staff tags in)
+- **The Radiant Duelist** (his second style, `Styles.ts` `gambler`: Card Gambler → Radiant Duelist; GPT's design, scratchpad
+  styles/gambler_styles.md — the cane unfolded into the Crown Staff, a two-handed staff of solid violet-white light; a stage
+  fencer's thrusts, pivots and pole vaults): his own painted body (his approved look from the styles page, 14 GPT stills of
+  his moves, GPT sprite sheets for the idle, walk, run, jump and knockdown — PixVerse has no credits →
+  `tools/heroes/motion/gambler_radiant` → `gambler_radiant/body.png`, HERO_FIT 1.04: the card gambler's size), his 13 icons
+  (GPT, the gambler icons' frame), his kit (`FinalKit` `radiant`: the four-beat chain — jab, thrust, hip spin, rising lever
+  strike — Opening Bid, Crown Raise, Royal Turn, Collect the Debt, Curtain Call and the signature All In; six templates;
+  numbers in BALANCE_LOG) and his effects (`RadiantFx`: one lance or crescent of the staff's light per strike, gone in
+  ~120 ms, a faceted spade opening at a heavy contact — no cards, no casino objects; PVP 3D answers him in violet-white).
+- The cross-style chain (GPT's "The Double Bluff", its middle): Staff Vault → the switch → Royal Turn → Collect the Debt →
+  Curtain Call; his own "Gentleman's Lesson": jab → thrust → Crown Raise → Royal Turn → Collect the Debt → Curtain Call.
+- **Open (Gambler chat):** the six templates and the House Edge (GPT's gold facets: a hit in the outer quarter of a reach
+  earns one, All In stakes them — it plays its unstaked "Probe" for now).
+- On the way: the Duelist deals no cards — his hits give the Hand nothing (Ace of Fate's joker neither) and the Hand is put
+  away while he holds the staff (it is back with the cards).
+- Checked: PVP 3D films of the Double Bluff and his own chain (0 errors), the open world on a monster (every hit lands, no
+  404s).
+
 ### DFO (4 Nov, David 14:59) — the styles, step 5: the Warrior's Siege Warden (the longsword tags out, the iron gate tags in)
 - **The Siege Warden** (his second style, `Styles.ts` `warrior`: Lion Longsword → Siege Warden; GPT's design, scratchpad
   styles/warrior_styles.md — the Lion Knight of the Iron Gate: a towering folding shield that opens into two iron wings and
