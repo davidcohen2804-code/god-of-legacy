@@ -1348,7 +1348,11 @@ export class GamblerFx {
     // (David 18 Oct 23:01: thicker — it should hide the cane under it) a solid layer of pale violet light over the shaft (not added light: it covers the dark wood)
     const cover = s.add.image(0, 0, 'gb-beam').setTint(0xc9bcff).setAlpha(0).setOrigin(0, 0.5);
     const tipStar = s.add.image(0, 0, 'gb-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xd8d0ff).setAlpha(0);
-    const all = [halo, cover, core, blade, bladeCore, tipStar];
+    // (David 4 Nov 14:59: the whole staff lit, behind his hand too — the cane's other part, from just behind the hand to its
+    // butt: the same glow coming on gently out of the hand, a small soft light on the butt; the hand itself stays clean)
+    const rHalo = mk(0x7a5cff, 0.55, 'gb-beam-in'), rCover = s.add.image(0, 0, 'gb-beam-in').setTint(0xc9bcff).setAlpha(0).setOrigin(0, 0.5), rCore = mk(0xe8e0ff, 0.95, 'gb-beam-in');
+    const butt = s.add.image(0, 0, 'gb-glow').setBlendMode(Phaser.BlendModes.ADD).setTint(0xd8d0ff).setAlpha(0);
+    const all = [halo, cover, core, blade, bladeCore, tipStar, rHalo, rCover, rCore, butt];
     all.forEach((o) => holdFx(o)); // (the lit cane is his weapon: the effects' budget never thins it over him)
     let last: number[] | null = null, seen = 0, prevT = 0;
     this.add((t) => {
@@ -1387,6 +1391,16 @@ export class GamblerFx {
       // (a short lit stub — his hand near the cane's end, as the cast ends: the star small and faint, not a ball of light on his fist)
       const sk = clamp01((L - 14) / 34), star = (BL > 1 ? 48 : 30) * (0.55 + 0.45 * sk) + 10 * Math.sin(t * 0.02) * sk;
       at(tipStar.setVisible(true).setDisplaySize(star, star).setDepth(d + 0.02).setAlpha((BL > 1 ? 0.9 : 0.55) * A * (0.25 + 0.75 * sk)), tx, ty, tipStar.width / 2, tipStar.height / 2);
+      const rear = line.length >= 9 ? line : null; // the part behind his hand: from the hand's back edge (bx) to the butt (ex)
+      const bx = rear ? fx + rear[7] * k * f : 0, by = rear ? fy + rear[8] * k : 0, ex2 = rear ? fx + rear[5] * k * f : 0, ey2 = rear ? fy + rear[6] * k : 0;
+      const RL = rear ? Math.hypot(ex2 - bx, ey2 - by) : 0, rang = Math.atan2(ey2 - by, ex2 - bx) * 57.2958;
+      for (const o of [rHalo, rCover, rCore, butt]) o.setVisible(RL > 4);
+      if (RL > 4) {
+        at(rHalo.setAngle(rang).setScale((RL + 4) / gw, 58 / gh).setDepth(d).setAlpha(0.6 * A * pulse), bx, by, 0, gh / 2);
+        at(rCover.setAngle(rang).setScale((RL + 2) / gw, 26 / gh).setDepth(d + 0.005).setAlpha(0.92 * A), bx, by, 0, gh / 2);
+        at(rCore.setAngle(rang).setScale(RL / gw, 20 / gh).setDepth(d + 0.01).setAlpha(0.95 * A), bx, by, 0, gh / 2);
+        at(butt.setDisplaySize(26, 26).setDepth(d + 0.02).setAlpha(0.6 * A), ex2, ey2, butt.width / 2, butt.height / 2);
+      }
       if (Math.random() < 0.25 * A) { const q = Math.random() * (L + BL); this.pop(hx + ux * q, hy + uy * q, 14, 0xb4a6ff, 220, 0, d + 0.03); } // (a mote of light along the lit shaft and its blade)
       return true;
     });
