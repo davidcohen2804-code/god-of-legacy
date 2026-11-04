@@ -16,6 +16,7 @@ import { Afterimages, applyMotion, archerMotion, heroMotion, type Motion } from 
 import { SAMURAI_AFTER, samuraiMotion, samuraiSeen } from '../skills/SamuraiMotion';
 import { finalSkill } from '../skills/FinalKit';
 import { baseStyle, styleDef, styleOfSwitch } from '../skills/Styles';
+import { StyleTag } from '../skills/StyleTag';
 import { KAGE, KageMode, KageSeen, decodeKage, kageFeintMotion, kageFlicker, kageSnap, kageTargets } from '../skills/Kagemusha';
 import type { HitTarget, V3 } from '../skills/HitGeometry';
 import type { BaseLook } from '../game/Body';
@@ -164,6 +165,15 @@ export class RemotePlayer {
     if (!s || !this.alive) return;
     const t = s.chain?.timings?.[stage] ?? s;
     if (!styleOfSwitch(s.id) && s.cls === this.meta.classId) this.style = s.style ?? baseStyle(s.cls); // (a style's skill is cast in that style's body: also when it cancelled his switch on its commit frame)
+    const sw = styleOfSwitch(s.id);
+    if (sw) { // the tag-in, as the caster sees it: the new style's body runs in from behind, the old one hops out and fades
+      const cls = this.meta.classId, g = this.meta.gender === 'female' ? 'female' : 'male';
+      this.tag ??= new StyleTag(this.scene, {
+        makeView: () => { const v = new ActorView(this.scene, cls as ClassKey, this.x, this.y); v.setBaseLook(this.dress.look, g); v.setGear(this.dress.worn, g); v.setEquipped(this.dress.eq); return v; },
+        pose: (body, snap, d) => resolvePose(cls as ClassKey, d, poseQuery(snap), this.view.wantsBase, g, !!this.meta.hero, false, body),
+      });
+      this.tag.start(performance.now(), styleDef(cls, this.style)?.body, styleDef(cls, sw.style)?.body, dir === 'left' ? -1 : 1, this.z - this.sz > 2, styleDef(cls, sw.style)?.accent ?? 0xffffff);
+    }
     this.skill = { id: s.id, stage, elapsed: 0, startup: t.startup, active: t.active, recovery: t.recovery, seed };
     this.dir = dir; this.aim = aim; this.mode = 'skill'; this.modeT = 0;
     if (s.id === 'kagemusha') this.kageHold = performance.now() + t.startup + t.active + t.recovery + 700; // gone until his state says where the doubles are
@@ -253,6 +263,10 @@ export class RemotePlayer {
     this.view.swordOff = this.jbAir;
     this.view.tagAlpha = this.deadMs >= 0 ? alpha : seen; // (as his name: it stays while he blinks or is a crane)
     this.view.render(ms, pose, x + jx, y, z + jz, this.sz, this.dir, alpha, tint, fill);
+    if (this.tag) { // his switch's tag-in (hit out of it before the commit: the new body never arrives)
+      if (this.tag.pending(performance.now()) && !(this.skill && styleOfSwitch(this.skill.id))) this.tag.cancel();
+      if (this.body3d) this.tag.cancel(); else this.tag.render(ms, performance.now(), x, y, z, this.sz, this.dir, alpha);
+    }
     if (this.body3d) this.view.hideBody();
     this.alpha3d = alpha; this.motion3d = null; this.trail3d = null;
     if (this.meta.classId === 'archer') { // the same body motion the caster sees
@@ -361,8 +375,10 @@ export class RemotePlayer {
   destroy(): void {
     for (const d of this.kage) if (d) { d.view.destroy(); d.label.destroy(); d.bar.destroy(); }
     this.kage = [];
-    this.view.destroy(); this.label.destroy(); this.bar.destroy(); this.deathFx.destroy();
+    this.view.destroy(); this.label.destroy(); this.bar.destroy(); this.deathFx.destroy(); this.tag?.destroy();
   }
+  /** His style switches' tag-in (the new style's body running in, the old one hopping out). */
+  private tag?: StyleTag;
 }
 
 interface KageView {

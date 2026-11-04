@@ -16,6 +16,7 @@ export const STYLES: Record<string, StyleDef[]> = {
   archer: [
     { id: 'bow', name: 'Spirit Archer', accent: 0x7ee35a },
     { id: 'sniper', name: 'Deadeye Sniper', body: 'archer_sniper', accent: 0xd8925a }, // (brushed copper: the rifle's receiver)
+    { id: 'cannon', name: 'Recoil Cannoneer', body: 'archer_cannon', accent: 0xe0703a }, // (warm terracotta: the breech's pressure glow)
   ],
 };
 

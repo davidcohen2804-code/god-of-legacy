@@ -40,6 +40,8 @@ export interface ArcherCtx {
   body?(id: string): { key: string; frame: string | number; flipX: boolean; ox: number; oy: number; sx: number; sy: number; /** her painted picture (ON_BODY) */ sprite?: object } | null;
   /** Her bow grip as drawn now (src/data/archer-bow.json, read per frame), null when this frame was not read. */
   bow?(id: string): { x: number; y: number } | null;
+  /** The screen dimmed for an ultimate, lifting after `ms` (the Cannoneer's Broadside: no bow portrait for her). */
+  darken?(ms: number, alpha: number): void;
 }
 
 type Ease = (u: number) => number;
@@ -98,6 +100,81 @@ function sniperTextures(s: Phaser.Scene): void {
     g.lineWidth = 3; for (let k = 0; k < 4; k++) { const a = (k * Math.PI) / 2, x0 = 48 + Math.cos(a) * 28, y0 = 48 + Math.sin(a) * 28, x1 = 48 + Math.cos(a) * 44, y1 = 48 + Math.sin(a) * 44; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); }
   });
 }
+/** The cannon's own pieces (the Recoil Cannoneer): concussive, never volcanic or magic (GPT) — a short warm blast, a
+ *  ring of pushed air, a heavy puff, the iron shell itself with its pressure band, its short warm trail. */
+function cannonTextures(s: Phaser.Scene): void {
+  if (s.textures.exists('cn-blast')) return;
+  const mk = (key: string, w: number, h: number, draw: (g: CanvasRenderingContext2D) => void) => { const t = s.textures.createCanvas(key, w, h); if (!t) return; draw(t.getContext()); t.refresh(); };
+  mk('cn-blast', 128, 128, (g) => { // a hot core, a warm body and eight blunt tongues of blast, soft at their ends
+    const c = 64, gr = g.createRadialGradient(c, c, 0, c, c, 44);
+    gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.3, 'rgba(255,244,220,0.95)'); gr.addColorStop(0.65, 'rgba(255,214,160,0.5)'); gr.addColorStop(1, 'rgba(255,190,130,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+    for (let k = 0; k < 8; k++) {
+      const L = k % 2 ? 44 : 60, a = (k * Math.PI) / 4 + 0.2; g.save(); g.translate(c, c); g.rotate(a);
+      const lg = g.createLinearGradient(14, 0, L, 0); lg.addColorStop(0, 'rgba(255,248,232,0.85)'); lg.addColorStop(1, 'rgba(255,220,170,0)');
+      g.fillStyle = lg; g.beginPath(); g.moveTo(12, -7); g.quadraticCurveTo(L * 0.7, -5, L, 0); g.quadraticCurveTo(L * 0.7, 5, 12, 7); g.closePath(); g.fill(); g.restore();
+    }
+  });
+  mk('cn-ring', 96, 96, (g) => { // pushed air: a soft thin ring, bright on its rim
+    const gr = g.createRadialGradient(48, 48, 26, 48, 48, 46); gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.75, 'rgba(255,250,240,0.85)'); gr.addColorStop(1, 'rgba(255,250,240,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 96, 96);
+  });
+  mk('cn-smoke', 64, 64, (g) => { const gr = g.createRadialGradient(32, 32, 0, 32, 32, 30); gr.addColorStop(0, 'rgba(120,110,100,0.7)'); gr.addColorStop(0.55, 'rgba(110,100,92,0.35)'); gr.addColorStop(1, 'rgba(100,92,86,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); });
+  mk('cn-shell', 40, 24, (g) => { // a dark iron shell, its brass band glowing with the chamber's pressure, a highlight
+    g.fillStyle = '#2b2a2e'; g.beginPath(); g.moveTo(4, 4); g.lineTo(26, 4); g.quadraticCurveTo(38, 12, 26, 20); g.lineTo(4, 20); g.closePath(); g.fill();
+    g.fillStyle = '#b8862e'; g.fillRect(9, 4, 5, 16); g.fillStyle = 'rgba(255,150,70,0.95)'; g.fillRect(10, 6, 3, 12);
+    g.fillStyle = 'rgba(255,255,255,0.35)'; g.fillRect(6, 6, 20, 3);
+  });
+  mk('cn-trail', 128, 14, (g) => { // bright at its head (the right), warm and fading back along it
+    for (const [y, a] of [[4, 0.35], [5, 0.8], [6, 1], [7, 1], [8, 0.8], [9, 0.35]] as const) {
+      const lg = g.createLinearGradient(0, 0, 128, 0); lg.addColorStop(0, 'rgba(255,200,150,0)'); lg.addColorStop(0.6, `rgba(255,214,170,${0.5 * a})`); lg.addColorStop(1, `rgba(255,248,232,${a})`);
+      g.fillStyle = lg; g.fillRect(0, y, 128, 1);
+    }
+  });
+  mk('cn-spark', 32, 6, (g) => { // a spark thrown out of a blast: a short streak, hot at its head
+    for (const [y, a] of [[1, 0.4], [2, 1], [3, 1], [4, 0.4]] as const) { const lg = g.createLinearGradient(0, 0, 32, 0); lg.addColorStop(0, 'rgba(255,255,255,0)'); lg.addColorStop(1, `rgba(255,255,255,${a})`); g.fillStyle = lg; g.fillRect(0, y, 32, 1); }
+  });
+  mk('cn-ball', 32, 32, (g) => { // Rolling Iron's bomb: round dark iron, its brass band (it shows the roll), the pressure glowing in its slit
+    const gr = g.createRadialGradient(12, 11, 2, 16, 16, 15); gr.addColorStop(0, '#77757e'); gr.addColorStop(0.45, '#3a3940'); gr.addColorStop(1, '#141318');
+    g.fillStyle = gr; g.beginPath(); g.arc(16, 16, 14.5, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = '#b8862e'; g.lineWidth = 3; g.beginPath(); g.ellipse(16, 16, 4.5, 14, 0, 0, Math.PI * 2); g.stroke();
+    g.fillStyle = 'rgba(255,150,70,0.95)'; g.fillRect(14.5, 3, 3, 4);
+  });
+  mk('cn-missile', 36, 128, (g) => { // the Broadside's missile, nose down: dark iron, brass bands, fins at its tail, a warm pressure seam
+    g.fillStyle = '#26252b';
+    g.beginPath(); g.moveTo(3, 4); g.lineTo(11, 20); g.lineTo(11, 36); g.lineTo(3, 28); g.closePath(); g.fill();
+    g.beginPath(); g.moveTo(33, 4); g.lineTo(25, 20); g.lineTo(25, 36); g.lineTo(33, 28); g.closePath(); g.fill();
+    const body = g.createLinearGradient(10, 0, 26, 0); body.addColorStop(0, '#4b4a52'); body.addColorStop(0.35, '#2f2e35'); body.addColorStop(1, '#17161b');
+    g.fillStyle = body; g.beginPath(); g.moveTo(10, 8); g.lineTo(26, 8); g.lineTo(26, 98); g.quadraticCurveTo(26, 116, 18, 127); g.quadraticCurveTo(10, 116, 10, 98); g.closePath(); g.fill();
+    g.fillStyle = '#b8862e'; g.fillRect(10, 30, 16, 5); g.fillRect(10, 90, 16, 4);
+    g.fillStyle = 'rgba(255,150,70,0.95)'; g.fillRect(17, 44, 2, 38);
+    g.fillStyle = 'rgba(255,255,255,0.28)'; g.fillRect(12, 10, 2, 86);
+  });
+  mk('cn-flame', 32, 64, (g) => { // its exhaust: white-hot at its base (the bottom), warm, licking up to a soft tip
+    const gr = g.createRadialGradient(16, 60, 1, 16, 44, 30); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.3, 'rgba(255,236,200,0.9)'); gr.addColorStop(0.7, 'rgba(255,170,100,0.45)'); gr.addColorStop(1, 'rgba(255,140,80,0)');
+    g.fillStyle = gr; g.beginPath(); g.moveTo(16, 2); g.quadraticCurveTo(30, 36, 24, 64); g.lineTo(8, 64); g.quadraticCurveTo(2, 36, 16, 2); g.closePath(); g.fill();
+  });
+}
+/** The cannon's warm terracotta (the breech's pressure glow) and its white-hot core. */
+const TERRA = 0xffa266, HOT = 0xfff2dc;
+/** Queen's Broadside: where its four shells burst round the mark (world px; inside its 70 px reach). */
+const BROADSIDE: [number, number][] = [[-46, -12], [42, 10], [-12, 22], [30, -20]];
+/** Her cannon's muzzle in the pose each attack holds (world px ahead of and over her feet, facing right — measured on her
+ *  painted frames, tools/heroes/motion/archer_cannon). A chain stage: id#stage. */
+const CN_MUZZLE: Record<string, [number, number]> = {
+  stance: [38, 66], cn_four_beat: [75, 63], 'cn_four_beat#1': [43, 60], 'cn_four_beat#2': [51, 18], 'cn_four_beat#3': [63, 64],
+  cn_breach_burst: [43, 60], cn_arc_mortar: [51, 115], cn_kickback: [40, 54], cn_crater_catch: [52, 29], cn_rolling_iron: [51, 18],
+  cn_battery: [43, 60], cn_broadside: [63, 64], cn_piston_lift: [51, 115],
+};
+/** A shell in flight (the Recoil Cannoneer): the iron shell with its short warm trail and its smoke; rolled along the floor,
+ *  a bomb rolling; the four-beat's third skips off the floor up into him. */
+interface Shell {
+  im: Phaser.GameObjects.Image; tr: Phaser.GameObjects.Image; t: number; roll: boolean; skip: boolean; skipped: boolean;
+  /** how far ahead of where it spawns the muzzle is (it shows from there), the muzzle's height (world px) */
+  lead: number; up: number;
+  /** its height when fired; its size; smoke left behind; where it was last drawn */
+  z0: number; w: number; puff: number; puffs: number; x: number; y: number;
+}
 /** A rifle round in flight (the Deadeye Sniper): a white-hot point and one thin streak behind it. */
 interface Round { head: Phaser.GameObjects.Image; tr: Phaser.GameObjects.Image; t: number }
 /** The rifle's copper-white (GPT: small warm muzzle flashes, one bullet streak per shot — never the bow's green wind). */
@@ -121,6 +198,9 @@ export class ArcherFx {
   private incoming: Live[] = [];
   private arrows = new Map<Projectile, Arrow>();
   private rounds = new Map<Projectile, Round>();
+  private shells = new Map<Projectile, Shell>();
+  /** The Cannoneer's casts → their chain stage (the four-beat's shells differ: the skipper, the braced Breakshot). */
+  private cnStage = new Map<string, number>();
   private fanCount = new Map<string, number>();
   private bigSpark = new Map<string, number>(); // skill → when its last big hit spark was drawn
   private released = new Set<string>(); // volleys whose release burst was drawn (Air Volley fires three rows a shot)
@@ -160,7 +240,7 @@ export class ArcherFx {
   private spr(o: Spr): Phaser.GameObjects.Image | null {
     const s = this.ctx.scene;
     if (!s.textures.exists(ARCHER_KIT)) return null;
-    const own = o.name.startsWith('sn-'); if (own) sniperTextures(s); // (the rifle's own pieces: textures of their own)
+    const own = o.name.startsWith('sn-') || o.name.startsWith('cn-'); if (own) { sniperTextures(s); cannonTextures(s); } // (the rifle's and the cannon's own pieces: textures of their own)
     const key = own ? o.name : ARCHER_KIT, fname = own ? undefined : o.name;
     const fr = s.textures.getFrame(key, fname); if (!fr) return null;
     const fw = fr.cutWidth || fr.width, fh = fr.cutHeight || fr.height;
@@ -312,6 +392,7 @@ export class ArcherFx {
     const s = r.skill, T = r.timings, me = this.me(r), side = sideOf(r), a = r.aim;
     if (styleOfSwitch(s.id)) { this.styleSwitch(r); return; }
     if (s.style === 'sniper') { this.sniperCast(r); return; }
+    if (s.style === 'cannon') { this.cannonCast(r); return; }
     switch (s.id) {
       case 'quick_shot':
         if (r.stage === 1) { // the charged arrow: light gathers on the bow, then a heavy snap and a boom along the aim
@@ -448,6 +529,7 @@ export class ArcherFx {
   hit(r: CastRun, i: number, o: V3): void {
     if (!this.ready) return;
     const s = r.skill, a = r.aim;
+    if (s.style === 'cannon') { this.cannonHit(r, i); return; }
     if (s.id === 'rain_of_arrows') { // the charged lightning arrows strike the floor near, middle and far — each bigger than the last; the third is a storm
       const sh = r.hits[i].shape as { bias?: number }, cx = r.origin.x + a.x * (sh.bias ?? 200), cy = r.origin.y + a.y * (sh.bias ?? 200), K = [0.7, 1, 1.25][i] ?? 1, big = i === 2; // (the third a size down: in PVP 3D it whited the fight out in blue)
       const q = this.me(r), sx = q.x + sideOf(r) * 30, sy = q.y - q.z - 58, lv = { x: cx - sx, y: cy - 20 - sy }, ang = Math.atan2(lv.y, lv.x) * (180 / Math.PI);
@@ -954,6 +1036,298 @@ export class ArcherFx {
       a.tr.setPosition(x, y).setFlipX(flip).setAngle(ang).setDepth(p.y + 2).setAlpha(0.85 * shown).setDisplaySize(Math.min(len, Math.max(12, (a.t - 40) * 2.1)), 8);
     }
   }
+  // ------------------------------------------------------------------ the Recoil Cannoneer (her third style: Styles.ts)
+  // GPT's design: impact and momentum — every shot concussive (a short warm blast, pushed air, heavy smoke left hanging),
+  // never volcanic or magic; the shells are iron you can see; the floor bombs burst with scorch, debris and dust.
+
+  /** Where the cannon's muzzle is now: at the barrel's end in the pose the skill holds (her painted body, CN_MUZZLE). */
+  private cnMuzzleAt(id: string, side: number, r?: CastRun | null): () => Pt | null {
+    const [fwd, up] = (r && (CN_MUZZLE[`${r.skill.id}#${r.stage}`] ?? CN_MUZZLE[r.skill.id])) ?? CN_MUZZLE.stance;
+    return this.at(id, side, fwd, up);
+  }
+  /** The barrel's line on screen, tilted `up` degrees (down < 0): the art's angle (painted facing right, mirrored to the left)
+   *  and the unit direction it points. */
+  private cnLine(r: CastRun, up: number): { ang: number; flip: boolean; dx: number; dy: number } {
+    const lv = level(r.aim.x, r.aim.y), ang = lv.ang + (lv.flip ? up : -up), rad = (ang * Math.PI) / 180, k = lv.flip ? -1 : 1;
+    return { ang, flip: lv.flip, dx: k * Math.cos(rad), dy: k * Math.sin(rad) };
+  }
+  /** Runs `fn` when the cast's own clock reaches `ms` — in step with its hits, through every hit-stop; never if it is cut first. */
+  private onClock(r: CastRun, ms: number, fn: () => void): void {
+    this.add({ t: 0, step: () => { if (r.phase === 'done') return false; if (r.elapsed < ms) return true; fn(); return false; } });
+  }
+  /** One cannon shot leaving the muzzle: a short warm blast along the barrel, its white-hot core for a few frames, a ring of
+   *  pushed air thrown forward, heavy smoke left hanging where it fired; a heavy one (k ≥ 1.3) throws sparks, kicks dust
+   *  from under her and shakes the view. `up`: the barrel's tilt. */
+  private cnShot(r: CastRun, k: number, up = 0, at = this.cnMuzzleAt(r.attackerId, sideOf(r), r)): void {
+    const L = this.cnLine(r, up), side = sideOf(r);
+    this.spr({ name: 'cn-blast', w: 44 * k, life: 120, follow: at, on: r.attackerId, dz: 5, ox: L.flip ? 0.8 : 0.2, flipX: L.flip, angle: L.ang, glow: 0.3, tint: HOT, run: r, // (a short flash: at arm's length it hid the foe)
+      sx: kf([0, 0.5], [0.25, 1.55, out3], [1, 1.75]), sy: kf([0, 0.55], [0.25, 0.9, out3], [1, 0.5]), a: kf([0, 1], [0.4, 1], [1, 0, inQ]) });
+    this.spr({ name: 'cn-blast', w: 18 * k, life: 60, follow: at, on: r.attackerId, dz: 6, glow: 0.3, run: r, a: kf([0, 1], [1, 0]) }); // its white-hot core
+    const p = at(); if (!p) return;
+    this.spr({ name: 'cn-ring', x: p.x, y: p.y, depth: p.d + 6, w: 40 * k, angle: L.ang, life: 230, glow: 0.2, // pushed air, standing across the barrel, thrown forward
+      mx: (u) => L.dx * 36 * k * out(u), my: (u) => L.dy * 36 * k * out(u), sx: kf([0, 0.25], [1, 0.42, out]), sy: kf([0, 0.5], [1, 1.25, out3]), a: kf([0, 0.85], [1, 0, inQ]) });
+    for (let n = 0; n < (k >= 1.3 ? 3 : 2); n++) { // the smoke stays in the air where it fired (it does not follow her)
+      const d = rnd(18, 40) * k, rise = rnd(14, 30);
+      this.spr({ name: 'cn-smoke', x: p.x + L.dx * 10, y: p.y + L.dy * 10, depth: p.d + 4, w: rnd(34, 48) * k, life: rnd(560, 820), delay: 20 + n * 30,
+        mx: (u) => L.dx * d * out(u) - side * 6 * u, my: (u) => L.dy * d * out(u) - rise * u, sx: kf([0, 0.5], [1, 1.9, out3]), sy: kf([0, 0.5], [1, 1.7, out3]), a: kf([0, 0], [0.12, 0.6], [1, 0, inQ]) });
+    }
+    if (k < 1.3) return;
+    const a0 = Math.atan2(L.dy, L.dx);
+    for (let n = 0; n < 5; n++) { const an = a0 + rnd(-0.5, 0.5), d = rnd(40, 90) * k;
+      this.spr({ name: 'cn-spark', x: p.x, y: p.y, depth: TOP + 5, w: 20, angle: (an * 180) / Math.PI, tint: TERRA, glow: 0.3, life: rnd(240, 380), mx: (u) => Math.cos(an) * d * out(u), my: (u) => Math.sin(an) * d * out(u) + 40 * u * u, a: kf([0, 1], [0.7, 1], [1, 0]) }); }
+    const q = this.me(r);
+    this.spr({ name: 'dust_roll', x: q.x - side * 14, y: q.y + 4, oy: 0.9, depth: q.y, w: 90 * k, flipX: side > 0, life: 420, sx: kf([0, 0.6], [1, 1.3, out3]), a: kf([0, 0.7], [1, 0, inQ]) }); // the recoil kicks dust from under her
+    this.shake(r, 110, 0.0035 * k);
+  }
+  /** The chamber gathering pressure (a heavy shot's wind-up): the brass band along the barrel glowing warm, pulsing. */
+  private breech(r: CastRun, ms: number, k = 1): void {
+    const [fwd, up] = CN_MUZZLE[`${r.skill.id}#${r.stage}`] ?? CN_MUZZLE[r.skill.id] ?? CN_MUZZLE.stance, pulse = (u: number) => (0.6 + 0.4 * u) * (1 + 0.12 * Math.sin((u * ms) / 40));
+    this.spr({ name: 'cn-blast', w: 34 * k, life: ms, follow: this.at(r.attackerId, sideOf(r), fwd * 0.55, up * 0.9 + 4), on: r.attackerId, dz: 5, glow: 0.3, tint: TERRA, run: r,
+      sx: pulse, sy: pulse, a: kf([0, 0], [0.2, 0.55], [0.9, 0.85], [1, 0]) });
+  }
+  /** Breech Jab: the barrel's end driven into him — a short arc of steel, a puff out of the muzzle, no blast. */
+  private cnJab(r: CastRun): void {
+    const at = this.cnMuzzleAt(r.attackerId, sideOf(r), r);
+    this.spr({ name: 'sn-flash', w: 64, life: 120, tint: 0xece6dc, follow: at, dz: 5, glow: 0.2, run: r, sx: kf([0, 0.6], [0.35, 1.05, out3]), sy: kf([0, 0.6], [0.35, 1.05, out3]), a: kf([0, 1], [1, 0, inQ]) });
+    const p = at(); if (p) this.spr({ name: 'cn-smoke', x: p.x, y: p.y, depth: p.d + 4, w: 34, life: 420, sx: kf([0, 0.5], [1, 1.6, out3]), sy: kf([0, 0.5], [1, 1.5, out3]), a: kf([0, 0.5], [1, 0, inQ]), my: (u) => -12 * u });
+  }
+  /** Breach Burst: a cone of blast out of the muzzle — the blast thrown wide along the cone, smoke rolling out along it. */
+  private cnCone(r: CastRun): void {
+    const at = this.cnMuzzleAt(r.attackerId, sideOf(r), r), L = this.cnLine(r, 0), p = at(); if (!p) return;
+    this.cnShot(r, 1.35, 0, at);
+    this.spr({ name: 'cn-blast', x: p.x, y: p.y, depth: p.d + 6, w: 130, ox: L.flip ? 0.88 : 0.12, flipX: L.flip, angle: L.ang, life: 200, glow: 0.3, tint: 0xffe2c0, // (fading fast: the foe reads through it)
+      sx: kf([0, 0.4], [0.3, 1.1, out3], [1, 1.25]), sy: kf([0, 0.3], [0.3, 0.66, out3], [1, 0.72]), a: kf([0, 1], [0.3, 0.8], [1, 0, inQ]) });
+    const a0 = Math.atan2(L.dy, L.dx);
+    for (let n = 0; n < 4; n++) { const an = a0 + (n - 1.5) * 0.16, d = rnd(90, 150);
+      this.spr({ name: 'cn-smoke', x: p.x, y: p.y, depth: p.d + 5, w: rnd(48, 66), life: rnd(650, 900), delay: n * 18,
+        mx: (u) => Math.cos(an) * d * out3(u), my: (u) => Math.sin(an) * d * 0.7 * out3(u) - 14 * u, sx: kf([0, 0.4], [1, 2.1, out3]), sy: kf([0, 0.4], [1, 1.8, out3]), a: kf([0, 0], [0.1, 0.65], [1, 0, inQ]) }); }
+    this.shake(r, 140, 0.005); if (r.own) this.ctx.punch(0.02, 140);
+  }
+  /** Piston Lift: the blast fired steeply up from the hip — a plume along the barrel, rings of pushed air climbing it. */
+  private cnLift(r: CastRun): void {
+    const at = this.cnMuzzleAt(r.attackerId, sideOf(r), r), L = this.cnLine(r, 62), p = at(); if (!p) return;
+    this.cnShot(r, 1.45, 62, at);
+    this.spr({ name: 'cn-blast', x: p.x, y: p.y, depth: p.d + 6, w: 170, ox: L.flip ? 0.9 : 0.1, flipX: L.flip, angle: L.ang, life: 260, glow: 0.3, tint: 0xffe2c0,
+      sx: kf([0, 0.35], [0.3, 1.2, out3], [1, 1.4]), sy: kf([0, 0.3], [0.3, 0.6, out3], [1, 0.7]), a: kf([0, 1], [0.5, 0.85], [1, 0, inQ]) });
+    for (let n = 0; n < 3; n++) { const d0 = 40 + n * 45;
+      this.spr({ name: 'cn-ring', x: p.x + L.dx * d0, y: p.y + L.dy * d0, depth: p.d + 6, w: 70 - n * 8, angle: L.ang, life: 240, delay: 20 + n * 35, glow: 0.2,
+        mx: (u) => L.dx * 40 * out(u), my: (u) => L.dy * 40 * out(u), sx: kf([0, 0.25], [1, 0.4, out]), sy: kf([0, 0.5], [1, 1.2, out3]), a: kf([0, 0.8], [1, 0, inQ]) }); }
+    const q = this.me(r);
+    this.spr({ name: 'dust', x: q.x, y: q.y + 4, oy: 0.85, depth: q.y + 1, w: 140, life: 480, sx: kf([0, 0.5], [1, 1.4, out3]), a: kf([0, 0.8], [1, 0, inQ]) }); // the recoil drives her into the floor
+    this.shake(r, 140, 0.005); if (r.own) this.ctx.punch(0.02, 160);
+  }
+  /** A shell bursting on the floor at (x, y): the blast punching up out of its white-hot core, a ring of pushed air running
+   *  over the floor, the scorch, the crater and the debris (the bigger ones), smoke left rolling up, sparks thrown out. */
+  private cnBoom(r: CastRun | null, x: number, y: number, k: number): void {
+    const flat = !this.in3d(); // (PVP 3D: the room's own floor — no painted decals lying on it)
+    this.spr({ name: 'cn-blast', x, y: y - 26 * k, depth: y + 6, w: 120 * k, life: 200, glow: 0.3, tint: HOT, sx: kf([0, 0.4], [0.25, 1.1, out3], [1, 1.25]), sy: kf([0, 0.4], [0.25, 1.1, out3], [1, 1.25]), a: kf([0, 1], [0.4, 1], [1, 0, inQ]) });
+    this.spr({ name: 'cn-blast', x, y: y + 6, oy: 0.92, depth: y + 5, w: 110 * k, life: 320, glow: 0.25, tint: 0xffd4a8, // its body punching up
+      sx: kf([0, 0.5], [0.3, 1, out3], [1, 1.1]), sy: kf([0, 0.3], [0.25, 1.35, out3], [1, 1.5]), a: kf([0, 1], [0.45, 0.9], [1, 0, inQ]) });
+    this.floor('shock_ring', x, y, 170 * k, 420, { add: true, tint: 0xffd0a0, s: kf([0, 0.3], [1, 1.4, out3]), a: kf([0, 1], [1, 0, inQ]) });
+    if (flat) this.floor('scorch_ring', x, y, 130 * k, 1800, { a: kf([0, 0.9], [0.6, 0.6], [1, 0]) });
+    if (flat && k >= 1) this.floor('crater', x, y, 150 * k, 1600, { a: kf([0, 0], [0.04, 1], [0.6, 0.85], [1, 0]) });
+    if (k >= 0.8) this.spr({ name: 'debris', x, y: y + 6, oy: 0.95, depth: y + 4, w: 150 * k, life: 600, my: (u) => -26 * k * out(u), sy: kf([0, 0.4], [0.3, 1.1, out3]), a: kf([0, 1], [0.6, 1], [1, 0, inQ]) });
+    this.spr({ name: 'dust', x, y: y + 4, oy: 0.85, depth: y + 1, w: 170 * k, life: 640, sx: kf([0, 0.5], [1, 1.45, out3]), a: kf([0, 0.85], [1, 0, inQ]) });
+    for (let n = 0; n < Math.round(2 + 2 * k); n++) { const dx = rnd(-34, 34) * k, rise = rnd(50, 90) * k;
+      this.spr({ name: 'cn-smoke', x: x + dx * 0.4, y: y - 30 * k, depth: y + 3, w: rnd(60, 90) * k, life: rnd(900, 1300), delay: 60 + n * 40,
+        mx: (u) => dx * out(u), my: (u) => -rise * out(u), sx: kf([0, 0.4], [1, 1.9, out3]), sy: kf([0, 0.4], [1, 1.7, out3]), a: kf([0, 0], [0.1, 0.7], [1, 0, inQ]) }); }
+    for (let n = 0; n < Math.round(6 * k); n++) { const an = rnd(Math.PI * 1.05, Math.PI * 1.95), d = rnd(50, 120) * k; // sparks thrown up and out
+      this.spr({ name: 'cn-spark', x, y: y - 20 * k, depth: TOP + 5, w: 22, angle: (an * 180) / Math.PI, tint: TERRA, glow: 0.3, life: rnd(320, 520),
+        mx: (u) => Math.cos(an) * d * out(u), my: (u) => Math.sin(an) * d * out(u) + 60 * u * u, a: kf([0, 1], [0.7, 1], [1, 0]) }); }
+    if (k >= 1.6) this.shake(r, 380, 0.011); else if (k >= 1) this.shake(r, 200, 0.007); else this.shake(r, 120, 0.0045);
+    if (r?.own && k >= 1) this.ctx.punch(k >= 1.6 ? 0.06 : 0.025, k >= 1.6 ? 340 : 180);
+  }
+  /** A small burst in the air: a shell at the end of its flight (or against cover), or one whose cast was cut. */
+  private cnPuff(x: number, y: number, size: number): void {
+    this.pop('cn-blast', x, y, size * 1.7, { life: 140, tint: HOT, glow: 0.3 });
+    this.spr({ name: 'cn-smoke', x, y, depth: TOP + 3, w: size * 2.2, life: 560, sx: kf([0, 0.5], [1, 1.8, out3]), sy: kf([0, 0.5], [1, 1.6, out3]), a: kf([0, 0.7], [1, 0, inQ]), my: (u) => -14 * u });
+    for (let n = 0; n < 3; n++) { const an = rnd(0, Math.PI * 2), d = rnd(20, 44);
+      this.spr({ name: 'cn-spark', x, y, depth: TOP + 5, w: 16, angle: (an * 180) / Math.PI, tint: TERRA, glow: 0.3, life: 260, mx: (u) => Math.cos(an) * d * out(u), my: (u) => Math.sin(an) * d * out(u) + 30 * u * u, a: kf([0, 1], [1, 0]) }); }
+  }
+  /** The four-beat's third shell skipping off the floor: a puff of dust, a small ring of pushed air, a spark. */
+  private cnSkip(x: number, y: number): void {
+    this.spr({ name: 'dust', x, y: y + 4, oy: 0.85, depth: y + 1, w: 70, life: 380, sx: kf([0, 0.5], [1, 1.3, out3]), a: kf([0, 0.8], [1, 0, inQ]) });
+    this.floor('shock_ring', x, y, 60, 260, { add: true, tint: 0xffd0a0, s: kf([0, 0.4], [1, 1.2, out3]), a: kf([0, 0.9], [1, 0, inQ]) });
+    this.pop('cn-blast', x, y - 6, 34, { life: 110, tint: HOT, glow: 0.3 });
+  }
+  /** A shell lobbed high onto the floor (Arc Mortar, the Broadside's four): out of the muzzle when the cast's clock reaches
+   *  `fire`, down onto the floor point (tx, ty) as it reaches `land` — its hit bursts it there (cannonHit). Driven by the
+   *  cast's own clock, so it lands with its hit even through hit-stops; a cast cut mid-flight lets it fall as a dud. */
+  private lob(r: CastRun, i: number, tx: number, ty: number, fire: number, land: number, size: number, up: number): void {
+    const sc = this.ctx.scene, at = this.cnMuzzleAt(r.attackerId, sideOf(r), r), dur = Math.max(60, land - fire);
+    let im: Phaser.GameObjects.Image | null = null, tr: Phaser.GameObjects.Image | null = null, x0 = 0, y0 = 0, H = 0, u = 0, puff = 0;
+    this.add({ t: 0, step: (dt) => {
+      const live = r.phase !== 'done';
+      if (!im) {
+        if (!live) return false; // cut before it was fired
+        if (r.elapsed < fire) return true;
+        const p = at(); if (!p) return false;
+        cannonTextures(sc); x0 = p.x; y0 = p.y; H = 80 + Math.abs(tx - x0) * 0.22 + Math.max(0, y0 - ty) * 0.2; // (high, yet inside the view)
+        im = sc.add.image(x0, y0, 'cn-shell').setDisplaySize(size, size * 0.6).setDepth(TOP + 2);
+        tr = sc.add.image(x0, y0, 'cn-trail').setOrigin(1, 0.5).setBlendMode(Phaser.BlendModes.ADD).setTint(TERRA).setDepth(TOP + 1.9);
+        this.cnShot(r, 1.15, up, at);
+      }
+      u = live ? Math.max(u, (r.elapsed - fire) / dur) : u + dt / dur;
+      if (u >= 1) { im.destroy(); tr?.destroy(); if (!r.fired.has(i)) this.cnPuff(tx, ty - 10, size); return false; }
+      const x = x0 + (tx - x0) * u, y = y0 + (ty - y0) * u - 4 * H * u * (1 - u);
+      const vx = tx - x0, vy = ty - y0 - 4 * H * (1 - 2 * u), ang = Math.atan2(vy, vx) * (180 / Math.PI);
+      im.setPosition(x, y).setAngle(ang).setFlipY(vx < 0);
+      tr?.setPosition(x, y).setAngle(ang).setFlipY(vx < 0).setDisplaySize(Math.min(80, 16 + u * 260), size * 0.42).setAlpha(0.7);
+      if ((puff += dt) >= 45) { puff = 0; this.spr({ name: 'cn-smoke', x, y, depth: TOP + 1.5, w: size * 1.1, life: 460, sx: kf([0, 0.6], [1, 1.6, out3]), sy: kf([0, 0.6], [1, 1.6, out3]), a: kf([0, 0.45], [1, 0, inQ]), my: (q) => -8 * q }); }
+      return true;
+    } });
+  }
+  /** The Broadside's missile: shot up out of the frame at `launch`, its mark spreading on the floor, then falling straight
+   *  down out of the sky onto (tx, ty) as the cast's clock reaches `land` (its hit: the great blast, cannonHit). */
+  private missile(r: CastRun, tx: number, ty: number, launch: number, land: number): void {
+    const sc = this.ctx.scene, side = sideOf(r), at = this.cnMuzzleAt(r.attackerId, side, r), FALL = 230;
+    this.onClock(r, launch, () => { // the launch: the biggest shot of hers, a missile tearing up out of the barrel and away
+      const L = this.cnLine(r, 58), p = at(); if (!p) return;
+      this.cnShot(r, 1.9, 58, at);
+      const a = (Math.atan2(L.dy, L.dx) * 180) / Math.PI - 90, len = 120, D = 760, mx = (u: number) => L.dx * D * inQ(u), my = (u: number) => L.dy * D * inQ(u);
+      this.spr({ name: 'cn-missile', x: p.x + L.dx * len, y: p.y + L.dy * len, ox: 0.5, oy: 0.98, depth: TOP + 3, w: 34, h: 120, angle: a, life: 170, mx, my });
+      this.spr({ name: 'cn-flame', x: p.x, y: p.y, ox: 0.5, oy: 1, depth: TOP + 2.9, w: 30, h: 70, angle: a, life: 170, glow: 0.3, mx, my, sy: (u) => 0.8 + 0.4 * Math.abs(Math.sin(u * 40)) });
+      for (let n = 0; n < 3; n++) this.spr({ name: 'cn-smoke', x: p.x + L.dx * n * 40, y: p.y + L.dy * n * 40, depth: TOP + 1, w: 90 - n * 12, life: 1100, delay: n * 40,
+        sx: kf([0, 0.5], [1, 1.9, out3]), sy: kf([0, 0.5], [1, 1.7, out3]), a: kf([0, 0], [0.1, 0.7], [1, 0, inQ]), my: (u) => -30 * u });
+      const q = this.me(r);
+      this.floor('shock_ring', q.x, q.y, 140, 380, { add: true, tint: 0xffd0a0, s: kf([0, 0.4], [1, 1.3, out3]), a: kf([0, 0.8], [1, 0, inQ]) });
+      this.shake(r, 160, 0.006);
+    });
+    const warn = launch + 140;
+    this.onClock(r, warn, () => { // its mark: a ring spreading round him, pulsing, and its shadow darkening as it comes
+      const ms = Math.max(120, land - warn), g = kf([0, 1.25], [1, 0.95, out]);
+      this.spr({ name: 'cn-ring', x: tx, y: ty, depth: GROUND + 3, w: 300, life: ms, tint: TERRA, glow: 0.3, sx: g, sy: (u) => 0.42 * g(u), a: (u) => kf([0, 0], [0.15, 0.7], [1, 0.9])(u) * (0.75 + 0.25 * Math.sin(u * 30)) });
+      this.spr({ name: 'cn-smoke', x: tx, y: ty, depth: GROUND + 2, w: 260, life: ms, tint: 0x000000, sx: kf([0, 0.3], [1, 1, inQ]), sy: kf([0, 0.12], [1, 0.36, inQ]), a: kf([0, 0], [1, 0.75, inQ]) });
+    });
+    this.onClock(r, land - FALL, () => { // it falls straight down out of the sky, its flame and its smoke behind it
+      cannonTextures(sc);
+      const v = this.ctx.cam().worldView, y0 = Math.min(ty - 640, v.y - 60), H = ty - y0, MH = 162;
+      const im = sc.add.image(tx, y0, 'cn-missile').setOrigin(0.5, 0.98).setDisplaySize(46, MH).setDepth(TOP + 3);
+      const fl = sc.add.image(tx, y0, 'cn-flame').setOrigin(0.5, 1).setDisplaySize(40, 96).setBlendMode(Phaser.BlendModes.ADD).setDepth(TOP + 2.9);
+      const tr = sc.add.image(tx, y0, 'cn-trail').setOrigin(1, 0.5).setAngle(90).setBlendMode(Phaser.BlendModes.ADD).setTint(TERRA).setDepth(TOP + 2.8);
+      let u = 0, puff = 0;
+      this.add({ t: 0, step: (dt) => {
+        const live = r.phase !== 'done';
+        u = live ? Math.max(u, (r.elapsed - (land - FALL)) / FALL) : u + dt / FALL;
+        if (u >= 1) { im.destroy(); fl.destroy(); tr.destroy(); return false; }
+        const y = y0 + H * inQ(u), tail = y - MH * 0.95;
+        im.setPosition(tx, y);
+        fl.setPosition(tx, tail).setDisplaySize(40, 96 * (0.85 + 0.3 * Math.abs(Math.sin(u * 50))));
+        tr.setPosition(tx, tail).setDisplaySize(Math.min(520, 60 + H * inQ(u)), 22).setAlpha(0.8);
+        if ((puff += dt) >= 30) { puff = 0; this.spr({ name: 'cn-smoke', x: tx + rnd(-6, 6), y: tail - rnd(0, 40), depth: TOP + 2.7, w: 70, life: 600, sx: kf([0, 0.6], [1, 1.7, out3]), sy: kf([0, 0.6], [1, 1.7, out3]), a: kf([0, 0.55], [1, 0, inQ]) }); }
+        return true;
+      } });
+    });
+  }
+  /** Queen's Broadside: braced on the spot, four heavy shells lobbed onto the floor round him, then one huge missile — shot
+   *  up out of the frame, it comes straight down onto him. */
+  private broadside(r: CastRun): void {
+    const T = r.timings, me = this.me(r), c = r.place ?? { x: me.x + r.aim.x * 300, y: me.y + r.aim.y * 300 }, land = r.hits.map((h) => T.startup + h.at);
+    if (land.length < 5) return;
+    this.ctx.darken?.(land[4] - 40, 0.42);
+    this.spr({ name: 'dust', x: me.x, y: me.y + 4, oy: 0.85, depth: me.y + 1, w: 150, life: 520, sx: kf([0, 0.5], [1, 1.4, out3]), a: kf([0, 0.8], [1, 0, inQ]) }); // she plants her feet
+    this.floor('shock_ring', me.x, me.y, 120, 360, { add: true, tint: 0xffd0a0, run: r, s: kf([0, 0.5], [1, 1.2, out3]), a: kf([0, 0.7], [1, 0, inQ]) });
+    const FL = Math.max(120, Math.min(260, land[0] - 40));
+    this.breech(r, land[3] - FL + 40, 1.3);
+    BROADSIDE.forEach(([ox, oy], i) => this.lob(r, i, c.x + ox, c.y + oy, land[i] - FL, land[i], 32, 40));
+    this.missile(r, c.x, c.y, land[3] - FL + 70, land[4]);
+  }
+  private cannonCast(r: CastRun): void {
+    const s = r.skill, T = r.timings, side = sideOf(r), me = this.me(r);
+    this.cnStage.set(r.castId, r.stage); this.later(3000, () => this.cnStage.delete(r.castId));
+    switch (s.id) {
+      case 'cn_four_beat':
+        if (r.stage === 3) { // Breakshot: braced — the chamber glows, her feet dig in
+          this.breech(r, T.startup + 30, 1.1);
+          this.later(T.startup, () => { const q = this.me(r); this.spr({ name: 'dust', x: q.x, y: q.y + 4, oy: 0.85, depth: q.y + 1, w: 110, life: 420, a: kf([0, 0.7], [1, 0, inQ]) }); }, r);
+        }
+        break;
+      case 'cn_breach_burst': case 'cn_piston_lift': this.breech(r, T.startup + 30); break;
+      case 'cn_battery': this.breech(r, T.startup + (r.hits[2]?.at ?? 0) + 30, 1.2); break; // (the pressure held through all three)
+      case 'cn_arc_mortar': { // lobbed high at the active start; where it will come down, a ring closing in until it lands
+        const c = r.place ?? { x: me.x + r.aim.x * 300, y: me.y + r.aim.y * 300 }, fire = T.startup, land = T.startup + (r.hits[0]?.at ?? 240), g = kf([0, 1.3], [1, 0.9, out]);
+        this.lob(r, 0, c.x, c.y, fire, land, 30, 58);
+        this.onClock(r, fire, () => this.spr({ name: 'cn-ring', x: c.x, y: c.y, depth: GROUND + 3, w: 120, life: Math.max(60, land - fire), tint: TERRA, glow: 0.3, sx: g, sy: (u) => 0.42 * g(u), a: kf([0, 0], [0.2, 0.7], [1, 0.85]) }));
+        break;
+      }
+      case 'cn_kickback': // the kick throws her back: dust under her feet as she slides, a puff where she lands
+        this.spr({ name: 'dust_roll', w: 120, life: 400, delay: T.startup + 20, follow: this.at(r.attackerId, side, -12, 4), dz: 2, flipX: side > 0, run: r, a: kf([0, 0.75], [1, 0, inQ]) });
+        this.later(T.startup + T.active, () => { const q = this.me(r); this.spr({ name: 'dust', x: q.x, y: q.y + 4, oy: 0.85, depth: q.y + 1, w: 100, life: 400, a: kf([0, 0.7], [1, 0, inQ]) }); }, r);
+        break;
+      case 'cn_crater_catch': this.spr({ name: 'dust', x: me.x, y: me.y + 4, oy: 0.85, depth: me.y + 1, w: 100, life: 400, delay: T.startup * 0.5, run: r, a: kf([0, 0.7], [1, 0, inQ]) }); break; // the hop
+      case 'cn_broadside': this.broadside(r); break;
+    }
+  }
+  /** Her attacks land at their hits' own moments (the shots, the cone, the floor bombs). */
+  private cannonHit(r: CastRun, i: number): void {
+    const me = this.me(r), c = r.place ?? { x: me.x + r.aim.x * 300, y: me.y + r.aim.y * 300 };
+    switch (r.skill.id) {
+      case 'cn_four_beat':
+        if (r.stage === 0) this.cnJab(r);
+        else if (r.stage === 3) { this.cnShot(r, 1.6); if (r.own) this.ctx.punch(0.025, 160); } // THOOM
+        else this.cnShot(r, r.stage === 2 ? 1.05 : 1.15, r.stage === 2 ? -14 : 0); // (the skipper fired down at the floor)
+        break;
+      case 'cn_breach_burst': this.cnCone(r); break;
+      case 'cn_arc_mortar': this.cnBoom(r, c.x, c.y, 1.1); break;
+      case 'cn_kickback': this.cnShot(r, 1.25); break;
+      case 'cn_crater_catch': this.cnShot(r, 1.35, -30); break; // (the blast driven down)
+      case 'cn_rolling_iron': this.cnShot(r, 0.8, -8); break; // (bowled low along the floor)
+      case 'cn_battery': this.cnShot(r, i === 2 ? 1.7 : 1.2); if (i === 2 && r.own) this.ctx.punch(0.03, 180); break; // boom — boom — BOOM
+      case 'cn_broadside':
+        if (i < 4) { const [ox, oy] = BROADSIDE[i] ?? [0, 0]; this.cnBoom(r, c.x + ox, c.y + oy, 0.85); break; }
+        this.cnBoom(r, c.x, c.y, 2.1); // the missile: the whole floor shakes
+        this.spr({ name: 'cn-blast', x: c.x, y: c.y + 8, oy: 0.95, depth: c.y + 6, w: 200, life: 460, glow: 0.3, tint: 0xffe6c8, // a pillar of blast up out of the floor
+          sx: kf([0, 0.5], [0.2, 0.9, out3], [1, 0.8]), sy: kf([0, 0.4], [0.2, 2.6, out3], [1, 3]), a: kf([0, 1], [0.5, 0.85], [1, 0, inQ]) });
+        this.floor('shock_ring', c.x, c.y, 300, 600, { add: true, delay: 80, tint: 0xffe0b8, s: kf([0, 0.3], [1, 1.7, out3]), a: kf([0, 0.9], [1, 0, inQ]) }); // a second ring running out over the floor
+        break;
+      case 'cn_piston_lift': this.cnLift(r); break;
+      default: this.cnShot(r, 1);
+    }
+  }
+  /** A shell in flight: the iron shell with its warm trail (the bomb rolling along the floor), drawn out of the muzzle. */
+  private shell(p: Projectile): void {
+    const s = this.ctx.scene; cannonTextures(s);
+    const roll = p.skill.id === 'cn_rolling_iron', stage = this.cnStage.get(p.castId) ?? 0;
+    const [fwd, up] = CN_MUZZLE[`${p.skill.id}#${stage}`] ?? CN_MUZZLE[p.skill.id] ?? CN_MUZZLE.stance;
+    const w = roll ? 28 : Math.round(p.radius * 1.75), h = roll ? 28 : Math.round(w * 0.6);
+    const im = s.add.image(p.x, p.y - p.z, roll ? 'cn-ball' : 'cn-shell').setDisplaySize(w, h).setAlpha(0);
+    const tr = s.add.image(p.x, p.y - p.z, 'cn-trail').setOrigin(1, 0.5).setBlendMode(Phaser.BlendModes.ADD).setTint(TERRA).setAlpha(0).setDisplaySize(8, 8);
+    this.shells.set(p, { im, tr, t: 0, roll, skip: p.skill.id === 'cn_four_beat' && stage === 2, skipped: false, lead: Math.max(0, fwd - 16), up, z0: p.z, w, puff: 0, puffs: 0, x: p.x, y: p.y - p.z - 20 });
+  }
+  private stepShells(dt: number): void {
+    for (const [p, a] of this.shells) {
+      a.t += dt;
+      const flip = p.dx < -0.01, lv = level(p.dx, p.dy), past = p.travelled - a.lead, shown = Math.max(0, Math.min(1, past / 10));
+      const feet = a.z0 - 34, lift = p.z - a.z0; // (her feet's height when it was fired; how far it has climbed since — an anti-air shot rises to its foe)
+      let y: number, ang = lv.ang;
+      if (a.roll) y = p.y - feet - 14; // on the floor
+      else if (a.skip) { // the floor skipper: down at the floor, off it, up into him
+        const k = Math.min(1, p.travelled / Math.max(1, p.range)), K = 0.3;
+        const hgt = k < K ? 18 - 15 * (k / K) ** 2 : 3 + 57 * ((k - K) / (1 - K)) ** 0.75;
+        const dh = k < K ? (-30 * k) / (K * K) : (57 * 0.75 * Math.max(0.05, (k - K) / (1 - K)) ** -0.25) / (1 - K);
+        y = p.y - feet - lift - hgt;
+        const tilt = Math.atan(Math.max(-3, Math.min(3, dh / Math.max(1, p.range)))) * (180 / Math.PI); ang = lv.ang + (flip ? tilt : -tilt);
+        if (!a.skipped && k >= K) { a.skipped = true; this.cnSkip(p.x, p.y - feet); }
+      } else { // out of the muzzle's height, onto the shot's own line
+        const e = Math.min(1, Math.max(0, past) / 110), h0 = a.up - 34;
+        y = p.y - p.z - (h0 + (20 - h0) * out(e));
+        if (p.dropPerPx < 0 && p.zTop !== undefined && p.z < p.zTop - 1) { const raw = Math.atan2(p.dropPerPx, Math.abs(p.dx) + 0.2) * (180 / Math.PI); ang = flip ? -raw : raw; } // fired up at a foe in the air: tilted up
+      }
+      a.x = p.x; a.y = y;
+      if (a.roll) a.im.setPosition(p.x, y).setAngle((p.travelled / 14) * (180 / Math.PI) * (flip ? -1 : 1)).setDepth(p.y + 2).setAlpha(shown);
+      else {
+        a.im.setPosition(p.x, y).setFlipX(flip).setAngle(ang).setDepth(p.y + 2.1).setAlpha(shown);
+        a.tr.setPosition(p.x, y).setFlipX(flip).setAngle(ang).setDepth(p.y + 2).setAlpha(0.75 * shown).setDisplaySize(Math.max(8, Math.min(110, past * 0.7)), a.w * 0.45);
+      }
+      if (shown > 0 && a.puffs < 8 && (a.puff += dt) >= (a.roll ? 70 : 42)) { // smoke left behind it (dust behind the rolling bomb)
+        a.puff = 0; a.puffs++;
+        const bx = p.x - (flip ? -1 : 1) * a.w * 0.6;
+        if (a.roll) this.spr({ name: 'dust', x: bx, y: p.y - feet + 2, oy: 0.85, depth: p.y + 1, w: 44, life: 360, sx: kf([0, 0.6], [1, 1.3, out3]), a: kf([0, 0.6], [1, 0, inQ]) });
+        else this.spr({ name: 'cn-smoke', x: bx, y, depth: p.y + 1.9, w: a.w * 1.1, life: 420, sx: kf([0, 0.6], [1, 1.6, out3]), sy: kf([0, 0.6], [1, 1.6, out3]), a: kf([0, 0.45], [1, 0, inQ]), my: (u) => -10 * u });
+      }
+    }
+  }
+
   /** The style switch (GPT's 240 ms): the old weapon goes in one tight accent of its colour, the change behind one compact
    *  flash of the new style's, the new weapon lands with a glint and a soft ring at her feet — no column, no zoom. */
   private styleSwitch(r: CastRun): void {
@@ -963,13 +1337,14 @@ export class ArcherFx {
     this.spr({ name: 'sn-flash', w: 40, life: 90, follow: hand, on: r.attackerId, dz: 5, glow: 0.3, tint: from?.accent ?? 0xffffff, run: r, rot: (u) => 90 * u, a: kf([0, 1], [1, 0, inQ]) });
     this.spr({ name: 'sn-flash', w: 130, life: 130, delay: T.startup * 0.4, follow: hips, dz: 6, glow: 0.3, tint: to?.accent ?? 0xffffff, run: r, // the change behind one compact flash
       sx: kf([0, 0.5], [0.4, 1, out3], [1, 1.1]), sy: kf([0, 0.5], [0.4, 1, out3], [1, 1.1]), a: kf([0, 0], [0.25, 0.7], [1, 0, inQ]) });
-    this.spr({ name: 'sn-flash', w: 44, life: 110, delay: T.startup, follow: sw.style === 'sniper' ? this.muzzleAt(r.attackerId, side, r) : hand, on: r.attackerId, dz: 5, glow: 0.3, tint: 0xfff4e2, run: r, a: kf([0, 1], [1, 0]) });
+    this.spr({ name: 'sn-flash', w: 44, life: 110, delay: T.startup, follow: sw.style === 'sniper' ? this.muzzleAt(r.attackerId, side, r) : sw.style === 'cannon' ? this.cnMuzzleAt(r.attackerId, side) : hand, on: r.attackerId, dz: 5, glow: 0.3, tint: 0xfff4e2, run: r, a: kf([0, 1], [1, 0]) });
     this.floor('shock_ring', me.x, me.y, 110, 260, { delay: T.startup, add: true, tint: to?.accent ?? 0xffffff, run: r, s: kf([0, 0.5], [1, 1.15, out3]), a: kf([0, 0.7], [1, 0, inQ]) });
   }
 
   projectile(p: Projectile): void {
     if (!this.ready) return;
     if (p.skill.style === 'sniper') { this.round(p); return; }
+    if (p.skill.style === 'cannon') { this.shell(p); return; }
     const id = p.skill.id;
     let iron = false;
     if (id === 'multi_shot') { const n = (this.fanCount.get(p.castId) ?? 0) + 1; this.fanCount.set(p.castId, n); iron = n % 2 === 0; if (n === 1) this.later(2000, () => this.fanCount.delete(p.castId)); } // between the green arrows: iron ones
@@ -1022,6 +1397,14 @@ export class ArcherFx {
   projectileEnd(p: Projectile): void {
     const rd = this.rounds.get(p);
     if (rd) { this.rounds.delete(p); rd.head.destroy(); rd.tr.destroy(); const e = p.end ?? { x: p.x, y: p.y, reason: 'range' as const }; if (e.reason !== 'target') this.pop('sn-flash', e.x, e.y - p.z - 18, 24, { life: 110, tint: ROUND }); return; }
+    const sh = this.shells.get(p);
+    if (sh) {
+      this.shells.delete(p); const seen = sh.im.alpha > 0; sh.im.destroy(); sh.tr.destroy();
+      const e = p.end ?? { x: p.x, y: p.y, reason: 'range' as const };
+      if (sh.roll) { this.cnBoom(null, e.x, e.y, 0.9); return; } // the rolling bomb bursts where it stops, however it stops
+      if (e.reason !== 'target' && seen) this.cnPuff(sh.x, sh.y, sh.w); // a shell bursts in the air at the end of its flight (or against cover)
+      return;
+    }
     const a = this.arrows.get(p); if (!a) return;
     if (a.storm || p.storm) { const e = p.end ?? { x: p.x, y: p.y, reason: 'range' as const }; this.pop('elec_burst', e.x, e.y - p.z - 20, 150, { life: 240 }); this.spr({ name: 'strike', x: e.x, y: e.y + 8, oy: 0.97, depth: e.y + 3, w: 120, h: 320, life: 240, add: true, glow: 0.4, sy: kf([0, 0.2], [0.15, 1.05, out3]), a: kf([0, 1], [1, 0, inQ]) }); } // the lightning arrow lands as a strike (the chain to a second foe: stormChain)
     this.arrows.delete(p); a.im.destroy(); a.tr?.destroy(); a.whip?.destroy();
@@ -1071,6 +1454,21 @@ export class ArcherFx {
       if (big) this.spr({ name: 'sn-ring', x, y, depth: TOP + 4, w: 70, life: 200, tint: ROUND, glow: 0.3, sx: kf([0, 0.4], [1, 1.5, out3]), sy: kf([0, 0.4], [1, 1.5, out3]), a: kf([0, 0.9], [1, 0, inQ]) });
       if (crit) this.pop('sn-flash', x, y, 120, { life: 220, tint: 0xfff4e2 });
       if (launch) this.spr({ name: 'sn-streak', x, y: at.y - at.z, depth: at.y + 3, w: 150, h: 10, angle: -90, ox: 0, tint: ROUND, glow: 0.3, life: 240, sx: kf([0, 0.2], [0.3, 1, out3]), a: kf([0, 0.85], [1, 0, inQ]) }); // the shot's line up into the air with him
+      return;
+    }
+    if (s.style === 'cannon') { // her shells: a short warm burst on him, smoke, a ring of pushed air on a heavy one — no leaves, no green
+      const big = heavy || !!hit.heavy, area = s.id === 'cn_arc_mortar' || s.id === 'cn_broadside' || s.id === 'cn_rolling_iron'; // (a floor bomb's blast is drawn where it bursts)
+      this.pop('cn-blast', x + rnd(-5, 5), y + rnd(-5, 5), area ? 50 : big ? 84 : 56, { life: big ? 200 : 150, tint: HOT, glow: 0.3 });
+      this.spr({ name: 'cn-smoke', x, y: y - 4, depth: TOP + 3, w: big ? 60 : 44, life: 560, sx: kf([0, 0.5], [1, 1.7, out3]), sy: kf([0, 0.5], [1, 1.5, out3]), a: kf([0, 0.6], [1, 0, inQ]), my: (u) => -16 * u });
+      if (big && !area) this.spr({ name: 'cn-ring', x, y, depth: TOP + 4, w: 80, life: 220, glow: 0.3, sx: kf([0, 0.4], [1, 1.5, out3]), sy: kf([0, 0.4], [1, 1.5, out3]), a: kf([0, 0.9], [1, 0, inQ]) });
+      if (crit) this.pop('cn-blast', x, y, 130, { life: 230, tint: 0xfff4e2 });
+      if (launch) this.spr({ name: 'cn-trail', x, y: at.y - at.z, depth: at.y + 3, w: 150, h: 14, angle: -90, ox: 0, tint: TERRA, glow: 0.3, life: 240, sx: kf([0, 0.2], [0.3, 1, out3]), a: kf([0, 0.8], [1, 0, inQ]) }); // the blast's line up into the air with him
+      if (hit.reaction.slam) this.later(110, () => { // Crater Catch: driven down into the floor — a ring and a crater on the floor under him
+        const fx = at.x, fy = at.y;
+        this.floor('shock_ring', fx, fy, 150, 380, { add: true, tint: 0xffd0a0, s: kf([0, 0.4], [1, 1.3, out3]), a: kf([0, 0.9], [1, 0, inQ]) });
+        if (!this.in3d()) this.floor('crater', fx, fy, 130, 1400, { a: kf([0, 0], [0.05, 1], [0.6, 0.85], [1, 0]) });
+        this.spr({ name: 'dust', x: fx, y: fy + 4, oy: 0.85, depth: fy + 1, w: 140, life: 520, sx: kf([0, 0.5], [1, 1.4, out3]), a: kf([0, 0.85], [1, 0, inQ]) });
+      });
       return;
     }
     if (s.id === 'rain_of_arrows' && !counter) { this.pop('spark_cyan', x, y, 70, { life: 200 }); return; }
@@ -1143,12 +1541,15 @@ export class ArcherFx {
     this.live = cur.filter((l) => { l.t += dt; return l.step(dt, l.t); });
     this.stepArrows(dt);
     this.stepRounds(dt);
+    this.stepShells(dt);
     this.stepHawks(dt);
   }
 
   destroy(): void {
     for (const [p] of this.arrows) this.projectileEnd(p);
     for (const [p] of this.rounds) this.projectileEnd(p);
+    for (const [, sh] of this.shells) { sh.im.destroy(); sh.tr.destroy(); }
+    this.shells.clear();
     for (const [, h] of this.hawks) h.im.destroy();
     this.hawks.clear();
     this.live = []; this.incoming = [];

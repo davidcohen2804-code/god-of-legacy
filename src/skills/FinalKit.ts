@@ -1277,7 +1277,122 @@ const sniper: FinalSkill[] = [
   }),
 ];
 
-export const FINAL_SKILLS: FinalSkill[] = [...warrior, ...mage, ...archer, ...sniper, ...samurai, ...gambler];
+// ------------------------------------------------------------------ ARCHER — RECOIL CANNONEER (her third style)
+// David 4 Nov 14:59: the styles are a chain of different tools — after the sniper's shot into the wall she switches to the
+// cannon and throws bombs onto the floor, or fires one huge missile into it. GPT's design (scratchpad
+// styles/archer_styles.md): impact and momentum, 90–380 px, heavy shots, recoil steps, low-to-high launches, close
+// counters; the cannon is physical in every attack. Live: the four-beat chain, the opener, the floor mortar, the escape,
+// the anti-air smash, the rolling bomb, the signature, the missile ultimate, the main launcher; four templates.
+const SHELL = (range: number, radius = 14, speed = 1500) => ({ kind: 'projectile' as const, speed, range, radius, antiAir: true });
+const cannon: FinalSkill[] = [
+  S({
+    id: 'cn_four_beat', cls: 'archer', style: 'cannon', arenaDmg: 0.6, slot: 0, name: 'Four-Beat Breacher', roles: ['basic', 'projectile'], targeting: 'mouseProjectile',
+    startup: D(100), active: D(45), recovery: D(150), cooldown: 0, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: { startup: 0.65, active: 0.65, recovery: 0.8 },
+    hits: [H(0, 7, { kind: 'sector', range: 96, angle: 80 }, { stun: D(240), push: 10 }, { reachUp: 90 })],
+    // jab — bang — bounce — THOOM: the barrel driven into him, a shell point-blank, one skipped off the floor that throws
+    // him up, then the braced heavy shot that sends him flying
+    chain: { resetMs: 700, stages: [
+      [H(0, 7, { kind: 'sector', range: 96, angle: 80 }, { stun: D(240), push: 10 }, { reachUp: 90 })], // Breech Jab: the barrel's end into him
+      [H(0, 9, SHELL(160, 16), { stun: D(280), push: 55 }, { mark: 1 })], // Pocket Blast: a shell from the hip, point-blank
+      [H(0, 10, SHELL(220, 16, 1300), { stun: D(520), launch: 90, juggleCost: 18 }, { reachUp: 120, mark: 1 })], // Floor Skipper: skipped off the floor up into him
+      [H(0, 14, SHELL(275, 18, 1700), { stun: D(460), push: 140 }, { reachUp: 150, heavy: true })], // Breakshot: braced — THOOM, he flies back
+    ], timings: [{ startup: D(100), active: D(45), recovery: D(150) }, { startup: D(130), active: D(50), recovery: D(180) }, { startup: D(150), active: D(60), recovery: D(210) }, { startup: D(200), active: D(60), recovery: D(300) }] },
+    cancelOnHit: ['cn_breach_burst', 'cn_arc_mortar', 'cn_kickback', 'cn_crater_catch', 'cn_rolling_iron', 'cn_battery', 'cn_piston_lift'],
+    description: 'Tap or hold Space: the barrel jabbed into him, a shell point-blank, one skipped off the floor that throws him up, then a braced heavy shot that sends him flying.',
+    relations: ['4-beat chain', 'Third beat launches'],
+  }),
+  S({
+    id: 'cn_breach_burst', cls: 'archer', style: 'cannon', slot: 1, name: 'Breach Burst', roles: ['opener'], targeting: 'mouseDir',
+    startup: D(140), active: D(60), recovery: D(220), cooldown: 5000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [H(0, 12, { kind: 'sector', range: 170, angle: 64 }, { stun: D(280), push: 65 }, { reachUp: 110, mark: 1 })],
+    cancelOnHit: ['cn_piston_lift', 'cn_arc_mortar', 'cn_rolling_iron'],
+    description: 'A cone of blast out of the muzzle up close: everyone in it is stunned and shoved back — your opening.',
+    relations: ['Opener', 'Cone'],
+  }),
+  S({
+    id: 'cn_arc_mortar', cls: 'archer', style: 'cannon', slot: 2, name: 'Arc Mortar', roles: ['launcher', 'zone'], targeting: 'mouseGround',
+    startup: D(200), active: D(340), recovery: D(240), cooldown: 8000, ground: true, air: false, cover: 'ARCS_OVER_LOW_COVER', move: LOCK,
+    placeRange: 380,
+    hits: [H(D(320), 16, { kind: 'placed', radius: 52 }, { stun: D(620), launch: 105, juggleCost: 22 }, { reachUp: 90, heavy: true, mark: 1 })],
+    cancelOnHit: ['cn_crater_catch', 'cn_piston_lift', 'cn_battery'], tags: ['farLaunch'], telegraph: 'ground', // (a shell lobbed onto him: made to launch from afar)
+    description: 'A shell lobbed high in an arc: it lands on the floor where you aim and bursts, throwing everyone on it into the air.',
+    relations: ['Floor bomb', 'Ranged launcher'],
+  }),
+  S({
+    id: 'cn_kickback', cls: 'archer', style: 'cannon', slot: 3, name: 'Kickback Step', roles: ['escape', 'projectile'], targeting: 'mouseProjectile',
+    startup: D(110), active: D(220), recovery: D(170), cooldown: 5000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK,
+    dash: { distance: -120, lift: 18 }, // (the cannon's kick throws her back out of reach)
+    hits: [H(0, 9, SHELL(210, 16), { stun: D(260), push: 40 })],
+    cancelOnHit: ['cn_arc_mortar', 'cn_four_beat'],
+    description: 'Fires point-blank and lets the cannon\'s kick throw her back out of reach.',
+    relations: ['Escape', 'Makes room'],
+  }),
+  S({
+    id: 'cn_crater_catch', cls: 'archer', style: 'cannon', slot: 4, name: 'Crater Catch', roles: ['antiAir', 'knockdown'], targeting: 'mouseProjectile',
+    startup: D(150), active: D(60), recovery: D(260), cooldown: 7000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
+    dash: { distance: 30, lift: 70 }, // (a hop up to meet him, the blast driven down)
+    hits: [H(0, 16, SHELL(240, 20, 1600), { stun: D(550), slam: true, knockdown: 'light', juggleCost: 14 }, { reachUp: 200, heavy: true })],
+    cancelOnHit: ['cn_battery', 'cn_rolling_iron'], tags: ['farLaunch'],
+    description: 'She hops up and blasts a foe in the air straight down into the floor — he bounces once, right into your next shot. On the floor it knocks him down.',
+    relations: ['Anti-air', 'Ground bounce'],
+  }),
+  S({
+    id: 'cn_rolling_iron', cls: 'archer', style: 'cannon', slot: 5, name: 'Rolling Iron', roles: ['zone', 'projectile'], targeting: 'mouseDir',
+    startup: D(160), active: D(420), recovery: D(220), cooldown: 9000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK,
+    hits: [H(0, 14, { kind: 'projectile', speed: 560, range: 350, radius: 20, explodeRadius: 60 }, { stun: D(420), knockdown: 'light' }, { heavy: true })],
+    cancelOnHit: ['cn_battery'],
+    description: 'A heavy shell bowled along the floor: it rolls into him and bursts, knocking down everyone round it.',
+    relations: ['Floor bomb', 'Knockdown'],
+  }),
+  S({
+    id: 'cn_battery', cls: 'archer', style: 'cannon', slot: 6, name: 'Three-Beat Battery', roles: ['signature', 'projectile'], targeting: 'mouseDir',
+    startup: D(200), active: D(300), recovery: D(400), cooldown: 22000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    // three shots in rhythm, each across the floor's depth — the third throws him up (higher with pressure in the chamber)
+    hits: [
+      H(0, 10, { kind: 'projectile', speed: 1700, range: 330, radius: 22 }, { stun: D(380), push: 20 }),
+      H(D(110), 10, { kind: 'projectile', speed: 1700, range: 330, radius: 22 }, { stun: D(380), push: 20 }),
+      H(D(230), 20, { kind: 'projectile', speed: 1900, range: 330, radius: 26, antiAir: true }, { stun: D(560), launch: 105, juggleCost: 26 }, { heavy: true, useMark: 'launch' }),
+    ],
+    cancelOnHit: ['cn_broadside'], tags: ['signature', 'farLaunch'],
+    description: 'Her signature: three shots in rhythm, boom — boom — BOOM; the third throws him up, higher with pressure in the chamber.',
+    relations: ['Signature', 'Spends pressure'],
+  }),
+  S({
+    id: 'cn_broadside', cls: 'archer', style: 'cannon', slot: 7, name: 'Queen\'s Broadside', roles: ['ultimate'], targeting: 'mouseGround',
+    startup: D(420), active: D(700), recovery: D(600), cooldown: 65000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, D(1100)],
+    placeRange: 450,
+    // braced on the spot: four heavy shells into the floor round him, then one huge missile straight down onto him
+    hits: [
+      ...[0, 90, 180, 270].map((t, i) => H(D(t), 12, { kind: 'placed', radius: 70 }, { stun: D(420), push: 10 }, { reachUp: 120, mark: i === 3 ? 1 : 0 })),
+      H(D(600), 44, { kind: 'placed', radius: 150 }, { stun: D(700), knockdown: 'heavy' }, { reachUp: 260, heavy: true }),
+    ],
+    cancelOnHit: [], endsCombo: true, tags: ['ultimate', 'farLaunch'], telegraph: 'ground',
+    description: 'Her ultimate: braced on the spot, four heavy shells burst on the floor round him, then one huge missile comes straight down on him — the whole floor shakes.',
+    relations: ['Ultimate', 'Floor bombs'],
+  }),
+  S({ id: 'cn_fuse_knuckle', cls: 'archer', style: 'cannon', slot: 8, name: 'Fuse Knuckle', roles: ['peel'], targeting: 'aimAssist', wip: true,
+    startup: D(110), active: D(60), recovery: D(200), cooldown: 6000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
+    description: 'Coming soon: the back of the breech driven into him up close — a short stun.', relations: ['Close defence'] }),
+  S({ id: 'cn_muzzle_guard', cls: 'archer', style: 'cannon', slot: 9, name: 'Muzzle Guard', roles: ['counter'], targeting: 'self', wip: true,
+    startup: D(60), active: D(180), recovery: D(240), cooldown: 10000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
+    description: 'Coming soon: a braced guard behind the cannon — struck, it blasts back and launches him.', relations: ['Counter'] }),
+  S({
+    id: 'cn_piston_lift', cls: 'archer', style: 'cannon', slot: 10, name: 'Piston Lift', roles: ['launcher'], targeting: 'mouseDir',
+    startup: D(160), active: D(70), recovery: D(280), cooldown: 7000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [H(0, 16, { kind: 'sector', range: 195, angle: 80 }, { stun: D(680), launch: 140, juggleCost: 26 }, { reachUp: 130, heavy: true, mark: 1 })],
+    cancelOnHit: ['cn_crater_catch', 'cn_battery', 'cn_arc_mortar'],
+    description: 'A blast fired steeply up from the hip: it throws him high into the air — her main launcher.',
+    relations: ['Launcher'],
+  }),
+  S({ id: 'cn_depth_bank', cls: 'archer', style: 'cannon', slot: 11, name: 'Depth Bank', roles: ['projectile'], targeting: 'mouseDir', wip: true,
+    startup: D(170), active: D(80), recovery: D(240), cooldown: 8000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK, hits: [],
+    description: 'Coming soon: a shell that skips off into the next lane of the floor.', relations: ['Depth punish'] }),
+  S({ id: 'cn_twin_traverse', cls: 'archer', style: 'cannon', slot: 12, name: 'Twin Traverse', roles: ['projectile'], targeting: 'mouseDir', wip: true,
+    startup: D(180), active: D(80), recovery: D(240), cooldown: 9000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK, hits: [],
+    description: 'Coming soon: two shots into two lanes that pull them to the middle.', relations: ['Pull'] }),
+];
+
+export const FINAL_SKILLS: FinalSkill[] = [...warrior, ...mage, ...archer, ...sniper, ...cannon, ...samurai, ...gambler];
 /** The switches into the styles (Styles.ts): a hidden cast each, never on the bar. 150 ms to the change, 240 ms in all, on
  *  the clock (its kit numbers are the fight's pace undone); no hits; she keeps her momentum. */
 export const STYLE_SWITCHES: FinalSkill[] = Object.entries(STYLES).flatMap(([cls, list]) => list.map((st) => S({

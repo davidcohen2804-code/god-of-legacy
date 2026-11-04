@@ -113,6 +113,7 @@ import { ARENA, CombatBody, counterStun, HitOutcome, gaugeOf, Kin, MAGE, PHYS, j
 import { FinalSkill, HitEvent } from '../skills/SkillTypes';
 import { ARCHER_STREAM, ARENA_FLOW, MAGE_HIDDEN, arenaCommits, arenaTimeScale, armorEnd, finalSkill, iconUrl, kitFor, lastOfBurst, paceTime } from '../skills/FinalKit';
 import { SWITCH, baseStyle, nextStyle, styleDef, styleOfSwitch, stylesOf, switchId } from '../skills/Styles';
+import { StyleTag } from '../skills/StyleTag';
 import { CastRun, RT_EVENTS, SkillRuntime, Trap, STORM } from '../skills/SkillRuntime';
 import type { Projectile } from '../skills/HitGeometry';
 import { Afterimages, applyMotion, archerMotion, heroMotion, leapMotion, type Motion } from '../skills/ArcherMotion';
@@ -791,7 +792,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.hasteUntil = -1; this.spiritUntil = -1; this.tree = null; this.storm = null; this.resolveUntil = -1; this.hasteFx = undefined; this.spiritFx = undefined; this.afterimg = undefined;
     this.hero3d = undefined; this.hero3dWait = false; for (const o of this.shotsOld) if (this.textures.exists(o.key)) this.textures.remove(o.key); this.shotsOld = []; this.shots3d.clear(); this.cryBody = undefined; this.cryAura = undefined; this.holyAura = undefined; this.eyes = undefined; this.beam = undefined; this.beamGlow = undefined; this.sunGlare = undefined; this.cloudSprite = undefined; // (made once, on first use: the last visit's were destroyed with its display list — War Cry's glow called setTexture on a dead sprite and the frame threw, every frame, after any return to the scene)
     this.gHeadsUntil = -1; this.gTailsFree = false; this.gTailsUntil = -1; this.gLuckUntil = -1; this.gOverUntil = -1; this.gStreak = 0; this.fx?.gambleClear(this.localId); this.gDeck.clear(); this.gHand.clear(); this.gStuck.clear();
-    this.sunUntil = -1; this.godUntil = -1; this.kage?.clear(); this.kage = undefined; this.ambushIn.clear();
+    this.sunUntil = -1; this.godUntil = -1; this.kage?.clear(); this.kage = undefined; this.ambushIn.clear(); this.styleTag?.destroy(); this.styleTag = undefined;
     this.mageReset(); this.gates.clear(); this.levityZones = []; this.brokenLinks.clear(); this.linkGfx = undefined;
     this.hpMaxSeen = 0; this.seenStance = -Infinity; this.seenEndure = -Infinity; this.markAt.clear(); this.partyTick = 0; this.shares = []; this.slowMo = 1; this.time.timeScale = 1; this.tweens.timeScale = 1; this.camAir = 0; this.camPunch = 1; this.a3d = null; this.w3d = null; this.a3dFall.clear(); this.floor3d = null; this.sceneGen++;
     this.chain = { stage: -1, lastEnd: -Infinity, skill: '' };
@@ -1101,7 +1102,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.game.events.off(Phaser.Core.Events.HIDDEN, stop);
       kb.off('keydown-ESC', esc);
       this.rt?.cancelOwn('sceneExit');
-      this.kage?.clear(); this.kage = undefined;
+      this.kage?.clear(); this.kage = undefined; this.styleTag?.destroy(); this.styleTag = undefined;
       this.fx?.destroy(); this.fx = undefined;
       this.arenaSnd?.destroy(); this.arenaSnd = undefined;
       this.deathFx?.destroy(); this.deathFx = undefined;
@@ -2066,6 +2067,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (this.unseen && this.dead < 0) alpha = 0.35; // the substitute: gone in ink (others see nothing; you, see-through)
     if (this.simMs < this.body.curseUntil && this.dead < 0) alpha = 0; // Paper Curse: folded into the crane (drawn by the effect) // Kagemusha: hidden among the doubles (you, a shade)
     v.render(ms, pose, k.x + jx, k.y, k.z, k.supportZ, dir, alpha, tint, fill);
+    if (this.styleTag) { // the switch's tag-in round her (hit out of the switch before it commits: the new body never arrives)
+      if (this.styleTag.pending(this.simMs) && !(run && styleOfSwitch(run.skill.id))) this.styleTag.cancel();
+      if (this.hero3d) this.styleTag.cancel(); else this.styleTag.render(ms, this.simMs, k.x, k.y, k.z, k.supportZ, dir, alpha);
+    }
     if (this.hero3d) this.driveHero3D(ms, alpha, tint); else if (this.hero3dWait) this.view?.hideBody(); // (the 3D body on its way: no painted one meanwhile)
     this.renderCloudForm(ms);
     if (this.kage?.hidden && this.dead < 0) v.ring.setAlpha(0.9); // hidden among the doubles: your ring still shows you where you are (your screen only)
@@ -2344,7 +2349,17 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (run) { this.rt.cancelForFollowUp(run); this.endRun(run, true); }
     this.styleAt = now;
     this.startCast(s, 0, sideAim(this.aim.x, this.aim.y, this.dir === 'left' ? -1 : 1), null, null, this.styleFollow);
+    // the tag-in (David 4 Nov 14:59): the new style's body runs in from behind her, the old one hops back out and fades
+    const to = styleDef(this.cls, style);
+    this.styleTagOf().start(this.simMs, styleDef(this.cls, this.style)?.body, to?.body, this.dir === 'left' ? -1 : 1, !this.kin.grounded, to?.accent ?? 0xffffff);
     return true;
+  }
+  private styleTag?: StyleTag;
+  private styleTagOf(): StyleTag {
+    return this.styleTag ??= new StyleTag(this, {
+      makeView: () => { const ch = this.character!, g = genderOf(ch), v = new ActorView(this, this.cls, this.kin.x, this.kin.y); v.setBaseLook(headLookOf(ch), g); v.setGear(wornLook(CharacterStore.getGear(ch.id) ?? ch.gear), g); v.setEquipped(this.equipped); return v; },
+      pose: (body, snap, dir) => resolvePose(this.cls, dir, poseQuery(snap), this.view!.wantsBase || !hasJob(this.character!), genderOf(this.character), !!this.character!.hero, false, body),
+    });
   }
   /** A switch whose change is due (its startup run out) commits before anything reads the kit: an attack pressed on the
    *  commit's very frame (held or buffered through the switch) is already the new style's, never the old one cancelling it. */

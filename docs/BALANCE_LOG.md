@@ -4,6 +4,22 @@ Every balance change to any class's skills, newest first. Class chats: read this
 needs new visuals / motion (an effect sized to a new hitbox, an animation timed to a new startup), do that part.
 Values apply to the whole game (only damage may differ in PvP: arenaDmg / the arena's scaling).
 
+## 2026-11-04 (evening) — The Archer's third style: the Recoil Cannoneer's kit (David 14:59 — the styles as a chain of tools)
+- **Her kit** (`FinalKit` `cannon`, the archer chat's first numbers, at the fight's pace `D(ms)` like the sniper's; GPT's
+  design: impact and momentum, 90–380 px, heavy shots, recoil steps, low-to-high launches). Live:
+  Four-Beat Breacher (the basic chain, arenaDmg 0.6: Breech Jab 7 dmg 96 px sector 80° push 10 · Pocket Blast 9 dmg 160 px
+  shell push 55, marks · Floor Skipper 10 dmg 220 px shell at 1300 px/s, launch 90, juggle cost 18, marks · Breakshot 14 dmg
+  275 px shell at 1700 px/s, push 140, heavy; reset 700 ms), Breach Burst (12 dmg 170 px cone 64°, push 65, marks; CD 5 s),
+  Arc Mortar (16 dmg, a placed burst r 52 at 320 ms, launch 105, juggle cost 22, heavy, marks, `farLaunch`; CD 8 s), Kickback
+  Step (9 dmg 210 px shell, push 40, she is thrown back 120 px; CD 5 s), Crater Catch (16 dmg 240 px shell at 1600 px/s,
+  reach up 200: a foe in the air slammed into the floor, light knockdown, juggle cost 14, `farLaunch`; CD 7 s), Rolling
+  Iron (14 dmg, rolls 350 px at 560 px/s and bursts 60 px round, light knockdown; CD 9 s), Three-Beat Battery (10 · 10 · 20
+  dmg at 0 / 110 / 230 ms, 330 px, the third launches 105 — higher on a marked foe, juggle cost 26, `farLaunch`; CD 22 s),
+  Queen's Broadside (the ultimate: armor to 1100 ms; four 12 dmg bursts r 70 at 0 / 90 / 180 / 270 ms, then the missile:
+  44 dmg r 150 at 600 ms, heavy knockdown, ends the combo; CD 65 s), Piston Lift (16 dmg 195 px cone 80°, launch 140, juggle
+  cost 26, heavy, marks; CD 7 s). Four templates (Fuse Knuckle, Muzzle Guard, Depth Bank, Twin Traverse) have their slots
+  and numbers but no hits yet. The DFO chat: these are the class chat's first numbers — tune them freely.
+
 ## 2026-11-04 (afternoon) — The Deadeye Sniper's two far launchers keep their lift past the poke range
 - **Deadeye: Four Bells** and **Skyline Intercept** take the arena's `farLaunch` (as the bow's own far launcher): GPT's
   design has them launch from 620 / 320 px, but past the poke range (150 px) a shot that is not a follow-up was a poke, so

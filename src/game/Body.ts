@@ -589,7 +589,8 @@ export const HERO_LIFT = HERO_HEIGHT - 124;
  *  frames — the drawings came out between 101 and 132), so the whole cast stands the same height. Re-measure after a
  *  class gets a new idle drawing. */
 const HERO_FIT: Record<string, number> = { warrior: 0.907, samurai: 1.049, archer: 1.075, book_mage: 1.182, gambler: 0.935,
-  archer_sniper: 1.051 }; // (the Deadeye Sniper's body: her eyes 10 canvas px higher on the idle than the bow archer's — the same woman, the same size)
+  archer_sniper: 1.051, // (the Deadeye Sniper's body: her eyes 10 canvas px higher on the idle than the bow archer's — the same woman, the same size)
+  archer_cannon: 1.051 }; // (the Recoil Cannoneer: cut at the sniper's standing height, 509 canvas px — the same woman again)
 /** A hero drawing's scale in the world (atlas px to world px). */
 const heroScale = (cls: string): number => (HERO_HEIGHT / HEROES[cls].h) * (HERO_FIT[cls] ?? 1);
 /** One body size from a step into a skill (David 2 Nov 23:47: "the characters must not get smaller in a move or a skill —
@@ -783,6 +784,22 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
     sn_four_bells: { act: 'stance', st: [0], ac: [0], rc: [0] }, // her signature from the shoulder, the eye at the scope
     sn_skyline: { act: 'sn_up', st: [0], ac: [0], rc: [0] }, // the rifle up at the sky
     style_archer_sniper: { act: 'stance', st: [0], ac: [0], rc: [0] }, style_archer_bow: { act: 'stance', st: [0], ac: [0], rc: [0] }, // the switch (its own move with the sniper body)
+    // the Recoil Cannoneer (Styles.ts), her own painted body (tools/heroes/motion/archer_cannon: GPT stills, the anchor
+    // attached in a new chat each): the cannon is physical in every attack — jabbed, fired from the hip and kicked up by
+    // the recoil, braced, aimed at the floor, fired up, a hop to blast down
+    cn_four_beat: { act: 'cn_jab', st: [0], ac: [0], rc: [0] }, // Breech Jab: the lunge, the barrel driven out
+    'cn_four_beat#1': { act: 'cn_fire', st: [0], ac: [1], rc: [1, 0] }, // Pocket Blast: from the hip, the kick
+    'cn_four_beat#2': { act: 'cn_low', st: [0], ac: [0], rc: [0] }, // Floor Skipper: crouched, aimed at the floor
+    'cn_four_beat#3': { act: 'cn_brace', st: [0], ac: [0], rc: [0] }, // Breakshot: the deep braced lunge, the stock at the shoulder
+    cn_breach_burst: { act: 'cn_fire', st: [0], ac: [1], rc: [1, 0] },
+    cn_arc_mortar: { act: 'cn_up', st: [0], ac: [0], rc: [0] }, // lobbed up
+    cn_kickback: { act: 'backstep', st: [0], ac: [0], rc: [0] }, // slid back on the kick
+    cn_crater_catch: { act: 'air_shot', st: [0], ac: [0], rc: [0] }, // the hop, the blast driven down
+    cn_rolling_iron: { act: 'cn_low', st: [0], ac: [0], rc: [0] }, // bowled along the floor
+    cn_battery: { act: 'cn_fire', st: [0], ac: [1, 0, 1, 0, 1], rc: [1, 0] }, // boom — boom — BOOM, the kick on each
+    cn_broadside: { act: 'cn_brace', st: [0], ac: [0], rc: [0] }, // braced on the spot
+    cn_piston_lift: { act: 'cn_up', st: [0], ac: [0], rc: [0] }, // fired steeply up
+    style_archer_cannon: { act: 'stance', st: [0], ac: [0], rc: [0] },
   },
 };
 

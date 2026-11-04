@@ -338,7 +338,7 @@ export class SkillFx {
     });
     this.arch = new ArcherFx({
       scene, casterPos: (id) => this.casterPos(id), cam: () => this.cam ?? this.scene.cameras.main,
-      punch: (a, ms) => this.punch(a, ms), ultimateStage: (r) => this.ultimateStage(r), targetPos: (id) => this.targetPos?.(id) ?? null, body: (id) => this.bodyOf?.(id) ?? null,
+      punch: (a, ms) => this.punch(a, ms), darken: (ms, a) => this.darken(ms, a), ultimateStage: (r) => this.ultimateStage(r), targetPos: (id) => this.targetPos?.(id) ?? null, body: (id) => this.bodyOf?.(id) ?? null,
       bow: (id) => (this.bodyOf?.(id)?.key === 'hero-archer' ? this.bodyPt(id, ARCHER_BOW) : null), // (her bow grip as drawn: the charge gathers and the release flashes there — the bow's own body only: the Deadeye Sniper's frames share its names)
     });
     this.mage = new MageFx({

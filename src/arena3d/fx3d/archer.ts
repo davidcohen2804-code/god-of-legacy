@@ -17,6 +17,8 @@ const SUN = 0xffe27a;
 const WIND = 0xd4ffd0, THORN = 0x3fae3a, SPIRIT = 0x6cffe2;
 /** The Deadeye Sniper's rifle (Styles.ts): brushed copper, its rounds copper-white. */
 const COPPER = 0xd8925a, ROUND = 0xffe6c2;
+/** The Recoil Cannoneer's blasts: a hot amber-white (her terracotta reads as the planks' own red in the room). */
+const BLAST = 0xffd0a0;
 /** The small star at the bow on a release (David's bar, the deer archer 06): two short crossing streaks, white core + its colour, ~120 ms. */
 const bowStar = (f: Parameters<NonNullable<Recipe['fired']>>[0], o: { x: number; y: number; z: number }, color: number, s = 1): void => {
   const L = 34 * s, z = Math.max(40, o.z);
@@ -100,5 +102,13 @@ export const ARCHER: Record<string, Recipe> = {
   // the muzzle on every shot; her blows answered in copper, never the bow's green wind
   ...Object.fromEntries(['sn_four_beat', 'sn_needlemark', 'sn_recoil_slip', 'sn_throughline', 'sn_four_bells', 'sn_skyline'].map((id) => [id, {
     tone: COPPER, trail: { c: ROUND, w: id === 'sn_throughline' ? 7 : 4, len: 18, i: 2.6 }, fired: (f, _r, _i, o) => bowStar(f, o, ROUND, 0.8),
+  } as Recipe])),
+  // the Recoil Cannoneer (Styles.ts, David 4 Nov 14:59): concussive, never the bow's green — her blows answered in a hot
+  // amber-white (terracotta drowned in the red planks), a short warm trail behind each shell (none behind the rolling bomb:
+  // it rolls); the floor bombs tear the planks; the missile's blast is hers (ArcherFx), so the room adds no column of light
+  ...Object.fromEntries(['cn_four_beat', 'cn_breach_burst', 'cn_arc_mortar', 'cn_kickback', 'cn_crater_catch', 'cn_rolling_iron', 'cn_battery', 'cn_broadside', 'cn_piston_lift'].map((id) => [id, {
+    tone: BLAST, paint: true, trail: id === 'cn_rolling_iron' ? false : { c: BLAST, w: id === 'cn_battery' ? 9 : 7, len: 9, i: 2 },
+    ...(id === 'cn_arc_mortar' || id === 'cn_broadside' || id === 'cn_rolling_iron' ? { hit: (f, _s, _h, at, main) => { if (main) f.crack(at.x, at.y, BLAST, { r: id === 'cn_broadside' ? 140 : 90, chunks: id === 'cn_broadside' ? 14 : 8, up: 1.1 }); } } as Recipe : {}),
+    ...(id === 'cn_broadside' ? { own: true } : {}),
   } as Recipe])),
 };
