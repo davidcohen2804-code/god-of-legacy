@@ -53,9 +53,8 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
   (`SN_MUZZLE`, measured on the frames), one bullet streak per round (shown once out of the barrel), sight rings, no green wind.
   The bow's grip table (`archer-bow.json`) now applies to the bow's body only — the sniper's frames share its frame names.
 - **For the Archer chat:** the Sniper is yours from here (her visuals, motion, the seven templates); the bow is untouched.
-  Two things worth your pass: her launched / down / get-up frames are softer than the rest (PixVerse's 8 s hit clip at a
-  small size, its screen drifted to teal — cleaned, colour-matched; a larger clip would be crisper), and Skyline Intercept's
-  round flies level at a foe on the ground while her rifle points at the sky.
+  Worth your pass: Skyline Intercept's round flies level at a foe on the ground while her rifle points at the sky. (Her
+  launched / down / get-up came from a second hit clip at twice the size — the first one's screen drifted to teal.)
 
 ### DFO (4 Nov, David 05:45) — the skills' pass, stage 1: the fighters read through every skill (GPT's combat-art rulebook)
 - David (4 Nov 03:20): "the skills can be improved significantly — check with GPT what to improve visually and in feel".
