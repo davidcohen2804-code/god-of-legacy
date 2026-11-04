@@ -31,6 +31,22 @@ The DFO PvP arena dynamics chat is the PvP director: it sets the bar per class, 
 Take the whole PvP up a level in everything — dynamics, skills, effects, hit frames, movement, camera, feel: every hit felt, every class unique and amazing, big moments that look like a cinematic, and reasons to keep playing.
 
 ## Open items
+### DFO (4 Nov, David 14:59) — the styles, step 5: the Warrior's Siege Warden (the longsword tags out, the iron gate tags in)
+- **The Siege Warden** (his second style, `Styles.ts` `warrior`: Lion Longsword → Siege Warden; GPT's design, scratchpad
+  styles/warrior_styles.md — the Lion Knight of the Iron Gate: a towering folding shield that opens into two iron wings and
+  shuts on the foe like a lion's jaws; iron and leverage, no holy light): his own painted body (his look from the styles page,
+  12 GPT stills of his moves with the gate closed / opened / biting, PixVerse idle and walk, GPT sprite sheets for the run,
+  the jump and the knockdown — PixVerse's free credits ran out → `tools/heroes/motion/warrior_siege` → `warrior_siege/body.png`,
+  HERO_FIT 1.04: his eyes at the longsword warrior's height), his 13 icons (GPT, the warrior icons' frame), his kit
+  (`FinalKit` `siege`: the four-beat chain — knuckle, elbow, the gates flung open under him, the gate slammed shut — Threshold
+  Check, Lion's Clamp, Drawbridge Lift, Anvil Drop, the signature Royal Portcullis; seven templates; numbers in BALANCE_LOG)
+  and his effects (`WardenFx`: iron crescents of the wings, the toothed jaws biting shut, hot scrapes, the floor cracking
+  under the anvil — no golden energy; PVP 3D answers him in dark steel, no light pillars).
+- The cross-style chain (GPT's "The Lion's Judgment"): Rising Slash → the switch → Drawbridge Lift → Anvil Drop → Royal
+  Portcullis.
+- **Open (Warrior chat):** the seven templates and GATE PRESSURE (GPT's two charges); his run / jump / knockdown are GPT
+  sheets for now — PixVerse clips when its credits are back (DFO).
+
 ### DFO (4 Nov, David 14:59) — the styles, step 4: the Samurai's Shuriken Assassin (the katana tags out, the shinobi tags in)
 - **The Shuriken Assassin** (his second style, `Styles.ts` `samurai`: Crimson Katana → Shuriken Assassin; GPT's design,
   scratchpad styles/samurai_styles.md — a weapon-trajectory master, not a second swordmaster, no clones): his own painted

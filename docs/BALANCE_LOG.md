@@ -4,6 +4,28 @@ Every balance change to any class's skills, newest first. Class chats: read this
 needs new visuals / motion (an effect sized to a new hitbox, an animation timed to a new startup), do that part.
 Values apply to the whole game (only damage may differ in PvP: arenaDmg / the arena's scaling).
 
+## 2026-11-04 (late night) — The Warrior's second style: the Siege Warden's kit (David 14:59)
+- **His kit** (`FinalKit` `siege`, at the fight's pace `D(ms)`; GPT's times and juggle costs, DFO's damage — tune freely):
+  - Four-Beat Portcullis (basic): Iron Knuckle 7 (sector 85 px / 100°, stun D(250), push 4, J4) · Gate Elbow 8 (100 px,
+    stun D(310), push 30, J6) · Open the Gates 9 (125 px / 130°, stun D(480), launch 60, J11) · Portcullis Close 12 (110 px,
+    stun D(350), push 75, J16, heavy). Timings 95/55/140 · 115/65/165 · 145/90/210 · 180/105/270 (D). Links into every
+    skill of the slice.
+  - Threshold Check (slot 1): 9, a lunge of up to 70 px locked on the foe, stopping 66 px short (`dash.gap`: the gate meets
+    him), the blow at D(30) (90 px / 100°); stun D(330), push 30, J8; D(105)/D(65)/D(190); CD 4 s; links into the clamp and
+    the lift.
+  - Lion's Clamp (slot 3): 11 at D(50) (110 px / 110°, reach 150 up: on the floor or low in the air); stun D(420), pull 35,
+    held D(180) (`pin`), J12; D(125)/D(105)/D(245); CD 8 s; links into the lift, the Anvil, the Portcullis.
+  - Drawbridge Lift (slot 4): 13 at D(30) (140 px / 120°, reach 170 up); stun D(700), launch 105, J18, heavy;
+    D(155)/D(95)/D(270); CD 8 s; links into the Anvil and the Portcullis — the bridge out of the longsword.
+  - Anvil Drop (slot 10): 15 at D(80) after a powered hop of up to 70 px (lift 70, locked, stopping 60 px short), sector
+    110 px / 120°, reach 210 up; stun D(540), `slam` (in the air: into the floor, one bounce) + `knockdown` light (standing),
+    J23, heavy; D(160)/D(110)/D(300); CD 11 s; links into the Portcullis.
+  - Royal Portcullis (slot 6, signature): he advances up to 110 px (locked, stopping 74 px short); the gate shuts on him 8 at
+    D(70) (130 px / 130°, stun D(520), pull 30, held D(240), J8), then is driven up 18 at D(200) (120 px, stun D(650),
+    launch 90, J19, heavy); reach 180–200 up; D(240)/D(240)/D(420); CD 23 s.
+  - Templates (no hits yet): Sentry Catch, Rivet Drive, The Last Drawbridge (the ultimate), Rearguard Step, Crenel Upper,
+    False Gate, Crossbar Sweep. GATE PRESSURE (GPT's two charges) is not in the slice.
+
 ## 2026-11-04 (night) — The Samurai's second style: the Shuriken Assassin's kit and Return Edge (David 14:59)
 - **Return Edge** (the engine: `HitShape` projectile `edge`, `HitEvent.recall`, SkillRuntime's big-star legs): his big star
   is one real object — it flies out (piercing), waits at the end of its flight (or where cover stopped it) `park` ms, then

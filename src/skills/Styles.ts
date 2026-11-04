@@ -25,6 +25,13 @@ export const STYLES: Record<string, StyleDef[]> = {
     { id: 'katana', name: 'Crimson Katana', accent: 0xe0404e },
     { id: 'shuriken', name: 'Shuriken Assassin', body: 'samurai_assassin', accent: 0xc4d0de }, // (polished gunmetal: the big star's steel)
   ],
+  // The Warrior third: the Lion Knight of the longsword, his own kit, and the Siege Warden (GPT's design, scratchpad
+  // styles/warrior_styles.md) — the Lion Knight of the Iron Gate: a towering folding shield that opens into two iron wings
+  // and shuts on the foe like a lion's jaws; iron, momentum and leverage, no holy light.
+  warrior: [
+    { id: 'longsword', name: 'Lion Longsword', accent: 0xe8b84a },
+    { id: 'siege', name: 'Siege Warden', body: 'warrior_siege', accent: 0xe6dcc3 }, // (aged ivory: the gate's heraldic bands)
+  ],
 };
 
 export const stylesOf = (cls: string): StyleDef[] => STYLES[cls] ?? [];

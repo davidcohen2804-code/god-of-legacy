@@ -1,0 +1,149 @@
+{
+  "canvas": [
+    768,
+    768
+  ],
+  "ground_y": 700,
+  "hip_x": 384,
+  "animations": {
+    "idle": {
+      "frames": 80,
+      "source": "pixverse ws_idle.mp4 (frames 3-82, the seam 0.038)",
+      "fps": 15,
+      "loop": true
+    },
+    "walk": {
+      "frames": 43,
+      "source": "pixverse ws_walk.mp4 (frames 29-71, the seam 0.333)"
+    },
+    "run": {
+      "frames": 6,
+      "source": "gpt sprite sheet run_sheet_gpt.webp (figures 1,2,3,4,5,6; PixVerse out of credits)",
+      "loop": true,
+      "fps": 12
+    },
+    "jump": {
+      "frames": 4,
+      "source": "gpt sprite sheet jump_sheet_gpt.webp (figures 1,2,3,4; PixVerse out of credits)"
+    },
+    "launched": {
+      "frames": 6,
+      "source": "gpt sprite sheet down_sheet_gpt.webp (figures 2,2,3,3,3,3; PixVerse out of credits)",
+      "loop": false,
+      "frame_ms": [
+        60,
+        60,
+        70,
+        70,
+        80,
+        80
+      ]
+    },
+    "down_impact": {
+      "frames": 2,
+      "source": "gpt sprite sheet down_sheet_gpt.webp (figures 4,4; PixVerse out of credits)",
+      "loop": false,
+      "frame_ms": [
+        60,
+        80
+      ]
+    },
+    "down": {
+      "frames": 2,
+      "source": "gpt sprite sheet down_sheet_gpt.webp (figures 4,4; PixVerse out of credits)",
+      "loop": false,
+      "frame_ms": [
+        400,
+        400
+      ]
+    },
+    "getup": {
+      "frames": 7,
+      "source": "gpt sprite sheet down_sheet_gpt.webp (figures 4,5,5,5,6,6,6; PixVerse out of credits)",
+      "loop": false,
+      "frame_ms": [
+        90,
+        90,
+        90,
+        90,
+        90,
+        90,
+        90
+      ]
+    },
+    "ws_knuckle": {
+      "frames": 1,
+      "source": "gpt still (the look attached, a new chat each; the shield opened: the open look attached too)"
+    },
+    "ws_elbow": {
+      "frames": 1,
+      "source": "gpt still (the look attached, a new chat each; the shield opened: the open look attached too)"
+    },
+    "ws_open": {
+      "frames": 1,
+      "source": "gpt still (the look attached, a new chat each; the shield opened: the open look attached too)"
+    },
+    "ws_close": {
+      "frames": 1,
+      "source": "gpt still (the look attached, a new chat each; the shield opened: the open look attached too)"
+    },
+    "ws_check": {
+      "frames": 1,
+      "source": "gpt still (the look attached, a new chat each; the shield opened: the open look attached too)"
+    },
+    "ws_clamp": {
+      "frames": 1,
+      "source": "gpt still (the look attached, a new chat each; the shield opened: the open look attached too)"
+    },
+    "ws_lift": {
+      "frames": 1,
+      "source": "gpt still (the look attached, a new chat each; the shield opened: the open look attached too)"
+    },
+    "ws_anvil": {
+      "frames": 1,
+      "source": "gpt still (the look attached, a new chat each; the shield opened: the open look attached too)"
+    },
+    "ws_portcullis": {
+      "frames": 1,
+      "source": "gpt still (the look attached, a new chat each; the shield opened: the open look attached too)"
+    },
+    "air_shot": {
+      "frames": 1,
+      "source": "gpt still (the look attached, a new chat each; the shield opened: the open look attached too)"
+    },
+    "backstep": {
+      "frames": 1,
+      "source": "gpt still (the look attached, a new chat each; the shield opened: the open look attached too)"
+    },
+    "stance": {
+      "frames": 1,
+      "loop": false,
+      "frame_ms": [
+        500
+      ],
+      "source": "gpt: his look (the styles page, GPT chat 6aeaa228)"
+    },
+    "hurt": {
+      "frames": 1,
+      "loop": false,
+      "frame_ms": [
+        300
+      ],
+      "source": "gpt still (the look attached, a new chat each; the shield opened: the open look attached too)"
+    },
+    "ws_royal": {
+      "frames": 3,
+      "source": "gpt stills: ws_open \u2192 ws_clamp \u2192 ws_portcullis"
+    },
+    "ws_drawbridge": {
+      "frames": 2,
+      "source": "gpt stills: ws_clamp \u2192 ws_lift"
+    },
+    "ws_lionclamp": {
+      "frames": 2,
+      "source": "gpt stills: ws_clamp \u2192 ws_close"
+    }
+  },
+  "refs": "tools/heroes/refs/warrior_siege_*_green.jpg",
+  "note": "the Siege Warden (the Warrior's second style): idle and walk from PixVerse; run, jump, the knockdown and the get-up from GPT sprite sheets (PixVerse's free credits ran out), the skills' poses GPT stills"
+}

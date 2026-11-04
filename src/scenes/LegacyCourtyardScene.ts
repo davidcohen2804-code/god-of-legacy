@@ -1762,6 +1762,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         this.fx!.ghostCut(at, side, big, st); if (big) this.time.delayedCall(70, () => this.fx!.ghostCut({ x: at.x, y: at.y, z: at.z + 18 }, -side, true, st));
         this.fx!.damageNumber(at, extra, false, 0, true); return;
       }
+      if (run.skill.cls === 'warrior' && run.skill.style === 'siege') { this.fx!.wardenKnock(at, side, big); this.fx!.damageNumber(at, extra, false, 0, true); return; } // the Siege Warden: the gate's edge, no sword
       this.fx!.finalSlash(at, side, big);
       if (big) for (const [d, dx, dz] of [[60, 18, 14], [120, -16, -12]] as const) this.time.delayedCall(d, () => this.fx!.finalSlash({ x: at.x + dx, y: at.y, z: at.z + dz }, side, true));
       this.fx!.damageNumber(at, extra, false, 0, true);

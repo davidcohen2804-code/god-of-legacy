@@ -591,7 +591,8 @@ export const HERO_LIFT = HERO_HEIGHT - 124;
 const HERO_FIT: Record<string, number> = { warrior: 0.907, samurai: 1.049, archer: 1.075, book_mage: 1.182, gambler: 0.935,
   archer_sniper: 1.051, // (the Deadeye Sniper's body: her eyes 10 canvas px higher on the idle than the bow archer's — the same woman, the same size)
   archer_cannon: 1.051, // (the Recoil Cannoneer: cut at the sniper's standing height, 509 canvas px — the same woman again)
-  samurai_assassin: 1.12 }; // (the Shuriken Assassin: his eyes 120 px over his feet like the katana samurai's — the same man, out of his armour)
+  samurai_assassin: 1.12, // (the Shuriken Assassin: his eyes 120 px over his feet like the katana samurai's — the same man, out of his armour)
+  warrior_siege: 1.04 }; // (the Siege Warden: his eyes at the longsword warrior's height — 173 of 190 atlas px against 202 of 194 at 0.907)
 /** A hero drawing's scale in the world (atlas px to world px). */
 const heroScale = (cls: string): number => (HERO_HEIGHT / HEROES[cls].h) * (HERO_FIT[cls] ?? 1);
 /** One body size from a step into a skill (David 2 Nov 23:47: "the characters must not get smaller in a move or a skill —
@@ -695,6 +696,18 @@ const HERO_PLANS: Record<string, Record<string, HeroPlan>> = {
     sky_breaker: { act: 'sky_breaker', st: [0], ac: [1, 1, 2, 3, 3, 4], rc: [5, 5] }, // the rising slashes, sword overhead, the dive, landed
     earthsplitter: { act: 'earthsplitter', st: [0, 1, 2, 1, 2], ac: [3, 4], rc: [4, 5] }, // his own move (PixVerse): the sword raised two-handed, held high and straining while the ground trembles, the huge chop into the floor, the recovery
     shield_charge: { act: 'oath', st: [2, 3], ac: [4, 4, 4, 4, 4, 4, 4, 4, 4, 3], rc: [5] }, // Iron Bastion: the sword driven into the floor, down on one knee behind it while he is iron, risen into the counter-slash
+    // the Siege Warden (Styles.ts), his own painted body (tools/heroes/motion/warrior_siege: GPT stills, his look attached in a
+    // new chat each; the opened gate: its open look attached too): one held pose a beat — the gate's states drawn
+    ws_four_beat: { act: 'ws_knuckle', st: [0], ac: [0], rc: [0] }, // Iron Knuckle: the forearm punched out behind the closed gate
+    'ws_four_beat#1': { act: 'ws_elbow', st: [0], ac: [0], rc: [0] }, // Gate Elbow: the gate tucked in, the elbow over it
+    'ws_four_beat#2': { act: 'ws_open', st: [0], ac: [0], rc: [0] }, // Open the Gates: the wings flung apart upward
+    'ws_four_beat#3': { act: 'ws_close', st: [0], ac: [0], rc: [0] }, // Portcullis Close: the gate slammed shut, driven forward
+    ws_threshold_check: { act: 'ws_check', st: [0], ac: [0], rc: [0] }, // shoulder-first behind the gate
+    ws_lions_clamp: { act: 'ws_lionclamp', st: [0], ac: [1], rc: [1] }, // the jaws open round him, then shut
+    ws_drawbridge_lift: { act: 'ws_drawbridge', st: [0], ac: [1], rc: [1] }, // the wings low and open, then heaved up overhead
+    ws_anvil_drop: { act: 'ws_anvil', st: [0], ac: [0], rc: [0] }, // the hop with the folded gate overhead
+    ws_royal_portcullis: { act: 'ws_royal', st: [0], ac: [1, 2], rc: [2] }, // open wide as he advances, shut on him, driven up
+    style_warrior_siege: { act: 'stance', st: [0], ac: [0], rc: [0] }, style_warrior_longsword: { act: 'stance', st: [0], ac: [0], rc: [0] }, // the switch
   },
   samurai: {
     // the basic chain, his own four cuts (PixVerse clips of his painted design, 6 frames each)

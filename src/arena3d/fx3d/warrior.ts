@@ -178,4 +178,9 @@ export const WARRIOR: Record<string, Recipe> = {
     });
   } },
   blade_storm: { tone: W.crimson, own: true, active: (f, r) => f.bladeBall(r.attackerId, W.crimson, { r: 150, ms: T(r).active, every: 70, ink: true, w: 40 }) }, // Blade Storm (DAVID 20:56): a ball of inked crimson blade rings at many angles whirling round him for the whole storm — the one shape; the main hit's impact is DFO's
+  // the Siege Warden (Styles.ts): iron and leverage — the room answers his blows in dark steel; no column of light on his
+  // launches, no holy or crimson light (his own pieces: WardenFx)
+  ...Object.fromEntries(['ws_four_beat', 'ws_threshold_check', 'ws_lions_clamp', 'ws_drawbridge_lift', 'ws_anvil_drop', 'ws_royal_portcullis'].map((id) => [id, {
+    tone: 0x9fb0c4, paint: true, trail: false, own: true,
+  } as Recipe])),
 };

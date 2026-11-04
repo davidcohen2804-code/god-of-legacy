@@ -1502,7 +1502,99 @@ const shuriken: FinalSkill[] = [
   }),
 ];
 
-export const FINAL_SKILLS: FinalSkill[] = [...warrior, ...mage, ...archer, ...sniper, ...cannon, ...samurai, ...shuriken, ...gambler];
+// ======================================================================= the Warrior's Siege Warden (Styles.ts)
+// GPT's design (scratchpad styles/warrior_styles.md, David 4 Nov 14:59): the Lion Knight of the Iron Gate — a towering
+// double-winged shield on his forearm that opens into two iron wings and shuts on the foe like a lion's jaws; catch →
+// crush, iron and leverage (no holy fire, no lightning, no light swords: those stay the longsword's). GPT's times (at the
+// fight's pace, D) and juggle costs; DFO's damage. The vertical slice: the four-beat chain, Threshold Check, Lion's Clamp,
+// Drawbridge Lift, Anvil Drop, Royal Portcullis, the longsword's Rising Slash → the switch route; the rest templates.
+const siege: FinalSkill[] = [
+  S({
+    id: 'ws_four_beat', cls: 'warrior', style: 'siege', slot: 0, name: 'Four-Beat Portcullis', roles: ['basic', 'confirm'], targeting: 'aimAssist',
+    startup: D(95), active: D(55), recovery: D(140), cooldown: 0, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [H(0, 7, { kind: 'sector', range: 85, angle: 100 }, { stun: D(250), push: 4, juggleCost: 4 }, { reachUp: 100 })],
+    // THUNK — KLANG — KRR-CHAK — KADUNK: the forearm behind the shield, the elbow over it, the gates swung open upward, the
+    // gate slammed shut through him
+    chain: { resetMs: 700, stages: [
+      [H(0, 7, { kind: 'sector', range: 85, angle: 100 }, { stun: D(250), push: 4, juggleCost: 4 }, { reachUp: 100 })], // Iron Knuckle
+      [H(0, 8, { kind: 'sector', range: 100, angle: 100 }, { stun: D(310), push: 30, juggleCost: 6 }, { reachUp: 100 })], // Gate Elbow
+      [H(0, 9, { kind: 'sector', range: 125, angle: 130 }, { stun: D(480), launch: 60, juggleCost: 11 }, { reachUp: 130 })], // Open the Gates: the wings swing apart upward, lifting him
+      [H(0, 12, { kind: 'sector', range: 110, angle: 120 }, { stun: D(350), push: 75, juggleCost: 16 }, { reachUp: 130, heavy: true })], // Portcullis Close: the gate crashes shut
+    ], timings: [{ startup: D(95), active: D(55), recovery: D(140) }, { startup: D(115), active: D(65), recovery: D(165) }, { startup: D(145), active: D(90), recovery: D(210) }, { startup: D(180), active: D(105), recovery: D(270) }] },
+    cancelOnHit: ['ws_threshold_check', 'ws_lions_clamp', 'ws_drawbridge_lift', 'ws_anvil_drop', 'ws_royal_portcullis'],
+    description: 'Tap or hold Space: a forearm blow behind the shield, an elbow over it, the two iron wings swung open upward under him — then the gate slammed shut through him.',
+    relations: ['4-beat chain', 'Cancel into any skill on hit'],
+  }),
+  S({
+    id: 'ws_threshold_check', cls: 'warrior', style: 'siege', slot: 1, name: 'Threshold Check', roles: ['opener', 'gapClose'], targeting: 'mouseTarget',
+    startup: D(105), active: D(65), recovery: D(190), cooldown: 4000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    dash: { distance: 70, gap: 66 }, // (a shoulder-first lunge behind the closed gate: it stops where the shield meets him)
+    hits: [H(D(30), 9, { kind: 'sector', range: 90, angle: 100 }, { stun: D(330), push: 30, juggleCost: 8 }, { reachUp: 90 })],
+    cancelOnHit: ['ws_lions_clamp', 'ws_drawbridge_lift'],
+    description: 'A body check behind the closed shield: he lunges in shoulder-first and the gate hits him flat, staggering him back.',
+    relations: ['Opener', 'Into the clamp or the lift'],
+  }),
+  S({ id: 'ws_sentry_catch', cls: 'warrior', style: 'siege', slot: 2, name: 'Sentry Catch', roles: ['counter'], targeting: 'self', wip: true,
+    startup: D(75), active: D(160), recovery: D(300), cooldown: 11000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
+    description: 'Coming soon: the gate opens into a V and catches a blow between its wings, then snaps shut on the attacker.', relations: ['Counter'] }),
+  S({
+    id: 'ws_lions_clamp', cls: 'warrior', style: 'siege', slot: 3, name: "Lion's Clamp", roles: ['pull', 'confirm'], targeting: 'aimAssist',
+    startup: D(125), active: D(105), recovery: D(245), cooldown: 8000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [H(D(50), 11, { kind: 'sector', range: 110, angle: 110 }, { stun: D(420), pull: 35, pin: D(180), juggleCost: 12 }, { reachUp: 150 })], // (the wings close round him: on the floor or low in the air, held a beat)
+    cancelOnHit: ['ws_drawbridge_lift', 'ws_anvil_drop', 'ws_royal_portcullis'],
+    description: 'The two wings swing out round him and bite shut like a lion\'s jaws: he is dragged in and held a beat — on the floor or low in the air.',
+    relations: ['Catch', 'Holds him a beat'],
+  }),
+  S({
+    id: 'ws_drawbridge_lift', cls: 'warrior', style: 'siege', slot: 4, name: 'Drawbridge Lift', roles: ['launcher', 'antiAir'], targeting: 'aimAssist',
+    startup: D(155), active: D(95), recovery: D(270), cooldown: 8000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [H(D(30), 13, { kind: 'sector', range: 140, angle: 120 }, { stun: D(700), launch: 105, juggleCost: 18 }, { reachUp: 170, heavy: true })],
+    cancelOnHit: ['ws_anvil_drop', 'ws_royal_portcullis'],
+    description: 'Both wings swing up like a drawbridge and lever him into the air — it meets a foe up to two heights over you: the bridge out of the longsword.',
+    relations: ['Launcher', 'Anti-air'],
+  }),
+  S({ id: 'ws_rivet_drive', cls: 'warrior', style: 'siege', slot: 5, name: 'Rivet Drive', roles: ['peel'], targeting: 'mouseDir', wip: true,
+    startup: D(175), active: D(110), recovery: D(350), cooldown: 10000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
+    description: 'Coming soon: the gate locked, a braced shove that drives him back across the floor — into a wall, he bounces off it.', relations: ['Push'] }),
+  S({
+    id: 'ws_royal_portcullis', cls: 'warrior', style: 'siege', slot: 6, name: 'Royal Portcullis', roles: ['signature'], targeting: 'mouseTarget',
+    startup: D(240), active: D(240), recovery: D(420), cooldown: 23000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    dash: { distance: 110, gap: 74 }, // (he advances with the wings open, stopping where they close round him)
+    hits: [
+      H(D(70), 8, { kind: 'sector', range: 130, angle: 130 }, { stun: D(520), pull: 30, pin: D(240), juggleCost: 8 }, { reachUp: 180 }), // the gate snaps shut on him
+      H(D(200), 18, { kind: 'sector', range: 120, angle: 120 }, { stun: D(650), launch: 90, juggleCost: 19 }, { reachUp: 200, heavy: true }), // and drives up, locked
+    ],
+    tags: ['signature'],
+    description: 'His signature: the gate opens wide, he advances, it snaps shut on the foe like a portcullis — then the locked gate is driven straight up, throwing him high.',
+    relations: ['Signature', 'Shut, then up'],
+  }),
+  S({ id: 'ws_last_drawbridge', cls: 'warrior', style: 'siege', slot: 7, name: 'The Last Drawbridge', roles: ['ultimate'], targeting: 'self', wip: true,
+    startup: D(390), active: D(360), recovery: D(620), cooldown: 70000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
+    description: 'Coming soon: the gate anchored and opened to its widest — what it catches is catapulted up, then the locked gate slams down on it.', relations: ['Ultimate'] }),
+  S({ id: 'ws_rearguard_step', cls: 'warrior', style: 'siege', slot: 8, name: 'Rearguard Step', roles: ['mobility'], targeting: 'mouseDir', wip: true,
+    startup: D(115), active: D(90), recovery: D(230), cooldown: 8000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
+    description: 'Coming soon: a step back with one wing turned in front of him, its edge striking.', relations: ['Reposition'] }),
+  S({ id: 'ws_crenel_upper', cls: 'warrior', style: 'siege', slot: 9, name: 'Crenel Upper', roles: ['antiAir'], targeting: 'aimAssist', wip: true,
+    startup: D(145), active: D(95), recovery: D(255), cooldown: 9000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
+    description: 'Coming soon: the shield\'s spine driven up two-handed into a foe overhead.', relations: ['Anti-air'] }),
+  S({
+    id: 'ws_anvil_drop', cls: 'warrior', style: 'siege', slot: 10, name: 'Anvil Drop', roles: ['knockdown', 'extender'], targeting: 'mouseTarget',
+    startup: D(160), active: D(110), recovery: D(300), cooldown: 11000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    dash: { distance: 70, lift: 70, crash: true, gap: 60 }, // (a short powered hop onto him, the folded gate brought down with it)
+    hits: [H(D(80), 15, { kind: 'sector', range: 110, angle: 120 }, { stun: D(540), slam: true, knockdown: 'light', juggleCost: 23 }, { reachUp: 210, heavy: true })], // (in the air: slammed into the floor, one bounce; standing: knocked down)
+    cancelOnHit: ['ws_royal_portcullis'],
+    description: 'A short powered hop and the whole folded gate comes down like an anvil: a foe in the air is slammed into the floor and bounces once; a standing one is knocked flat.',
+    relations: ['Ground bounce', 'Knockdown'],
+  }),
+  S({ id: 'ws_false_gate', cls: 'warrior', style: 'siege', slot: 11, name: 'False Gate', roles: ['setup'], targeting: 'aimAssist', wip: true,
+    startup: D(115), active: D(85), recovery: D(280), cooldown: 8000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
+    description: 'Coming soon: the gate starts to open as if to guard — one wing folds and its edge strikes instead.', relations: ['Feint'] }),
+  S({ id: 'ws_crossbar_sweep', cls: 'warrior', style: 'siege', slot: 12, name: 'Crossbar Sweep', roles: ['pull'], targeting: 'aimAssist', wip: true,
+    startup: D(155), active: D(110), recovery: D(260), cooldown: 8000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
+    description: 'Coming soon: the wings spread flat and sweep a wide slice of the floor, drawing the foes to his lane.', relations: ['Sweep'] }),
+];
+
+export const FINAL_SKILLS: FinalSkill[] = [...warrior, ...siege, ...mage, ...archer, ...sniper, ...cannon, ...samurai, ...shuriken, ...gambler];
 /** The switches into the styles (Styles.ts): a hidden cast each, never on the bar. 150 ms to the change, 240 ms in all, on
  *  the clock (its kit numbers are the fight's pace undone); no hits; she keeps her momentum. */
 export const STYLE_SWITCHES: FinalSkill[] = Object.entries(STYLES).flatMap(([cls, list]) => list.map((st) => S({
