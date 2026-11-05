@@ -1215,9 +1215,14 @@ const sniper: FinalSkill[] = [
     description: 'One needle-thin shot down the line from far away: it stuns him for a moment and marks him (Hunter\'s Mark) — your opening.',
     relations: ['Long poke', 'Opener', 'Marks'],
   }),
-  S({ id: 'sn_stockbreaker', cls: 'archer', style: 'sniper', slot: 2, name: 'Stockbreaker', roles: ['peel'], targeting: 'aimAssist', wip: true,
-    startup: D(120), active: D(60), recovery: D(200), cooldown: 5000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
-    description: 'Coming soon: a hard rifle-butt strike for a foe who gets too close.', relations: ['Close defence'] }),
+  S({
+    id: 'sn_stockbreaker', cls: 'archer', style: 'sniper', slot: 2, name: 'Stockbreaker', roles: ['peel'], targeting: 'aimAssist',
+    startup: D(120), active: D(60), recovery: D(200), cooldown: 5000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [H(0, 11, { kind: 'sector', range: 95, angle: 110 }, { stun: D(300), push: 65 }, { reachUp: 110 })], // (GPT's 85 X from her body: her painted stock reaches ~92)
+    cancelOnHit: ['sn_recoil_slip', 'sn_kneecap', 'sn_skyline'],
+    description: 'The rifle butt driven hard into a foe who got too close: it stuns him and knocks him back out to the end of the barrel.',
+    relations: ['Close defence', 'Makes range'],
+  }),
   S({
     id: 'sn_recoil_slip', cls: 'archer', style: 'sniper', slot: 3, name: 'Recoil Slip', roles: ['escape', 'projectile'], targeting: 'mouseProjectile',
     startup: D(110), active: D(220), recovery: D(170), cooldown: 5000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK,
@@ -1235,9 +1240,14 @@ const sniper: FinalSkill[] = [
     description: 'Braced, she sends one round straight through everything in its line — every foe on it is thrown back and marked. The long punish.',
     relations: ['Pierces', 'Long punish', 'Marks'],
   }),
-  S({ id: 'sn_kneecap', cls: 'archer', style: 'sniper', slot: 5, name: 'Kneecap Round', roles: ['precision'], targeting: 'mouseProjectile', wip: true,
-    startup: D(150), active: D(50), recovery: D(220), cooldown: 7000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK, hits: [],
-    description: 'Coming soon: a low shot that stops a foe running in at her.', relations: ['Stops an advance'] }),
+  S({
+    id: 'sn_kneecap', cls: 'archer', style: 'sniper', slot: 5, name: 'Kneecap Round', roles: ['precision', 'projectile'], targeting: 'mouseProjectile',
+    startup: D(150), active: D(50), recovery: D(220), cooldown: 7000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK,
+    hits: [H(0, 10, { ...SNIPER_SHOT(340, 8, 2300), antiAir: false }, { stun: D(380), push: 12 })], // (fired low from the hip, at his legs — never up at a foe in the air: a 380 ms stagger stops him where he is)
+    cancelOnHit: ['sn_false_sight', 'sn_glass_round', 'sn_four_bells'],
+    description: 'A low shot from the hip at the legs of a foe running in: he staggers and stops where he is.',
+    relations: ['Stops an advance', 'Low'],
+  }),
   S({
     id: 'sn_four_bells', cls: 'archer', style: 'sniper', slot: 6, name: 'Deadeye: Four Bells', roles: ['signature', 'projectile', 'precision'], targeting: 'mouseDir',
     startup: D(220), active: D(200), recovery: D(420), cooldown: 22000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
@@ -1261,15 +1271,32 @@ const sniper: FinalSkill[] = [
     description: 'Her ultimate: down on one knee, three sight planes close on one line — then a single luminous round goes through everything to the horizon and throws it far.',
     relations: ['Ultimate', 'Pierces', 'Knockback'],
   }),
-  S({ id: 'sn_steady_chamber', cls: 'archer', style: 'sniper', slot: 8, name: 'Steady Chamber', roles: ['setup'], targeting: 'self', wip: true,
-    startup: D(120), active: D(40), recovery: D(160), cooldown: 9000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
-    description: 'Coming soon: a round chambered with care — the next rifle hit marks him and comes out faster.', relations: ['Set-up'] }),
-  S({ id: 'sn_false_sight', cls: 'archer', style: 'sniper', slot: 9, name: 'False Sight', roles: ['precision'], targeting: 'mouseProjectile', wip: true,
-    startup: D(260), active: D(50), recovery: D(220), cooldown: 9000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK, hits: [],
-    description: 'Coming soon: a feint of aim, then a sudden shot that stuns.', relations: ['Bait'] }),
-  S({ id: 'sn_perch_pivot', cls: 'archer', style: 'sniper', slot: 10, name: 'Perch Pivot', roles: ['launcher', 'mobility'], targeting: 'mouseDir', wip: true,
-    startup: D(140), active: D(220), recovery: D(200), cooldown: 7000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
-    description: 'Coming soon: a hop across the lane and a downward shot that launches.', relations: ['Reposition', 'Launcher'] }),
+  S({
+    id: 'sn_steady_chamber', cls: 'archer', style: 'sniper', slot: 8, name: 'Steady Chamber', roles: ['setup'], targeting: 'self',
+    startup: D(120), active: D(40), recovery: D(160), cooldown: 9000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [], // (no damage: her next rifle shot within 3 s leaves 40 ms sooner and marks him — the Glass Round one step hotter)
+    primes: { ids: ['sn_four_beat', 'sn_needlemark', 'sn_recoil_slip', 'sn_throughline', 'sn_kneecap', 'sn_four_bells', 'sn_false_sight', 'sn_perch_pivot', 'sn_glass_round', 'sn_skyline'], windowMs: 3000, chargeUp: 1, cut: 40, mark: 1 },
+    cancelOnHit: [],
+    description: 'A round chambered with care, a copper glint along the receiver: her next rifle shot (within 3 s) leaves sooner and marks him; a held Glass Round starts one step hotter.',
+    relations: ['Set-up', 'Next shot marks'],
+  }),
+  S({
+    id: 'sn_false_sight', cls: 'archer', style: 'sniper', slot: 9, name: 'False Sight', roles: ['precision', 'projectile'], targeting: 'mouseProjectile',
+    startup: D(260), active: D(50), recovery: D(220), cooldown: 9000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK,
+    hits: [H(0, 12, SNIPER_SHOT(330, 9, 2600), { stun: D(350), push: 10 })], // (the wind-up is the feint: the rifle raised to the sky — then snapped level and fired)
+    cancelOnHit: [],
+    description: 'Bait: she raises the rifle as if to shoot the sky — then snaps it level and fires a sudden shot that stuns.',
+    relations: ['Bait', 'Feint'],
+  }),
+  S({
+    id: 'sn_perch_pivot', cls: 'archer', style: 'sniper', slot: 10, name: 'Perch Pivot', roles: ['launcher', 'mobility', 'projectile'], targeting: 'mouseDir',
+    startup: D(140), active: D(220), recovery: D(200), cooldown: 7000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    dash: { distance: -45, lift: 70, hang: true }, // (a hop up and back onto a perch of air — a dash goes along the aim only, not across the lane)
+    hits: [H(D(90), 12, SNIPER_SHOT(250, 10, 2300), { stun: D(420), launch: 75, juggleCost: 14 }, { reachUp: 170 })], // (fired down from the top of the hop: it throws him up)
+    cancelOnHit: ['sn_skyline', 'sn_four_bells'], tags: ['farLaunch'], // (made to launch from a little way off: past the poke range too)
+    description: 'She hops up and back onto a perch of air and fires down from the top of it: the shot throws him up — into Skyline Intercept or the Four Bells.',
+    relations: ['Reposition', 'Launcher'],
+  }),
   S({
     id: 'sn_glass_round', cls: 'archer', style: 'sniper', slot: 11, name: 'Glass Round', roles: ['finisher', 'projectile'], targeting: 'mouseDir',
     startup: D(1000), active: D(60), recovery: D(320), cooldown: 12000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, // (startup = the longest hold: a tap fires at D(200))
@@ -1389,12 +1416,23 @@ const cannon: FinalSkill[] = [
     description: 'Her ultimate: braced on the spot, four heavy shells burst on the floor round him, then one huge missile comes straight down on him — the whole floor shakes.',
     relations: ['Ultimate', 'Floor bombs'],
   }),
-  S({ id: 'cn_fuse_knuckle', cls: 'archer', style: 'cannon', slot: 8, name: 'Fuse Knuckle', roles: ['peel'], targeting: 'aimAssist', wip: true,
-    startup: D(110), active: D(60), recovery: D(200), cooldown: 6000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
-    description: 'Coming soon: the back of the breech driven into him up close — a short stun.', relations: ['Close defence'] }),
-  S({ id: 'cn_muzzle_guard', cls: 'archer', style: 'cannon', slot: 9, name: 'Muzzle Guard', roles: ['counter'], targeting: 'self', wip: true,
-    startup: D(60), active: D(180), recovery: D(240), cooldown: 10000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
-    description: 'Coming soon: a braced guard behind the cannon — struck, it blasts back and launches him.', relations: ['Counter'] }),
+  S({
+    id: 'cn_fuse_knuckle', cls: 'archer', style: 'cannon', slot: 8, name: 'Fuse Knuckle', roles: ['peel'], targeting: 'aimAssist',
+    startup: D(110), active: D(60), recovery: D(200), cooldown: 6000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [H(0, 10, { kind: 'sector', range: 100, angle: 100 }, { stun: D(400), push: 18 }, { reachUp: 110 })],
+    cancelOnHit: [],
+    description: 'The cannon rammed into a foe up close, the fuse sparking: a short stun — time to brace for the next shot.',
+    relations: ['Close defence'],
+  }),
+  S({
+    id: 'cn_muzzle_guard', cls: 'archer', style: 'cannon', slot: 9, name: 'Muzzle Guard', roles: ['counter'], targeting: 'mouseDir',
+    startup: D(60), active: D(180), recovery: D(240), cooldown: 10000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    counter: { window: 180, sidestep: 0, behind: 0 }, // (braced behind the cannon for 180 ms: a blow that reaches her is answered at once)
+    hits: [H(0, 14, { kind: 'sector', range: 160, angle: 70 }, { stun: D(560), launch: 70, juggleCost: 16 }, { reachUp: 120, heavy: true })], // (the counterblast out of the muzzle throws him up)
+    cancelOnHit: ['cn_piston_lift', 'cn_battery'],
+    description: 'Braced behind the cannon for a moment: a blow that reaches her is answered by a counterblast out of the muzzle that throws the striker up.',
+    relations: ['Counter', 'Launch on counter'],
+  }),
   S({
     id: 'cn_piston_lift', cls: 'archer', style: 'cannon', slot: 10, name: 'Piston Lift', roles: ['launcher'], targeting: 'mouseDir',
     startup: D(160), active: D(70), recovery: D(280), cooldown: 7000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
@@ -1403,12 +1441,22 @@ const cannon: FinalSkill[] = [
     description: 'A blast fired steeply up from the hip: it throws him high into the air — her main launcher.',
     relations: ['Launcher'],
   }),
-  S({ id: 'cn_depth_bank', cls: 'archer', style: 'cannon', slot: 11, name: 'Depth Bank', roles: ['projectile'], targeting: 'mouseDir', wip: true,
-    startup: D(170), active: D(80), recovery: D(240), cooldown: 8000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK, hits: [],
-    description: 'Coming soon: a shell that skips off into the next lane of the floor.', relations: ['Depth punish'] }),
-  S({ id: 'cn_twin_traverse', cls: 'archer', style: 'cannon', slot: 12, name: 'Twin Traverse', roles: ['projectile'], targeting: 'mouseDir', wip: true,
-    startup: D(180), active: D(80), recovery: D(240), cooldown: 9000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK, hits: [],
-    description: 'Coming soon: two shots into two lanes that pull them to the middle.', relations: ['Pull'] }),
+  S({
+    id: 'cn_depth_bank', cls: 'archer', style: 'cannon', slot: 11, name: 'Depth Bank', roles: ['projectile'], targeting: 'mouseDir',
+    startup: D(170), active: D(80), recovery: D(240), cooldown: 8000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK,
+    hits: [H(0, 12, { ...SHELL(320, 16, 1500), homing: 420 }, { stun: D(380), push: 40 })], // (skipped off the floor ~135 px out, it banks hard across into the lane he stepped into)
+    cancelOnHit: ['cn_battery', 'cn_twin_traverse'],
+    description: 'A shell skipped off the floor that banks across into the next lane — a foe who stepped out of her line is caught all the same.',
+    relations: ['Depth punish'],
+  }),
+  S({
+    id: 'cn_twin_traverse', cls: 'archer', style: 'cannon', slot: 12, name: 'Twin Traverse', roles: ['projectile', 'pull'], targeting: 'mouseDir',
+    startup: D(180), active: D(80), recovery: D(240), cooldown: 9000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK,
+    hits: [H(0, 9, { ...SHELL(330, 14, 1600), rows: 2, rowGap: 146 }, { stun: D(300), lane: 35 })], // (two shells side by side, ± 55 across the floor's depth: whoever they meet is drawn 35 px into her line)
+    cancelOnHit: ['cn_battery', 'cn_breach_burst'],
+    description: 'Two shells fired side by side into the lanes either side of her line: whoever they hit is drawn into the middle — in front of her cannon.',
+    relations: ['Two lanes', 'Draws to the middle'],
+  }),
 ];
 
 // ------------------------------------------------------------------ SAMURAI — SHURIKEN ASSASSIN (his second style)
@@ -1440,12 +1488,22 @@ const shuriken: FinalSkill[] = [
     description: 'Tap or hold Space: a star flicked off the wrist, two more into the lanes beside it, the big star thrown — it waits at the end of its flight — then called home on a rising curve straight through him, throwing him up.',
     relations: ['4-beat chain', 'The star comes home through him'],
   }),
-  S({ id: 'as_needle_fan', cls: 'samurai', style: 'shuriken', slot: 1, name: 'Needle Fan', roles: ['opener', 'projectile'], targeting: 'mouseProjectile', wip: true,
-    startup: D(100), active: D(100), recovery: D(190), cooldown: 4000, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK, hits: [],
-    description: 'Coming soon: three stars off the forearms across three lanes — your opener.', relations: ['Opener'] }),
-  S({ id: 'as_heel_sweep', cls: 'samurai', style: 'shuriken', slot: 2, name: 'Heel Sweep', roles: ['launcher'], targeting: 'aimAssist', wip: true,
-    startup: D(110), active: D(80), recovery: D(240), cooldown: 6000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
-    description: 'Coming soon: a low sweep and a rising heel up close that lifts him.', relations: ['Close launcher'] }),
+  S({
+    id: 'as_needle_fan', cls: 'samurai', style: 'shuriken', slot: 1, name: 'Needle Fan', roles: ['opener', 'projectile'], targeting: 'mouseProjectile',
+    startup: D(100), active: D(100), recovery: D(190), cooldown: 4000, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
+    hits: [H(0, 8, { ...NEEDLE(290), rows: 3, rowGap: 60 }, { stun: D(360), push: 25, juggleCost: 8 })], // (three small stars off the forearms, one in each lane: ± 45 across the depth)
+    cancelOnHit: ['as_silk_shift', 'as_piercing_quarter', 'as_crosslane_split'],
+    description: 'Three small stars flicked off the forearms into three lanes at once: wherever he stands, one meets him — your opener.',
+    relations: ['Opener', 'Three lanes'],
+  }),
+  S({
+    id: 'as_heel_sweep', cls: 'samurai', style: 'shuriken', slot: 2, name: 'Heel Sweep', roles: ['launcher'], targeting: 'aimAssist',
+    startup: D(110), active: D(80), recovery: D(240), cooldown: 6000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [H(D(20), 10, { kind: 'sector', range: 95, angle: 120 }, { stun: D(650), launch: 70, juggleCost: 12 }, { reachUp: 110, heavy: true })], // (the low sweep takes his feet, the rising heel lifts him)
+    cancelOnHit: ['as_crowstep_rise', 'as_falling_talon', 'as_four_point_eclipse'],
+    description: 'Up close: down low, a sweep that takes his feet, then a rising heel that lifts him into the air.',
+    relations: ['Close launcher'],
+  }),
   S({
     id: 'as_redline_recall', cls: 'samurai', style: 'shuriken', slot: 3, name: 'Redline Recall', roles: ['pull', 'launcher'], targeting: 'mouseProjectile',
     startup: D(120), active: D(150), recovery: D(260), cooldown: 7000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
@@ -1454,9 +1512,15 @@ const shuriken: FinalSkill[] = [
     description: 'Snaps the big star straight back to your hand along a thin red line: whoever stands in its way is dragged toward you and lifted. With the star in your hand, it is thrown and called back at once.',
     relations: ['Recall', 'Drags him in'],
   }),
-  S({ id: 'as_silk_shift', cls: 'samurai', style: 'shuriken', slot: 4, name: 'Silk Shift', roles: ['mobility', 'projectile'], targeting: 'mouseDir', wip: true,
-    startup: D(135), active: D(90), recovery: D(230), cooldown: 8000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK, hits: [],
-    description: 'Coming soon: a low sidestep into the next lane with a star down it — it changes the star\'s way home.', relations: ['Reposition'] }),
+  S({
+    id: 'as_silk_shift', cls: 'samurai', style: 'shuriken', slot: 4, name: 'Silk Shift', roles: ['mobility', 'projectile'], targeting: 'mouseDir',
+    startup: D(135), active: D(90), recovery: D(230), cooldown: 8000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK,
+    dash: { distance: -45 }, // (a low step back out of his reach — a dash goes along the aim only, not across the lane as GPT's)
+    hits: [H(D(60), 8, NEEDLE(250), { stun: D(380), push: 10, juggleCost: 8 })], // (a small star down his line as he lands; the big star's way home bends with where he now stands)
+    cancelOnHit: ['as_needle_fan', 'as_heel_sweep', 'as_crosslane_split'],
+    description: 'A low step back out of reach with a small star flicked down the line: it staggers him — and the big star, if it is out, comes home along a new angle.',
+    relations: ['Reposition', 'Bends the star\'s way home'],
+  }),
   S({
     id: 'as_piercing_quarter', cls: 'samurai', style: 'shuriken', slot: 5, name: 'Piercing Quarter', roles: ['projectile', 'finisher'], targeting: 'mouseProjectile',
     startup: D(240), active: D(80), recovery: D(330), cooldown: 9000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK,
@@ -1501,15 +1565,31 @@ const shuriken: FinalSkill[] = [
     description: 'A step into a flying knee with a rising cut of the star: it meets a foe up to two heights over you and throws him high — the bridge out of the katana.',
     relations: ['Launcher', 'Anti-air'],
   }),
-  S({ id: 'as_crosslane_split', cls: 'samurai', style: 'shuriken', slot: 9, name: 'Crosslane Split', roles: ['pull', 'projectile'], targeting: 'mouseProjectile', wip: true,
-    startup: D(175), active: D(130), recovery: D(250), cooldown: 9000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK, hits: [],
-    description: 'Coming soon: two stars in two lanes curve in and meet, drawing the foes between them to the middle.', relations: ['Pull'] }),
-  S({ id: 'as_falling_talon', cls: 'samurai', style: 'shuriken', slot: 10, name: 'Falling Talon', roles: ['knockdown'], targeting: 'aimAssist', wip: true,
-    startup: D(145), active: D(110), recovery: D(310), cooldown: 11000, ground: false, air: true, cover: 'IGNORES_COVER', move: LOCK, hits: [],
-    description: 'Coming soon: from the air, a heel drop and a cut — a foe in the air bounces off the floor once.', relations: ['Ground bounce'] }),
-  S({ id: 'as_iron_palm', cls: 'samurai', style: 'shuriken', slot: 11, name: 'Iron Palm Deflect', roles: ['counter'], targeting: 'self', wip: true,
-    startup: D(65), active: D(180), recovery: D(290), cooldown: 13000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
-    description: 'Coming soon: a parry on the left forearm — a blow caught in it answers with a star that stuns.', relations: ['Counter'] }),
+  S({
+    id: 'as_crosslane_split', cls: 'samurai', style: 'shuriken', slot: 9, name: 'Crosslane Split', roles: ['pull', 'projectile'], targeting: 'mouseProjectile',
+    startup: D(175), active: D(130), recovery: D(250), cooldown: 9000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK,
+    hits: [H(D(40), 9, { ...NEEDLE(300), rows: 2, rowGap: 120 }, { stun: D(370), lane: 45, juggleCost: 9 })], // (two stars in the lanes either side of his line: whoever they cut is drawn 45 px into the middle)
+    cancelOnHit: ['as_heel_sweep', 'as_piercing_quarter', 'as_four_point_eclipse'],
+    description: 'Two stars thrown crossed into the lanes either side of his line: whoever they cut is drawn into the middle — into the line of his next throw.',
+    relations: ['Two lanes', 'Draws to the middle'],
+  }),
+  S({
+    id: 'as_falling_talon', cls: 'samurai', style: 'shuriken', slot: 10, name: 'Falling Talon', roles: ['knockdown'], targeting: 'aimAssist',
+    startup: D(145), active: D(110), recovery: D(310), cooldown: 11000, ground: false, air: true, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [H(D(30), 22, RLINE(180, 34), { stun: D(600), slam: true, knockdown: 'heavy', juggleCost: 24 }, { reachUp: 150, heavy: true })], // (in the air: slammed into the floor, one bounce; standing: thrown down)
+    cancelOnHit: ['as_four_point_eclipse'],
+    description: 'In the air only: a heel dropped like a talon with a cut of the star — a foe in the air is slammed into the floor and bounces once; a standing one is thrown down.',
+    relations: ['Air', 'Ground bounce'],
+  }),
+  S({
+    id: 'as_iron_palm', cls: 'samurai', style: 'shuriken', slot: 11, name: 'Iron Palm Deflect', roles: ['counter'], targeting: 'mouseDir',
+    startup: D(65), active: D(180), recovery: D(290), cooldown: 13000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    counter: { window: 180, sidestep: 0, behind: 0 }, // (the left forearm raised for 180 ms: a blow caught on it is answered at once)
+    hits: [H(0, 10, NEEDLE(260), { stun: D(400), push: 35, juggleCost: 10 })], // (a star flicked back into the striker)
+    cancelOnHit: ['as_heel_sweep', 'as_redline_recall'],
+    description: 'A parry on the left forearm for a moment: a blow caught on it is answered by a star flicked straight back into the striker — it stuns him and shoves him off.',
+    relations: ['Counter', 'Stuns the striker'],
+  }),
   S({
     id: 'as_returning_moon', cls: 'samurai', style: 'shuriken', slot: 12, name: 'Returning Moon', roles: ['airExtender', 'launcher'], targeting: 'mouseProjectile',
     startup: D(175), active: D(130), recovery: D(260), cooldown: 10000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
@@ -1553,9 +1633,15 @@ const siege: FinalSkill[] = [
     description: 'A body check behind the closed shield: he lunges in shoulder-first and the gate hits him flat, staggering him back.',
     relations: ['Opener', 'Into the clamp or the lift'],
   }),
-  S({ id: 'ws_sentry_catch', cls: 'warrior', style: 'siege', slot: 2, name: 'Sentry Catch', roles: ['counter'], targeting: 'self', wip: true,
-    startup: D(75), active: D(160), recovery: D(300), cooldown: 11000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
-    description: 'Coming soon: the gate opens into a V and catches a blow between its wings, then snaps shut on the attacker.', relations: ['Counter'] }),
+  S({
+    id: 'ws_sentry_catch', cls: 'warrior', style: 'siege', slot: 2, name: 'Sentry Catch', roles: ['counter'], targeting: 'mouseDir',
+    startup: D(75), active: D(160), recovery: D(300), cooldown: 11000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    counter: { window: 160, sidestep: 0, behind: 0 }, // (the wings held open in a V for 160 ms: a blow from the front is caught between them)
+    hits: [H(0, 12, { kind: 'sector', range: 100, angle: 110 }, { stun: D(420), pull: 35, juggleCost: 10 }, { reachUp: 120, heavy: true })], // (then snapped shut on the striker: he is stunned and drawn in)
+    cancelOnHit: ['ws_lions_clamp', 'ws_drawbridge_lift'],
+    description: 'The gate opens into a V for a moment: a blow from the front is caught between the wings — they snap shut on the striker, stun him and draw him in.',
+    relations: ['Counter', 'Draws the striker in'],
+  }),
   S({
     id: 'ws_lions_clamp', cls: 'warrior', style: 'siege', slot: 3, name: "Lion's Clamp", roles: ['pull', 'confirm'], targeting: 'aimAssist',
     startup: D(125), active: D(105), recovery: D(245), cooldown: 8000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
@@ -1572,9 +1658,15 @@ const siege: FinalSkill[] = [
     description: 'Both wings swing up like a drawbridge and lever him into the air — it meets a foe up to two heights over you: the bridge out of the longsword.',
     relations: ['Launcher', 'Anti-air'],
   }),
-  S({ id: 'ws_rivet_drive', cls: 'warrior', style: 'siege', slot: 5, name: 'Rivet Drive', roles: ['peel'], targeting: 'mouseDir', wip: true,
-    startup: D(175), active: D(110), recovery: D(350), cooldown: 10000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
-    description: 'Coming soon: the gate locked, a braced shove that drives him back across the floor — into a wall, he bounces off it.', relations: ['Push'] }),
+  S({
+    id: 'ws_rivet_drive', cls: 'warrior', style: 'siege', slot: 5, name: 'Rivet Drive', roles: ['peel', 'finisher'], targeting: 'mouseDir',
+    startup: D(175), active: D(110), recovery: D(350), cooldown: 10000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    dash: { distance: 110 }, // (braced behind the locked gate, he drives forward — stopped by the foe's body, he shoves from there)
+    hits: [H(D(95), 16, { kind: 'sector', range: 125, angle: 70 }, { stun: D(520), push: 135, juggleCost: 17 }, { reachUp: 120, heavy: true })], // (the shove at the end of the drive: up to ~235 px from where he started, thrown back across the floor)
+    cancelOnHit: ['ws_royal_portcullis', 'ws_crossbar_sweep'],
+    description: 'The gate locked in front of him, a braced shove: he drives forward and throws whoever he meets back across the floor — into a wall, they bounce off it.',
+    relations: ['Drive', 'Throws back'],
+  }),
   S({
     id: 'ws_royal_portcullis', cls: 'warrior', style: 'siege', slot: 6, name: 'Royal Portcullis', roles: ['signature'], targeting: 'mouseTarget',
     startup: D(240), active: D(240), recovery: D(420), cooldown: 23000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
@@ -1601,12 +1693,23 @@ const siege: FinalSkill[] = [
     description: 'His ultimate: anchored, the gate opened to its widest span — what it catches in its jaws is catapulted up with his whole body, then the locked gate is raised overhead and slammed down on it. No magic: iron, leverage and weight.',
     relations: ['Ultimate', 'Catch', 'Ground bounce'],
   }),
-  S({ id: 'ws_rearguard_step', cls: 'warrior', style: 'siege', slot: 8, name: 'Rearguard Step', roles: ['mobility'], targeting: 'mouseDir', wip: true,
-    startup: D(115), active: D(90), recovery: D(230), cooldown: 8000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
-    description: 'Coming soon: a step back with one wing turned in front of him, its edge striking.', relations: ['Reposition'] }),
-  S({ id: 'ws_crenel_upper', cls: 'warrior', style: 'siege', slot: 9, name: 'Crenel Upper', roles: ['antiAir'], targeting: 'aimAssist', wip: true,
-    startup: D(145), active: D(95), recovery: D(255), cooldown: 9000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
-    description: 'Coming soon: the shield\'s spine driven up two-handed into a foe overhead.', relations: ['Anti-air'] }),
+  S({
+    id: 'ws_rearguard_step', cls: 'warrior', style: 'siege', slot: 8, name: 'Rearguard Step', roles: ['mobility'], targeting: 'mouseDir',
+    startup: D(115), active: D(90), recovery: D(230), cooldown: 8000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    dash: { distance: -65 }, // (a step back — a dash goes along the aim only, not across the lane as GPT's; not untouchable)
+    hits: [H(D(10), 9, { kind: 'sector', range: 105, angle: 100 }, { stun: D(300), push: 10, juggleCost: 7 }, { reachUp: 110 })], // (one wing turned in front of him as he goes: its edge strikes a foe who follows)
+    cancelOnHit: ['ws_threshold_check', 'ws_crossbar_sweep'],
+    description: 'A step back with one wing of the gate turned in front of him: its edge strikes a foe who follows — room to open the gate again.',
+    relations: ['Reposition', 'Punishes a chase'],
+  }),
+  S({
+    id: 'ws_crenel_upper', cls: 'warrior', style: 'siege', slot: 9, name: 'Crenel Upper', roles: ['antiAir', 'airExtender'], targeting: 'aimAssist',
+    startup: D(145), active: D(95), recovery: D(255), cooldown: 9000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [H(D(15), 13, { kind: 'sector', range: 170, angle: 70 }, { stun: D(600), launch: 80, juggleCost: 19 }, { reachUp: 185, heavy: true })], // (the spine driven up two-handed: it meets a foe overhead or jumping in, and lifts him higher)
+    cancelOnHit: ['ws_anvil_drop', 'ws_royal_portcullis'],
+    description: 'The gate\'s spine driven straight up two-handed: it meets a foe overhead or jumping at him and lifts him higher — into the Anvil Drop.',
+    relations: ['Anti-air', 'Juggle extender'],
+  }),
   S({
     id: 'ws_anvil_drop', cls: 'warrior', style: 'siege', slot: 10, name: 'Anvil Drop', roles: ['knockdown', 'extender'], targeting: 'mouseTarget',
     startup: D(160), active: D(110), recovery: D(300), cooldown: 11000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
@@ -1616,12 +1719,22 @@ const siege: FinalSkill[] = [
     description: 'A short powered hop and the whole folded gate comes down like an anvil: a foe in the air is slammed into the floor and bounces once; a standing one is knocked flat.',
     relations: ['Ground bounce', 'Knockdown'],
   }),
-  S({ id: 'ws_false_gate', cls: 'warrior', style: 'siege', slot: 11, name: 'False Gate', roles: ['setup'], targeting: 'aimAssist', wip: true,
-    startup: D(115), active: D(85), recovery: D(280), cooldown: 8000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
-    description: 'Coming soon: the gate starts to open as if to guard — one wing folds and its edge strikes instead.', relations: ['Feint'] }),
-  S({ id: 'ws_crossbar_sweep', cls: 'warrior', style: 'siege', slot: 12, name: 'Crossbar Sweep', roles: ['pull'], targeting: 'aimAssist', wip: true,
-    startup: D(155), active: D(110), recovery: D(260), cooldown: 8000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
-    description: 'Coming soon: the wings spread flat and sweep a wide slice of the floor, drawing the foes to his lane.', relations: ['Sweep'] }),
+  S({
+    id: 'ws_false_gate', cls: 'warrior', style: 'siege', slot: 11, name: 'False Gate', roles: ['setup'], targeting: 'aimAssist',
+    startup: D(115), active: D(85), recovery: D(280), cooldown: 8000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [H(D(10), 10, { kind: 'sector', range: 135, angle: 80 }, { stun: D(360), pull: 35, juggleCost: 10 }, { reachUp: 120 })], // (a feint, no parry: the wind-up opens the gate as if to guard; the edge of one folded wing strikes and drags him in)
+    cancelOnHit: ['ws_lions_clamp', 'ws_drawbridge_lift'],
+    description: 'A feint: the gate starts to open as if to guard (it catches nothing) — then one wing folds and its edge strikes, dragging him in.',
+    relations: ['Feint', 'Draws him in'],
+  }),
+  S({
+    id: 'ws_crossbar_sweep', cls: 'warrior', style: 'siege', slot: 12, name: 'Crossbar Sweep', roles: ['pull', 'zone'], targeting: 'aimAssist',
+    startup: D(155), active: D(110), recovery: D(260), cooldown: 8000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [H(D(20), 11, RLINE(170, 65), { stun: D(350), lane: 30, juggleCost: 11 }, { reachUp: 120, depth: 65 })], // (the wings spread flat sweep a broad slice of the floor, ± 65 deep — in the arena too: whoever they meet is drawn 30 px into his lane)
+    cancelOnHit: ['ws_threshold_check', 'ws_lions_clamp', 'ws_drawbridge_lift'],
+    description: 'The wings spread flat and sweep a broad slice of the floor — even a foe a lane away is caught and drawn into his line.',
+    relations: ['Wide sweep', 'Draws to his lane'],
+  }),
 ];
 
 // The Gambler's second style (David 4 Nov 14:59: a chain of different tools, a different fighter running in): the Radiant
@@ -1663,9 +1776,14 @@ const radiant: FinalSkill[] = [
     description: 'The staff across his body, its lower end ripped up on a diagonal: he goes up — it meets a foe over you too. The launcher.',
     relations: ['Launcher', 'Anti-air'],
   }),
-  S({ id: 'rd_under_the_table', cls: 'gambler', style: 'radiant', slot: 3, name: 'Under the Table', roles: ['knockdown'], targeting: 'aimAssist', wip: true,
-    startup: D(195), active: D(90), recovery: D(260), cooldown: 8000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
-    description: 'Coming soon: the lower half of the staff swept along the floor at ankle height — he trips and goes down.', relations: ['Trip'] }),
+  S({
+    id: 'rd_under_the_table', cls: 'gambler', style: 'radiant', slot: 3, name: 'Under the Table', roles: ['knockdown'], targeting: 'aimAssist',
+    startup: D(195), active: D(90), recovery: D(260), cooldown: 8000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [H(D(20), 11, RLINE(185, 34), { stun: D(500), knockdown: 'light', juggleCost: 10 }, { reachUp: 60 })], // (at ankle height: only a foe on the floor or just off it — he is tripped and crumples)
+    cancelOnHit: ['rd_collect_debt', 'rd_side_bet'],
+    description: 'The staff\'s lower section swept along the floor at ankle height: a foe standing in its line is tripped and crumples.',
+    relations: ['Low', 'Trip'],
+  }),
   S({
     id: 'rd_royal_turn', cls: 'gambler', style: 'radiant', slot: 4, name: 'Royal Turn', roles: ['extender', 'pull', 'airExtender'], targeting: 'aimAssist',
     startup: D(165), active: D(125), recovery: D(270), cooldown: 8000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
@@ -1702,18 +1820,41 @@ const radiant: FinalSkill[] = [
     description: 'His ultimate: the staff planted upright like a performer taking his applause — an impossible vault round it — and the crown, swelled into a solid faceted head of light, brought down in one diagonal blow. He straightens his hat.',
     relations: ['Ultimate', 'Hard knockdown'],
   }),
-  S({ id: 'rd_read_the_room', cls: 'gambler', style: 'radiant', slot: 8, name: 'Read the Room', roles: ['counter'], targeting: 'self', wip: true,
-    startup: D(95), active: D(110), recovery: D(310), cooldown: 13000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
-    description: 'Coming soon: the staff held diagonally — a frontal blow is turned aside and answered with a swift ferrule counter.', relations: ['Parry'] }),
-  S({ id: 'rd_long_odds', cls: 'gambler', style: 'radiant', slot: 9, name: 'Long Odds', roles: ['projectile'], targeting: 'mouseProjectile', wip: true,
-    startup: D(250), active: D(85), recovery: D(305), cooldown: 11000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK, hits: [],
-    description: 'Coming soon: a thrust from the hip that lets go one compact diamond of light, flying straight and far.', relations: ['Projectile'] }),
-  S({ id: 'rd_high_stakes', cls: 'gambler', style: 'radiant', slot: 10, name: 'High-Stakes Vault', roles: ['gapClose'], targeting: 'mouseTarget', wip: true,
-    startup: D(185), active: D(95), recovery: D(290), cooldown: 12000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
-    description: 'Coming soon: the staff planted and a pole vault forward over it, striking with its other end.', relations: ['Gap close'] }),
-  S({ id: 'rd_side_bet', cls: 'gambler', style: 'radiant', slot: 11, name: 'Side Bet', roles: ['pull'], targeting: 'mouseDir', wip: true,
-    startup: D(190), active: D(75), recovery: D(285), cooldown: 10000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
-    description: 'Coming soon: a diagonal step across the floor, the staff guided round his hip into a hooked thrust that pulls.', relations: ['Pull'] }),
+  S({
+    id: 'rd_read_the_room', cls: 'gambler', style: 'radiant', slot: 8, name: 'Read the Room', roles: ['counter'], targeting: 'mouseDir',
+    startup: D(95), active: D(110), recovery: D(310), cooldown: 13000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    counter: { window: 110, sidestep: 0, behind: 0 }, // (the staff held diagonally across him for 110 ms: he reads the blow)
+    hits: [H(0, 10, { kind: 'sector', range: 110, angle: 90 }, { stun: D(450), push: 20, juggleCost: 10 }, { reachUp: 130 })], // (a swift ferrule counter)
+    cancelOnHit: [],
+    description: 'The staff held across him for a heartbeat: he reads a blow coming from the front and answers it with a swift ferrule strike that stuns the striker.',
+    relations: ['Counter'],
+  }),
+  S({
+    id: 'rd_long_odds', cls: 'gambler', style: 'radiant', slot: 9, name: 'Long Odds', roles: ['projectile', 'precision'], targeting: 'mouseProjectile',
+    startup: D(250), active: D(85), recovery: D(305), cooldown: 11000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK,
+    hits: [H(0, 12, { kind: 'projectile', speed: 1500, range: 350, radius: 14 }, { stun: D(420), launch: 35, juggleCost: 12 })], // (one compact diamond of light off the thrust, ± 16 across the lane, no tracking: a stagger and a short float)
+    cancelOnHit: ['rd_side_bet', 'rd_curtain_call'],
+    description: 'A thrust from the hip lets one compact diamond of light fly straight down the line: it staggers him and lifts him a little. No tracking — a bet on where he will be.',
+    relations: ['His one shot', 'Short float'],
+  }),
+  S({
+    id: 'rd_high_stakes', cls: 'gambler', style: 'radiant', slot: 10, name: 'High-Stakes Vault', roles: ['gapClose'], targeting: 'mouseTarget',
+    startup: D(185), active: D(95), recovery: D(290), cooldown: 12000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    dash: { distance: 110, lift: 60, crash: true, gap: 60 }, // (the staff planted, he pole-vaults forward over it — a foe can anti-air him in it)
+    hits: [H(D(70), 13, { kind: 'sector', range: 110, angle: 100 }, { stun: D(330), launch: 40, juggleCost: 15 }, { reachUp: 140 })], // (the staff's other end strikes as he comes down: a small pop)
+    cancelOnHit: ['rd_opening_bid', 'rd_under_the_table', 'rd_collect_debt'],
+    description: 'He plants the staff and pole-vaults forward over it, striking with its other end as he comes down: a small pop into the air — then the Debt or the Table.',
+    relations: ['Gap close', 'Small pop'],
+  }),
+  S({
+    id: 'rd_side_bet', cls: 'gambler', style: 'radiant', slot: 11, name: 'Side Bet', roles: ['pull'], targeting: 'mouseDir',
+    startup: D(190), active: D(75), recovery: D(285), cooldown: 10000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    dash: { distance: 45 }, // (a step along the aim — toward a corner to cross the depth, as he chooses)
+    hits: [H(D(30), 10, { kind: 'sector', range: 150, angle: 70 }, { stun: D(400), pull: 40, juggleCost: 10 }, { reachUp: 120 })], // (the staff guided round his hip, then the ferrule hooked into him: he is drawn 40 px in)
+    cancelOnHit: ['rd_crown_raise', 'rd_all_in', 'rd_curtain_call'],
+    description: 'A step to the side — toward a corner to cross the floor\'s depth — the staff guided round his hip, then the ferrule hooked into him and drawn back: he is pulled in.',
+    relations: ['Reposition', 'Pulls him in'],
+  }),
   S({
     id: 'rd_curtain_call', cls: 'gambler', style: 'radiant', slot: 12, name: 'Curtain Call', roles: ['finisher', 'knockdown'], targeting: 'aimAssist',
     startup: D(220), active: D(75), recovery: D(360), cooldown: 14000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
@@ -1755,9 +1896,15 @@ const wind: FinalSkill[] = [
     description: 'The fan flicked open: one thin pressure blade leaves its rim — the foe staggers, and one in the air is carried on.',
     relations: ['Confirm', 'Air carry'],
   }),
-  S({ id: 'mw_luff_step', cls: 'book_mage', style: 'wind', slot: 2, name: 'Luff Step', roles: ['mobility'], targeting: 'mouseDir', wip: true,
-    startup: D(145), active: D(70), recovery: D(185), cooldown: 5000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
-    description: 'Coming soon: a sidestep across the lane and one diagonal cut as he goes — a new angle.', relations: ['Sidestep'] }),
+  S({
+    id: 'mw_luff_step', cls: 'book_mage', style: 'wind', slot: 2, name: 'Luff Step', roles: ['mobility'], targeting: 'mouseDir',
+    startup: D(145), active: D(70), recovery: D(185), cooldown: 5000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    dash: { distance: 40 }, // (a step along the aim — toward a corner to cross the depth)
+    hits: [H(D(20), 8, { kind: 'sector', range: 120, angle: 90 }, { stun: D(300), push: 25, juggleCost: 7 }, { reachUp: 110 })], // (one diagonal cut as he steps, a light shove)
+    cancelOnHit: [],
+    description: 'A light step aside — toward a corner to cross the floor\'s depth — with one diagonal cut of the fan that shoves him.',
+    relations: ['Reposition'],
+  }),
   S({
     id: 'mw_updraft_hook', cls: 'book_mage', style: 'wind', slot: 3, name: 'Updraft Hook', roles: ['launcher', 'antiAir'], targeting: 'aimAssist',
     startup: D(180), active: D(75), recovery: D(235), cooldown: 7000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
@@ -1766,12 +1913,23 @@ const wind: FinalSkill[] = [
     description: 'The folded fan hooked up from below him: one rising crescent of air throws the foe up. The launcher.',
     relations: ['Launcher', 'Anti-air'],
   }),
-  S({ id: 'mw_skimming_edge', cls: 'book_mage', style: 'wind', slot: 4, name: 'Skimming Edge', roles: ['projectile'], targeting: 'mouseProjectile', wip: true,
-    startup: D(190), active: D(95), recovery: D(265), cooldown: 7000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK, hits: [],
-    description: 'Coming soon: one low, thin slice of air sent skimming along the floor, far.', relations: ['Low projectile'] }),
-  S({ id: 'mw_mastguard', cls: 'book_mage', style: 'wind', slot: 5, name: 'Mastguard', roles: ['counter'], targeting: 'self', wip: true,
-    startup: D(65), active: D(180), recovery: D(255), cooldown: 11000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
-    description: 'Coming soon: the fan opened before him as a tight sail — one blow or shot glances off it, and he pushes back.', relations: ['Guard', 'Counter'] }),
+  S({
+    id: 'mw_skimming_edge', cls: 'book_mage', style: 'wind', slot: 4, name: 'Skimming Edge', roles: ['projectile'], targeting: 'mouseProjectile',
+    startup: D(190), active: D(95), recovery: D(265), cooldown: 7000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK,
+    hits: [H(0, 10, { kind: 'projectile', speed: 1300, range: 245, radius: 12 }, { stun: D(380), push: 20, juggleCost: 10 })], // (a low thin slice of air skimming the floor, ± 16 across the lane — never up at a foe in the air)
+    cancelOnHit: ['mw_tackline_draw', 'mw_updraft_hook'],
+    description: 'A low, thin slice of air sent skimming along the floor down his line: it cuts the foe\'s legs and staggers him.',
+    relations: ['Low', 'Travels'],
+  }),
+  S({
+    id: 'mw_mastguard', cls: 'book_mage', style: 'wind', slot: 5, name: 'Mastguard', roles: ['counter'], targeting: 'mouseDir',
+    startup: D(65), active: D(180), recovery: D(255), cooldown: 11000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    counter: { window: 180, sidestep: 0, behind: 0 }, // (the fan opened in front of him like a tight sail for 180 ms: a strike or a shot that reaches him is caught)
+    hits: [H(0, 6, { kind: 'sector', range: 120, angle: 100 }, { stun: D(300), push: 70, juggleCost: 6 }, { reachUp: 130 })], // (then the sail snaps: a push counter)
+    cancelOnHit: [],
+    description: 'The fan opened in front of him like a tight sail: a strike or a shot that reaches him is caught on it — and the sail snaps, shoving the attacker away.',
+    relations: ['Counter', 'Push'],
+  }),
   S({
     id: 'mw_cut_across', cls: 'book_mage', style: 'wind', slot: 6, name: 'Cut Across', roles: ['signature', 'airExtender'], targeting: 'aimAssist',
     startup: D(245), active: D(110), recovery: D(300), cooldown: 14000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
@@ -1798,12 +1956,22 @@ const wind: FinalSkill[] = [
     description: 'The folded fan turned in a reverse grip and spiked straight up: it meets a foe over him and lifts him a little.',
     relations: ['Anti-air', 'Small lift'],
   }),
-  S({ id: 'mw_kite_needle', cls: 'book_mage', style: 'wind', slot: 9, name: 'Kite Needle', roles: ['projectile', 'precision'], targeting: 'mouseProjectile', wip: true,
-    startup: D(215), active: D(90), recovery: D(285), cooldown: 9000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK, hits: [],
-    description: 'Coming soon: one small, fast kite-shaped dart of air off the fan\'s tip, flying straight and far.', relations: ['Projectile'] }),
-  S({ id: 'mw_tackline_draw', cls: 'book_mage', style: 'wind', slot: 10, name: 'Tackline Draw', roles: ['pull'], targeting: 'aimAssist', wip: true,
-    startup: D(205), active: D(85), recovery: D(265), cooldown: 10000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
-    description: 'Coming soon: a taut line of air hooks the foe and draws him in toward the fan.', relations: ['Pull'] }),
+  S({
+    id: 'mw_kite_needle', cls: 'book_mage', style: 'wind', slot: 9, name: 'Kite Needle', roles: ['projectile', 'precision'], targeting: 'mouseProjectile',
+    startup: D(215), active: D(90), recovery: D(285), cooldown: 9000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK,
+    hits: [H(0, 11, { kind: 'projectile', speed: 2000, range: 285, radius: 9, antiAir: true }, { stun: D(360), push: 10, juggleCost: 9 })], // (a small, fast kite-shaped dart of pressure, ± 14 across the lane)
+    cancelOnHit: ['mw_skimming_edge', 'mw_tackline_draw'],
+    description: 'A small, fast kite-shaped dart of pressure flicked off the fan\'s tip straight down the line.',
+    relations: ['Precise', 'Fast'],
+  }),
+  S({
+    id: 'mw_tackline_draw', cls: 'book_mage', style: 'wind', slot: 10, name: 'Tackline Draw', roles: ['pull'], targeting: 'aimAssist',
+    startup: D(205), active: D(85), recovery: D(265), cooldown: 10000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [H(D(20), 9, RLINE(175, 22), { stun: D(420), pull: 30, juggleCost: 11 }, { reachUp: 130 })], // (a taut line of air hooks him and draws him 30 px in)
+    cancelOnHit: ['mw_updraft_hook', 'mw_windward_spike'],
+    description: 'A taut line of air hooked into him and hauled in like a sheet: he is drawn toward the fan — into the Updraft Hook.',
+    relations: ['Pull'],
+  }),
   S({
     id: 'mw_keel_drop', cls: 'book_mage', style: 'wind', slot: 11, name: 'Keel Drop', roles: ['knockdown', 'finisher'], targeting: 'aimAssist',
     startup: D(215), active: D(100), recovery: D(325), cooldown: 12000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
@@ -1812,9 +1980,15 @@ const wind: FinalSkill[] = [
     description: 'The folded fan brought down like a heavy keel: a foe in the air is slammed into the floor and bounces once; a standing one crumples.',
     relations: ['Ground bounce', 'Crumple'],
   }),
-  S({ id: 'mw_slipwake', cls: 'book_mage', style: 'wind', slot: 12, name: 'Slipwake', roles: ['escape'], targeting: 'self', wip: true,
-    startup: D(135), active: D(75), recovery: D(225), cooldown: 10000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
-    description: 'Coming soon: a slide backward, one compressed edge of air swept forward ahead of him.', relations: ['Retreat'] }),
+  S({
+    id: 'mw_slipwake', cls: 'book_mage', style: 'wind', slot: 12, name: 'Slipwake', roles: ['escape'], targeting: 'mouseDir',
+    startup: D(135), active: D(75), recovery: D(225), cooldown: 10000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    dash: { distance: -60 }, // (he slides back out of reach)
+    hits: [H(D(20), 8, { kind: 'sector', range: 130, angle: 80 }, { stun: D(320), push: 20, juggleCost: 8 }, { reachUp: 110 })], // (sweeping one compressed edge of air forward as he goes)
+    cancelOnHit: ['mw_skimming_edge', 'mw_kite_needle'],
+    description: 'He slides back out of reach, sweeping one compressed edge of air forward to cut a foe who follows.',
+    relations: ['Escape', 'Punishes a chase'],
+  }),
 ];
 
 // The Book Mage's third style (David 4 Nov 14:59): the Fulminant Conductor, the Lightning (GPT's design, scratchpad
@@ -1865,12 +2039,23 @@ const lightning: FinalSkill[] = [
     description: 'Out of a crouch, both hands drive the twin prongs straight up through the foe: he goes up. The launcher.',
     relations: ['Launcher', 'Anti-air'],
   }),
-  S({ id: 'ml_blue_needle', cls: 'book_mage', style: 'lightning', slot: 4, name: 'Blue Needle', roles: ['projectile', 'precision'], targeting: 'mouseProjectile', wip: true,
-    startup: D(200), active: D(70), recovery: D(250), cooldown: 7000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK, hits: [],
-    description: 'Coming soon: one fast, perfectly straight electric needle from the joined prong tips, far down the lane.', relations: ['Projectile'] }),
-  S({ id: 'ml_faraday_fold', cls: 'book_mage', style: 'lightning', slot: 5, name: 'Faraday Fold', roles: ['counter'], targeting: 'self', wip: true,
-    startup: D(75), active: D(160), recovery: D(245), cooldown: 12000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
-    description: 'Coming soon: the prongs folded into a V before him — one blow or shot is turned aside and answered with a stab.', relations: ['Guard', 'Counter'] }),
+  S({
+    id: 'ml_blue_needle', cls: 'book_mage', style: 'lightning', slot: 4, name: 'Blue Needle', roles: ['projectile', 'precision'], targeting: 'mouseProjectile',
+    startup: D(200), active: D(70), recovery: D(250), cooldown: 7000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK,
+    hits: [H(0, 11, { kind: 'projectile', speed: 2600, range: 300, radius: 8, antiAir: true }, { stun: D(380), push: 10, juggleCost: 10 })], // (one fast, very straight needle of current from the joined prong tips, ± 10 across the lane)
+    cancelOnHit: ['ml_rail_slide', 'ml_closing_stroke'],
+    description: 'The prong tips joined and one needle of current sent out fast and very straight: it stings him and holds him for a moment.',
+    relations: ['Precise', 'Fast'],
+  }),
+  S({
+    id: 'ml_faraday_fold', cls: 'book_mage', style: 'lightning', slot: 5, name: 'Faraday Fold', roles: ['counter'], targeting: 'mouseDir',
+    startup: D(75), active: D(160), recovery: D(245), cooldown: 12000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    counter: { window: 160, sidestep: 0, behind: 0 }, // (the prongs folded into a V deflector for 160 ms: a strike or a shot that reaches him is turned aside)
+    hits: [H(0, 8, { kind: 'sector', range: 130, angle: 60 }, { stun: D(420), push: 20, juggleCost: 6 }, { reachUp: 130 })], // (then a counter-stab)
+    cancelOnHit: [],
+    description: 'The fork turned across him as a V deflector: a strike or a shot that reaches him is turned aside — and answered with a counter-stab of the prongs.',
+    relations: ['Counter'],
+  }),
   S({
     id: 'ml_arc_clamp', cls: 'book_mage', style: 'lightning', slot: 6, name: 'Arc Clamp', roles: ['signature', 'airExtender'], targeting: 'aimAssist',
     startup: D(225), active: D(85), recovery: D(310), cooldown: 15000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
@@ -1897,12 +2082,23 @@ const lightning: FinalSkill[] = [
     description: 'The staff swung up from low behind him in a rising V: it meets a foe over him and pops him a little.',
     relations: ['Anti-air', 'Small pop'],
   }),
-  S({ id: 'ml_rail_slide', cls: 'book_mage', style: 'lightning', slot: 9, name: 'Rail Slide', roles: ['gapClose'], targeting: 'mouseDir', wip: true,
-    startup: D(170), active: D(70), recovery: D(230), cooldown: 9000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
-    description: 'Coming soon: a slide forward with the staff held level like an electric lance.', relations: ['Gap close'] }),
-  S({ id: 'ml_insulator_split', cls: 'book_mage', style: 'lightning', slot: 10, name: 'Insulator Split', roles: ['projectile'], targeting: 'aimAssist', wip: true,
-    startup: D(185), active: D(90), recovery: D(265), cooldown: 9000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
-    description: 'Coming soon: one angular two-prong pressure strike projected forward off the fork.', relations: ['Mid range'] }),
+  S({
+    id: 'ml_rail_slide', cls: 'book_mage', style: 'lightning', slot: 9, name: 'Rail Slide', roles: ['gapClose'], targeting: 'mouseDir',
+    startup: D(170), active: D(70), recovery: D(230), cooldown: 9000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    dash: { distance: 65 }, // (he slides forward along the floor, the staff held level like an electric lance)
+    hits: [H(D(60), 10, { kind: 'sector', range: 120, angle: 60 }, { stun: D(380), push: 25, juggleCost: 9 }, { reachUp: 120 })], // (the lance's sting at the end of the slide)
+    cancelOnHit: ['ml_riser_prong', 'ml_probe_jab'],
+    description: 'He slides forward along the floor with the staff held level like an electric lance: it stings whoever it reaches.',
+    relations: ['Gap close'],
+  }),
+  S({
+    id: 'ml_insulator_split', cls: 'book_mage', style: 'lightning', slot: 10, name: 'Insulator Split', roles: ['zone'], targeting: 'aimAssist',
+    startup: D(185), active: D(90), recovery: D(265), cooldown: 9000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    hits: [H(D(20), 11, RLINE(235, 24), { stun: D(420), push: 30, juggleCost: 10 }, { reachUp: 130 })], // (one angular two-prong pressure strike projected forward down his line)
+    cancelOnHit: ['ml_arc_clamp', 'ml_earth_pin'],
+    description: 'One angular two-prong strike of pressure projected far forward down his line: it splits the air and shoves the foe back.',
+    relations: ['Long reach'],
+  }),
   S({
     id: 'ml_earth_pin', cls: 'book_mage', style: 'lightning', slot: 11, name: 'Earth Pin', roles: ['knockdown', 'finisher'], targeting: 'aimAssist',
     startup: D(225), active: D(80), recovery: D(320), cooldown: 12000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
@@ -1911,9 +2107,15 @@ const lightning: FinalSkill[] = [
     description: 'The staff driven down two-handed so the fork pins the floor: a foe in the air is slammed into it and bounces once; a standing one crumples.',
     relations: ['Ground bounce', 'Crumple'],
   }),
-  S({ id: 'ml_capacitor_kick', cls: 'book_mage', style: 'lightning', slot: 12, name: 'Capacitor Kick', roles: ['escape'], targeting: 'aimAssist', wip: true,
-    startup: D(155), active: D(80), recovery: D(260), cooldown: 10000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, hits: [],
-    description: 'Coming soon: a close heel kick braced on the staff, and a step back out of reach.', relations: ['Retreat'] }),
+  S({
+    id: 'ml_capacitor_kick', cls: 'book_mage', style: 'lightning', slot: 12, name: 'Capacitor Kick', roles: ['escape', 'peel'], targeting: 'aimAssist',
+    startup: D(155), active: D(80), recovery: D(260), cooldown: 10000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    dash: { distance: -40 }, // (the kick's charge kicks him back 40 px out of reach)
+    hits: [H(0, 9, { kind: 'sector', range: 90, angle: 100 }, { stun: D(360), push: 30, juggleCost: 8 }, { reachUp: 100 })], // (a close electric heel strike, the staff braced on the floor)
+    cancelOnHit: ['ml_blue_needle', 'ml_insulator_split'],
+    description: 'A close electric heel strike, the staff braced on the floor — and the charge kicks him back out of reach.',
+    relations: ['Close defence', 'Makes range'],
+  }),
 ];
 
 export const FINAL_SKILLS: FinalSkill[] = [...warrior, ...siege, ...mage, ...wind, ...lightning, ...archer, ...sniper, ...cannon, ...samurai, ...shuriken, ...gambler, ...radiant];

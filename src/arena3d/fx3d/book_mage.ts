@@ -337,12 +337,12 @@ export const BOOK_MAGE: Record<string, Recipe> = {
   },
   // the Sailwright (Styles.ts): his own 2D pieces (WindFx) stay with him — the fan's thin pale-mint pressure edges, the room
   // answering in the same colour; no seals, no storms, no tornado of the book's spells
-  ...Object.fromEntries(['mw_four_beat', 'mw_sail_edge', 'mw_updraft_hook', 'mw_cut_across', 'mw_windward_spike', 'mw_keel_drop', 'mw_sky_loom'].map((id) => [id, {
+  ...Object.fromEntries(['mw_four_beat', 'mw_sail_edge', 'mw_updraft_hook', 'mw_cut_across', 'mw_windward_spike', 'mw_keel_drop', 'mw_sky_loom', 'mw_luff_step', 'mw_skimming_edge', 'mw_mastguard', 'mw_kite_needle', 'mw_tackline_draw', 'mw_slipwake'].map((id) => [id, {
     tone: 0xa8f0d8, paint: true, trail: false, own: true,
   } as Recipe])),
   // the Fulminant Conductor (Styles.ts): his own 2D pieces (LightningFx) stay with him — the current in his fork, the room
   // answering in electric blue; no chain lightning, no storm, no bolt from the sky of the book's spells
-  ...Object.fromEntries(['ml_four_beat', 'ml_probe_jab', 'ml_closing_stroke', 'ml_riser_prong', 'ml_arc_clamp', 'ml_return_spark', 'ml_earth_pin', 'ml_zero_interval'].map((id) => [id, {
+  ...Object.fromEntries(['ml_four_beat', 'ml_probe_jab', 'ml_closing_stroke', 'ml_riser_prong', 'ml_arc_clamp', 'ml_return_spark', 'ml_earth_pin', 'ml_zero_interval', 'ml_blue_needle', 'ml_faraday_fold', 'ml_rail_slide', 'ml_insulator_split', 'ml_capacitor_kick'].map((id) => [id, {
     tone: 0x6cc8ff, paint: true, trail: false, own: true,
   } as Recipe])),
 };

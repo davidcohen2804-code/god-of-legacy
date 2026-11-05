@@ -31,6 +31,45 @@ The DFO PvP arena dynamics chat is the PvP director: it sets the bar per class, 
 Take the whole PvP up a level in everything — dynamics, skills, effects, hit frames, movement, camera, feel: every hit felt, every class unique and amazing, big moments that look like a cinematic, and reasons to keep playing.
 
 ## Open items
+### DFO (4 Nov, David 14:59) — the styles, step 10: the rest of every style's skills (37 — no template left)
+- **The Deadeye Sniper's five** (GPT's design, scratchpad styles/archer_styles.md): Stockbreaker (the rifle butt driven
+  into a foe too close), Kneecap Round (a low shot at the legs that stops an advance), Steady Chamber (a copper glint
+  along the receiver: her next rifle shot leaves sooner and marks), False Sight (the rifle raised to the sky — the feint
+  — then snapped level and fired: a new pose `sn_feint`, her own two stills) and Perch Pivot (a hop up and back, fired
+  down from its top: it launches). **The Recoil Cannoneer's four:** Fuse Knuckle (the cannon rammed into him, the fuse
+  sparking), Muzzle Guard (braced: a blow that reaches her is answered by a counterblast that throws the striker up),
+  Depth Bank (a shell skipped off the floor that banks into the next lane) and Twin Traverse (two shells into the lanes
+  either side of her line: whoever they hit is drawn into the middle).
+- Numbers: BALANCE_LOG. The engine: a stance's priming may shorten the next wind-up and add a mark (`primes.cut`,
+  `primes.mark`); a hit may draw a foe across the depth into the attacker's line (Reaction `lane`) — the Assassin's
+  Crosslane Split will use it too.
+- On the way: Perch Pivot hops up and back, not across the lane (a dash goes along the aim only).
+- **The Shuriken Assassin's six:** Needle Fan (three small stars off the forearms, one in each lane), Heel Sweep (down low,
+  the sweep, the rising heel: it launches), Silk Shift (a low step back, a star down the line — the big star's way home
+  bends with him), Crosslane Split (two stars crossed into the lanes either side: drawn into the middle), Falling Talon
+  (in the air: the heel dropped like a talon — one ground bounce) and Iron Palm Deflect (a parry on the forearm: a star
+  flicked back into the striker). **The Siege Warden's six:** Sentry Catch (the wings held open in a V: a blow caught
+  between them, they snap shut on the striker), Rivet Drive (the braced drive and shove), Rearguard Step (a step back, a
+  wing's edge in front), Crenel Upper (the spine driven up: anti-air), False Gate (opening as if to guard, then the
+  folded wing's edge) and Crossbar Sweep (the wings spread flat over a broad slice of depth: drawn into his lane).
+  **The Radiant Duelist's five:** Under the Table (the low sweep that trips), Read the Room (a parry read, the ferrule's
+  counter), Long Odds (his one shot: a diamond of light), High-Stakes Vault (over the planted staff, the other end
+  strikes) and Side Bet (a step, the ferrule hooked in: he is drawn close). **The Sailwright's six:** Luff Step, Skimming
+  Edge (a low slice along the floor), Mastguard (the fan as a sail: a blow or a shot caught, the sail snaps), Kite Needle
+  (a fast kite dart), Tackline Draw (a taut line of air hauls him in) and Slipwake (a slide back, an edge forward). **The
+  Fulminant Conductor's five:** Blue Needle (a needle of current), Faraday Fold (the fork as a V deflector, the
+  counter-stab), Rail Slide (the slide with the staff as a lance), Insulator Split (the U of the fork projected far down
+  the line) and Capacitor Kick (the heel strike, the charge kicks him back).
+- Their poses: each style's own painted stills (new moves made of them: the Assassin's sweep, shift and talon, the
+  Warden's sentry and false gate, the Duelist's read and vault, the Conductor's fold). The Assassin's Heel Sweep and
+  Falling Talon borrow his flying knee — **open: their own GPT stills** (the computer with GPT was not reachable).
+- The effects: each style's own (ShurikenFx, WardenFx, RadiantFx, WindFx, LightningFx, ArcherFx); the Duelist's diamond,
+  the fan's slices and the fork's needle fly with their own pictures (never the cards or the book's bolt); a style's
+  counter has its own look (the longsword's guard and the katana's mirage ink no longer show on them).
+- On the way: the sidesteps across the lane step along the aim (toward a corner they cross the depth); a sweep wider than
+  the arena's lane keeps its own depth (Crossbar Sweep).
+- **Open (DFO next):** the styles' mechanics — the Tack, the Polarity, the House Edge, the Gate Pressure.
+
 ### DFO (4 Nov, David 14:59) — the styles, step 9: every style's ultimate, each with its own portrait
 - **Seven ultimates, one per style** (slot 7; GPT's beats — scratchpad styles/*_styles.md; each style's own portrait is its
   ultimate's splash — GPT, from the style's approved look: `heroes/<body>/ult.webp`, the glint on it `SkillFx` ULT_GLINT):

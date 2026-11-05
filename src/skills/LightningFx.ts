@@ -8,7 +8,7 @@
 import Phaser from 'phaser';
 import type { CastRun } from './SkillRuntime';
 import type { FinalSkill, HitEvent } from './SkillTypes';
-import type { V3 } from './HitGeometry';
+import type { Projectile, V3 } from './HitGeometry';
 import { styleOfSwitch } from './Styles';
 
 const TOP = 100000;
@@ -39,6 +39,7 @@ const TIP: Record<string, [number, number]> = {
   ml_four_beat: [138, 96], 'ml_four_beat#1': [102, 94], 'ml_four_beat#2': [145, 78], 'ml_four_beat#3': [102, 83],
   ml_probe_jab: [171, 95], ml_closing_stroke: [99, 48], ml_riser_prong: [79, 157], ml_arc_clamp: [127, 82], ml_return_spark: [92, 154],
   ml_earth_pin: [34, -3], ml_zero_interval: [87, 115], stance: [-34, 157],
+  ml_blue_needle: [145, 78], ml_faraday_fold: [102, 94], 'ml_faraday_fold:stab': [171, 95], ml_rail_slide: [171, 95], ml_insulator_split: [102, 83], ml_capacitor_kick: [92, 154],
 };
 
 /** His pieces, drawn once on canvases: a rail of current (a thrust's), a thin arc (a stroke's), a contained spark, the
@@ -224,6 +225,26 @@ export class LightningFx {
         this.onClock(r, hitAt(0), () => { const t = this.tip(r); this.spark(t.x + side * 300, t.y, 52, { run: r, life: 120 }); this.ctx.punch(0.032, 190); this.shake(r, 200, 0.0045); });
         break;
       }
+      case 'ml_blue_needle': // the prong tips joined: a short rail along the staff, a spark at the tips as the needle leaves (its flight: projectile)
+        thrust(90, 7, hitAt(0), 22);
+        break;
+      case 'ml_faraday_fold': { // the fork turned across him as a V deflector (the V traced faintly); a blow caught: the counter-stab's rail and spark
+        this.onClock(r, T.startup, () => { const t = this.tip(r); this.shape('ml-v', t.x, t.y, 60, side < 0 ? 180 : 0, { flip: side < 0, h: 40, run: r, life: Math.max(90, T.active) }); });
+        this.add({ t: 0, step: () => { if (r.phase === 'done') return false; if (!r.counterTriggered) return true;
+          const t = this.tip(r, 'ml_faraday_fold:stab'); this.rail(t.x - side * 110, t.y, t.x + side * 14, t.y, 8, { run: r }); this.spark(t.x + side * 6, t.y, 34, { run: r, delay: 30 }); this.shake(r, 70, 0.002);
+          return false; } });
+        break;
+      }
+      case 'ml_rail_slide': // the slide: two thin rails along the floor behind him, the lance's rail ahead, a spark at the tips
+        this.onClock(r, T.startup, () => { const c = this.me(r); this.rail(c.x - side * 60, c.y - 2, c.x, c.y - 2, 4, { run: r, life: T.active + 120 }); });
+        thrust(140, 8, hitAt(0), 28);
+        break;
+      case 'ml_insulator_split': // both prongs driven out flat: the fork's U projected far down his line, a spark where it ends
+        this.onClock(r, hitAt(0), () => { const t = this.tip(r); this.shape('ml-u', t.x + side * 60, t.y, 130, side < 0 ? 180 : 0, { flip: side < 0, h: 36, run: r, life: 170 }); this.rail(t.x, t.y, t.x + side * 230, t.y, 6, { run: r, life: 130 }); this.spark(t.x + side * 230, t.y, 30, { run: r, delay: 40 }); });
+        break;
+      case 'ml_capacitor_kick': // the heel struck out, the staff braced on the floor: a spark at the heel, a short rail as the charge kicks him back
+        this.onClock(r, hitAt(0), () => { const h = this.at(r, 60, 70), c = this.me(r); this.spark(h.x, h.y, 36, { run: r }); this.rail(c.x, c.y - 4, c.x - side * 50, c.y - 4, 5, { run: r, life: 140 }); });
+        break;
       case 'ml_earth_pin': { // the fork driven down to pin the floor: a rail falling, the fork's mark in the floor, one flat spark
         this.onClock(r, T.startup * 0.55, () => { const h = this.at(r, 80, 210); this.rail(h.x, h.y, h.x - side * 30, h.y + 200, 7, { run: r, life: 110 }); });
         this.onClock(r, hitAt(0), () => { const c = this.me(r), x = c.x + side * 92, y = c.y - 2;
@@ -248,6 +269,19 @@ export class LightningFx {
   }
 
   // ------------------------------------------------------------------ frame
+
+  /** The Blue Needle in flight: one very straight needle of current — a short bright rail, a spark at its head. */
+  projectile(p: Projectile): void {
+    textures(this.ctx.scene);
+    const s = this.ctx.scene, ang = (Math.atan2(p.dy, p.dx) * 180) / Math.PI, maxMs = (p.range / Math.max(1, p.speed)) * 1000 + 300;
+    const tr = s.add.image(p.x, p.y - p.z, 'ml-rail').setOrigin(1, 0.5).setDisplaySize(110, 7).setAngle(ang).setBlendMode(Phaser.BlendModes.ADD).setTint(VOLT);
+    const hd = s.add.image(p.x, p.y - p.z, 'ml-spark').setDisplaySize(18, 18).setBlendMode(Phaser.BlendModes.ADD).setTint(HOT);
+    this.add({ t: 0, step: (_dt, t) => {
+      if (p.done || t > maxMs) { tr.destroy(); hd.destroy(); if (p.done && p.end) this.spark(p.end.x, p.y - p.z, 26); return false; }
+      tr.setPosition(p.x, p.y - p.z).setDepth(p.y + 2.9); hd.setPosition(p.x, p.y - p.z).setDepth(p.y + 3).setAngle(t * 0.6);
+      return true;
+    } });
+  }
 
   update(dt: number): void {
     const cur = this.live.concat(this.incoming);

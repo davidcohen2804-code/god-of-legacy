@@ -152,6 +152,14 @@
     "rd_ovation": {
       "frames": 4,
       "source": "gpt stills: rd_invite \u2192 rd_vault \u2192 rd_debt \u2192 rd_curtain (The Final Ovation: the Invitation, the Impossible Vault, the Crown Descends, the Impact)"
+    },
+    "rd_read": {
+      "frames": 2,
+      "source": "gpt stills: rd_bet (frame 1) -> rd_knock (Read the Room: the staff held across him diagonally to read the blow, then the ferrule snapped out)"
+    },
+    "rd_highvault": {
+      "frames": 3,
+      "source": "gpt stills: rd_invite -> rd_vault -> stance (High-Stakes Vault: the staff planted, the vault over it, landed)"
     }
   },
   "refs": "scratchpad rd_art/gpt (GPT chats in scratchpad pvp/gpt_chats.md)",

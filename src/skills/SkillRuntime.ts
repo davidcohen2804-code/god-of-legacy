@@ -30,7 +30,7 @@ export interface CastRequest {
   mf?: number;
   /** Primed by the caster's stance (Sheathe): no startup, a hold-to-charge skill `chargeUp` levels higher. An own cast is
    *  judged by the runtime; a remote one carries it from its caster's screen (the caster decides). */
-  primed?: { chargeUp: number };
+  primed?: { chargeUp: number; cut?: number; mark?: number };
   /** The samurai's blossom draw (SamuraiPetals): the petals his Sheathe gathered, carried by his next Iai Strike (his screen
    *  counts them; a remote cast carries the count, `pb`). DFO's numbers: from 6 the line 40% wider, one more cut per 4. */
   petals?: number;
@@ -143,7 +143,7 @@ export class SkillRuntime {
   readonly cooldownEnd = new Map<string, number>();
   private charges = new Map<string, { used: number; last: number }>();
   /** Own priming stances (Sheathe) per caster: until when, which skills it primes, how many charge levels. */
-  private primedBy = new Map<string, { until: number; ids: string[]; chargeUp: number }>();
+  private primedBy = new Map<string, { until: number; ids: string[]; chargeUp: number; cut?: number; mark?: number }>();
 
   constructor(private world: RuntimeWorld) {}
 
@@ -151,6 +151,11 @@ export class SkillRuntime {
   primedFor(attackerId: string, skillId: string): number | null {
     const p = this.primedBy.get(attackerId);
     return p && this.world.now() <= p.until && p.ids.includes(skillId) ? p.chargeUp : null;
+  }
+  /** The priming an own cast of `skillId` would start with now (its extra charge levels, its shorter wind-up, its marks). */
+  primeOf(attackerId: string, skillId: string): { chargeUp: number; cut?: number; mark?: number } | null {
+    const p = this.primedBy.get(attackerId);
+    return p && this.world.now() <= p.until && p.ids.includes(skillId) ? { chargeUp: p.chargeUp, ...(p.cut !== undefined ? { cut: p.cut } : {}), ...(p.mark ? { mark: p.mark } : {}) } : null;
   }
 
   /** End a charge sequence early: the skill goes on its full cooldown now. */
@@ -186,15 +191,16 @@ export class SkillRuntime {
     // A priming stance (Sheathe): the caster's next cast, if it is one the stance primes and within its window, leaves at
     // once (no startup; a charged skill levels higher); any other cast spends the stance. (A remote cast says so itself.)
     let primed = req.primed ?? null;
-    if (req.own && this.primedBy.has(req.attackerId)) { const up = this.primedFor(req.attackerId, s.id); this.primedBy.delete(req.attackerId); if (up !== null) primed = { chargeUp: up }; }
+    if (req.own && this.primedBy.has(req.attackerId)) { const p = this.primeOf(req.attackerId, s.id); this.primedBy.delete(req.attackerId); if (p) primed = p; }
     const chargeScale = timings.startup / Math.max(1, s.startup);
-    if (primed) timings.startup = 0;
+    if (primed) timings.startup = primed.cut !== undefined ? Math.max(0, timings.startup - primed.cut) : 0;
+    if (primed?.mark) { const n = primed.mark; hits = hits.map((h) => (h.damage > 0 ? { ...h, mark: (h.mark ?? 0) + n } : h)); } // (Steady Chamber: the round chambered with care marks him)
     const run: CastRun = {
       ...req, elapsed: req.own || s.charge || s.counter ? startElapsed : Math.min(startElapsed, Math.max(0, timings.startup - 16)), phase: 'startup', fired: new Set(), hitKeys: new Set(), confirmedAt: -1, // (a remote cast starts late by the network delay: its wind-up is caught up, never its strike)
       pathStart: { x: req.origin.x, y: req.origin.y }, counterTriggered: false, extraRecovery: 0, timings, hits,
       ...(s.charge ? { chargeScale } : {}), ...(ts ? { tune: ts } : {}), ...(primed ? { primed, chargeUp: primed.chargeUp } : {}),
     };
-    if (req.own && s.primes) this.primedBy.set(req.attackerId, { until: this.world.now() + timings.startup + timings.active + s.primes.windowMs, ids: s.primes.ids, chargeUp: s.primes.chargeUp ?? 0 });
+    if (req.own && s.primes) this.primedBy.set(req.attackerId, { until: this.world.now() + timings.startup + timings.active + s.primes.windowMs, ids: s.primes.ids, chargeUp: s.primes.chargeUp ?? 0, ...(s.primes.cut !== undefined ? { cut: s.primes.cut } : {}), ...(s.primes.mark ? { mark: s.primes.mark } : {}) });
     if (req.own && s.cooldown > 0) {
       // Charged skills: N quick uses in a row (window 7s between uses), then the full cooldown.
       const now = this.world.now(), ch = this.charges.get(s.id), cd = s.cooldown * (this.world.cooldownMul?.(req) ?? 1);

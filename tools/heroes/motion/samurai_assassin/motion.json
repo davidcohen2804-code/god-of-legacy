@@ -142,6 +142,18 @@
       "frames": 5,
       "ground_y": 840,
       "source": "gpt stills: as_unseal → as_cast → as_eclipse → as_recall → as_catch (Fivefold Night: unseal, spread, reverse, converge, catch); frames 2-4 with the four back stars taken out (pipe/as_unstar.py: GPT, the harness sockets empty while they fly)"
+    },
+    "as_sweep": {
+      "frames": 2,
+      "source": "gpt stills: air_shot -> as_knee (Heel Sweep: down low for the sweep, then the rising heel — borrowed until its own stills)"
+    },
+    "as_shift": {
+      "frames": 2,
+      "source": "gpt stills: backstep -> as_flick (Silk Shift: the low step, then the star flicked down the line)"
+    },
+    "as_talon": {
+      "frames": 2,
+      "source": "gpt stills: as_knee -> air_shot (Falling Talon: the leg raised in the air, then the drop — borrowed until its own stills)"
     }
   },
   "hit_source": "pixverse as_hit.mp4 (433532602315716; its screen drifted to teal: keyed by its border colour, the rim cut, colour matched to the idle)",

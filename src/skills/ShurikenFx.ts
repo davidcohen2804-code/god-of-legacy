@@ -46,6 +46,7 @@ const HAND: Record<string, [number, number]> = {
   stance: [-3, 56], as_four_beat: [74, 105], 'as_four_beat#1': [72, 93], 'as_four_beat#2': [74, 91], 'as_four_beat#3': [36, 132],
   as_redline_recall: [71, 116], as_piercing_quarter: [68, 57], 'as_piercing_quarter:wind': [-38, 115], as_four_point_eclipse: [74, 89],
   as_crowstep_rise: [48, 118], as_returning_moon: [71, 116], 'as_returning_moon:catch': [36, 132], air: [66, 45],
+  as_needle_fan: [74, 105], as_silk_shift: [74, 105], as_crosslane_split: [72, 93], as_falling_talon: [66, 45], as_iron_palm: [71, 116], as_heel_sweep: [48, 118],
 };
 /** The stars are drawn this high over their flight line (the line is the hit's: chest height). */
 const LIFT = 38;
@@ -241,6 +242,30 @@ export class ShurikenFx {
         break;
       case 'as_four_point_eclipse': this.eclipse(r); break;
       case 'as_fivefold_night': this.fivefold(r); break;
+      case 'as_needle_fan': // three glints off the forearms as the stars leave, fanned across the lanes
+        for (const da of [-24, 0, 24]) this.onClock(r, T.startup, () => this.flash(0, 0, 22, { follow: hand, on: id, life: 110, angle: 45 + da, run: r }));
+        break;
+      case 'as_heel_sweep': { // down low: the sweep's arc along the floor, then the heel's arc rising through him
+        const c = this.me(r); this.dust(c.x + side * 30, c.y, 90, T.startup * 0.7);
+        this.onClock(r, T.startup, () => { const q = this.me(r); this.arc(q.x + side * 52, q.y - q.z - 14, 120, side < 0 ? 186 : -6, 190, { flip: side < 0, run: r }); });
+        this.onClock(r, T.startup + (r.hits[0]?.at ?? 0), () => { const q = this.me(r); this.arc(q.x + side * 48, q.y - q.z - 70, 130, side < 0 ? 118 : 62, 230, { flip: side < 0, run: r }); });
+        break;
+      }
+      case 'as_silk_shift': { // the low step: dust where he leaves and lands, a glint as the star leaves the wrist
+        const c = this.me(r); this.dust(c.x, c.y, 70, T.startup);
+        this.onClock(r, T.startup + T.active * 0.9, () => { const q = this.me(r); this.dust(q.x, q.y, 60); });
+        this.onClock(r, T.startup + (r.hits[0]?.at ?? 0), () => this.flash(0, 0, 24, { follow: hand, on: id, life: 110, run: r }));
+        break;
+      }
+      case 'as_crosslane_split': // two glints crossed at the hands as the stars leave
+        for (const da of [-35, 35]) this.onClock(r, T.startup + (r.hits[0]?.at ?? 0), () => this.flash(0, 0, 26, { follow: hand, on: id, life: 120, angle: 45 + da, run: r }));
+        break;
+      case 'as_falling_talon': // the heel dropped like a talon: one steep arc of cut air down through the space in front of him
+        this.onClock(r, T.startup + (r.hits[0]?.at ?? 0), () => { const q = this.me(r); this.arc(q.x + side * 70, q.y - q.z - 30, 150, side < 0 ? 240 : -60, 220, { flip: side < 0, run: r }); this.shake(r, 90, 0.004); });
+        break;
+      case 'as_iron_palm': // the forearm raised: a faint steel glint along it for the parry's moment
+        this.flash(0, 0, 26, { follow: hand, on: id, life: Math.max(80, T.active), tint: 0xdfe8f4, delay: T.startup, run: r });
+        break;
       case 'as_crowstep_rise': { // the step into the knee: dust at the take-off, the rising cut of the star
         const c = this.me(r); this.dust(c.x - side * 10, c.y, 80, T.startup * 0.6);
         this.onClock(r, T.startup, () => { const p = hand(); if (!p) return; this.arc(p.x + side * 10, p.y + 18, 120, side < 0 ? 128 : 52, 230, { flip: side < 0, run: r }); });
@@ -335,6 +360,13 @@ export class ShurikenFx {
 
   /** Each hit as it fires (lands or not): the Eclipse's cuts through the point he stands on. */
   hit(r: CastRun, i: number, _o: V3): void {
+    if (r.skill.id === 'as_iron_palm') { // the parry caught a blow: a hard steel flash on the forearm, a crossed spark, the star flicked back
+      const p = this.handAt(r.attackerId, sideOf(r), 'as_iron_palm')(); if (!p) return;
+      this.flash(p.x, p.y, 58, { life: 160, depth: p.d + 6 });
+      this.spr({ name: 'as-x', x: p.x, y: p.y, depth: p.d + 7, w: 44, life: 160, tint: GLINT, glow: 0.3, add: true, angle: rnd(-12, 12), a: kf([0, 1], [1, 0, inQ]) });
+      this.ctx.punch(0.015, 110);
+      return;
+    }
     if (r.skill.id !== 'as_four_point_eclipse') return;
     const place = r.place; if (!place) return;
     this.later(1, () => { // (a beat later: its blows delivered — drawn on the foe it struck, where he is, in the air too)

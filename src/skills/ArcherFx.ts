@@ -164,7 +164,7 @@ const BROADSIDE: [number, number][] = [[-46, -12], [42, 10], [-12, 22], [30, -20
 const CN_MUZZLE: Record<string, [number, number]> = {
   stance: [38, 66], cn_four_beat: [75, 63], 'cn_four_beat#1': [43, 60], 'cn_four_beat#2': [51, 18], 'cn_four_beat#3': [63, 64],
   cn_breach_burst: [43, 60], cn_arc_mortar: [51, 115], cn_kickback: [40, 54], cn_crater_catch: [52, 29], cn_rolling_iron: [51, 18],
-  cn_battery: [43, 60], cn_broadside: [63, 64], cn_piston_lift: [51, 115],
+  cn_battery: [43, 60], cn_broadside: [63, 64], cn_piston_lift: [51, 115], cn_fuse_knuckle: [75, 63], cn_muzzle_guard: [63, 64], cn_depth_bank: [51, 18], cn_twin_traverse: [43, 60],
 };
 /** A shell in flight (the Recoil Cannoneer): the iron shell with its short warm trail and its smoke; rolled along the floor,
  *  a bomb rolling; the four-beat's third skips off the floor up into him. */
@@ -184,6 +184,7 @@ const ROUND = 0xffe6c2;
 const SN_MUZZLE: Record<string, [number, number]> = {
   stance: [113, 107], sn_four_beat: [103, 92], 'sn_four_beat#2': [113, 107], 'sn_four_beat#3': [95, 108], sn_needlemark: [113, 107],
   sn_recoil_slip: [96, 57], sn_throughline: [99, 74], sn_last_horizon: [99, 74], sn_four_bells: [113, 107], sn_skyline: [76, 163], sn_glass_round: [99, 74],
+  sn_kneecap: [103, 92], sn_false_sight: [113, 107], 'sn_false_sight:feint': [77, 162], sn_perch_pivot: [97, 37], sn_steady_chamber: [113, 107],
 };
 /** Continuity: Thunder Rain's strike points stay charged (the runtime's STORM: its window, its reach); a shot of hers crossing one turns to lightning (RT_EVENTS.storm → stormTurn) and chains (stormChain). */
 const CHARGE_MS = STORM.ms;
@@ -1035,6 +1036,32 @@ export class ArcherFx {
         break;
       }
       case 'sn_skyline': shots(); this.spr({ name: 'dust', w: 90, life: 300, delay: T.startup, x: me.x, y: me.y, depth: me.y - 1, run: r, a: kf([0, 0.6], [1, 0]) }); break;
+      case 'sn_stockbreaker': // the rifle reversed, the butt driven hard into him: a broad arc of steel, her heel digging in
+        this.spr({ name: 'sn-flash', w: 96, life: 150, delay: T.startup, tint: 0xece6dc, follow: this.at(r.attackerId, side, 64, 80), dz: 5, glow: 0.2, run: r,
+          sx: kf([0, 0.6], [0.35, 1.1, out3]), sy: kf([0, 0.6], [0.35, 1.1, out3]), a: kf([0, 1], [1, 0, inQ]) });
+        this.spr({ name: 'dust', w: 84, life: 320, delay: T.startup, follow: this.at(r.attackerId, side, -10, 2), dz: -1, run: r, a: kf([0, 0.6], [1, 0, inQ]) });
+        break;
+      case 'sn_steady_chamber': { // the round chambered with care: one copper glint running along the receiver to the muzzle, a click
+        const from = this.at(r.attackerId, side, 46, 104), to = this.muzzleAt(r.attackerId, side, r), L = T.startup + T.active;
+        this.spr({ name: 'sn-flash', w: 30, life: L, tint: 0xffd2a0, glow: 0.3, run: r, on: r.attackerId,
+          follow: () => { const a = from(), b = to(); return a && b ? { x: a.x, y: a.y, d: a.d + 5 } : null; },
+          mx: (u) => { const a = from(), b = to(); return a && b ? (b.x - a.x) * out(u) : 0; }, my: (u) => { const a = from(), b = to(); return a && b ? (b.y - a.y) * out(u) : 0; },
+          rot: (u) => 140 * u, a: kf([0, 0], [0.15, 1], [0.85, 1], [1, 0]) });
+        this.spr({ name: 'sn-flash', w: 22, life: 120, delay: T.startup * 0.4, tint: 0xfff0dc, follow: from, on: r.attackerId, dz: 6, glow: 0.3, run: r, a: kf([0, 1], [1, 0, inQ]) }); // (the click of the bolt)
+        break;
+      }
+      case 'sn_false_sight': { // the feint: a sight glint at the muzzle raised to the sky — then snapped level, the real shot
+        const up = this.at(r.attackerId, side, ...SN_MUZZLE['sn_false_sight:feint']);
+        this.spr({ name: 'sn-flash', w: 28, life: T.startup, follow: up, on: r.attackerId, dz: 5, glow: 0.3, tint: 0xfff4e2, run: r, rot: (u) => 120 * u, a: kf([0, 0], [0.3, 0.9], [0.85, 1], [1, 0]) });
+        this.spr({ name: 'sn-ring', w: 60, life: T.startup * 0.8, follow: () => { const p = up(); return p ? { x: p.x + side * 40, y: p.y - 70, d: p.d + 4 } : null; }, glow: 0.2, tint: ROUND, run: r, // (a sight on the empty sky: the bait)
+          sx: kf([0, 1.8], [0.6, 1, out3]), sy: kf([0, 1.8], [0.6, 1, out3]), a: kf([0, 0], [0.4, 0.7], [1, 0]) });
+        this.shot(r, T.startup, 88);
+        break;
+      }
+      case 'sn_perch_pivot': // the hop: dust where she leaves the floor, the shot down from its top
+        this.spr({ name: 'dust', w: 96, life: 360, delay: T.startup, x: me.x, y: me.y + 4, oy: 0.85, depth: me.y + 1, run: r, a: kf([0, 0.7], [1, 0, inQ]) });
+        for (const h of r.hits) this.shot(r, T.startup + h.at, 84, -18);
+        break;
       case 'sn_glass_round': this.glassHold(r); break; // (the shot itself at its hit: a held skill's startup ends when she lets go)
       default: shots();
     }
@@ -1310,6 +1337,13 @@ export class ArcherFx {
         this.later(T.startup + T.active, () => { const q = this.me(r); this.spr({ name: 'dust', x: q.x, y: q.y + 4, oy: 0.85, depth: q.y + 1, w: 100, life: 400, a: kf([0, 0.7], [1, 0, inQ]) }); }, r);
         break;
       case 'cn_crater_catch': this.spr({ name: 'dust', x: me.x, y: me.y + 4, oy: 0.85, depth: me.y + 1, w: 100, life: 400, delay: T.startup * 0.5, run: r, a: kf([0, 0.7], [1, 0, inQ]) }); break; // the hop
+      case 'cn_muzzle_guard': // braced behind the cannon: the breech glows for the guard's moment, her feet dug in
+        this.breech(r, T.startup + T.active, 0.9);
+        this.spr({ name: 'dust', x: me.x, y: me.y + 4, oy: 0.85, depth: me.y + 1, w: 90, life: 380, delay: T.startup * 0.5, run: r, a: kf([0, 0.6], [1, 0, inQ]) });
+        break;
+      case 'cn_fuse_knuckle': // the cannon rammed into him: a spark off the fuse at the breech
+        this.spr({ name: 'sn-flash', w: 26, life: 140, delay: T.startup, tint: 0xffc27a, follow: this.at(r.attackerId, side, 6, 70), dz: 5, glow: 0.3, run: r, a: kf([0, 1], [1, 0, inQ]) });
+        break;
       case 'cn_broadside': this.broadside(r); break;
     }
   }
@@ -1339,6 +1373,10 @@ export class ArcherFx {
         this.airRing(c.x, c.y, 300, 600, { delay: 80, tint: 0xffe0b8, s: kf([0, 0.3], [1, 1.7, out3]), a: kf([0, 0.9], [1, 0, inQ]) }); // a second ring running out over the floor
         break;
       case 'cn_piston_lift': this.cnLift(r); break;
+      case 'cn_fuse_knuckle': this.cnJab(r); break;
+      case 'cn_muzzle_guard': this.cnCone(r); this.cnShot(r, 1.3); if (r.own) this.ctx.punch(0.02, 140); break; // (the counterblast)
+      case 'cn_depth_bank': this.cnShot(r, 1.05, -12); break; // (fired low: it skips off the floor)
+      case 'cn_twin_traverse': this.cnShot(r, 1.2); break; // (two shells side by side)
       default: this.cnShot(r, 1);
     }
   }
@@ -1350,7 +1388,7 @@ export class ArcherFx {
     const w = roll ? 28 : Math.round(p.radius * 1.75), h = roll ? 28 : Math.round(w * 0.6);
     const im = s.add.image(p.x, p.y - p.z, roll ? 'cn-ball' : 'cn-shell').setDisplaySize(w, h).setAlpha(0);
     const tr = s.add.image(p.x, p.y - p.z, 'cn-trail').setOrigin(1, 0.5).setBlendMode(Phaser.BlendModes.ADD).setTint(TERRA).setAlpha(0).setDisplaySize(8, 8);
-    this.shells.set(p, { im, tr, t: 0, roll, skip: p.skill.id === 'cn_four_beat' && stage === 2, skipped: false, lead: Math.max(0, fwd - 16), up, z0: p.z, w, puff: 0, puffs: 0, x: p.x, y: p.y - p.z - 20 });
+    this.shells.set(p, { im, tr, t: 0, roll, skip: (p.skill.id === 'cn_four_beat' && stage === 2) || p.skill.id === 'cn_depth_bank', skipped: false, lead: Math.max(0, fwd - 16), up, z0: p.z, w, puff: 0, puffs: 0, x: p.x, y: p.y - p.z - 20 });
   }
   private stepShells(dt: number): void {
     for (const [p, a] of this.shells) {

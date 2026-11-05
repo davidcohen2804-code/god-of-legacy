@@ -142,6 +142,10 @@ const TOP_DEPTH = 100000;
 /** A cast's lingering hits that are its own ticks (they all fall inside the skill's length: Blade Storm's storm) run at the
  *  cast's pace (FinalKit.arenaTimeScale); a zone or a delayed blow that outlasts its skill keeps its own timing (its
  *  pictures are timed to it). */
+/** A remote cast primed by its caster's stance: the stance's shorter wind-up and marks, read from the kit (Steady Chamber). */
+function primeExtras(p: FinalSkill['primes'] | undefined): { cut?: number; mark?: number } {
+  return { ...(p?.cut !== undefined ? { cut: p.cut } : {}), ...(p?.mark ? { mark: p.mark } : {}) };
+}
 function lingerPace(run: CastRun): number {
   const L = run.skill.linger, s = run.skill;
   if (!L || L.at === 'target') return 1;
@@ -3117,8 +3121,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       if (to) { stage = 1; this.riftCross = { x: to.x, y: to.y, at: this.simMs + RIFT.sinkMs, castId: '' }; this.body.ghostUntil = Math.max(this.body.ghostUntil, this.simMs + RIFT.sinkMs + RIFT.riseMs); }
       else { stage = 0; this.rifts = [...live, { x: k.x, y: k.y, until: this.simMs + s.startup + RIFT.ms }].slice(-RIFT.max); }
     }
-    const primeUp = this.rt!.primedFor(this.localId, s.id), ct0 = this.castTimes(s, stage, followUp); // (the arena's warrior: his base pace, as the runtime plays it)
-    const ct = primeUp !== null ? { ...ct0, startup: 0 } : ct0; // (primed by Sheathe: it leaves the sheath at once)
+    const prime = this.rt!.primeOf(this.localId, s.id), ct0 = this.castTimes(s, stage, followUp); // (the arena's warrior: his base pace, as the runtime plays it)
+    const ct = prime ? { ...ct0, startup: prime.cut !== undefined ? Math.max(0, ct0.startup - prime.cut) : 0 } : ct0; // (primed by Sheathe: it leaves the sheath at once; by Steady Chamber: a little sooner)
     if (stage === 0 && !MP_FREE && !this.arena) this.mp = Math.max(0, this.mp - mpCost(s));
     // Lunge-in: melee skills step toward a soft-locked target that is just out of reach.
     this.lunge = null;
@@ -4625,7 +4629,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (m.amb && s.cls === 'samurai' && r.kageGhosts().length) this.ambushIn.add(m.castId); // made while his doubles stand: an ambush
     const run = this.rt?.start({ castId: m.castId, skill: s, stage: Math.max(0, Math.min(2, m.stage ?? 0)), attackerId: from, own: false, origin: { x: m.x, y: m.y, z: m.z ?? 0 }, aim: unit(m.ax, m.ay), place, lock: m.lock ?? null, followUp: !!m.fu,
       dmgMul: Math.max(0.3, Math.min(1.4, (m.dm ?? 100) / 100)), reach: Math.max(1, Math.min(1.85, (m.rm ?? 100) / 100)),
-      range: Math.max(1, Math.min(1.2, (m.rg ?? 100) / 100)), speed: Math.max(1, Math.min(1.35, (m.sp ?? 100) / 100)), ...(m.mf ? { mf: m.mf } : {}), ...(s.id === 'origami_flock' && ((m.mf ?? 0) >> 4) & 7 ? { extraShots: Math.min(4, ((m.mf ?? 0) >> 4) & 7) } : {}), ...(m.pr && kitFor(s.cls).some((x) => x.primes?.ids.includes(s.id)) ? { primed: { chargeUp: Math.max(0, Math.min(2, m.pr - 1)) } } : {}), ...(m.pb && s.id === 'iai_strike' ? { petals: Math.max(0, Math.min(PETALS.cap, Math.round(m.pb))) } : {}) }, this.pvp?.oneWay(from) ?? 0); // (pr: primed by his Sheathe — his screen decides) // (it left their hand one network delay ago: its wind-up is caught up)
+      range: Math.max(1, Math.min(1.2, (m.rg ?? 100) / 100)), speed: Math.max(1, Math.min(1.35, (m.sp ?? 100) / 100)), ...(m.mf ? { mf: m.mf } : {}), ...(s.id === 'origami_flock' && ((m.mf ?? 0) >> 4) & 7 ? { extraShots: Math.min(4, ((m.mf ?? 0) >> 4) & 7) } : {}), ...(m.pr && kitFor(s.cls).some((x) => x.primes?.ids.includes(s.id)) ? { primed: { chargeUp: Math.max(0, Math.min(2, m.pr - 1)), ...primeExtras(kitFor(s.cls).find((x) => x.primes?.ids.includes(s.id))?.primes) } } : {}), ...(m.pb && s.id === 'iai_strike' ? { petals: Math.max(0, Math.min(PETALS.cap, Math.round(m.pb))) } : {}) }, this.pvp?.oneWay(from) ?? 0); // (pr: primed by his Sheathe — his screen decides) // (it left their hand one network delay ago: its wind-up is caught up)
     if (run && s.id === 'rift_gates' && (m.stage ?? 0) === 0) { const g = [...(this.riftsOf.get(from) ?? []).filter((q) => this.simMs < q.until), { x: m.x, y: m.y, until: this.simMs + s.startup + RIFT.ms }].slice(-RIFT.max); this.riftsOf.set(from, g); } // (her gates, for their looks)
     if (run && s.id === 'light_staff') { this.lightStaffOf.set(from, this.simMs + s.startup + LIGHT_STAFF.ms); if (this.lightStaffOf.size > 16) this.lightStaffOf.clear(); } // (his cane lit, for its look)
     if (run) { this.remoteRuns.set(m.castId, { run, at: this.simMs }); for (const [k, v] of this.remoteRuns) if (this.simMs - v.at > 4000) this.remoteRuns.delete(k); }

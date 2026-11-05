@@ -1437,6 +1437,7 @@ export class SkillFx {
 
   private onCounter(r: CastRun): void {
     const c = this.casterPos(r.attackerId); if (!c) return;
+    if (r.skill.style) return; // (a style's counter has its own look, drawn by its own effects as its blow fires — no longsword guard, no mirage ink)
     if (r.skill.cls === 'warrior') { this.spark(vfxKey('guard_counter'), c.x + r.aim.x * 50, c.y + r.aim.y * 50 - c.z - 40, 8, 260, 1, 2); this.shockwave(c.x, c.y, 120, 0x9ed8ff); return; }
     if (r.skill.cls === 'samurai') { this.sam.counter(r); return; }
     this.spark(vfxKey('mirage'), c.x + r.aim.x * 40, c.y + r.aim.y * 40 - c.z - 40, 8, 200, 1, 2);
@@ -1444,7 +1445,10 @@ export class SkillFx {
 
   private onProjectile(p: Projectile, r: CastRun): void {
     if (p.skill.cls === 'samurai') { if (p.skill.style === 'shuriken') this.shuri.projectile(p, r); else this.sam.projectile(p); return; }
+    if (p.skill.cls === 'gambler' && p.skill.style === 'radiant') { this.duel.projectile(p); return; } // (the Duelist's one shot: a diamond of light, never a card)
     if (p.skill.cls === 'gambler') { this.gamb.projectile(p); return; }
+    if (p.skill.cls === 'book_mage' && p.skill.style === 'wind') { this.wind.projectile(p); return; } // (the fan's shots: air, never the book's spells)
+    if (p.skill.cls === 'book_mage' && p.skill.style === 'lightning') { this.light.projectile(p); return; } // (the fork's needle of current)
     if (p.skill.cls === 'book_mage') { this.mage.projectile(p, r); return; }
     if (p.skill.cls === 'archer' && this.arch.ready) { this.arch.projectile(p); return; }
     if (p.skill.id === 'eagle_arrow' && this.scene.textures.exists('afx-eagle')) { // the spirit eagle (drawn from above) flies toward the aim
@@ -1472,6 +1476,7 @@ export class SkillFx {
 
   private onProjectileEnd(p: Projectile): void {
     if (p.skill.cls === 'samurai') { if (p.skill.style === 'shuriken') this.shuri.projectileEnd(p); else this.sam.projectileEnd(p); return; }
+    if (p.skill.cls === 'gambler' && p.skill.style === 'radiant') return; // (its diamond ends with it: RadiantFx)
     if (p.skill.cls === 'gambler') { this.gamb.projectileEnd(p); return; }
     if (p.skill.cls === 'book_mage') { this.mage.projectileEnd(p); return; }
     if (p.skill.cls === 'archer' && this.arch.ready) { this.arch.projectileEnd(p); return; }

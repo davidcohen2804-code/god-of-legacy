@@ -37,6 +37,7 @@ const sideOf = (r: CastRun) => (r.aim.x < -0.01 ? -1 : 1);
 const GATE: Record<string, [number, number]> = {
   ws_four_beat: [40, 62], 'ws_four_beat#1': [34, 66], 'ws_four_beat#2': [42, 108], 'ws_four_beat#3': [46, 52], ws_threshold_check: [42, 54],
   ws_lions_clamp: [50, 58], ws_drawbridge_lift: [44, 112], ws_anvil_drop: [40, 96], ws_royal_portcullis: [40, 70], stance: [22, 64],
+  ws_sentry_catch: [50, 58], ws_rivet_drive: [48, 60], ws_rearguard_step: [30, 62], ws_crenel_upper: [30, 130], ws_false_gate: [40, 62], 'ws_false_gate:open': [42, 108], ws_crossbar_sweep: [40, 116],
 };
 
 /** His pieces, drawn once on canvases: an iron crescent (a wing's sweep, its bite), a hot scrape, a floor crack, dust. */
@@ -194,6 +195,35 @@ export class WardenFx {
         this.onClock(r, hitAt(0), () => { const g = this.gate(r), c = this.me(r);
           this.wing(c.x + side * 52, c.y - c.z - 70, 140, side < 0 ? 250 : -70, { flip: side < 0, life: 220, run: r });
           this.streak(c.x + side * 56, c.y - c.z - 10, c.x + side * 56, c.y - c.z - 170, 6, 240, { run: r }); this.flash(g.x, g.y, 40, { run: r }); });
+        break;
+      case 'ws_sentry_catch': { // the wings held open in a V; a blow caught between them: they snap shut on the striker (its moment is the counter's)
+        this.onClock(r, T.startup, () => { const g = this.gate(r); this.wing(g.x - side * 4, g.y + 26, 88, side < 0 ? 230 : -50, { flip: side < 0, life: Math.max(80, T.active), run: r }); this.wing(g.x - side * 4, g.y - 26, 88, side < 0 ? 130 : 50, { flip: side < 0, flipY: true, life: Math.max(80, T.active), run: r }); });
+        this.add({ t: 0, step: () => { if (r.phase === 'done') return false; if (!r.counterTriggered) return true;
+          const g = this.gate(r); this.bite(g.x + side * 16, g.y, 76, 46, 70, { run: r }); this.flash(g.x + side * 16, g.y, 48, { delay: 60, run: r }); this.sparks(g.x + side * 16, g.y, 5, { delay: 60, run: r }); this.shake(r, 90, 0.0025);
+          return false; } });
+        break;
+      }
+      case 'ws_rivet_drive': // braced behind the locked gate he drives forward: two dust tracks gouged by his boots, the iron's scrape, the shove
+        this.onClock(r, T.startup, () => { const c = this.me(r); this.dust(c.x - side * 20, c.y, 70); this.streak(c.x - side * 70, c.y - c.z - 4, c.x, c.y - c.z - 4, 4, T.active + 160, { run: r }); this.streak(c.x - side * 70, c.y - c.z + 6, c.x, c.y - c.z + 6, 4, T.active + 160, { run: r }); });
+        this.onClock(r, hitAt(0), () => { const g = this.gate(r), c = this.me(r); this.flash(g.x + side * 10, g.y, 50, { run: r }); this.sparks(g.x + side * 10, g.y, 5, { run: r }); this.dust(c.x + side * 30, c.y, 90); this.shake(r, 100, 0.003); });
+        break;
+      case 'ws_rearguard_step': // the step back: dust where he plants, one wing turned in front — its edge sweeps the space he left
+        this.onClock(r, T.startup, () => { const c = this.me(r), g = this.gate(r); this.dust(c.x, c.y, 60); this.wing(g.x + side * 20, g.y, 96, side < 0 ? 170 : 10, { flip: side < 0, life: 170, run: r }); });
+        break;
+      case 'ws_crenel_upper': // the gate's spine driven straight up two-handed: a tall crescent rising, the iron's glint at its top
+        this.onClock(r, T.startup * 0.6, () => { const c = this.me(r); this.dust(c.x + side * 20, c.y, 80); });
+        this.onClock(r, hitAt(0), () => { const c = this.me(r), g = this.gate(r);
+          this.wing(c.x + side * 44, c.y - c.z - 100, 130, side < 0 ? 245 : -65, { flip: side < 0, life: 210, run: r });
+          this.streak(c.x + side * 40, c.y - c.z - 30, c.x + side * 40, c.y - c.z - 200, 6, 230, { run: r }); this.flash(g.x, g.y, 38, { run: r }); });
+        break;
+      case 'ws_false_gate': // the feint: the wings start to open as if to guard (a faint V) — then one folds and its edge strikes
+        this.onClock(r, T.startup * 0.25, () => { const g = this.gate(r, 'ws_false_gate:open'); this.wing(g.x, g.y + 22, 80, side < 0 ? 230 : -50, { flip: side < 0, life: T.startup * 0.7, run: r }); this.wing(g.x, g.y - 22, 80, side < 0 ? 130 : 50, { flip: side < 0, flipY: true, life: T.startup * 0.7, run: r }); });
+        this.onClock(r, hitAt(0), () => { const g = this.gate(r); this.wing(g.x + side * 12, g.y, 110, side < 0 ? 200 : -20, { flip: side < 0, life: 160, run: r }); this.flash(g.x + side * 20, g.y, 34, { run: r }); });
+        break;
+      case 'ws_crossbar_sweep': // the wings spread flat sweep a broad slice of the floor: two wide crescents across the depth, dust along it
+        this.onClock(r, hitAt(0), () => { const c = this.me(r);
+          this.wing(c.x + side * 80, c.y - c.z - 40, 190, side < 0 ? 180 : 0, { flip: side < 0, life: 220, run: r }); this.wing(c.x + side * 80, c.y - c.z - 16, 170, side < 0 ? 190 : -10, { flip: side < 0, flipY: true, life: 220, run: r });
+          this.dust(c.x + side * 70, c.y - 40, 100); this.dust(c.x + side * 70, c.y + 40, 100); this.shake(r, 70, 0.002); });
         break;
       case 'ws_anvil_drop': // the hop, then the folded gate comes down: a crack in the floor round it, its dust, the room shakes
         this.onClock(r, hitAt(0), () => { const c = this.me(r), x = c.x + side * 46;

@@ -100,7 +100,7 @@ export const ARCHER: Record<string, Recipe> = {
   eagle_arrow: { tone: SPIRIT, own: true, active: (f, r) => { const c = me(f, r); f.wave(c.x, c.y, r.aim.x, r.aim.y, SPIRIT, { len: 760, ms: 360, h: 150, w: 150 }); f.streak({ x: c.x, y: c.y, z: 90 }, { x: c.x + r.aim.x * 780, y: c.y + r.aim.y * 400, z: 90 }, SPIRIT, { w: 26, ms: 420, draw: 90 }); } },
   // the Deadeye Sniper (Styles.ts, David 4 Nov): rifle rounds — one thin hot copper-white streak each, a small warm star at
   // the muzzle on every shot; her blows answered in copper, never the bow's green wind
-  ...Object.fromEntries(['sn_four_beat', 'sn_needlemark', 'sn_recoil_slip', 'sn_throughline', 'sn_four_bells', 'sn_skyline', 'sn_glass_round', 'sn_last_horizon'].map((id) => [id, {
+  ...Object.fromEntries(['sn_four_beat', 'sn_needlemark', 'sn_recoil_slip', 'sn_throughline', 'sn_four_bells', 'sn_skyline', 'sn_glass_round', 'sn_last_horizon', 'sn_stockbreaker', 'sn_kneecap', 'sn_steady_chamber', 'sn_false_sight', 'sn_perch_pivot'].map((id) => [id, {
     tone: COPPER, trail: { c: ROUND, w: id === 'sn_last_horizon' ? 10 : id === 'sn_throughline' || id === 'sn_glass_round' ? 7 : 4, len: 18, i: 2.6 }, fired: (f, _r, _i, o) => bowStar(f, o, ROUND, id === 'sn_last_horizon' ? 1.4 : 0.8),
     ...(id === 'sn_last_horizon' ? { own: true, hit: (f, _s, _h, at, main) => { if (main) f.crack(at.x, at.y, COPPER, { r: 120, chunks: 10 }); } } as Recipe : {}), // (her ultimate: no column of light — GPT: one luminous round, no flash; the planks split where it throws him down)
   } as Recipe])),
@@ -108,7 +108,7 @@ export const ARCHER: Record<string, Recipe> = {
   // amber-white (terracotta drowned in the red planks); no trail of the room's (her shells carry their own, drawn out of
   // the muzzle's height — the room's ran level at her chest under them); the floor bombs tear the planks; the missile's
   // blast is hers (ArcherFx), so the room adds no column of light
-  ...Object.fromEntries(['cn_four_beat', 'cn_breach_burst', 'cn_arc_mortar', 'cn_kickback', 'cn_crater_catch', 'cn_rolling_iron', 'cn_battery', 'cn_broadside', 'cn_piston_lift'].map((id) => [id, {
+  ...Object.fromEntries(['cn_four_beat', 'cn_breach_burst', 'cn_arc_mortar', 'cn_kickback', 'cn_crater_catch', 'cn_rolling_iron', 'cn_battery', 'cn_broadside', 'cn_piston_lift', 'cn_fuse_knuckle', 'cn_muzzle_guard', 'cn_depth_bank', 'cn_twin_traverse'].map((id) => [id, {
     tone: BLAST, paint: true, trail: false,
     ...(id === 'cn_arc_mortar' || id === 'cn_broadside' || id === 'cn_rolling_iron' ? { hit: (f, _s, _h, at, main) => { if (main) f.crack(at.x, at.y, BLAST, { r: id === 'cn_broadside' ? 140 : 90, chunks: id === 'cn_broadside' ? 14 : 8, up: 1.1 }); } } as Recipe : {}),
     ...(id === 'cn_broadside' ? { own: true } : {}),

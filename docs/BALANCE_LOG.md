@@ -4,6 +4,70 @@ Every balance change to any class's skills, newest first. Class chats: read this
 needs new visuals / motion (an effect sized to a new hitbox, an animation timed to a new startup), do that part.
 Values apply to the whole game (only damage may differ in PvP: arenaDmg / the arena's scaling).
 
+## 2026-11-05 (night) — The rest of the styles' skills: the Assassin's six, the Warden's six, the Duelist's five, the Sailwright's six, the Conductor's five (David 4 Nov 14:59)
+- At the fight's pace `D(ms)`; GPT's times and reaches (X ± depth), DFO's damage — tune freely. Counters: the window
+  (real ms) after the wind-up; a blow (or a shot, for the mage's) that reaches the caster in it is answered at once.
+- **The Shuriken Assassin:** Needle Fan (slot 1) 8, three small stars (290 px, ± 45 across the depth), stun D(360), push
+  25, J8; D(100)/D(100)/D(190); CD 4 s · Heel Sweep (2) 10 at D(20) (a 95 × 120° sector, reach 110 up), stun D(650),
+  launch 70, J12, heavy; D(110)/D(80)/D(240); CD 6 s · Silk Shift (4) a step back 45 px and a small star at D(60) (250 px)
+  8, stun D(380), push 10, J8; D(135)/D(90)/D(230); CD 8 s · Crosslane Split (9) 9 at D(40), two stars (300 px, ± 45),
+  stun D(370), `lane` 45, J9; D(175)/D(130)/D(250); CD 9 s · Falling Talon (10, in the air only) 22 at D(30) (180 ± 34,
+  reach 150 up), stun D(600), `slam` + `knockdown` heavy, J24, heavy; D(145)/D(110)/D(310); CD 11 s · Iron Palm Deflect
+  (11) a counter (180 ms): a star (260 px) 10, stun D(400), push 35, J10; D(65)/D(180)/D(290); CD 13 s.
+- **The Siege Warden:** Sentry Catch (2) a counter (160 ms): 12 (a 100 × 110° sector), stun D(420), pull 35, J10, heavy;
+  D(75)/D(160)/D(300); CD 11 s · Rivet Drive (5) a drive of 110 px, 16 at its end, D(95) (a 125 × 70° sector), stun
+  D(520), push 135, J17, heavy; D(175)/D(110)/D(350); CD 10 s · Rearguard Step (8) a step back 65 px, 9 at D(10) (a 105 ×
+  100° sector), stun D(300), push 10, J7; D(115)/D(90)/D(230); CD 8 s · Crenel Upper (9) 13 at D(15) (a 170 × 70°
+  sector, reach 185 up), stun D(600), launch 80, J19, heavy; D(145)/D(95)/D(255); CD 9 s · False Gate (11) 10 at D(10)
+  (a 135 × 80° sector), stun D(360), pull 35, J10; D(115)/D(85)/D(280); CD 8 s · Crossbar Sweep (12) 11 at D(20) (170 ±
+  65 — its own depth, in the arena too), stun D(350), `lane` 30, J11; D(155)/D(110)/D(260); CD 8 s.
+- **The Radiant Duelist:** Under the Table (3) 11 at D(20) (185 ± 34, reach 60 up: low), stun D(500), `knockdown` light,
+  J10; D(195)/D(90)/D(260); CD 8 s · Read the Room (8) a counter (110 ms): 10 (a 110 × 90° sector), stun D(450), push 20,
+  J10; D(95)/D(110)/D(310); CD 13 s · Long Odds (9) 12, one diamond of light (350 px, 1500 px/s, no tracking), stun
+  D(420), launch 35, J12; D(250)/D(85)/D(305); CD 11 s · High-Stakes Vault (10) a vault of 110 px (60 up, locked on, 60
+  short of him), 13 at D(70) (a 110 × 100° sector), stun D(330), launch 40, J15; D(185)/D(95)/D(290); CD 12 s · Side Bet
+  (11) a step of 45 px along the aim, 10 at D(30) (a 150 × 70° sector), stun D(400), pull 40, J10; D(190)/D(75)/D(285);
+  CD 10 s.
+- **The Sailwright:** Luff Step (2) a step of 40 px along the aim, 8 at D(20) (a 120 × 90° sector), stun D(300), push
+  25, J7; D(145)/D(70)/D(185); CD 5 s · Skimming Edge (4) 10, a low slice (245 px, 1300 px/s, never up at a foe in the
+  air), stun D(380), push 20, J10; D(190)/D(95)/D(265); CD 7 s · Mastguard (5) a counter (180 ms): 6 (a 120 × 100°
+  sector), stun D(300), push 70, J6; D(65)/D(180)/D(255); CD 11 s · Kite Needle (9) 11, a dart (285 px, 2000 px/s),
+  stun D(360), push 10, J9; D(215)/D(90)/D(285); CD 9 s · Tackline Draw (10) 9 at D(20) (175 ± 22), stun D(420), pull 30,
+  J11; D(205)/D(85)/D(265); CD 10 s · Slipwake (12) a slide back 60 px, 8 at D(20) (a 130 × 80° sector), stun D(320),
+  push 20, J8; D(135)/D(75)/D(225); CD 10 s.
+- **The Fulminant Conductor:** Blue Needle (4) 11, a needle of current (300 px, 2600 px/s), stun D(380), push 10, J10;
+  D(200)/D(70)/D(250); CD 7 s · Faraday Fold (5) a counter (160 ms): 8 (a 130 × 60° sector), stun D(420), push 20, J6;
+  D(75)/D(160)/D(245); CD 12 s · Rail Slide (9) a slide of 65 px, 10 at its end, D(60) (a 120 × 60° sector), stun D(380), push 25, J9;
+  D(170)/D(70)/D(230); CD 9 s · Insulator Split (10) 11 at D(20) (235 ± 24), stun D(420), push 30, J10;
+  D(185)/D(90)/D(265); CD 9 s · Capacitor Kick (12) 9 (a 90 × 100° sector) and a kick back of 40 px, stun D(360), push
+  30, J8; D(155)/D(80)/D(260); CD 10 s.
+- (GPT's sidesteps across the lane — Silk Shift, Rearguard Step, Luff Step, Side Bet — step along the aim: toward a corner
+  they cross the depth, as the player chooses.)
+
+## 2026-11-05 (night) — The Archer's styles, the rest of their skills: the Sniper's five, the Cannoneer's four (David 4 Nov 14:59)
+- **The Deadeye Sniper** (`FinalKit` `sniper`, at the fight's pace `D(ms)`; GPT's times and reaches, DFO's damage — tune freely):
+  - Stockbreaker (slot 2): 11 at once (a 95 × 110° sector — GPT's 85 X: her painted stock reaches ~92; reach 110 up); stun
+    D(300), push 65; D(120)/D(60)/D(200); CD 5 s; links into Recoil Slip, Kneecap Round, Skyline Intercept.
+  - Kneecap Round (slot 5): 10, one low shot (340 px, 2300 px/s, never up at a foe in the air); stun D(380), push 12;
+    D(150)/D(50)/D(220); CD 7 s; links into False Sight, Glass Round, the Four Bells.
+  - Steady Chamber (slot 8): no damage — her next rifle shot within 3 s leaves 40 ms sooner and marks him once more (a held
+    Glass Round starts one step hotter); D(120)/D(40)/D(160); CD 9 s. (Engine: `primes.cut`, `primes.mark`.)
+  - False Sight (slot 9): 12, one shot (330 px, 2600 px/s) after the feint (its wind-up, D(260)); stun D(350), push 10;
+    D(260)/D(50)/D(220); CD 9 s.
+  - Perch Pivot (slot 10): a hop up and back (45 back, 70 up, held at its top — a dash goes along the aim only, not across
+    the lane as GPT's) and 12 fired down from its top at D(90) (250 px); stun D(420), launch 75, J14, reach 170 up;
+    D(140)/D(220)/D(200); CD 7 s; `farLaunch`; links into Skyline Intercept and the Four Bells.
+- **The Recoil Cannoneer**:
+  - Fuse Knuckle (slot 8): 10 (a 100 × 100° sector, reach 110 up); stun D(400), push 18; D(110)/D(60)/D(200); CD 6 s.
+  - Muzzle Guard (slot 9): a counter — braced 180 ms after its wind-up; a blow that reaches her is answered at once: 14 (a
+    160 × 70° cone, reach 120 up), stun D(560), launch 70, J16, heavy; D(60)/D(180)/D(240); CD 10 s; links into Piston
+    Lift and the Battery.
+  - Depth Bank (slot 11): 12, a shell (320 px, 1500 px/s) that banks hard toward the foe after its first 90 ms (homing
+    420°/s: a foe one lane over is caught from mid range); stun D(380), push 40; D(170)/D(80)/D(240); CD 8 s; links into
+    the Battery and Twin Traverse.
+  - Twin Traverse (slot 12): 9, two shells side by side (330 px, ± 55 across the depth); stun D(300), `lane` 35 (drawn
+    into her line); D(180)/D(80)/D(240); CD 9 s; links into the Battery and Breach Burst. (Engine: Reaction `lane`.)
+
 ## 2026-11-05 (night) — Every style's ultimate (David 4 Nov 14:59: each style its own fighter)
 - **Six new ultimates** (slot 7, at the fight's pace `D(ms)`; GPT's beats and reaches (X ± depth: a `line` X long, 2 ×
   depth wide), DFO's damage — tune freely; each ends the combo and, as every ultimate, cannot be hit while it plays):

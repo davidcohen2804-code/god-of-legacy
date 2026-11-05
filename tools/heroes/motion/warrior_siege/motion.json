@@ -146,6 +146,14 @@
     "ws_last": {
       "frames": 6,
       "source": "gpt stills: ws_open \u2192 ws_clamp \u2192 ws_close \u2192 ws_lift \u2192 ws_anvil \u2192 ws_close (The Last Drawbridge: unfold, catch, catapult, raise, sentence)"
+    },
+    "ws_sentry": {
+      "frames": 2,
+      "source": "gpt stills: ws_clamp -> ws_close (Sentry Catch: the wings held open in a V to catch the blow, then snapped shut)"
+    },
+    "ws_false": {
+      "frames": 2,
+      "source": "gpt stills: ws_open -> ws_knuckle (False Gate: the wings start to open as if to guard, then one folds and its edge strikes)"
     }
   },
   "refs": "tools/heroes/refs/warrior_siege_*_green.jpg",

@@ -117,6 +117,10 @@
         300
       ],
       "source": "gpt still (the ref attached)"
+    },
+    "sn_feint": {
+      "frames": 2,
+      "source": "gpt stills: sn_up -> stance (False Sight: the rifle raised to the sky as if to shoot it, then snapped level and fired)"
     }
   },
   "hit_source": "pixverse sn_hit2.mp4"

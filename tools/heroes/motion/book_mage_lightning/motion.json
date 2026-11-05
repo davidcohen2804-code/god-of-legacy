@@ -144,6 +144,10 @@
     "ml_zeroint": {
       "frames": 2,
       "source": "gpt stills: ml_clamp \u2192 ml_zero (Zero Interval: braced, then the one huge straight thrust)"
+    },
+    "ml_fold": {
+      "frames": 2,
+      "source": "gpt stills: ml_cross -> ml_probe (Faraday Fold: the fork turned across him as a deflector, then the counter-stab)"
     }
   }
 }

@@ -374,7 +374,7 @@ export const SAMURAI: Record<string, Recipe> = {
   // the Shuriken Assassin (Styles.ts, David 4 Nov 14:59): steel, never the katana's crimson — the room answers his blows in
   // cold polished steel (painted: on the red planks light alone turns white); no trail of the room's (his stars carry their
   // own, drawn at their own height — ShurikenFx); a blow that throws him up: the white-hot line up through him
-  ...Object.fromEntries(['as_four_beat', 'as_redline_recall', 'as_piercing_quarter', 'as_four_point_eclipse', 'as_crowstep_rise', 'as_returning_moon', 'as_fivefold_night'].map((id) => [id, {
+  ...Object.fromEntries(['as_four_beat', 'as_redline_recall', 'as_piercing_quarter', 'as_four_point_eclipse', 'as_crowstep_rise', 'as_returning_moon', 'as_fivefold_night', 'as_needle_fan', 'as_heel_sweep', 'as_silk_shift', 'as_crosslane_split', 'as_falling_talon', 'as_iron_palm'].map((id) => [id, {
     tone: 0xa9bed8, paint: true, trail: false, own: true, // (own: no column of light on a launch — it stood white over him; the room's flash stays, in steel)
     hit: (f, _s, h, at, main) => { if (main && (h.reaction.launch ?? 0) >= 75) rise(f, at); if (main && id === 'as_fivefold_night') f.crack(at.x, at.y, 0xa9bed8, { r: 120, chunks: 10 }); }, // (his ultimate's five stars close on him: the planks split under it)
   } as Recipe])),

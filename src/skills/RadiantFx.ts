@@ -7,7 +7,7 @@
 import Phaser from 'phaser';
 import type { CastRun } from './SkillRuntime';
 import type { FinalSkill, HitEvent } from './SkillTypes';
-import type { V3 } from './HitGeometry';
+import type { Projectile, V3 } from './HitGeometry';
 import { styleOfSwitch } from './Styles';
 
 const TOP = 100000;
@@ -38,6 +38,7 @@ const TIP: Record<string, [number, number]> = {
   rd_four_beat: [64, 65], 'rd_four_beat#1': [127, 63], 'rd_four_beat#2': [67, 51], 'rd_four_beat#3': [57, 127],
   rd_opening_bid: [127, 63], rd_crown_raise: [76, 112], rd_royal_turn: [63, 48], rd_collect_debt: [67, -7], rd_all_in: [114, 63],
   rd_curtain_call: [79, 5], stance: [74, 100],
+  rd_under_the_table: [67, -7], rd_read_the_room: [74, 101], 'rd_read_the_room:strike': [64, 65], rd_long_odds: [114, 63], rd_high_stakes: [60, 30], rd_side_bet: [64, 65],
 };
 
 /** His pieces, drawn once on canvases: a lance of light (a thrust's trail), a crescent (a swing's), a faceted spade, a
@@ -230,6 +231,29 @@ export class RadiantFx {
           this.ctx.punch(0.034, 200); this.shake(r, 220, 0.005); });
         break;
       }
+      case 'rd_under_the_table': // the lower end swept along the floor at ankle height: one flat crescent low along it, motes kicked up
+        this.onClock(r, T.startup * 0.6, () => { const c = c0(); this.arc(c.x + side * 70, c.y - 8, 190, side < 0 ? 180 : 0, { flip: side < 0, h: 30, life: 150, run: r }); });
+        this.onClock(r, hitAt(0), () => { const t = this.tip(r); this.flash(t.x + side * 30, t.y - 6, 30, { run: r }); this.motes(t.x + side * 30, t.y - 4, 4, { up: true, run: r }); });
+        break;
+      case 'rd_read_the_room': { // the staff held across him: a glint along it while he reads; a blow read — the ferrule snapped out at the striker
+        this.onClock(r, T.startup, () => { const t = this.tip(r); this.lance(t.x - side * 90, t.y + 70, t.x, t.y, 8, { run: r, life: Math.max(80, T.active) }); });
+        this.add({ t: 0, step: () => { if (r.phase === 'done') return false; if (!r.counterTriggered) return true;
+          const t = this.tip(r, 'rd_read_the_room:strike'); this.lance(t.x - side * 90, t.y, t.x + side * 18, t.y, 14, { run: r }); this.flash(t.x + side * 10, t.y, 40, { run: r, delay: 40 }); this.spade(t.x + side * 14, t.y, 22, { run: r, angle: side * 90, delay: 40 });
+          return false; } });
+        break;
+      }
+      case 'rd_long_odds': // the thrust from the hip: a trail along the staff, a pulse at the crown as the diamond leaves it (its flight: projectile)
+        thrust(120, 12, hitAt(0));
+        break;
+      case 'rd_high_stakes': { // the staff planted: a line straight up from the floor; over it; the other end strikes as he lands
+        this.onClock(r, T.startup * 0.5, () => { const c = c0(); this.lance(c.x + side * 30, c.y, c.x + side * 30, c.y - 160, 10, { run: r, life: T.startup * 0.6 + T.active }); this.motes(c.x + side * 30, c.y - 4, 3, { run: r }); });
+        this.onClock(r, hitAt(0), () => { const c = c0(); this.arc(c.x + side * 50, c.y - c.z - 40, 150, side < 0 ? 210 : -30, { flip: side < 0, life: 140, run: r }); this.flash(c.x + side * 70, c.y - c.z - 40, 36, { run: r }); });
+        break;
+      }
+      case 'rd_side_bet': // the step; the staff round his hip — a short crescent — then the ferrule hooked out and drawn back
+        this.onClock(r, T.startup * 0.6, () => { const h = hips(52); this.arc(h.x + side * 10, h.y, 120, side < 0 ? 200 : -20, { flip: side < 0, h: 40, life: 120, run: r }); });
+        thrust(130, 13, hitAt(0));
+        break;
       case 'rd_curtain_call': // the full body turn, the crown swelled into a faceted head: a great crescent down, the head's spade on the floor
         this.onClock(r, T.startup * 0.55, () => { const h = hips(70); this.arc(h.x + side * 30, h.y - 10, 190, side < 0 ? 150 : 30, { flip: side < 0, flipY: true, life: 140, run: r }); });
         this.onClock(r, hitAt(0), () => { const t = this.tip(r);
@@ -264,6 +288,19 @@ export class RadiantFx {
   }
 
   // ------------------------------------------------------------------ frame
+
+  /** Long Odds' diamond in flight: one compact faceted diamond of light pointing down its line, a short trail behind it. */
+  projectile(p: Projectile): void {
+    textures(this.ctx.scene);
+    const s = this.ctx.scene, ang = (Math.atan2(p.dy, p.dx) * 180) / Math.PI, maxMs = (p.range / Math.max(1, p.speed)) * 1000 + 300;
+    const im = s.add.image(p.x, p.y - p.z, 'rd-spade').setDisplaySize(26, 30).setAngle(ang + 90).setBlendMode(Phaser.BlendModes.ADD).setTint(HOT);
+    const tr = s.add.image(p.x, p.y - p.z, 'rd-lance').setOrigin(1, 0.5).setDisplaySize(90, 12).setAngle(ang).setBlendMode(Phaser.BlendModes.ADD).setTint(LIGHT).setAlpha(0.85);
+    this.add({ t: 0, step: (_dt, t) => {
+      if (p.done || t > maxMs) { im.destroy(); tr.destroy(); if (p.done && p.end) this.flash(p.end.x, p.y - p.z, 34); return false; }
+      im.setPosition(p.x, p.y - p.z).setDepth(p.y + 3); tr.setPosition(p.x, p.y - p.z).setDepth(p.y + 2.9);
+      return true;
+    } });
+  }
 
   update(dt: number): void {
     const cur = this.live.concat(this.incoming);

@@ -341,7 +341,7 @@ export const GAMBLER: Record<string, Recipe> = {
   triple_down: { tone: TONE.violet, own: true, hit: (f, _s, _h, at, main, react) => { if (main || react === 'slam' || react === 'knockdown') f.crack(at.x, at.y, F.violet, { r: main ? 150 : 95, chunks: main ? 16 : 7 }); } },
   // the Radiant Duelist (Styles.ts): his own 2D pieces (RadiantFx) stay with him — the staff's violet-white light, the room
   // answering in the same colour; no pillars, no cracks of the cards' style
-  ...Object.fromEntries(['rd_four_beat', 'rd_opening_bid', 'rd_crown_raise', 'rd_royal_turn', 'rd_collect_debt', 'rd_all_in', 'rd_curtain_call', 'rd_final_ovation'].map((id) => [id, {
+  ...Object.fromEntries(['rd_four_beat', 'rd_opening_bid', 'rd_crown_raise', 'rd_royal_turn', 'rd_collect_debt', 'rd_all_in', 'rd_curtain_call', 'rd_final_ovation', 'rd_under_the_table', 'rd_read_the_room', 'rd_long_odds', 'rd_high_stakes', 'rd_side_bet'].map((id) => [id, {
     tone: 0xd9c8ff, paint: true, trail: false, own: true,
   } as Recipe])),
 };

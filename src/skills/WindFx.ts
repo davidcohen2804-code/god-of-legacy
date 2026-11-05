@@ -7,7 +7,7 @@
 import Phaser from 'phaser';
 import type { CastRun } from './SkillRuntime';
 import type { FinalSkill, HitEvent } from './SkillTypes';
-import type { V3 } from './HitGeometry';
+import type { Projectile, V3 } from './HitGeometry';
 import { styleOfSwitch } from './Styles';
 
 const TOP = 100000;
@@ -37,6 +37,7 @@ const sideOf = (r: CastRun) => (r.aim.x < -0.01 ? -1 : 1);
 const TIP: Record<string, [number, number]> = {
   mw_four_beat: [146, 92], 'mw_four_beat#1': [76, 105], 'mw_four_beat#2': [115, 99], 'mw_four_beat#3': [55, 137],
   mw_sail_edge: [149, 92], mw_updraft_hook: [80, 118], mw_cut_across: [81, 43], mw_windward_spike: [85, 175], mw_keel_drop: [84, 51],
+  mw_luff_step: [76, 105], mw_skimming_edge: [81, 43], mw_mastguard: [149, 92], mw_kite_needle: [146, 92], mw_tackline_draw: [115, 96], mw_slipwake: [57, 42],
   stance: [25, 138],
 };
 
@@ -232,6 +233,32 @@ export class WindFx {
           this.ctx.punch(0.03, 190); this.shake(r, 200, 0.0045); });
         break;
       }
+      case 'mw_luff_step': // the step aside, one diagonal cut of thin air across his front
+        this.onClock(r, hitAt(0), () => { const h = this.at(r, 70, 92); this.edge(h.x, h.y, 130, side < 0 ? 215 : -35, { flip: side < 0, flipY: true, h: 30, life: 130, run: r }); this.lines(h.x + side * 40, h.y, 2, deg0, 20, 20, { run: r }); });
+        break;
+      case 'mw_skimming_edge': // swept low: a flat thin edge leaves the fan along the floor (its flight: projectile)
+        this.onClock(r, Math.max(0, hitAt(0) - 20), () => { const t = this.tip(r); this.edge(t.x, t.y + 4, 110, deg0, { flip: side < 0, h: 14, life: 110, run: r }); });
+        break;
+      case 'mw_mastguard': { // the fan opened in front of him like a tight sail: its ribs lit for the guard; a blow caught: the sail snaps
+        this.onClock(r, T.startup, () => { const t = this.tip(r); this.ribs(t.x - side * 30, t.y, 70, side * 4, { run: r, life: Math.max(90, T.active), tint: MINT }); });
+        this.add({ t: 0, step: () => { if (r.phase === 'done') return false; if (!r.counterTriggered) return true;
+          const t = this.tip(r); this.burst(t.x, t.y, 60, { run: r }); this.lines(t.x, t.y, 4, deg0, 50, 40, { run: r }); this.edge(t.x + side * 30, t.y, 120, side < 0 ? 90 : -90, { flip: side < 0, h: 40, life: 140, run: r }); this.shake(r, 70, 0.002);
+          return false; } });
+        break;
+      }
+      case 'mw_kite_needle': // the dart flicked off the folded tip (its flight: projectile)
+        this.onClock(r, hitAt(0), () => { const t = this.tip(r); this.burst(t.x + side * 6, t.y, 24, { run: r }); });
+        break;
+      case 'mw_tackline_draw': { // a taut line of air out to him, then hauled in: the line shortening back to the fan
+        this.onClock(r, hitAt(0), () => { const t = this.tip(r), x1 = t.x + side * 170;
+          this.line(t.x, t.y, x1, t.y, 5, { run: r, life: 90 });
+          this.spr({ name: 'mw-chev', x: x1, y: t.y, depth: TOP + 4, w: 26, angle: side < 0 ? 0 : 180, life: 200, run: r, tint: MINT, add: true, mx: (u) => -side * 150 * out3(u), a: kf([0, 1], [0.8, 0.8], [1, 0, inQ]) }); });
+        break;
+      }
+      case 'mw_slipwake': // he slides back: a pale wake on the floor, one compressed edge swept forward
+        this.onClock(r, T.startup, () => { const c = this.me(r); this.burst(c.x, c.y - 4, 60, { run: r, flat: true, life: 160 }); });
+        this.onClock(r, hitAt(0), () => { const h = this.at(r, 70, 70); this.edge(h.x, h.y, 120, deg0, { flip: side < 0, h: 26, life: 120, run: r }); });
+        break;
       case 'mw_keel_drop': { // the folded fan brought down like a keel: a line falling to the floor, a sharp flat burst where it strikes
         this.onClock(r, T.startup * 0.55, () => { const h = this.at(r, 100, 210); this.line(h.x, h.y, h.x - side * 10, h.y + 170, 6, { run: r, life: 120 }); });
         this.onClock(r, hitAt(0), () => { const c = this.me(r), x = c.x + side * 100, y = c.y - 4;
@@ -257,6 +284,21 @@ export class WindFx {
   }
 
   // ------------------------------------------------------------------ frame
+
+  /** His shots in flight: the Skimming Edge — a flat thin edge of air low along the floor; the Kite Needle — a small kite dart
+   *  with a short pressure line behind it. */
+  projectile(p: Projectile): void {
+    textures(this.ctx.scene);
+    const s = this.ctx.scene, ang = (Math.atan2(p.dy, p.dx) * 180) / Math.PI, maxMs = (p.range / Math.max(1, p.speed)) * 1000 + 300, kite = p.skill.id === 'mw_kite_needle';
+    const im = kite ? s.add.image(p.x, p.y - p.z, 'mw-kite').setDisplaySize(30, 16) : s.add.image(p.x, p.y - p.z, 'mw-edge').setDisplaySize(70, 18);
+    im.setAngle(ang + (kite ? 0 : 90)).setBlendMode(Phaser.BlendModes.ADD).setTint(kite ? HOT : MINT);
+    const tr = s.add.image(p.x, p.y - p.z, 'mw-line').setOrigin(1, 0.5).setDisplaySize(kite ? 70 : 50, kite ? 5 : 8).setAngle(ang).setBlendMode(Phaser.BlendModes.ADD).setTint(MINT).setAlpha(0.7);
+    this.add({ t: 0, step: (_dt, t) => {
+      if (p.done || t > maxMs) { im.destroy(); tr.destroy(); if (p.done && p.end) this.burst(p.end.x, p.y - p.z, 28); return false; }
+      const y = p.y - p.z + (kite ? 0 : 20); im.setPosition(p.x, y).setDepth(p.y + 3); tr.setPosition(p.x, y).setDepth(p.y + 2.9); // (the edge drawn low, skimming the floor)
+      return true;
+    } });
+  }
 
   update(dt: number): void {
     const cur = this.live.concat(this.incoming);

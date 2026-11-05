@@ -48,6 +48,9 @@ export interface Reaction {
   push?: number;
   /** Pull toward the hit centre (px). */
   pull?: number;
+  /** Drawn across the floor's depth toward the attacker's line, at most this far (px): into the middle lane (Twin
+   *  Traverse, Crosslane Split). */
+  lane?: number;
   /** Launch apex above the victim's current height (px). */
   launch?: number;
   /** Airborne victim: slam down (ground breaker) / stabilise for follow-ups. */
@@ -169,7 +172,7 @@ export interface FinalSkill {
   charge?: { minMs: number; levels: { at: number; hits: HitEvent[] }[] };
   /** A priming stance (the samurai's Sheathe): the caster's next cast, if it is one of `ids` and starts within `windowMs`
    *  of the stance's end, has no startup — a hold-to-charge skill `chargeUp` levels higher. Any other cast spends it. */
-  primes?: { ids: string[]; windowMs: number; chargeUp?: number };
+  primes?: { ids: string[]; windowMs: number; chargeUp?: number; /** the primed skill's wind-up shorter by this (real ms) instead of none (the Sniper's Steady Chamber) */ cut?: number; /** its hits mark (Hunter's Mark) this many more */ mark?: number };
   /** Its hits are centred where the caster is now, not where it was cast (Tempest Ride: she rides it). */
   follow?: boolean;
   /** Dash carries the first confirmed target along on the blade. */
