@@ -52,7 +52,15 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
   errors, no 404s); PVP 3D films of each (the reel, sent to David); the open world on a monster (every one unlocked at
   the hero's level lands; 0 errors); every hero's cross-style combo re-filmed after them (Hunter's Checkmate, Crimson Shadow
   Pursuit, The Lion's Judgment, The Double Bluff, the Three-Current Route — every step lands, 0 errors; the reel, sent).
-- Done: 6b86d8feb.
+- Checked on two screens (5 Nov: two players in one room, `?net=local`, each screen judging the hits on its own fighter):
+  the Conductor's marks and snaps (on the ground, in the air, the 1.2 s rule, gone from both screens when he leaves the
+  style), the Sailwright's chevrons (two; each spend in his cast message, dropped on the foe's screen, the cut 24 px across
+  and 10 deeper there too), the Duelist's Clean Reads and a read blow, All In's stakes (each tip, the plain thrust with no
+  link, the whiff), the Warden's charges (Threshold Check, Sentry Catch, each charged effect, the shove off the wall, the
+  6 s), a far player's four-beat chain to its fourth beat; 0 errors. **Found and fixed:** the facets and the gate charges
+  beside a far player never reached the foe's screen — the player's state message dropped them (`PvpController`).
+  (Worth knowing, not changed: a fighter's Stance passive — the Gambler's 60 % — also turns away Rivet Drive's shove.)
+- Done: 6b86d8feb; the facets / charges to the foe: see the next commit.
 
 ### DFO (4 Nov, David 14:59) — the styles, step 10: the rest of every style's skills (37 — no template left)
 - **The Deadeye Sniper's five** (GPT's design, scratchpad styles/archer_styles.md): Stockbreaker (the rifle butt driven
