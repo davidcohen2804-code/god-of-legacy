@@ -7,10 +7,10 @@
   "hip_x": 384,
   "animations": {
     "idle": {
-      "frames": 5,
-      "source": "gpt sprite sheet idle_sheet_2.webp (figures 1,2,3,4,5; PixVerse out of credits)",
+      "frames": 25,
+      "source": "pixverse rd_idle.mp4 (540p, refs/gambler_radiant_green.jpg; frames 17-41, the seam 0.036; its green faded to pale blue after frame 60), scaled to his GPT idle's height (541 with the staff)",
       "loop": true,
-      "fps": 6
+      "fps": 12
     },
     "walk": {
       "frames": 8,
