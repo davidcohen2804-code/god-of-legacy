@@ -107,10 +107,10 @@ export const ARCHER: Record<string, Recipe> = {
   // the Recoil Cannoneer (Styles.ts, David 4 Nov 14:59): concussive, never the bow's green — her blows answered in a hot
   // amber-white (terracotta drowned in the red planks); no trail of the room's (her shells carry their own, drawn out of
   // the muzzle's height — the room's ran level at her chest under them); the floor bombs tear the planks; the missile's
-  // blast is hers (ArcherFx), so the room adds no column of light
+  // blast is hers (ArcherFx), and so is every launch: her own blast throws him up, so the room adds no column of light on
+  // any of her blows (it stood as a pale beam over the blast and washed the foe flying out of it)
   ...Object.fromEntries(['cn_four_beat', 'cn_breach_burst', 'cn_arc_mortar', 'cn_kickback', 'cn_crater_catch', 'cn_rolling_iron', 'cn_battery', 'cn_broadside', 'cn_piston_lift', 'cn_fuse_knuckle', 'cn_muzzle_guard', 'cn_depth_bank', 'cn_twin_traverse'].map((id) => [id, {
-    tone: BLAST, paint: true, trail: false,
+    tone: BLAST, paint: true, trail: false, own: true,
     ...(id === 'cn_arc_mortar' || id === 'cn_broadside' || id === 'cn_rolling_iron' ? { hit: (f, _s, _h, at, main) => { if (main) f.crack(at.x, at.y, BLAST, { r: id === 'cn_broadside' ? 140 : 90, chunks: id === 'cn_broadside' ? 14 : 8, up: 1.1 }); } } as Recipe : {}),
-    ...(id === 'cn_broadside' ? { own: true } : {}),
   } as Recipe])),
 };
