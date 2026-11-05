@@ -59,7 +59,13 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 - On the way: the Sniper's Last Horizon keeps its knockdown from afar (`farLaunch`: a shot past the poke range was a
   140 ms flinch).
 - Checked: PVP 3D probes of each ultimate on the partner (every hit lands — the Fivefold Night on a foe in the air too;
-  each style's own portrait staged; 0 errors, no 404s).
+  each style's own portrait staged; 0 errors, no 404s); PVP 3D films of all seven (the reel); the open world on a monster
+  (every ultimate's hits land; 0 errors, no 404s).
+- Fixed on the way: the Fivefold Night's stars fly on the cast's own clock — in PvP a hit-stop holds the effects' clock but
+  never the fight, and his three hits' stops ran into one another and held the stars still through the whole strike; his
+  harness is empty while the five fly (the four back stars taken out of his three throw poses — GPT's "sockets visibly
+  empty, then refill"); the Last Horizon without the room's column of light (GPT: one luminous round, no flash).
+- Done: 9049774d0 and the fix after it.
 
 ### DFO (4 Nov, David 14:59) — the styles, step 8: the Book Mage's Fulminant Conductor (the fan or the book tags out, the fork tags in)
 - **The Fulminant Conductor** (his third style, `Styles.ts` `book_mage`: Arcane Tome → Sailwright → Fulminant Conductor; GPT's

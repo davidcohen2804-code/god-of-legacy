@@ -141,7 +141,7 @@
     "as_fivefold": {
       "frames": 5,
       "ground_y": 840,
-      "source": "gpt stills: as_unseal \u2192 as_cast \u2192 as_eclipse \u2192 as_recall \u2192 as_catch (Fivefold Night: unseal, spread, reverse, converge, catch)"
+      "source": "gpt stills: as_unseal → as_cast → as_eclipse → as_recall → as_catch (Fivefold Night: unseal, spread, reverse, converge, catch); frames 2-4 with the four back stars taken out (pipe/as_unstar.py: GPT, the harness sockets empty while they fly)"
     }
   },
   "hit_source": "pixverse as_hit.mp4 (433532602315716; its screen drifted to teal: keyed by its border colour, the rim cut, colour matched to the idle)",

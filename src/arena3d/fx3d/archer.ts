@@ -102,6 +102,7 @@ export const ARCHER: Record<string, Recipe> = {
   // the muzzle on every shot; her blows answered in copper, never the bow's green wind
   ...Object.fromEntries(['sn_four_beat', 'sn_needlemark', 'sn_recoil_slip', 'sn_throughline', 'sn_four_bells', 'sn_skyline', 'sn_glass_round', 'sn_last_horizon'].map((id) => [id, {
     tone: COPPER, trail: { c: ROUND, w: id === 'sn_last_horizon' ? 10 : id === 'sn_throughline' || id === 'sn_glass_round' ? 7 : 4, len: 18, i: 2.6 }, fired: (f, _r, _i, o) => bowStar(f, o, ROUND, id === 'sn_last_horizon' ? 1.4 : 0.8),
+    ...(id === 'sn_last_horizon' ? { own: true, hit: (f, _s, _h, at, main) => { if (main) f.crack(at.x, at.y, COPPER, { r: 120, chunks: 10 }); } } as Recipe : {}), // (her ultimate: no column of light — GPT: one luminous round, no flash; the planks split where it throws him down)
   } as Recipe])),
   // the Recoil Cannoneer (Styles.ts, David 4 Nov 14:59): concussive, never the bow's green — her blows answered in a hot
   // amber-white (terracotta drowned in the red planks); no trail of the room's (her shells carry their own, drawn out of

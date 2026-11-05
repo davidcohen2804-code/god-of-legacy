@@ -288,21 +288,25 @@ export class ShurikenFx {
           const a0 = 2 * u3 - 3 * u2 + 1, b0 = u3 - 2 * u2 + u, a1 = -2 * u3 + 3 * u2, b1 = u3 - u2;
           return { x: a0 * P[i].x + b0 * dt * m0.x + a1 * P[i + 1].x + b1 * dt * m1.x, y: a0 * P[i].y + b0 * dt * m0.y + a1 * P[i + 1].y + b1 * dt * m1.y };
         };
-        this.spr({ name: 'as-big', x: 0, y: 0, depth: TOP + 3, w: 46, life: h2, run: r, tint: STEEL, glow: 0.2,
-          mx: (u) => { const q = at(u * h2); ly = q.y; return q.x; }, my: () => ly, rot: (u) => side * 2200 * u, a: kf([0, 0.7], [0.06, 1], [1, 1]) });
+        // (flown on the cast's own clock, in step with its hits and his poses: in PvP a hit-stop holds the effects' clock but
+        // never the fight — his three hits' stops run into one another and held the stars still through the whole strike)
+        let ct = 0;
+        this.spr({ name: 'as-big', x: 0, y: 0, depth: TOP + 3, w: 46, life: h2 + 1500, run: r, tint: STEEL, glow: 0.2,
+          mx: () => { ct = Math.max(0, r.elapsed - T.startup); const q = at(Math.min(ct, h2)); ly = q.y; return q.x; }, my: () => ly,
+          rot: () => (side * 2200 * Math.min(ct, h2)) / Math.max(1, h2), a: () => (ct >= h2 || r.phase === 'done' ? 0 : ct < 18 ? 0.7 : 1) });
         const f = foe(), e = { x: f.x + side * RIM, y: f.y + LANE[k] * 1.6 };
-        this.line('as-trail', p0.x, p0.y, e.x, e.y, 4, h0 + 140, { tint: STEEL, run: r, a: kf([0, 0], [0.15, 0.85], [1, 0, inQ]) }); // the spread: five lanes through him
+        this.line('as-trail', p0.x, p0.y, e.x, e.y, 4, h0 + 140, { tint: STEEL, run: r, a: kf([0, 0.5], [0.15, 0.85], [1, 0, inQ]) }); // the spread: five lanes through him
       }
     });
     this.onClock(r, T.startup + (h0 + h1) / 2, () => { const f = foe(); // the reverse: back through him, crossed — the crimson return lines
-      for (let k = 0; k < 5; k++) { const x0 = f.x + side * RIM, y0 = f.y + LANE[k] * 1.6, x1 = f.x - side * 60, y1 = f.y - LANE[k] * 2.2; this.line('as-red', x0, y0, x1, y1, 3, 220, { tint: CRIMSON, run: r }); }
+      for (let k = 0; k < 5; k++) { const x0 = f.x + side * RIM, y0 = f.y + LANE[k] * 1.6, x1 = f.x - side * 60, y1 = f.y - LANE[k] * 2.2; this.line('as-red', x0, y0, x1, y1, 3, 220, { tint: CRIMSON, run: r, a: kf([0, 0.95], [0.5, 0.8], [1, 0, inQ]) }); } // (seen from its first frame: a hit-stop holds it as it is)
     });
     this.onClock(r, T.startup + (h1 + h2) / 2, () => { const f = foe(); // the converge: five steel tracks closing on him
-      for (let k = 0; k < 5; k++) this.line('as-trail', f.x + Math.cos(ang(k)) * RAD, f.y + Math.sin(ang(k)) * RAD * 0.7, f.x, f.y, 5, 200, { tint: STEEL, run: r, a: kf([0, 0], [0.2, 1], [1, 0, inQ]) });
+      for (let k = 0; k < 5; k++) this.line('as-trail', f.x + Math.cos(ang(k)) * RAD, f.y + Math.sin(ang(k)) * RAD * 0.7, f.x, f.y, 5, 200, { tint: STEEL, run: r, a: kf([0, 0.9], [0.3, 1], [1, 0, inQ]) });
     });
     this.onClock(r, T.startup + h2, () => { const f = foe(); // five crossed cuts at once; then the five fly home, the hand star caught
       for (let k = 0; k < 5; k++) this.spr({ name: 'as-x', x: f.x, y: f.y, depth: TOP + 4, w: 78, life: 230, run: r, tint: GLINT, glow: 0.3, add: true, angle: k * 36,
-        sx: kf([0, 0.4], [0.25, 1.1, out3], [1, 1.2]), sy: kf([0, 0.4], [0.25, 1.1, out3], [1, 1.2]), a: kf([0, 1], [0.5, 0.9], [1, 0, inQ]) });
+        sx: kf([0, 0.8], [0.25, 1.1, out3], [1, 1.2]), sy: kf([0, 0.8], [0.25, 1.1, out3], [1, 1.2]), a: kf([0, 1], [0.5, 0.9], [1, 0, inQ]) });
       this.flash(f.x, f.y, 76, { life: 210 }); this.dust(f.x, f.fy, 110); this.ctx.punch(0.03, 190); this.shake(r, 220, 0.005);
       const CATCH: [number, number] = [36, 132]; // (his hand in the catch: the last frame of the move)
       for (let k = 0; k < 5; k++) {
