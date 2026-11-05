@@ -51,6 +51,7 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 - Checked: PVP 3D probes of the four on the partner (each mark, snap, chevron, spend, stake and charge; the wall crash; 0
   errors, no 404s); PVP 3D films of each (the reel, sent to David); the open world on a monster (every one unlocked at
   the hero's level lands; 0 errors).
+- Done: 6b86d8feb.
 
 ### DFO (4 Nov, David 14:59) — the styles, step 10: the rest of every style's skills (37 — no template left)
 - **The Deadeye Sniper's five** (GPT's design, scratchpad styles/archer_styles.md): Stockbreaker (the rifle butt driven
