@@ -31,6 +31,17 @@ The DFO PvP arena dynamics chat is the PvP director: it sets the bar per class, 
 Take the whole PvP up a level in everything — dynamics, skills, effects, hit frames, movement, camera, feel: every hit felt, every class unique and amazing, big moments that look like a cinematic, and reasons to keep playing.
 
 ## Open items
+### DFO (5 Nov) — the styles' bodies: PixVerse moves in place of the GPT sheets, a clip a day
+- PixVerse's free credits are back: 30 a day (+ 6 left over) — a 5 s clip costs 20 at 360p, 30 at 540p, 40 at 720p (no
+  audio), so one 540p clip a day. The styles made while it had none move from GPT sprite sheets (a 5-frame idle playing at
+  15 fps trembles): the Sailwright, the Conductor and the Duelist (idle, walk, run, jump, knockdown), the Warden (run, jump,
+  knockdown — his green inputs `refs/warrior_siege_jump_green.jpg` / `_hit_green.jpg` are ready).
+- **Done:** the Duelist's idle (bfe9c2cc7) — 25 painted frames from `refs/gambler_radiant_green.jpg` (his approved look),
+  the loop cut where it flows back into itself, scaled to his old idle's height so his other moves still match. Next, a
+  clip a day: the Sailwright's idle, the Conductor's idle, then the walks, then the Warden's run / jump / knockdown.
+- For the prompts: in this clip the green faded to a pale blue after 2.5 s (only the first 60 frames key) — say the
+  background stays the same pure green all through, and put "background colour change, fade" in the negative.
+
 ### DFO (4 Nov, David 14:59) — the styles, step 11: each style's own mechanic (the Polarity, the Tack, the House Edge, the Gate Pressure)
 - **GPT's four mechanics, in the game** (`src/skills/StyleMechanics.ts`; which strikes feed or spend them: the kits):
   the Fulminant Conductor's **Polarity** (every strike + or −: a + hit marks the foe — two tiny blue teeth beside his torso,
