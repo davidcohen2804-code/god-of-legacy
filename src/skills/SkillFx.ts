@@ -2484,6 +2484,21 @@ export class SkillFx {
   gambleFollow(skill: string, id: string, hit: number, by?: string): void { this.gamb.follow(skill, id, hit, by); }
   cheatDeath(x: number, y: number): void { this.gamb.cheatDeath(x, y); }
   archerMark(id: string, n: number, ms: number): void { this.arch.mark(id, n, ms, () => this.targetPos?.(id) ?? null); }
+  /** The styles' mechanics on a foe (`key`: attacker>target): the Conductor's Polarity mark on his attacker's side, its snap;
+   *  the Sailwright's chevrons, one spent. */
+  polarMark(key: string, target: string, attacker: string, ms: number): void { this.light.polarMark(key, ms, () => this.targetPos?.(target) ?? null, () => this.sideOf(attacker, target)); }
+  polarSnap(key: string, target: string): void { this.light.polarSnap(key, () => this.targetPos?.(target) ?? null); }
+  polarClear(key: string): void { this.light.polarClear(key); }
+  tackMark(key: string, target: string, attacker: string, n: number, ms: number): void { this.wind.tackMark(key, n, ms, () => this.targetPos?.(target) ?? null, () => this.sideOf(attacker, target)); }
+  tackSpend(key: string, target: string, left: number): void { this.wind.tackSpend(key, left, () => this.targetPos?.(target) ?? null); }
+  tackClear(key: string): void { this.wind.tackClear(key); }
+  /** Each frame, for each fighter: his style's count beside him (the Duelist's facets, the Warden's gate charges; none: hidden). */
+  styleMeter(id: string, kind: 'facets' | 'gate' | null, n: number, at: (V3 & { h?: number }) | null, face: number): void {
+    this.duel.meter(id, kind === 'facets' ? n : 0, at, face);
+    this.ward.meter(id, kind === 'gate' ? n : 0, at, face);
+  }
+  /** Which side of `target` his attacker stands on (−1 left, 1 right). */
+  private sideOf(attacker: string, target: string): number { const a = this.casterPos(attacker), t = this.targetPos?.(target); return a && t && a.x < t.x ? -1 : 1; }
   archerMarkSpend(id: string, n: number, _kind: string): void { this.arch.markSpend(id, n, () => this.targetPos?.(id) ?? null); }
 
   private stepHawks(ms: number): void {

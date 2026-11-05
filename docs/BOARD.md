@@ -31,6 +31,27 @@ The DFO PvP arena dynamics chat is the PvP director: it sets the bar per class, 
 Take the whole PvP up a level in everything — dynamics, skills, effects, hit frames, movement, camera, feel: every hit felt, every class unique and amazing, big moments that look like a cinematic, and reasons to keep playing.
 
 ## Open items
+### DFO (4 Nov, David 14:59) — the styles, step 11: each style's own mechanic (the Polarity, the Tack, the House Edge, the Gate Pressure)
+- **GPT's four mechanics, in the game** (`src/skills/StyleMechanics.ts`; which strikes feed or spend them: the kits):
+  the Fulminant Conductor's **Polarity** (every strike + or −: a + hit marks the foe — two tiny blue teeth beside his torso,
+  on the Conductor's side; a − hit snaps the mark: one brief spark, he is held a beat longer or caught in the air), the
+  Sailwright's **Tack** (some hits leave a pale-mint chevron on the foe, two at most; Luff Step, Cut Across and Slipwake with
+  Up / Down held spend one: a mint chevron points his new angle, he cuts across the depth), the Radiant Duelist's **House
+  Edge** (gold facets beside him — the foe sees them — earned by a blow at the far end of a staff strike's reach or a Read
+  the Room catch; All In stakes them all: its grip lights a setting for each, the thrust reaches further, and a hit at its
+  tip launches, relaunches, relaunches high and harder) and the Siege Warden's **Gate Pressure** (ivory portcullis teeth
+  beside him, two at most: a Threshold Check that lands, a Sentry Catch that catches; spent by Lion's Clamp, Rivet Drive and
+  Royal Portcullis for their better effect — one ivory spark off the locked gate).
+- Numbers: BALANCE_LOG (2026-11-05, the styles' mechanics). The marks go when their fighter leaves the style; the facets
+  stay, unused, in the card style.
+- The engine: a cast may carry the mechanic it spent (`CastRequest.style`; its HP report tells the attacker what the hit
+  did, `sm`; a fighter's state carries his facets / charges, `sr`); a shove into a real wall crashes him off it (Reaction
+  `wall`, Combat's WALL CRASH — Rivet Drive's, as its description said); a far player's four-beat chain plays its fourth beat.
+- On the way: the Duelist's staff strikes no longer step in toward the foe — the House Edge is about spacing.
+- Checked: PVP 3D probes of the four on the partner (each mark, snap, chevron, spend, stake and charge; the wall crash; 0
+  errors, no 404s); PVP 3D films of each (the reel, sent to David); the open world on a monster (every one unlocked at
+  the hero's level lands; 0 errors).
+
 ### DFO (4 Nov, David 14:59) — the styles, step 10: the rest of every style's skills (37 — no template left)
 - **The Deadeye Sniper's five** (GPT's design, scratchpad styles/archer_styles.md): Stockbreaker (the rifle butt driven
   into a foe too close), Kneecap Round (a low shot at the legs that stops an advance), Steady Chamber (a copper glint

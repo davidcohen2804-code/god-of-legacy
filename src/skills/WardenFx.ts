@@ -67,6 +67,12 @@ function textures(s: Phaser.Scene): void {
       g.beginPath(); g.moveTo(64, 24); const mx = 64 + Math.cos(a) * L * 0.5 + (k % 2 ? 4 : -4), my = 24 + Math.sin(a) * L * 0.18; g.lineTo(mx, my); g.lineTo(64 + Math.cos(a) * L, 24 + Math.sin(a) * L * 0.36); g.stroke(); }
     g.fillStyle = 'rgba(30,22,18,0.6)'; g.beginPath(); g.ellipse(64, 24, 12, 5, 0, 0, Math.PI * 2); g.fill();
   });
+  mk('wd-tooth', 20, 24, (g) => { // a gate charge (Gate Pressure): one blunt portcullis tooth, ivory on iron
+    g.beginPath(); g.moveTo(2, 2); g.lineTo(18, 2); g.lineTo(15, 17); g.lineTo(10, 22); g.lineTo(5, 17); g.closePath();
+    const gr = g.createLinearGradient(0, 0, 0, 24); gr.addColorStop(0, 'rgba(255,249,232,1)'); gr.addColorStop(1, 'rgba(208,190,152,1)');
+    g.fillStyle = gr; g.fill(); g.strokeStyle = 'rgba(46,50,58,1)'; g.lineWidth = 1.7; g.stroke();
+    g.fillStyle = 'rgba(255,255,255,0.9)'; g.fillRect(5, 4, 3, 7);
+  });
   mk('wd-dust', 64, 64, (g) => { const gr = g.createRadialGradient(32, 32, 0, 32, 32, 30); gr.addColorStop(0, 'rgba(204,190,176,0.6)'); gr.addColorStop(0.6, 'rgba(186,172,160,0.24)'); gr.addColorStop(1, 'rgba(170,160,150,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); });
 }
 
@@ -81,6 +87,8 @@ interface Live { t: number; step(dt: number, t: number): boolean }
 export class WardenFx {
   private live: Live[] = [];
   private incoming: Live[] = [];
+  /** The Gate Pressure's charges beside each Warden (his id): their pictures. */
+  private teethArt = new Map<string, Phaser.GameObjects.Image[]>();
   constructor(private ctx: WardenCtx) {}
 
   // ------------------------------------------------------------------ the piece system
@@ -166,6 +174,7 @@ export class WardenFx {
       return;
     }
     const hitAt = (i: number) => T.startup + (r.hits[i]?.at ?? 0);
+    if (r.style?.gate) this.onClock(r, T.startup * 0.5, () => { const g = this.gate(r); this.flash(g.x, g.y - 18, 30, { run: r, life: 120 }); this.sparks(g.x, g.y - 18, 3, { run: r, up: true }); }); // (a gate charge spent: its better effect — one ivory spark off the locked gate)
     switch (key) {
       case 'ws_four_beat': // Iron Knuckle: THUNK — the gate punched out
         this.onClock(r, hitAt(0), () => { const g = this.gate(r); this.flash(g.x + side * 8, g.y, 28, { run: r }); });
@@ -287,6 +296,19 @@ export class WardenFx {
   }
 
   // ------------------------------------------------------------------ frame
+
+  /** The Gate Pressure's charges beside him, every frame: one ivory portcullis tooth each, side by side at his back
+   *  shoulder, the newest popping in; none, or no body: gone. */
+  meter(id: string, n: number, at: (V3 & { h?: number }) | null, face: number): void {
+    const s = this.ctx.scene, want = at ? Math.max(0, Math.min(2, n)) : 0;
+    let ims = this.teethArt.get(id);
+    if (!ims) { if (!want) return; textures(s); ims = []; this.teethArt.set(id, ims); }
+    while (ims.length > want) ims.pop()!.destroy();
+    while (ims.length < want) { const im = s.add.image(0, 0, 'wd-tooth').setDisplaySize(12, 14); ims.push(im); s.tweens.add({ targets: im, scaleX: im.scaleX * 1.7, scaleY: im.scaleY * 1.7, duration: 110, yoyo: true }); }
+    if (!at || !ims.length) { this.teethArt.delete(id); return; }
+    const h = at.h ?? 124, x = at.x - face * 30, y = at.y - at.z - h * 0.8;
+    ims.forEach((im, i) => im.setPosition(x + (i - (ims!.length - 1) / 2) * 13, y).setDepth(at.y + 6));
+  }
 
   update(dt: number): void {
     const cur = this.live.concat(this.incoming);

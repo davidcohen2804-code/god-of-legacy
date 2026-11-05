@@ -4,6 +4,7 @@
 import Phaser from 'phaser';
 import { FinalSkill, HitEvent } from './SkillTypes';
 import { HitTarget, Projectile, V2, V3, burstTargets, clampAim, chainTargets, fanDirs, nextPid, shapeContains, spawnProjectile, stepProjectile } from './HitGeometry';
+import { HOUSE, TACK } from './StyleMechanics';
 
 export type Phase = 'startup' | 'active' | 'recovery' | 'done';
 
@@ -37,6 +38,10 @@ export interface CastRequest {
   /** More shots from the cast's first projectile hit, set at the cast by the class's own logic (the Book Mage's folded pages:
    *  Origami Flock's extra cranes); the same on both screens. */
   extraShots?: number;
+  /** A style mechanic's resource the cast spent at its start (StyleMechanics; its caster's screen decides, a remote cast
+   *  carries it): the Sailwright's Tack (the side it cuts across the depth to: ±1), the Duelist's facets staked (0–3), the
+   *  Warden's gate charge. */
+  style?: { tack?: number; facets?: number; gate?: boolean };
 }
 
 export interface CastRun extends CastRequest {
@@ -80,6 +85,12 @@ export interface CastRun extends CastRequest {
   /** A hold that follows its foe (`linger.at: 'target'`): how many turns this cast's hold strikes (set at the cast by the
    *  class's own logic — the Gambler's gathered cards; the same on both screens); default the linger's `count`. */
   holdCount?: number;
+  /** Own cast: a blow of it landed for real (not on a guard) — the scene's confirm. */
+  landed?: boolean;
+  /** Own All In: its stake was judged at the end (HOUSE: 2–3 facets staked on a miss cost recovery). */
+  staked?: boolean;
+  /** Own cast: it landed, but links into nothing (All In short of its tip: the plain thrust — no cancel, no switch off it). */
+  noLink?: boolean;
 }
 
 export interface Trap { run: CastRun; hit: HitEvent; x: number; y: number; until: number; radius: number; fuseAt?: number }
@@ -174,12 +185,15 @@ export class SkillRuntime {
     req = { ...req, aim: clampAim(req.aim) }; // no straight up / down attacks, for every caster
     const s = req.skill;
     const timings = { ...(s.chain?.timings?.[req.stage] ?? { startup: s.startup, active: s.active, recovery: s.recovery }) };
-    let hits = s.chain ? s.chain.stages[req.stage] : s.hits;
+    let hits = s.chain ? s.chain.stages[req.stage] : req.style?.gate && s.charged ? s.charged : s.hits; // (a gate charge spent: the Warden's better effect)
+    const stake = req.style?.facets !== undefined && s.stakes ? s.stakes[Math.max(0, Math.min(s.stakes.length - 1, req.style.facets))] : null;
+    if (stake) hits = hits.map((h) => (h.shape.kind === 'line' ? { ...h, shape: { ...h.shape, length: stake.length } } : h)); // (All In: the more he stakes, the further the thrust)
     const ts = this.world.timeScale?.(req);
     if (ts) {
       timings.startup = Math.round(timings.startup * ts.startup); timings.active = Math.round(timings.active * ts.active); timings.recovery = Math.round(timings.recovery * ts.recovery);
       hits = arenaReach(hits.map((h) => ({ ...h, at: Math.round(h.at * ts.at) })), ts);
     }
+    if (req.style?.tack) hits = hits.map((h) => (h.shape.kind === 'projectile' ? h : { ...h, ...(h.depth !== undefined ? { depth: h.depth + TACK.depth } : {}), ...(h.shape.kind === 'line' ? { shape: { ...h.shape, width: h.shape.width + 2 * TACK.depth } } : {}) })); // (a tack spent: the cut 10 px deeper either side)
     const sp = this.world.speedMul?.(req) ?? 1;
     if (sp !== 1) { timings.startup = Math.round(timings.startup / sp); timings.recovery = Math.round(timings.recovery / sp); }
     if (sp >= 2) { timings.active = Math.max(40, Math.round(timings.active / sp)); hits = hits.map((h) => ({ ...h, at: Math.round(h.at / sp) })); } // a big haste (Radiant Blade): the strike itself is faster too
@@ -338,6 +352,7 @@ export class SkillRuntime {
       r.phase = 'recovery';
       this.world.onPhase?.(r, 'recovery');
     }
+    if (r.phase === 'recovery' && r.elapsed >= SkillRuntime.lockOf(r) && r.own && !r.staked && (r.style?.facets ?? 0) >= 2 && !r.landed) { r.staked = true; r.extraRecovery += HOUSE.whiffMs; } // (All In: 2–3 facets staked and nothing landed — judged at its end, when the far screen's answer is in)
     if (r.phase === 'recovery' && r.elapsed >= SkillRuntime.lockOf(r)) {
       r.phase = 'done';
       this.events.emit(RT_EVENTS.end, r);

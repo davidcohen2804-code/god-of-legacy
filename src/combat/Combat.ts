@@ -391,6 +391,8 @@ export class CombatBody {
   bounce = false;
   /** A drive (`fly`) is carrying him: if a wall stops it dead he crashes into it (WALL CRASH) and comes off it once. */
   private wallReady = false;
+  /** A shove into a real wall (Reaction `wall`) is carrying him: the same WALL CRASH, off a standing shove or a launch. */
+  private wallShove = false;
   /** The push the last update ran (a new push has not moved him yet: no wall to judge by). */
   private lastPush: { vx: number; vy: number; left: number; skid?: number } | null = null;
   /** Max HP of this body (damage gauges are fractions of it). */
@@ -524,7 +526,7 @@ export class CombatBody {
       else if (pushPx < 0) pushPx = Math.max(pushPx, -Math.max(0, d - PULL_GAP)); // a pull draws him in, never through the puller to his back (the next blow in front would miss), nor into his body (PULL_GAP)
       if (this.arena && pushPx > 0) { dx = Math.sign(k.x - from.x) || (dx < 0 ? -1 : 1); dy = 0; } // the arena: knocked straight back along the line (a combo stays on one line)
       if (pushPx > 0 && this.kbResist > 0 && Math.random() < this.kbResist) this.stanceAt = now; // stance: not pushed back
-      else if (pushPx !== 0) { const pm = R.yank !== undefined ? 60 : kick ? THROWN.kickMs : pushPx < 0 && R.pullMs ? R.pullMs : 110; out.pushX = dx * pushPx; out.pushY = dy * pushPx; this.push = { vx: out.pushX / pm, vy: out.pushY / pm, left: pm, skid: kick ? THROWN.skidMs : 0 }; } // (a yank snaps in fast)
+      else if (pushPx !== 0) { const pm = R.yank !== undefined ? 60 : kick ? THROWN.kickMs : pushPx < 0 && R.pullMs ? R.pullMs : 110; out.pushX = dx * pushPx; out.pushY = dy * pushPx; this.push = { vx: out.pushX / pm, vy: out.pushY / pm, left: pm, skid: kick ? THROWN.skidMs : 0 }; this.wallShove = !!R.wall && pushPx > 0; } // (a yank snaps in fast) (a shove into a real wall: WALL CRASH)
       if (R.lane && R.yank === undefined) { // drawn across the floor's depth toward the attacker's line (into the middle lane)
         const dyl = from.y - k.y, m = Math.sign(dyl) * Math.min(R.lane, Math.abs(dyl));
         if (m) { const P = this.push, pm = P && P.left > 0 ? P.left : 110; this.push = { vx: P && P.left > 0 ? P.vx : 0, vy: (P && P.left > 0 ? P.vy : 0) + m / pm, left: pm, skid: P?.skid ?? 0 }; out.pushY += m; }
@@ -683,11 +685,12 @@ export class CombatBody {
   update(now: number, ms: number, landed: boolean, impactVz: number): 'land' | 'kdImpact' | 'getupDone' | 'wallCrash' | null {
     const k = this.kin;
     let crash = false;
-    if (this.wallReady && this.push && this.push === this.lastPush && this.state === 'knockdown' && !k.grounded && Math.abs(this.push.vx) > 0.12 && k.vx === 0) { // (still in the air: a knockdown off the floor flies in its 'impact' phase)
+    const shoved = this.wallShove && ((k.grounded && this.state === 'hitstun') || (!k.grounded && this.state === 'launched')); // (the Siege Warden's shove: standing or thrown up, a wall stops it dead)
+    if ((this.wallReady || shoved) && this.push && this.push === this.lastPush && (shoved || (this.state === 'knockdown' && !k.grounded)) && Math.abs(this.push.vx) > 0.12 && k.vx === 0) { // (still in the air: a knockdown off the floor flies in its 'impact' phase)
       // WALL CRASH (David 4 Nov 14:59: the Sniper's held shot throws him into the wall and the rifle keeps hitting him): the
       // drive stopped dead by a wall — he slams into it, pops off it and drops, and bounces off the floor once (the
       // ground bounce: launched, juggleable) — still in the combo; hits on the way down count
-      this.wallReady = false; crash = true;
+      this.wallReady = false; this.wallShove = false; crash = true;
       this.push = { vx: -this.push.vx * 0.3, vy: -this.push.vy * 0.3, left: 220 };
       k.grounded = false; k.vz = Math.max(k.vz, 140); this.state = 'knockdown'; this.kdPhase = 'fall';
       this.bounce = this.airOver(now) < 1; this.stateEnd = Math.max(this.stateEnd, now + 420);
@@ -702,6 +705,7 @@ export class CombatBody {
       }
     }
     this.lastPush = this.push;
+    if (!this.push) this.wallShove = false; // (the shove ran out short of a wall)
     let ev: 'land' | 'kdImpact' | 'getupDone' | 'wallCrash' | null = crash ? 'wallCrash' : null;
     if (landed) this.wallReady = false;
     if (now - this.lastHitAt > GAUGE.resetMs && this.state === 'free') this.gauge = { stand: 0, air: 0, down: 0 };

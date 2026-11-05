@@ -1629,8 +1629,9 @@ const siege: FinalSkill[] = [
     startup: D(105), active: D(65), recovery: D(190), cooldown: 4000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
     dash: { distance: 70, gap: 66 }, // (a shoulder-first lunge behind the closed gate: it stops where the shield meets him)
     hits: [H(D(30), 9, { kind: 'sector', range: 90, angle: 100 }, { stun: D(330), push: 30, juggleCost: 8 }, { reachUp: 90 })],
+    earns: 'gate', // (it lands: a gate charge — Gate Pressure)
     cancelOnHit: ['ws_lions_clamp', 'ws_drawbridge_lift'],
-    description: 'A body check behind the closed shield: he lunges in shoulder-first and the gate hits him flat, staggering him back.',
+    description: 'A body check behind the closed shield: he lunges in shoulder-first and the gate hits him flat, staggering him back. A hit earns a gate charge (2 at most, 6 s).',
     relations: ['Opener', 'Into the clamp or the lift'],
   }),
   S({
@@ -1638,16 +1639,18 @@ const siege: FinalSkill[] = [
     startup: D(75), active: D(160), recovery: D(300), cooldown: 11000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
     counter: { window: 160, sidestep: 0, behind: 0 }, // (the wings held open in a V for 160 ms: a blow from the front is caught between them)
     hits: [H(0, 12, { kind: 'sector', range: 100, angle: 110 }, { stun: D(420), pull: 35, juggleCost: 10 }, { reachUp: 120, heavy: true })], // (then snapped shut on the striker: he is stunned and drawn in)
+    earns: 'gate', // (a blow caught: a gate charge — Gate Pressure)
     cancelOnHit: ['ws_lions_clamp', 'ws_drawbridge_lift'],
-    description: 'The gate opens into a V for a moment: a blow from the front is caught between the wings — they snap shut on the striker, stun him and draw him in.',
+    description: 'The gate opens into a V for a moment: a blow from the front is caught between the wings — they snap shut on the striker, stun him and draw him in. A blow caught earns a gate charge.',
     relations: ['Counter', 'Draws the striker in'],
   }),
   S({
     id: 'ws_lions_clamp', cls: 'warrior', style: 'siege', slot: 3, name: "Lion's Clamp", roles: ['pull', 'confirm'], targeting: 'aimAssist',
     startup: D(125), active: D(105), recovery: D(245), cooldown: 8000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
     hits: [H(D(50), 11, { kind: 'sector', range: 110, angle: 110 }, { stun: D(420), pull: 35, pin: D(180), juggleCost: 12 }, { reachUp: 150 })], // (the wings close round him: on the floor or low in the air, held a beat)
+    spends: 'gate', charged: [H(D(50), 11, { kind: 'sector', range: 110, angle: 110 }, { stun: D(420), pull: 35, pin: D(300), juggleCost: 12 }, { reachUp: 150 })], // (a gate charge: held 300 ms)
     cancelOnHit: ['ws_drawbridge_lift', 'ws_anvil_drop', 'ws_royal_portcullis'],
-    description: 'The two wings swing out round him and bite shut like a lion\'s jaws: he is dragged in and held a beat — on the floor or low in the air.',
+    description: 'The two wings swing out round him and bite shut like a lion\'s jaws: he is dragged in and held a beat — on the floor or low in the air. A gate charge: held longer.',
     relations: ['Catch', 'Holds him a beat'],
   }),
   S({
@@ -1662,9 +1665,10 @@ const siege: FinalSkill[] = [
     id: 'ws_rivet_drive', cls: 'warrior', style: 'siege', slot: 5, name: 'Rivet Drive', roles: ['peel', 'finisher'], targeting: 'mouseDir',
     startup: D(175), active: D(110), recovery: D(350), cooldown: 10000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
     dash: { distance: 110 }, // (braced behind the locked gate, he drives forward — stopped by the foe's body, he shoves from there)
-    hits: [H(D(95), 16, { kind: 'sector', range: 125, angle: 70 }, { stun: D(520), push: 135, juggleCost: 17 }, { reachUp: 120, heavy: true })], // (the shove at the end of the drive: up to ~235 px from where he started, thrown back across the floor)
+    hits: [H(D(95), 16, { kind: 'sector', range: 125, angle: 70 }, { stun: D(520), push: 135, wall: true, juggleCost: 17 }, { reachUp: 120, heavy: true })], // (the shove at the end of the drive: up to ~235 px from where he started, thrown back across the floor — into a real wall, off it)
+    spends: 'gate', charged: [H(D(95), 16, { kind: 'sector', range: 125, angle: 70 }, { stun: D(520), push: 170, wall: true, juggleCost: 17 }, { reachUp: 120, heavy: true })], // (a gate charge: shoved 35 px further)
     cancelOnHit: ['ws_royal_portcullis', 'ws_crossbar_sweep'],
-    description: 'The gate locked in front of him, a braced shove: he drives forward and throws whoever he meets back across the floor — into a wall, they bounce off it.',
+    description: 'The gate locked in front of him, a braced shove: he drives forward and throws whoever he meets back across the floor — into a wall, they bounce off it. A gate charge: shoved further.',
     relations: ['Drive', 'Throws back'],
   }),
   S({
@@ -1675,8 +1679,12 @@ const siege: FinalSkill[] = [
       H(D(70), 8, { kind: 'sector', range: 130, angle: 130 }, { stun: D(520), pull: 30, pin: D(240), juggleCost: 8 }, { reachUp: 180 }), // the gate snaps shut on him
       H(D(200), 18, { kind: 'sector', range: 120, angle: 120 }, { stun: D(650), launch: 90, juggleCost: 19 }, { reachUp: 200, heavy: true }), // and drives up, locked
     ],
+    spends: 'gate', charged: [ // (a gate charge: the locked gate shoves him 80 px on as it drives him up — into a real wall, off it)
+      H(D(70), 8, { kind: 'sector', range: 130, angle: 130 }, { stun: D(520), pull: 30, pin: D(240), juggleCost: 8 }, { reachUp: 180 }),
+      H(D(200), 18, { kind: 'sector', range: 120, angle: 120 }, { stun: D(650), launch: 90, push: 80, wall: true, juggleCost: 19 }, { reachUp: 200, heavy: true }),
+    ],
     tags: ['signature'],
-    description: 'His signature: the gate opens wide, he advances, it snaps shut on the foe like a portcullis — then the locked gate is driven straight up, throwing him high.',
+    description: 'His signature: the gate opens wide, he advances, it snaps shut on the foe like a portcullis — then the locked gate is driven straight up, throwing him high. A gate charge: the gate shoves him on as it drives him up — into a wall, he bounces off it.',
     relations: ['Signature', 'Shut, then up'],
   }),
   S({
@@ -1765,7 +1773,7 @@ const radiant: FinalSkill[] = [
     startup: D(160), active: D(65), recovery: D(210), cooldown: 5000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
     hits: [H(D(20), 8, RLINE(160, 20), { stun: D(320), push: 18, juggleCost: 8 }, { reachUp: 100 })], // (a foot slide, the crown snapped straight at the chest)
     cancelOnHit: ['rd_crown_raise'],
-    description: 'A foot slide and the spade crown snaps straight out at his chest — a long, exact poke: your opener.',
+    description: 'A foot slide and the spade crown snaps straight out at his chest — a long, exact poke: your opener. A blow at the far end of its reach is a Clean Read: a gold facet (3 at most — any staff blow of his can earn one, once a skill).',
     relations: ['Opener', 'Into Crown Raise'],
   }),
   S({
@@ -1804,10 +1812,19 @@ const radiant: FinalSkill[] = [
   S({
     id: 'rd_all_in', cls: 'gambler', style: 'radiant', slot: 6, name: 'All In: Called Crown', roles: ['signature', 'precision'], targeting: 'aimAssist',
     startup: D(280), active: D(65), recovery: D(385), cooldown: 18000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
-    hits: [H(0, 17, RLINE(190, 22), { stun: D(650), push: 70, juggleCost: 16 }, { reachUp: 120, heavy: true })], // (the unstaked bet — "Probe": a strong stagger; the House Edge's facets are to come)
-    cancelOnHit: ['rd_curtain_call'],
+    hits: [H(0, 17, RLINE(190, 22), { stun: D(650), push: 70, juggleCost: 16 }, { reachUp: 120, heavy: true })], // (the plain thrust: a strong stagger)
+    // the House Edge (GPT): every facet he has is staked at its start — the thrust reaches further for each, and a hit with the
+    // foe in the outer quarter of its final reach pays: 0 Probe (the strong stagger), 1 Even Money (a horizontal launch), 2
+    // Raise (a vertical relaunch), 3 All In (a high relaunch, harder); short of the tip, only the plain thrust
+    spends: 'facets', stakes: [
+      { length: 190, tip: { stun: D(650), push: 70, juggleCost: 16 } },
+      { length: 205, tip: { stun: D(650), push: 120, launch: 40, juggleCost: 18 } },
+      { length: 220, tip: { stun: D(700), launch: 100, juggleCost: 20 } },
+      { length: 235, tip: { stun: D(750), launch: 135, juggleCost: 24 }, dmg: 1.35 },
+    ],
+    cancelOnHit: ['rd_high_stakes', 'rd_curtain_call'], // (on a tip hit only)
     tags: ['signature'],
-    description: 'His signature: the staff level, the grip turned slowly through his palms, a confident nod — then one extraordinarily straight crown thrust. He has told you exactly what is coming.',
+    description: 'His signature: the staff level, the grip turned slowly through his palms, a confident nod — then one extraordinarily straight crown thrust. He has told you exactly what is coming. Every facet he holds is staked on it: the thrust reaches further for each — and a hit at its very tip pays: a horizontal launch, a relaunch, a high relaunch that hits harder. Staked and missed: he is open longer.',
     relations: ['Signature', 'Telegraphed thrust'],
   }),
   S({
@@ -1825,8 +1842,9 @@ const radiant: FinalSkill[] = [
     startup: D(95), active: D(110), recovery: D(310), cooldown: 13000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
     counter: { window: 110, sidestep: 0, behind: 0 }, // (the staff held diagonally across him for 110 ms: he reads the blow)
     hits: [H(0, 10, { kind: 'sector', range: 110, angle: 90 }, { stun: D(450), push: 20, juggleCost: 10 }, { reachUp: 130 })], // (a swift ferrule counter)
+    earns: 'facets', // (a blow read: an Odds Facet — the House Edge)
     cancelOnHit: [],
-    description: 'The staff held across him for a heartbeat: he reads a blow coming from the front and answers it with a swift ferrule strike that stuns the striker.',
+    description: 'The staff held across him for a heartbeat: he reads a blow coming from the front and answers it with a swift ferrule strike that stuns the striker. A blow read earns a gold facet.',
     relations: ['Counter'],
   }),
   S({
@@ -1875,25 +1893,25 @@ const wind: FinalSkill[] = [
   S({
     id: 'mw_four_beat', cls: 'book_mage', style: 'wind', slot: 0, name: 'Four-Beat Airfoil', roles: ['basic', 'confirm'], targeting: 'aimAssist',
     startup: D(120), active: D(60), recovery: D(145), cooldown: 0, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
-    hits: [H(0, 6, RLINE(120, 18), { stun: D(240), push: 6, juggleCost: 4 }, { reachUp: 100 })],
+    hits: [H(0, 6, RLINE(120, 18), { stun: D(240), push: 6, juggleCost: 4 }, { reachUp: 100, tack: true })],
     // point — reverse point — opening fan — upward closing snap: the folded fan's tip pricked in, its back edge whipped
     // across, the fan flared open upward through him, snapped shut on the way up
     chain: { resetMs: 700, stages: [
-      [H(0, 6, RLINE(120, 18), { stun: D(240), push: 6, juggleCost: 4 }, { reachUp: 100 })], // Fan Prick: the folded tip pricked straight in (his painted fan reaches 146 px)
+      [H(0, 6, RLINE(120, 18), { stun: D(240), push: 6, juggleCost: 4 }, { reachUp: 100, tack: true })], // Fan Prick: the folded tip pricked straight in (his painted fan reaches 146 px) — a tack
       [H(0, 7, RLINE(115, 22), { stun: D(280), push: 12, juggleCost: 5 }, { reachUp: 110 })], // Wane Backhand: the reverse edge
-      [H(0, 8, RLINE(130, 28), { stun: D(330), push: 10, juggleCost: 7 }, { reachUp: 130 })], // Rib Rake: the fan flared open, swept upward
+      [H(0, 8, RLINE(130, 28), { stun: D(330), push: 10, juggleCost: 7 }, { reachUp: 130, tack: true })], // Rib Rake: the fan flared open, swept upward — a tack
       [H(0, 11, RLINE(145, 24), { stun: D(500), launch: 60, juggleCost: 12 }, { reachUp: 150, heavy: true })], // Keel Flick: snapped shut on the way up, a short hop-launch
     ], timings: [{ startup: D(120), active: D(60), recovery: D(145) }, { startup: D(125), active: D(65), recovery: D(150) }, { startup: D(145), active: D(75), recovery: D(165) }, { startup: D(180), active: D(70), recovery: D(220) }] },
     cancelOnHit: ['mw_sail_edge', 'mw_updraft_hook', 'mw_windward_spike'],
-    description: 'Tap or hold Space: the folded fan pricked in, its back edge whipped across, the fan flared open upward through the foe — then snapped shut on the way up, lifting him.',
+    description: 'Tap or hold Space: the folded fan pricked in, its back edge whipped across, the fan flared open upward through the foe — then snapped shut on the way up, lifting him. The prick and the rake leave a pale chevron on him (2 at most).',
     relations: ['4-beat chain', 'Cancel into a skill on hit'],
   }),
   S({
     id: 'mw_sail_edge', cls: 'book_mage', style: 'wind', slot: 1, name: 'Sail Edge', roles: ['confirm', 'airExtender'], targeting: 'aimAssist',
     startup: D(155), active: D(85), recovery: D(210), cooldown: 3500, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
-    hits: [H(D(25), 9, RLINE(155, 22), { stun: D(330), push: 20, juggleCost: 8 }, { reachUp: 150 })], // (one pale pressure blade flung off the open fan's rim: a stagger, a foe in the air carried on)
+    hits: [H(D(25), 9, RLINE(155, 22), { stun: D(330), push: 20, juggleCost: 8 }, { reachUp: 150, tack: true })], // (a tack: one pale pressure blade flung off the open fan's rim: a stagger, a foe in the air carried on)
     cancelOnHit: ['mw_updraft_hook', 'mw_cut_across'],
-    description: 'The fan flicked open: one thin pressure blade leaves its rim — the foe staggers, and one in the air is carried on.',
+    description: 'The fan flicked open: one thin pressure blade leaves its rim — the foe staggers, and one in the air is carried on. It leaves a pale chevron on him.',
     relations: ['Confirm', 'Air carry'],
   }),
   S({
@@ -1901,8 +1919,9 @@ const wind: FinalSkill[] = [
     startup: D(145), active: D(70), recovery: D(185), cooldown: 5000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
     dash: { distance: 40 }, // (a step along the aim — toward a corner to cross the depth)
     hits: [H(D(20), 8, { kind: 'sector', range: 120, angle: 90 }, { stun: D(300), push: 25, juggleCost: 7 }, { reachUp: 110 })], // (one diagonal cut as he steps, a light shove)
+    spends: 'tack', // (Up / Down held: a tack spent for a new angle — the Tack)
     cancelOnHit: [],
-    description: 'A light step aside — toward a corner to cross the floor\'s depth — with one diagonal cut of the fan that shoves him.',
+    description: 'A light step aside — toward a corner to cross the floor\'s depth — with one diagonal cut of the fan that shoves him. Hold Up or Down: a chevron on the foe is spent for a new angle — he cuts across the floor\'s depth, the cut a little wider.',
     relations: ['Reposition'],
   }),
   S({
@@ -1934,9 +1953,10 @@ const wind: FinalSkill[] = [
     id: 'mw_cut_across', cls: 'book_mage', style: 'wind', slot: 6, name: 'Cut Across', roles: ['signature', 'airExtender'], targeting: 'aimAssist',
     startup: D(245), active: D(110), recovery: D(300), cooldown: 14000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
     hits: [H(D(30), 17, RLINE(205, 34), { stun: D(650), launch: 60, push: 45, juggleCost: 18 }, { reachUp: 190, heavy: true })], // (one huge diagonal sail cut, an S of air: the foe popped up and carried across)
+    spends: 'tack', // (Up / Down held: a tack spent for a new angle — the Tack)
     cancelOnHit: ['mw_keel_drop', 'mw_windward_spike'],
     tags: ['signature'],
-    description: 'His signature: the open fan swept through one huge diagonal cut, an S of pale air — the foe is popped up and carried across the lane.',
+    description: 'His signature: the open fan swept through one huge diagonal cut, an S of pale air — the foe is popped up and carried across the lane. Hold Up or Down: a chevron on the foe is spent for a new angle — he cuts across the floor\'s depth, the cut a little wider.',
     relations: ['Signature', 'Air pop', 'Carry'],
   }),
   S({
@@ -1951,9 +1971,9 @@ const wind: FinalSkill[] = [
   S({
     id: 'mw_windward_spike', cls: 'book_mage', style: 'wind', slot: 8, name: 'Windward Spike', roles: ['antiAir', 'extender'], targeting: 'aimAssist',
     startup: D(165), active: D(80), recovery: D(230), cooldown: 8000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
-    hits: [H(D(10), 10, RLINE(100, 30), { stun: D(450), launch: 55, juggleCost: 12 }, { reachUp: 200 })], // (the folded fan in a reverse grip spiked straight up: a foe above is caught and lifted a little)
+    hits: [H(D(10), 10, RLINE(100, 30), { stun: D(450), launch: 55, juggleCost: 12 }, { reachUp: 200, tack: true })], // (a tack: the folded fan in a reverse grip spiked straight up: a foe above is caught and lifted a little)
     cancelOnHit: ['mw_cut_across', 'mw_keel_drop'],
-    description: 'The folded fan turned in a reverse grip and spiked straight up: it meets a foe over him and lifts him a little.',
+    description: 'The folded fan turned in a reverse grip and spiked straight up: it meets a foe over him and lifts him a little. It leaves a pale chevron on him.',
     relations: ['Anti-air', 'Small lift'],
   }),
   S({
@@ -1967,9 +1987,9 @@ const wind: FinalSkill[] = [
   S({
     id: 'mw_tackline_draw', cls: 'book_mage', style: 'wind', slot: 10, name: 'Tackline Draw', roles: ['pull'], targeting: 'aimAssist',
     startup: D(205), active: D(85), recovery: D(265), cooldown: 10000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
-    hits: [H(D(20), 9, RLINE(175, 22), { stun: D(420), pull: 30, juggleCost: 11 }, { reachUp: 130 })], // (a taut line of air hooks him and draws him 30 px in)
+    hits: [H(D(20), 9, RLINE(175, 22), { stun: D(420), pull: 30, juggleCost: 11 }, { reachUp: 130, tack: true })], // (a tack: a taut line of air hooks him and draws him 30 px in)
     cancelOnHit: ['mw_updraft_hook', 'mw_windward_spike'],
-    description: 'A taut line of air hooked into him and hauled in like a sheet: he is drawn toward the fan — into the Updraft Hook.',
+    description: 'A taut line of air hooked into him and hauled in like a sheet: he is drawn toward the fan — into the Updraft Hook. It leaves a pale chevron on him.',
     relations: ['Pull'],
   }),
   S({
@@ -1985,8 +2005,9 @@ const wind: FinalSkill[] = [
     startup: D(135), active: D(75), recovery: D(225), cooldown: 10000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
     dash: { distance: -60 }, // (he slides back out of reach)
     hits: [H(D(20), 8, { kind: 'sector', range: 130, angle: 80 }, { stun: D(320), push: 20, juggleCost: 8 }, { reachUp: 110 })], // (sweeping one compressed edge of air forward as he goes)
+    spends: 'tack', // (Up / Down held: a tack spent for a new angle — the Tack)
     cancelOnHit: ['mw_skimming_edge', 'mw_kite_needle'],
-    description: 'He slides back out of reach, sweeping one compressed edge of air forward to cut a foe who follows.',
+    description: 'He slides back out of reach, sweeping one compressed edge of air forward to cut a foe who follows. Hold Up or Down: a chevron on the foe is spent for a new angle — he cuts across the floor\'s depth, the cut a little wider.',
     relations: ['Escape', 'Punishes a chase'],
   }),
 ];
@@ -1996,55 +2017,56 @@ const wind: FinalSkill[] = [
 // conductor staff crowned by two silver prongs: "he no longer summons lightning — he becomes the circuit". A weapon fighter:
 // fast contacts, narrow and precise depth, burst combos; no chain lightning, no storm field. Range 90–205 (the needle 300).
 // His numbers are GPT's (startup / active / recovery, the reach X, the juggle costs), the live ones its "Polarity execution"
-// (tap → contact → Riser Prong → Probe Jab → Closing Stroke → Arc Clamp → Earth Pin → Return Spark); the Polarity (every
-// strike + or −: a + hit marks, a − hit snaps the mark for a longer hold) is still to come. The book's spells stay with the book.
+// (tap → contact → Riser Prong → Probe Jab → Closing Stroke → Arc Clamp → Earth Pin → Return Spark); the Polarity: every
+// strike + or − (`pol`) — a + hit marks, a − hit snaps the mark for a longer hold (StyleMechanics). The book's spells stay
+// with the book.
 const lightning: FinalSkill[] = [
   S({
     id: 'ml_four_beat', cls: 'book_mage', style: 'lightning', slot: 0, name: 'Four-Beat Circuit', roles: ['basic', 'confirm'], targeting: 'aimAssist',
     startup: D(95), active: D(55), recovery: D(130), cooldown: 0, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
-    hits: [H(0, 5, RLINE(120, 16), { stun: D(220), push: 4, juggleCost: 3 }, { reachUp: 100 })],
+    hits: [H(0, 5, RLINE(120, 16), { stun: D(220), push: 4, juggleCost: 3 }, { reachUp: 100, pol: 1 })],
     // tap — return — thrust — break: a prong tapped in, the fork swung back across, the staff driven straight in, both prongs
     // through him in one flat stroke; faster than the Wind
     chain: { resetMs: 650, stages: [
-      [H(0, 5, RLINE(120, 16), { stun: D(220), push: 4, juggleCost: 3 }, { reachUp: 100 })], // Prong Tap (+): one prong tapped in (his painted fork reaches 138 px)
-      [H(0, 6, RLINE(115, 20), { stun: D(260), push: 10, juggleCost: 4 }, { reachUp: 110 })], // Cross Contact (−): the fork swung back across
-      [H(0, 7, RLINE(140, 16), { stun: D(300), push: 16, juggleCost: 6 }, { reachUp: 110 })], // Rail Jab (+): the straight two-handed thrust
-      [H(0, 10, RLINE(170, 20), { stun: D(480), push: 50, launch: 35, juggleCost: 12 }, { reachUp: 140, heavy: true })], // Break Stroke (−): both prongs in one flat stroke — knocked back, a pop off the floor
+      [H(0, 5, RLINE(120, 16), { stun: D(220), push: 4, juggleCost: 3 }, { reachUp: 100, pol: 1 })], // Prong Tap (+): one prong tapped in (his painted fork reaches 138 px)
+      [H(0, 6, RLINE(115, 20), { stun: D(260), push: 10, juggleCost: 4 }, { reachUp: 110, pol: -1 })], // Cross Contact (−): the fork swung back across
+      [H(0, 7, RLINE(140, 16), { stun: D(300), push: 16, juggleCost: 6 }, { reachUp: 110, pol: 1 })], // Rail Jab (+): the straight two-handed thrust
+      [H(0, 10, RLINE(170, 20), { stun: D(480), push: 50, launch: 35, juggleCost: 12 }, { reachUp: 140, heavy: true, pol: -1 })], // Break Stroke (−): both prongs in one flat stroke — knocked back, a pop off the floor
     ], timings: [{ startup: D(95), active: D(55), recovery: D(130) }, { startup: D(105), active: D(55), recovery: D(140) }, { startup: D(115), active: D(60), recovery: D(155) }, { startup: D(165), active: D(70), recovery: D(205) }] },
     cancelOnHit: ['ml_probe_jab', 'ml_riser_prong', 'ml_return_spark'],
-    description: 'Tap or hold Space: a prong tapped in, the fork swung back across, the staff driven straight through — then both prongs in one flat breaking stroke that knocks the foe back.',
+    description: 'Tap or hold Space: a prong tapped in, the fork swung back across, the staff driven straight through — then both prongs in one flat breaking stroke that knocks the foe back. The tap and the thrust mark him (+); the return and the break snap a mark (−): he is held a beat longer.',
     relations: ['4-beat chain', 'Cancel into a skill on hit'],
   }),
   S({
     id: 'ml_probe_jab', cls: 'book_mage', style: 'lightning', slot: 1, name: 'Probe Jab', roles: ['opener', 'precision'], targeting: 'aimAssist',
     startup: D(105), active: D(55), recovery: D(180), cooldown: 3000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
-    hits: [H(D(10), 8, RLINE(175, 12), { stun: D(320), push: 12, juggleCost: 7 }, { reachUp: 160 })], // (+: the needle-thin stab, one-handed at full length)
+    hits: [H(D(10), 8, RLINE(175, 12), { stun: D(320), push: 12, juggleCost: 7 }, { reachUp: 160, pol: 1 })], // (+: the needle-thin stab, one-handed at full length)
     cancelOnHit: ['ml_closing_stroke', 'ml_riser_prong'],
-    description: 'The staff thrust out one-handed at full length: a needle-thin stab of its two prong tips — long, fast, exact.',
+    description: 'The staff thrust out one-handed at full length: a needle-thin stab of its two prong tips — long, fast, exact. A + strike: it marks him.',
     relations: ['Opener', 'Long poke'],
   }),
   S({
     id: 'ml_closing_stroke', cls: 'book_mage', style: 'lightning', slot: 2, name: 'Closing Stroke', roles: ['confirm', 'airExtender'], targeting: 'aimAssist',
     startup: D(145), active: D(70), recovery: D(205), cooldown: 5000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
-    hits: [H(D(20), 9, RLINE(150, 20), { stun: D(360), push: 14, juggleCost: 9 }, { reachUp: 160 })], // (−: the fork's U scooped sideways through him: the circuit closes)
+    hits: [H(D(20), 9, RLINE(150, 20), { stun: D(360), push: 14, juggleCost: 9 }, { reachUp: 160, pol: -1 })], // (−: the fork's U scooped sideways through him: the circuit closes)
     cancelOnHit: ['ml_arc_clamp', 'ml_earth_pin'],
-    description: 'The fork turned on its side and scooped sideways through the foe: the U of its prongs closes the circuit.',
+    description: 'The fork turned on its side and scooped sideways through the foe: the U of its prongs closes the circuit. A − strike: it snaps a mark — he is held a beat longer, caught if he is in the air.',
     relations: ['Confirm', 'Air follow-up'],
   }),
   S({
     id: 'ml_riser_prong', cls: 'book_mage', style: 'lightning', slot: 3, name: 'Riser Prong', roles: ['launcher', 'antiAir'], targeting: 'aimAssist',
     startup: D(165), active: D(70), recovery: D(245), cooldown: 7000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
-    hits: [H(D(15), 12, RLINE(120, 22), { stun: D(700), launch: 105, juggleCost: 18 }, { reachUp: 170, heavy: true })], // (+: out of a crouch, the twin prongs driven straight up through him)
+    hits: [H(D(15), 12, RLINE(120, 22), { stun: D(700), launch: 105, juggleCost: 18 }, { reachUp: 170, heavy: true, pol: 1 })], // (+: out of a crouch, the twin prongs driven straight up through him)
     cancelOnHit: ['ml_probe_jab', 'ml_return_spark', 'ml_arc_clamp'],
-    description: 'Out of a crouch, both hands drive the twin prongs straight up through the foe: he goes up. The launcher.',
+    description: 'Out of a crouch, both hands drive the twin prongs straight up through the foe: he goes up. The launcher. A + strike: it marks him.',
     relations: ['Launcher', 'Anti-air'],
   }),
   S({
     id: 'ml_blue_needle', cls: 'book_mage', style: 'lightning', slot: 4, name: 'Blue Needle', roles: ['projectile', 'precision'], targeting: 'mouseProjectile',
     startup: D(200), active: D(70), recovery: D(250), cooldown: 7000, ground: true, air: false, cover: 'BLOCKED_BY_COVER', move: LOCK,
-    hits: [H(0, 11, { kind: 'projectile', speed: 2600, range: 300, radius: 8, antiAir: true }, { stun: D(380), push: 10, juggleCost: 10 })], // (one fast, very straight needle of current from the joined prong tips, ± 10 across the lane)
+    hits: [H(0, 11, { kind: 'projectile', speed: 2600, range: 300, radius: 8, antiAir: true }, { stun: D(380), push: 10, juggleCost: 10 }, { pol: -1 })], // (−: one fast, very straight needle of current from the joined prong tips, ± 10 across the lane)
     cancelOnHit: ['ml_rail_slide', 'ml_closing_stroke'],
-    description: 'The prong tips joined and one needle of current sent out fast and very straight: it stings him and holds him for a moment.',
+    description: 'The prong tips joined and one needle of current sent out fast and very straight: it stings him and holds him for a moment. A − strike: it snaps a mark.',
     relations: ['Precise', 'Fast'],
   }),
   S({
@@ -2059,61 +2081,61 @@ const lightning: FinalSkill[] = [
   S({
     id: 'ml_arc_clamp', cls: 'book_mage', style: 'lightning', slot: 6, name: 'Arc Clamp', roles: ['signature', 'airExtender'], targeting: 'aimAssist',
     startup: D(225), active: D(85), recovery: D(310), cooldown: 15000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
-    hits: [H(D(25), 16, RLINE(205, 24), { stun: D(620), launch: 45, juggleCost: 17 }, { reachUp: 190, heavy: true })], // (+: the two prongs close round one foe like a clamp: a stagger and a soft loft — one strike)
+    hits: [H(D(25), 16, RLINE(205, 24), { stun: D(620), launch: 45, juggleCost: 17 }, { reachUp: 190, heavy: true, pol: 1 })], // (+: the two prongs close round one foe like a clamp: a stagger and a soft loft — one strike)
     cancelOnHit: ['ml_earth_pin', 'ml_return_spark'],
     tags: ['signature'],
-    description: 'His signature: the staff driven out with both hands and the two prongs closing round one foe like a clamp — one brief spark where they meet, and he is lifted softly.',
+    description: 'His signature: the staff driven out with both hands and the two prongs closing round one foe like a clamp — one brief spark where they meet, and he is lifted softly. A + strike: it marks him.',
     relations: ['Signature', 'Soft loft'],
   }),
   S({
     id: 'ml_zero_interval', cls: 'book_mage', style: 'lightning', slot: 7, name: 'Zero Interval', roles: ['ultimate', 'finisher'], targeting: 'aimAssist',
     startup: D(415), active: D(160), recovery: D(700), cooldown: 85000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
     // braced, the rear foot planted — then one huge straight conductor thrust: a single brilliant rail of current (GPT)
-    hits: [H(D(20), 50, RLINE(340, 28), { stun: D(800), push: 50, knockdown: 'light', juggleCost: 30 }, { reachUp: 220, heavy: true })], // (standing: he crumples; in the air: driven down)
+    hits: [H(D(20), 50, RLINE(340, 28), { stun: D(800), push: 50, knockdown: 'light', juggleCost: 30 }, { reachUp: 220, heavy: true, pol: -1 })], // (−; standing: he crumples; in the air: driven down)
     cancelOnHit: [], endsCombo: true, tags: ['ultimate'],
-    description: 'His ultimate: the rear foot planted, then one huge straight thrust of the forked staff — a single brilliant rail of current runs far down the lane for a fraction of a second.',
+    description: 'His ultimate: the rear foot planted, then one huge straight thrust of the forked staff — a single brilliant rail of current runs far down the lane for a fraction of a second. A − strike: it snaps a mark.',
     relations: ['Ultimate', 'Long reach', 'Crumple'],
   }),
   S({
     id: 'ml_return_spark', cls: 'book_mage', style: 'lightning', slot: 8, name: 'Return Spark', roles: ['antiAir', 'extender'], targeting: 'aimAssist',
     startup: D(140), active: D(70), recovery: D(210), cooldown: 8000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
-    hits: [H(D(10), 10, RLINE(115, 24), { stun: D(450), launch: 50, juggleCost: 11 }, { reachUp: 200 })], // (−: the rising V counter-cut: a foe above is caught and popped a little)
+    hits: [H(D(10), 10, RLINE(115, 24), { stun: D(450), launch: 50, juggleCost: 11 }, { reachUp: 200, pol: -1 })], // (−: the rising V counter-cut: a foe above is caught and popped a little)
     cancelOnHit: ['ml_arc_clamp', 'ml_earth_pin'],
-    description: 'The staff swung up from low behind him in a rising V: it meets a foe over him and pops him a little.',
+    description: 'The staff swung up from low behind him in a rising V: it meets a foe over him and pops him a little. A − strike: it snaps a mark — caught in the air.',
     relations: ['Anti-air', 'Small pop'],
   }),
   S({
     id: 'ml_rail_slide', cls: 'book_mage', style: 'lightning', slot: 9, name: 'Rail Slide', roles: ['gapClose'], targeting: 'mouseDir',
     startup: D(170), active: D(70), recovery: D(230), cooldown: 9000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
     dash: { distance: 65 }, // (he slides forward along the floor, the staff held level like an electric lance)
-    hits: [H(D(60), 10, { kind: 'sector', range: 120, angle: 60 }, { stun: D(380), push: 25, juggleCost: 9 }, { reachUp: 120 })], // (the lance's sting at the end of the slide)
+    hits: [H(D(60), 10, { kind: 'sector', range: 120, angle: 60 }, { stun: D(380), push: 25, juggleCost: 9 }, { reachUp: 120, pol: 1 })], // (+: the lance's sting at the end of the slide)
     cancelOnHit: ['ml_riser_prong', 'ml_probe_jab'],
-    description: 'He slides forward along the floor with the staff held level like an electric lance: it stings whoever it reaches.',
+    description: 'He slides forward along the floor with the staff held level like an electric lance: it stings whoever it reaches. A + strike: it marks him.',
     relations: ['Gap close'],
   }),
   S({
     id: 'ml_insulator_split', cls: 'book_mage', style: 'lightning', slot: 10, name: 'Insulator Split', roles: ['zone'], targeting: 'aimAssist',
     startup: D(185), active: D(90), recovery: D(265), cooldown: 9000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
-    hits: [H(D(20), 11, RLINE(235, 24), { stun: D(420), push: 30, juggleCost: 10 }, { reachUp: 130 })], // (one angular two-prong pressure strike projected forward down his line)
+    hits: [H(D(20), 11, RLINE(235, 24), { stun: D(420), push: 30, juggleCost: 10 }, { reachUp: 130, pol: -1 })], // (−: one angular two-prong pressure strike projected forward down his line)
     cancelOnHit: ['ml_arc_clamp', 'ml_earth_pin'],
-    description: 'One angular two-prong strike of pressure projected far forward down his line: it splits the air and shoves the foe back.',
+    description: 'One angular two-prong strike of pressure projected far forward down his line: it splits the air and shoves the foe back. A − strike: it snaps a mark.',
     relations: ['Long reach'],
   }),
   S({
     id: 'ml_earth_pin', cls: 'book_mage', style: 'lightning', slot: 11, name: 'Earth Pin', roles: ['knockdown', 'finisher'], targeting: 'aimAssist',
     startup: D(225), active: D(80), recovery: D(320), cooldown: 12000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
-    hits: [H(D(20), 14, RLINE(150, 24), { stun: D(520), slam: true, knockdown: 'light', juggleCost: 23 }, { reachUp: 190, heavy: true })], // (−: the fork driven down to pin the floor: in the air, slammed down, one bounce; standing: he crumples)
+    hits: [H(D(20), 14, RLINE(150, 24), { stun: D(520), slam: true, knockdown: 'light', juggleCost: 23 }, { reachUp: 190, heavy: true, pol: -1 })], // (−: the fork driven down to pin the floor: in the air, slammed down, one bounce; standing: he crumples)
     cancelOnHit: ['ml_return_spark'],
-    description: 'The staff driven down two-handed so the fork pins the floor: a foe in the air is slammed into it and bounces once; a standing one crumples.',
+    description: 'The staff driven down two-handed so the fork pins the floor: a foe in the air is slammed into it and bounces once; a standing one crumples. A − strike: it snaps a mark.',
     relations: ['Ground bounce', 'Crumple'],
   }),
   S({
     id: 'ml_capacitor_kick', cls: 'book_mage', style: 'lightning', slot: 12, name: 'Capacitor Kick', roles: ['escape', 'peel'], targeting: 'aimAssist',
     startup: D(155), active: D(80), recovery: D(260), cooldown: 10000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
     dash: { distance: -40 }, // (the kick's charge kicks him back 40 px out of reach)
-    hits: [H(0, 9, { kind: 'sector', range: 90, angle: 100 }, { stun: D(360), push: 30, juggleCost: 8 }, { reachUp: 100 })], // (a close electric heel strike, the staff braced on the floor)
+    hits: [H(0, 9, { kind: 'sector', range: 90, angle: 100 }, { stun: D(360), push: 30, juggleCost: 8 }, { reachUp: 100, pol: 1 })], // (+: a close electric heel strike, the staff braced on the floor)
     cancelOnHit: ['ml_blue_needle', 'ml_insulator_split'],
-    description: 'A close electric heel strike, the staff braced on the floor — and the charge kicks him back out of reach.',
+    description: 'A close electric heel strike, the staff braced on the floor — and the charge kicks him back out of reach. A + strike: it marks him.',
     relations: ['Close defence', 'Makes range'],
   }),
 ];

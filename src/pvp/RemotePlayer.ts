@@ -42,6 +42,8 @@ export class RemotePlayer {
   private skill: { id: string; stage: number; elapsed: number; startup: number; active: number; recovery: number; seed?: number } | null = null;
   /** The fighting style he wears (Styles.ts): its painted body is drawn — changed by his switch at its commit, and by his state. */
   style = '';
+  /** His style's mechanic count, from his state (StyleMechanics: the Duelist's facets, the Warden's gate charges): drawn beside him. */
+  styleRes = 0;
   private jbAir = false;
   private flashMs = -1;
   private deadMs = -1;
@@ -133,6 +135,7 @@ export class RemotePlayer {
   applyState(m: Extract<NetMsg, { t: 'state' }>): void {
     if (m.mhp) this.maxHp = m.mhp;
     if (!(this.skill && styleOfSwitch(this.skill.id))) this.style = m.st ?? baseStyle(this.meta.classId); // (his own word on it; a switch playing here changes it at its commit)
+    this.styleRes = m.sr ?? 0;
     this.ghost = !!m.iv;
     this.lastSeen = performance.now();
     this.snaps.push({ t: this.lastSeen, x: m.x, y: m.y, z: m.z ?? 0 });

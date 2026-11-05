@@ -114,7 +114,8 @@ import { FinalSkill, HitEvent } from '../skills/SkillTypes';
 import { ARCHER_STREAM, ARENA_FLOW, MAGE_HIDDEN, arenaCommits, arenaTimeScale, armorEnd, finalSkill, iconUrl, kitFor, lastOfBurst, paceTime } from '../skills/FinalKit';
 import { SWITCH, baseStyle, nextStyle, styleDef, styleOfSwitch, stylesOf, switchId } from '../skills/Styles';
 import { StyleTag } from '../skills/StyleTag';
-import { CastRun, RT_EVENTS, SkillRuntime, Trap, STORM } from '../skills/SkillRuntime';
+import { CastRequest, CastRun, RT_EVENTS, SkillRuntime, Trap, STORM } from '../skills/SkillRuntime';
+import { GATE, HOUSE, POLARITY, SM, TACK, cleanRead } from '../skills/StyleMechanics';
 import type { Projectile } from '../skills/HitGeometry';
 import { Afterimages, applyMotion, archerMotion, heroMotion, leapMotion, type Motion } from '../skills/ArcherMotion';
 import { SAMURAI_AFTER, TORNADO, samuraiMotion, samuraiSeen, shinsokuMotion, tornadoPath } from '../skills/SamuraiMotion';
@@ -405,6 +406,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private carriedBy: CastRun | null = null;
   /** Startup lunge toward the target / post-hit momentum following the push (px still to travel, ms left). */
   private lunge: { x: number; y: number; left: number } | null = null;
+  /** The Sailwright's tack spent (StyleMechanics TACK): his glide across the floor's depth through the wind-up. */
+  private tackDrift: { x: number; y: number; left: number } | null = null;
   private momentum: { x: number; y: number; left: number } | null = null;
   /** Iron Grip: the foe is held in the fist between the seize and the slam. */
   private gripHeld = false;
@@ -1427,7 +1430,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       }
       return;
     }
-    for (const key of ['lunge', 'momentum'] as const) { // glide toward the target / along the push
+    for (const key of ['lunge', 'momentum', 'tackDrift'] as const) { // glide toward the target / along the push / across the depth (a tack)
       const m = this[key]; if (!m) continue;
       const f = Math.min(1, ms / Math.max(1, m.left)), nx = k.x + m.x * f, ny = k.y + m.y * f;
       if (footAllowed(nx, ny, k.z, R, k) && !this.blockedByActors(nx, ny, k.z) && !this.crowdsFoe(nx, ny, k.z)) { k.x = nx; k.y = ny; }
@@ -2116,6 +2119,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.hero3d?.h.ghost(this.simMs, on, 0xe8f0ff, 35);
     }
     this.renderGambler();
+    this.renderStyleMeters(); // (the Duelist's facets, the Warden's gate charges, beside each of them)
     this.fx?.treeFade(k.x, k.y); // a tree in front of the player turns see-through
     this.renderRadiant(pose, dir);
     this.fx?.bannerMark(this.localId, this.simMs < this.bannerUntil && this.dead < 0 && !!this.view?.visible ? this.kin : null, actorDepth(this.kin.x, this.kin.y, this.kin.z) - 0.5); // Legacy Banner carried: the crest ring at his feet
@@ -2385,6 +2389,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** The switch committed (its 150 ms): the new style's kit on the bar, its body, its name called. */
   private applyStyle(style: string): void {
     const d = styleDef(this.cls, style), k = this.kin;
+    if (this.style !== style) this.styleLeft(this.localId, this.style); // (the Conductor's marks, the Sailwright's chevrons go with the style)
     this.style = style; this.kit = kitFor(this.cls, style);
     this.chain = { stage: -1, lastEnd: -Infinity, skill: '' };
     if (d) this.fx?.callout({ x: k.x, y: k.y, z: k.z + 70 }, d.name.toUpperCase(), `#${d.accent.toString(16).padStart(6, '0')}`, 0);
@@ -3062,7 +3067,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (styleOfSwitch(s.id)) return e >= T.startup; // the new weapon lands in its ready pose: the next attack flows out of it
     if (styleOfSwitch(next.id)) { // the switch: out of any landed blow (not an ultimate's), else late in a recovery — no free switch on a whiff
       if (s.slot === 7 || styleOfSwitch(s.id)) return false;
-      if (run.confirmedAt >= 0) return e >= run.confirmedAt;
+      if (run.confirmedAt >= 0) return !run.noLink && e >= run.confirmedAt;
       if (arenaCommits(s)) return false;
       return e >= T.startup + T.active + 0.5 * T.recovery;
     }
@@ -3076,7 +3081,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     // Cancel rules: a skill cancels only into the skills its own list names (cancelOnHit) — after a confirmed hit, from
     // that hit on; a whiff only late in its recovery. (A skill whose list is still empty keeps the old free cancel.)
     if (s.cancelOnHit.length && !s.cancelOnHit.includes(next.id) && !s.cancelOnHit.includes(base(next.id))) return false;
-    if (run.confirmedAt >= 0) return e >= run.confirmedAt;
+    if (run.confirmedAt >= 0) return !run.noLink && e >= run.confirmedAt; // (All In short of its tip links into nothing)
     if (arenaCommits(s)) return false; // a missed attack is seen through to its end (DFO: a whiff is punished) — in and out of the arena alike
     return e >= T.startup + T.active + 0.5 * T.recovery;
   }
@@ -3128,10 +3133,12 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.lunge = null;
     const shape = (s.chain ? s.chain.stages[stage] : s.hits)[0]?.shape;
     const want = shape && (shape.kind === 'sector' ? shape.range * 0.75 : shape.kind === 'line' ? shape.length * 0.6 : shape.kind === 'circle' && !shape.at ? shape.radius * 0.7 : 0);
-    const t = want && !s.dash ? this.softTarget(want + 70, 0.3) : null;
+    const t = want && !s.dash && s.style !== 'radiant' ? this.softTarget(want + 70, 0.3) : null; // (not the Radiant Duelist's: his spacing is his game — the House Edge pays a blow at the far end of its reach)
     if (t) { const d = Math.hypot(t.x - k.x, t.y - k.y) - want; if (d > 4) this.lunge = { x: aim.x * Math.min(70, d), y: aim.y * Math.min(70, d), left: Math.max(60, ct.startup) }; }
+    const sty = this.styleSpend(s, lock); // (a style mechanic's resource spent at the start: StyleMechanics)
+    this.tackDrift = sty?.tack ? { x: 0, y: sty.tack * TACK.drift, left: Math.max(60, ct.startup) } : null; // (a tack: the new angle, across the depth through the wind-up)
     // The cut is measured from where the lunge takes you (the step in is done by the time it strikes) — here and for the others.
-    const from = { x: k.x + (this.lunge?.x ?? 0), y: k.y + (this.lunge?.y ?? 0), z: k.z };
+    const from = { x: k.x + (this.lunge?.x ?? 0), y: k.y + (this.lunge?.y ?? 0) + (this.tackDrift?.y ?? 0), z: k.z };
     const castId = `${this.localId}:${++this.castSeq}`;
     this.aim = aim; this.dir = dirOf(aim.x, aim.y, this.dir);
     this.body.armorUntil = -1; this.body.shotArmorUntil = -1;
@@ -3158,14 +3165,13 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const fold = s.id === 'origami_flock' ? this.foldPages(this.localId, from.x, from.y) : 0; // (her pages lying near fold into more cranes)
     const mf = s.cls === 'book_mage' ? this.mageFlags() | (fold << 4) : 0;
     const pb = this.petals.draw(s); // (the blossom draw: his Iai takes the petals in the scabbard)
-    const run = this.rt!.start({ castId, skill: s, stage, attackerId: this.localId, own: true, origin: from, aim, place, lock, followUp, ...(mf ? { mf } : {}), ...(pb ? { petals: pb } : {}), ...(fold ? { extraShots: fold } : {}) });
-    this.trialUi?.cast(s.id.startsWith('arcane_bolt') ? 'arcane_bolt' : s.id, castId, !k.grounded, this.simMs); // (training: the trial's next key? — an Attunement bolt is the trial's Arcane Bolt)
+    const run = this.rt!.start({ castId, skill: s, stage, attackerId: this.localId, own: true, origin: from, aim, place, lock, followUp, ...(mf ? { mf } : {}), ...(pb ? { petals: pb } : {}), ...(fold ? { extraShots: fold } : {}), ...(sty ? { style: sty } : {}) });    this.trialUi?.cast(s.id.startsWith('arcane_bolt') ? 'arcane_bolt' : s.id, castId, !k.grounded, this.simMs); // (training: the trial's next key? — an Attunement bolt is the trial's Arcane Bolt)
     if (s.cls === 'book_mage' && !s.style && !styleOfSwitch(s.id)) this.mageCast(s, run); // (a spell: the Sailwright's fan and the switches neither attune, nor spend a Grand Weave)
     if (s.cls === 'gambler') this.gamblerStarted(s);
     if (s.chain) this.chain = { stage, lastEnd: Infinity, skill: s.id };
     this.setMode('skill');
     const dm = this.ownDamageMul(s), rm = s.cls === 'warrior' && this.simMs < this.radiantUntil ? 1.4 : s.cls === 'gambler' && LIGHT_STAFF.skills.has(s.id) && this.simMs < this.lightStaffUntil ? LIGHT_STAFF.reach : 1; // buffs travel with the cast (victim-side damage / reach)
-    this.pvp?.sendCast({ castId, skillId: s.id, stage, x: Math.round(from.x), y: Math.round(from.y), z: Math.round(k.z), ax: Math.round(aim.x * 1000), ay: Math.round(aim.y * 1000), ...(place ? { px: Math.round(place.x), py: Math.round(place.y) } : {}), lock, ...(followUp ? { fu: 1 } : {}), ...(s.id === 'call_the_deck' && run?.holdCount ? { hc: run.holdCount } : {}), ...(dm !== 1 ? { dm: Math.round(dm * 100) } : {}), ...(rm !== 1 ? { rm: Math.round(rm * 100) } : {}), ...(this.ownRangeMul(s) !== 1 ? { rg: Math.round(this.ownRangeMul(s) * 100) } : {}), ...(this.ownSpeedMul(s) !== 1 ? { sp: Math.round(this.ownSpeedMul(s) * 100) } : {}), ...(this.kage?.isAmbush(castId) ? { amb: 1 } : {}), ...(mf ? { mf } : {}), ...(run.primed ? { pr: 1 + run.primed.chargeUp } : {}), ...(run.petals ? { pb: run.petals } : {}) });
+    this.pvp?.sendCast({ castId, skillId: s.id, stage, x: Math.round(from.x), y: Math.round(from.y), z: Math.round(k.z), ax: Math.round(aim.x * 1000), ay: Math.round(aim.y * 1000), ...(place ? { px: Math.round(place.x), py: Math.round(place.y) } : {}), lock, ...(followUp ? { fu: 1 } : {}), ...(s.id === 'call_the_deck' && run?.holdCount ? { hc: run.holdCount } : {}), ...(dm !== 1 ? { dm: Math.round(dm * 100) } : {}), ...(rm !== 1 ? { rm: Math.round(rm * 100) } : {}), ...(this.ownRangeMul(s) !== 1 ? { rg: Math.round(this.ownRangeMul(s) * 100) } : {}), ...(this.ownSpeedMul(s) !== 1 ? { sp: Math.round(this.ownSpeedMul(s) * 100) } : {}), ...(this.kage?.isAmbush(castId) ? { amb: 1 } : {}), ...(mf ? { mf } : {}), ...(run.primed ? { pr: 1 + run.primed.chargeUp } : {}), ...(run.petals ? { pb: run.petals } : {}), ...(sty?.tack ? { tk: sty.tack } : {}), ...(sty?.facets !== undefined ? { fc: sty.facets } : {}), ...(sty?.gate ? { gp: 1 } : {}) });
   }
 
   /** Archer casts: buffs, the tree, the channelled storm (timers on the sim clock, from the run's real startup). */
@@ -3585,6 +3591,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private applyToPve(run: CastRun, hit: HitEvent, t: HitTarget, at: V3): void {
     const now = this.simMs, s = run.skill;
     hit = this.mageHit(run, hit, t.id, at); hit = this.markHit(run, hit, t.id); hit = this.gambleHit(run, hit, t.id); if (hit.damage < 0) return; // (All In on a foe without cards: untouched)
+    hit = this.styleHit(run, hit, t.id, t, t.z - supportAt(t.x, t.y, t.z + 1).z > 8); // (the styles' mechanics: the Polarity, the Tack, the House Edge)
     const amb = run.own && hit.damage > 0 && !!this.kage?.isAmbush(run.castId); // Kagemusha's AMBUSH: a sure critical and a stun
     if (amb) hit = { ...hit, reaction: { ...hit.reaction, stun: Math.max(hit.reaction.stun ?? 0, KAGE.ambushStun) } };
     let out: HitOutcome | null = null, crit = false; // (a critical: its own number, MapleStory — no CRITICAL text)
@@ -3681,6 +3688,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private confirm(run: CastRun | null, hit: HitEvent, target: string, at: V3, damage: number, idx: number, comboId: number, reaction: string, ends: boolean, tz: number, crit = false, counter = false): void {
     const s = run?.skill;
     if (!s) return;
+    if (run?.own) this.styleConfirm(run, target, damage, reaction); // (the styles' mechanics: before the cancel opens — All In's only off its tip)
     if (run && run.confirmedAt < 0 && !run.poked) run.confirmedAt = run.elapsed; // (a poke from afar opens no cancel)
     if (run && run.own && this.passives.orbs && damage > 0) { // Combo Force: one orb per skill that connects
       if (this.orbs.cast !== run.castId) { this.orbs.cast = run.castId; this.orbs.n = Math.min(ORBS.max, this.orbs.n + 1); }
@@ -3742,6 +3750,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const u = unit(from.x - k.x, from.y - k.y), aim = sideAim(u.x, u.y, this.dir === 'left' ? -1 : 1); // (side / corner)
     this.aim = aim; this.dir = dirOf(aim.x, aim.y, this.dir);
     this.rt!.triggerCounter(run, aim, { x: k.x, y: k.y, z: k.z });
+    if (run.skill.earns === 'facets') this.earnFacet(run.castId); else if (run.skill.earns === 'gate') this.earnGate(); // (Read the Room: a facet; Sentry Catch: a gate charge)
     if (run.skill.id === 'long_guard') run.timings.active = Math.min(run.timings.active, LONG_GUARD.afterCatchMs); // (the catch ends the guard)
     this.pvp?.sendCounter({ castId: run.castId, x: Math.round(k.x), y: Math.round(k.y), z: Math.round(k.z), ax: Math.round(aim.x * 1000), ay: Math.round(aim.y * 1000) });
     return true;
@@ -3770,6 +3779,124 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       this.fx?.archerMark(targetId, k, 6000);
     }
     return out;
+  }
+
+  // ----------------------------------------------------------------------- the styles' mechanics (StyleMechanics)
+  /** The Conductor's Polarity marks and the Sailwright's Tack chevrons on each foe (`attacker>target`): kept by the screen
+   *  that judges the hits, as the Hunter's Marks — and on the attacker's from the far screen's word (its HP report). */
+  private polar = new Map<string, { until: number; snapAt: number }>();
+  private tacks = new Map<string, { n: number; until: number }>();
+  /** The local fighter's own: the Duelist's facets (`cast`: the cast that earned the last one — one a cast) and the Warden's
+   *  gate charges. */
+  private facets = { n: 0, cast: '' };
+  private gateCh = { n: 0, until: 0 };
+  /** What the mechanics did on the hit just judged (SM bits): sent to the attacker with its HP, read by its confirm. */
+  private styleOut = 0;
+  /** The style each far player wore last frame (his marks go when he leaves it). */
+  private remoteStyles = new Map<string, string>();
+
+  /** A hit about to land, on the screen that judges it — after the guards, so a blocked or missed strike never counts: the
+   *  Conductor's + marks the foe, his − snaps the mark (more hold, a foe in the air caught); the Sailwright's tack leaves a
+   *  chevron; the Duelist's staff hit with the foe in the outer quarter of its reach is a Clean Read — All In's pays its
+   *  stake. What it did: `styleOut`. */
+  private styleHit(run: CastRun, hit: HitEvent, targetId: string, foe: { x: number; y: number }, air: boolean): HitEvent {
+    this.styleOut = 0;
+    const s = run.skill;
+    if (!s.style || hit.damage <= 0) return hit;
+    const now = this.simMs, key = `${run.attackerId}>${targetId}`;
+    let out = hit;
+    if (hit.pol) { // the Polarity
+      const m = this.polar.get(key);
+      if (hit.pol > 0) { this.polar.set(key, { until: now + POLARITY.markMs, snapAt: m?.snapAt ?? -Infinity }); this.styleOut |= SM.mark; this.fx?.polarMark(key, targetId, run.attackerId, POLARITY.markMs); }
+      else if (m && now < m.until && now - m.snapAt >= POLARITY.everyMs) { // the Arc Snap: inside the same hit — no extra hit, no extra juggle
+        this.polar.set(key, { until: 0, snapAt: now }); this.styleOut |= SM.snap;
+        out = { ...out, reaction: { ...out.reaction, stun: (out.reaction.stun ?? 0) + POLARITY.snapStun, ...(air ? { float: true } : {}) } };
+        this.fx?.polarSnap(key, targetId);
+      }
+    }
+    if (hit.tack) { // the Tack: a chevron on him
+      const t = this.tacks.get(key), n = Math.min(TACK.max, (t && now < t.until ? t.n : 0) + 1);
+      this.tacks.set(key, { n, until: now + TACK.ms }); this.styleOut |= SM.tack; this.fx?.tackMark(key, targetId, run.attackerId, n, TACK.ms);
+    }
+    if (s.style === 'radiant' && hit.shape.kind !== 'projectile') { // the House Edge: where along its reach the staff met him
+      const o = s.dash || s.counter || s.follow ? (this.casterPos(run.attackerId) ?? run.origin) : run.origin; // (as the runtime's hit test)
+      const read = cleanRead(out, (foe.x - o.x) * run.aim.x + (foe.y - o.y) * run.aim.y);
+      if (read) this.styleOut |= s.stakes ? SM.tip : SM.read;
+      const st = s.stakes?.[run.style?.facets ?? 0];
+      if (read && st) out = { ...out, damage: Math.round(out.damage * (st.dmg ?? 1)), reaction: st.tip }; // (All In's payoff: only off its tip)
+    }
+    return out;
+  }
+  /** An own blow confirmed, on the attacker's screen (PvE and the partner: judged here; a far player: by his screen, its
+   *  word in `styleOut`): a Clean Read's facet, a landed Threshold Check's gate charge, All In short of its tip (no cancel
+   *  off it), and the marks and chevrons left on a far player, drawn here too. */
+  private styleConfirm(run: CastRun, target: string, damage: number, reaction: string): void {
+    const sm = this.styleOut, s = run.skill;
+    this.styleOut = 0;
+    const landed = damage > 0 && reaction !== 'armor';
+    if (landed) run.landed = true;
+    if (!s.style) return;
+    if (s.stakes && !(sm & SM.tip)) run.noLink = true; // (the plain thrust: no cancel, no switch off it)
+    if (!landed) return;
+    if (sm & SM.read) this.earnFacet(run.castId);
+    if (s.earns === 'gate' && !s.counter) this.earnGate();
+    if (!this.pvp?.remotes.has(target)) return;
+    const key = `${this.localId}>${target}`, now = this.simMs;
+    if (sm & SM.mark) { this.polar.set(key, { until: now + POLARITY.markMs, snapAt: this.polar.get(key)?.snapAt ?? -Infinity }); this.fx?.polarMark(key, target, this.localId, POLARITY.markMs); }
+    if (sm & SM.snap) { this.polar.set(key, { until: 0, snapAt: now }); this.fx?.polarSnap(key, target); }
+    if (sm & SM.tack) { const t = this.tacks.get(key), n = Math.min(TACK.max, (t && now < t.until ? t.n : 0) + 1); this.tacks.set(key, { n, until: now + TACK.ms }); this.fx?.tackMark(key, target, this.localId, n, TACK.ms); }
+  }
+  /** An own cast's start: the resource its `spends` names — a tack (Up / Down held, one on the foe it cuts at, the floor clear
+   *  that way: the new angle), every facet (All In's stake), a gate charge (the better effect). */
+  private styleSpend(s: FinalSkill, lock: string | null): CastRequest['style'] | undefined {
+    const now = this.simMs, k = this.kin;
+    if (s.spends === 'tack') {
+      const dy = this.ci?.moveY ?? 0, side = dy < 0 ? -1 : 1;
+      if (Math.abs(dy) < 0.3 || !footAllowed(k.x, k.y + side * TACK.drift, k.z, R, k)) return undefined;
+      let best: { id: string; d: number } | null = null;
+      for (const [key, t] of this.tacks) {
+        if (!key.startsWith(`${this.localId}>`) || now >= t.until || t.n <= 0) continue;
+        const id = key.slice(this.localId.length + 1), p = this.casterPos(id) ?? this.targetsFor({ own: true, attackerId: this.localId } as CastRun).find((x) => x.id === id);
+        const d = p ? Math.hypot(p.x - k.x, p.y - k.y) : Infinity;
+        if (id === lock) { best = { id, d: -1 }; break; }
+        if (d < 420 && (!best || d < best.d)) best = { id, d };
+      }
+      if (!best) return undefined;
+      const key = `${this.localId}>${best.id}`, t = this.tacks.get(key)!;
+      if (t.n > 1) this.tacks.set(key, { n: t.n - 1, until: t.until }); else this.tacks.delete(key);
+      this.fx?.tackSpend(key, best.id, t.n - 1);
+      return { tack: side };
+    }
+    if (s.spends === 'facets') { const n = this.facets.n; this.facets = { n: 0, cast: this.facets.cast }; return { facets: n }; }
+    if (s.spends === 'gate' && this.gateCh.n > 0 && now < this.gateCh.until) { this.gateCh = { n: this.gateCh.n - 1, until: this.gateCh.until }; return { gate: true }; }
+    return undefined;
+  }
+  /** A Clean Read: one Odds Facet (3 at most), one a cast — no farming. */
+  private earnFacet(castId: string): void {
+    if (this.facets.cast === castId || this.facets.n >= HOUSE.max) return;
+    this.facets = { n: this.facets.n + 1, cast: castId };
+  }
+  /** A gate charge (2 at most): the charges last 6 s from the last one earned. */
+  private earnGate(): void { const now = this.simMs; this.gateCh = { n: Math.min(GATE.max, (now < this.gateCh.until ? this.gateCh.n : 0) + 1), until: now + GATE.ms }; }
+  /** A fighter left a style: the marks he set in it go (the Conductor's Polarity, the Sailwright's chevrons). */
+  private styleLeft(attacker: string, style: string): void {
+    const map = style === 'lightning' ? this.polar : style === 'wind' ? this.tacks : null;
+    if (!map) return;
+    for (const key of [...map.keys()]) if (key.startsWith(`${attacker}>`)) { map.delete(key); if (style === 'lightning') this.fx?.polarClear(key); else this.fx?.tackClear(key); }
+  }
+  /** His style's mechanic count, shown beside him (the facets, the gate charges) — also sent in his state for the foe. */
+  private styleRes(): number { return this.style === 'radiant' ? this.facets.n : this.style === 'siege' && this.simMs < this.gateCh.until ? this.gateCh.n : 0; }
+  /** Each frame: the Duelist's facets and the Warden's gate charges beside each of them (his own; a far player's from his
+   *  state) — the foe sees them; a far player who left his style takes his marks with him. */
+  private renderStyleMeters(): void {
+    if (!this.fx) return;
+    const k = this.kin, kind = (st: string) => (st === 'radiant' ? 'facets' : st === 'siege' ? 'gate' : null);
+    this.fx.styleMeter(this.localId, kind(this.style), this.styleRes(), this.dead < 0 && !!this.view?.visible ? { x: k.x, y: k.y, z: k.z, h: this.view?.headHeight || undefined } : null, this.dir === 'left' ? -1 : 1);
+    for (const [id, r] of this.pvp?.remotes ?? []) {
+      const was = this.remoteStyles.get(id);
+      if (was !== r.style) { if (was) this.styleLeft(id, was); this.remoteStyles.set(id, r.style); }
+      this.fx.styleMeter(id, kind(r.style), r.styleRes, r.alive ? { x: r.x, y: r.y, z: r.z, h: r.view?.headHeight || undefined } : null, r.dir === 'left' ? -1 : 1);
+    }
   }
 
   /** Lag between two players: the attacker hits what it sees (us, ~0.1 s + one network delay in the past), we check against
@@ -3881,6 +4008,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     }
     if (hit.damage > 0 && this.tryEvade(this.casterPos(run.attackerId) ?? run.origin)) { this.pvp?.sendHp(this.playerHP, run.attackerId, { castId: run.castId, skillId: s.id, hit: hi, dmg: 0, rx: 'armor' }); return; }
     if (hit.damage > 0 && this.trySubstitute(at)) { this.pvp?.sendHp(this.playerHP, run.attackerId, { castId: run.castId, skillId: s.id, hit: hi, dmg: 0, rx: 'armor' }); return; } // Sheathe held: the doll takes it
+    hit = this.styleHit(run, hit, this.localId, this.kin, !this.kin.grounded || this.body.state === 'launched'); const sm = this.styleOut; // (the styles' mechanics: after the guards — a blocked strike never counts)
     let h = run.dmgMul && run.dmgMul !== 1 ? { ...hit, damage: hit.damage * run.dmgMul } : hit; // caster's War Cry / Radiant Blade
     const rg = this.rageMul(run.attackerId, this.localId); if (rg !== 1 && h.damage > 0) h = { ...h, damage: h.damage * rg }; // the arena's comeback (rage)
     const bst = this.rt?.ownRun; // Iron Bastion: iron — half the damage, and every blow counted for its counter-slash
@@ -3917,7 +4045,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (out.damage > 0 && s.linger?.at === 'target') this.startHold(run, this.localId); // a hold under you (the Gambler's spinning card)
     this.pvp?.sendHp(this.playerHP, run.attackerId, {
       castId: run.castId, skillId: s.id, hit: hi, dmg: out.damage, idx: out.hitIndex, cid: out.comboId, rx: out.reaction, ends: out.endsCombo, vz: Math.round(this.kin.vz), z: Math.round(this.kin.z),
-      ...(out.rx ? { mx: out.rx, mms: Math.round(out.rxMs ?? 0) } : {}), ...(countered ? { cx: 1 } : {}), ...(this.prismFired ? { pz: 1 } : {}),
+      ...(out.rx ? { mx: out.rx, mms: Math.round(out.rxMs ?? 0) } : {}), ...(countered ? { cx: 1 } : {}), ...(this.prismFired ? { pz: 1 } : {}), ...(sm ? { sm } : {}),
     });
     this.prismFired = false;
     if (this.playerHP === 0) this.pvp?.sendDeath(run.attackerId);
@@ -4514,6 +4642,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (!b || b.defeated || (this.match?.active && !this.match.live)) return;
     hit = this.mageHit(run, hit, t.id, at); hit = this.markHit(run, hit, t.id); hit = this.gambleHit(run, hit, t.id); if (hit.damage < 0) return; // (All In on a foe without cards: untouched)
     if (this.isPoke(run, hit, b.kin)) { hit = this.pokeHit(hit); run.poked = true; } // a poke from afar: no cancel off it
+    hit = this.styleHit(run, hit, t.id, b.kin, !b.kin.grounded || b.body.state === 'launched'); // (the styles' mechanics)
     const chB = run.attackerId === this.localId ? this.chanceMul(b.body) : 1;
     const m = (run.attackerId === this.localId ? this.ownDamageMul(run.skill) * chB : 1) * this.rageMul(run.attackerId, BOT_ID); let h = m !== 1 ? { ...hit, damage: hit.damage * m } : hit;
     const whiff = b.whiffing(), ctr = h.damage > 0 && b.attacking(); // (read before the hit: taking it drops the knight's cast)
@@ -4578,6 +4707,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         const at = r ? { x: r.x, y: r.y, z: (m.z ?? r.z) + 40 } : { x: 0, y: 0, z: 0 };
         if (m.cx && r) this.counterCall({ x: r.x, y: r.y, z: m.z ?? r.z });
         if (m.pz && r) { this.fx?.mageReaction('prism', at, victim, 0); this.fx?.callout({ x: at.x, y: at.y, z: at.z + 60 }, 'PRISM!', '#e9d2ff', 0); } // (the mage's PRISM, fired on the victim's side)
+        this.styleOut = m.sm ?? 0; // (what the styles' mechanics did on it, as his screen judged it)
         this.confirm(run, hits[m.hit ?? 0] ?? hits[0], victim, at, m.dmg, m.idx ?? 1, m.cid ?? 0, m.rx ?? 'hit', !!m.ends, m.z ?? 0, false, !!m.cx);
         if (m.mx) { this.fx?.mageReaction(m.mx, at, victim, m.mms ?? 0); if (m.mx === 'curse') r?.paper(m.mms ?? 0); }
       },
@@ -4594,7 +4724,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         if (!this.view || !this.pvpReady) return null;
         const k = this.kin, dead = this.dead >= 0;
         const cos = [...Object.entries(this.equipped).filter(([, v]) => v).map(([s, v]) => `${s}:${v}`), `gear:${this.gearCode}`].join(','); // + what is worn
-        return { x: k.x, y: k.y, z: k.z, sz: k.supportZ, dir: this.dir, anim: dead ? 'dead' : this.mode, mode: this.mode, sp: Math.hypot(k.vx, k.vy), vz: k.vz, ax: this.aim.x, ay: this.aim.y, hp: this.playerHP, alive: !dead, cos, mhp: this.maxHpNow(), iv: this.body.ghost(this.simMs), ...(this.style !== baseStyle(this.cls) ? { st: this.style } : {}), kg: this.kage?.code(k), a2: this.air2() };
+        return { x: k.x, y: k.y, z: k.z, sz: k.supportZ, dir: this.dir, anim: dead ? 'dead' : this.mode, mode: this.mode, sp: Math.hypot(k.vx, k.vy), vz: k.vz, ax: this.aim.x, ay: this.aim.y, hp: this.playerHP, alive: !dead, cos, mhp: this.maxHpNow(), iv: this.body.ghost(this.simMs), ...(this.style !== baseStyle(this.cls) ? { st: this.style } : {}), ...(this.styleRes() ? { sr: this.styleRes() } : {}), kg: this.kage?.code(k), a2: this.air2() };
       },
     }, this.vs === 'cpu' || this.vs === 'training'); // (VS CPU, TRAINING: no network — the sparring knight is in this page)
     this.pvp = pvp;
@@ -4627,9 +4757,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.seenCasts.add(m.castId);
     this.remoteCasts.set(key, [...recent, this.simMs]);
     if (m.amb && s.cls === 'samurai' && r.kageGhosts().length) this.ambushIn.add(m.castId); // made while his doubles stand: an ambush
-    const run = this.rt?.start({ castId: m.castId, skill: s, stage: Math.max(0, Math.min(2, m.stage ?? 0)), attackerId: from, own: false, origin: { x: m.x, y: m.y, z: m.z ?? 0 }, aim: unit(m.ax, m.ay), place, lock: m.lock ?? null, followUp: !!m.fu,
+    const sty = s.spends === 'tack' && m.tk ? { tack: Math.sign(m.tk) } : s.spends === 'facets' && m.fc !== undefined ? { facets: Math.max(0, Math.min(HOUSE.max, Math.round(m.fc))) } : s.spends === 'gate' && m.gp ? { gate: true } : null; // (a style mechanic he spent: his screen decides)
+    if (sty?.tack && (!m.lock || m.lock === this.localId)) { const key = `${from}>${this.localId}`, t = this.tacks.get(key); if (t) { if (t.n > 1) this.tacks.set(key, { n: t.n - 1, until: t.until }); else this.tacks.delete(key); this.fx?.tackSpend(key, this.localId, t.n - 1); } } // (the chevron he spent on me)
+    const run = this.rt?.start({ castId: m.castId, skill: s, stage: Math.max(0, Math.min((s.chain?.stages.length ?? 1) - 1, m.stage ?? 0)), attackerId: from, own: false, origin: { x: m.x, y: m.y, z: m.z ?? 0 }, aim: unit(m.ax, m.ay), place, lock: m.lock ?? null, followUp: !!m.fu,
       dmgMul: Math.max(0.3, Math.min(1.4, (m.dm ?? 100) / 100)), reach: Math.max(1, Math.min(1.85, (m.rm ?? 100) / 100)),
-      range: Math.max(1, Math.min(1.2, (m.rg ?? 100) / 100)), speed: Math.max(1, Math.min(1.35, (m.sp ?? 100) / 100)), ...(m.mf ? { mf: m.mf } : {}), ...(s.id === 'origami_flock' && ((m.mf ?? 0) >> 4) & 7 ? { extraShots: Math.min(4, ((m.mf ?? 0) >> 4) & 7) } : {}), ...(m.pr && kitFor(s.cls).some((x) => x.primes?.ids.includes(s.id)) ? { primed: { chargeUp: Math.max(0, Math.min(2, m.pr - 1)), ...primeExtras(kitFor(s.cls).find((x) => x.primes?.ids.includes(s.id))?.primes) } } : {}), ...(m.pb && s.id === 'iai_strike' ? { petals: Math.max(0, Math.min(PETALS.cap, Math.round(m.pb))) } : {}) }, this.pvp?.oneWay(from) ?? 0); // (pr: primed by his Sheathe — his screen decides) // (it left their hand one network delay ago: its wind-up is caught up)
+      range: Math.max(1, Math.min(1.2, (m.rg ?? 100) / 100)), speed: Math.max(1, Math.min(1.35, (m.sp ?? 100) / 100)), ...(m.mf ? { mf: m.mf } : {}), ...(s.id === 'origami_flock' && ((m.mf ?? 0) >> 4) & 7 ? { extraShots: Math.min(4, ((m.mf ?? 0) >> 4) & 7) } : {}), ...(m.pr && kitFor(s.cls).some((x) => x.primes?.ids.includes(s.id)) ? { primed: { chargeUp: Math.max(0, Math.min(2, m.pr - 1)), ...primeExtras(kitFor(s.cls).find((x) => x.primes?.ids.includes(s.id))?.primes) } } : {}), ...(m.pb && s.id === 'iai_strike' ? { petals: Math.max(0, Math.min(PETALS.cap, Math.round(m.pb))) } : {}), ...(sty ? { style: sty } : {}) }, this.pvp?.oneWay(from) ?? 0); // (pr: primed by his Sheathe — his screen decides) // (it left their hand one network delay ago: its wind-up is caught up)
     if (run && s.id === 'rift_gates' && (m.stage ?? 0) === 0) { const g = [...(this.riftsOf.get(from) ?? []).filter((q) => this.simMs < q.until), { x: m.x, y: m.y, until: this.simMs + s.startup + RIFT.ms }].slice(-RIFT.max); this.riftsOf.set(from, g); } // (her gates, for their looks)
     if (run && s.id === 'light_staff') { this.lightStaffOf.set(from, this.simMs + s.startup + LIGHT_STAFF.ms); if (this.lightStaffOf.size > 16) this.lightStaffOf.clear(); } // (his cane lit, for its look)
     if (run) { this.remoteRuns.set(m.castId, { run, at: this.simMs }); for (const [k, v] of this.remoteRuns) if (this.simMs - v.at > 4000) this.remoteRuns.delete(k); }
@@ -4670,7 +4802,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const b = this.body, k = this.kin, opp = this.duelOpponent() ?? '', from = opp ? this.casterPos(opp) : null;
     b.doBreak(now);
     this.rt?.cancelOwn('hit');
-    this.carriedBy = null; this.lunge = null; this.momentum = null; this.gripHeld = false;
+    this.carriedBy = null; this.lunge = null; this.tackDrift = null; this.momentum = null; this.gripHeld = false;
     const away = from ? unit(k.x - from.x, k.y - from.y, -this.faceSide, 0) : { x: -this.faceSide, y: 0 };
     b.push = { vx: (away.x * ARENA.breakHop) / 180, vy: (away.y * ARENA.breakHop * 0.4) / 180, left: 180 };
     if (!k.grounded) k.vz = Math.min(k.vz, -140); // in the air: down to the floor
@@ -4831,7 +4963,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.rifts = []; this.riftsOf.clear(); this.riftCross = null; this.lightStaffUntil = -1; this.lightStaffOf.clear(); this.warCryUntil = -1; this.radiantUntil = -1; this.radiantFrom = -1; this.domeAt = -1;
     if (this.dome) this.dome.until = this.simMs;
     if (this.allyDome) this.allyDome.until = this.simMs;
-    this.jb = null; this.jbWant = 0; this.carriedBy = null; this.lunge = null; this.momentum = null; this.gripHeld = false; this.leapUsed = false; this.leapUntil = -1;
+    this.jb = null; this.jbWant = 0; this.carriedBy = null; this.lunge = null; this.tackDrift = null; this.momentum = null; this.gripHeld = false; this.leapUsed = false; this.leapUntil = -1;
     this.rt?.resetCooldowns(); this.rageCalled.clear();
     if (this.arena) for (const s of this.kit) if (s.slot === 7 || s.slot === 6) this.rt?.holdCooldown(s.id, this.simMs + PVP.battle.introMs + (s.slot === 7 ? ARENA.ultPreCdMs : ARENA.sigPreCdMs)); // the round opens with the big moves held back
     this.respawnAt(x, y, PVP.maxHp);

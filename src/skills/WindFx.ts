@@ -90,6 +90,8 @@ interface Live { t: number; step(dt: number, t: number): boolean }
 export class WindFx {
   private live: Live[] = [];
   private incoming: Live[] = [];
+  /** The Tack's chevrons on the foes (attacker>target): how many, until when, their pictures. */
+  private chevs = new Map<string, { n: number; until: number; ims: Phaser.GameObjects.Image[] }>();
   constructor(private ctx: WindCtx) {}
 
   // ------------------------------------------------------------------ the piece system
@@ -181,6 +183,12 @@ export class WindFx {
       return;
     }
     const hitAt = (i: number) => T.startup + (r.hits[i]?.at ?? 0);
+    if (r.style?.tack) { // a tack spent (the Tack): his new angle across the floor's depth — a mint chevron points the way, a thin wake at his feet
+      const dy = r.style.tack;
+      this.onClock(r, 0, () => { const c = this.me(r); this.spr({ name: 'mw-chev', x: c.x - side * 10, y: c.y - c.z - 28, depth: c.y + 4, w: 20, angle: dy < 0 ? -90 : 90, life: Math.max(110, T.startup * 0.8), run: r, tint: MINT, add: true, glow: 0.2,
+        my: (u) => dy * 16 * out3(u), a: kf([0, 0], [0.15, 1], [0.7, 0.9], [1, 0, inQ]) }); });
+      this.onClock(r, T.startup * 0.35, () => { const c = this.me(r); this.line(c.x - side * 18, c.y - 3 - dy * 12, c.x - side * 4, c.y - 3, 4, { run: r, life: 150 }); this.line(c.x + side * 14, c.y - 3 - dy * 12, c.x + side * 26, c.y - 3, 3, { run: r, life: 130 }); });
+    }
     switch (key) {
       case 'mw_four_beat': // Fan Prick: the folded tip pricked in — a pressure line along it, a tiny burst at the point
         this.onClock(r, Math.max(0, hitAt(0) - 30), () => { const t = this.tip(r); this.line(t.x - side * 90, t.y, t.x + side * 16, t.y, 6, { run: r }); });
@@ -298,6 +306,46 @@ export class WindFx {
       const y = p.y - p.z + (kite ? 0 : 20); im.setPosition(p.x, y).setDepth(p.y + 3); tr.setPosition(p.x, y).setDepth(p.y + 2.9); // (the edge drawn low, skimming the floor)
       return true;
     } });
+  }
+
+  // ------------------------------------------------------------------ the Tack
+
+  /** A tack hit him (GPT): pale-mint chevrons at his shoulder on the Sailwright's side (2 at most), until spent or run out
+   *  (they flicker in their last half second). */
+  tackMark(key: string, n: number, ms: number, pos: () => (V3 & { h?: number }) | null, side: () => number): void {
+    const s = this.ctx.scene; textures(s);
+    const until = s.time.now + ms, cur = this.chevs.get(key);
+    if (cur) { cur.n = n; cur.until = until; this.fit(cur); this.pop(cur.ims[cur.n - 1]); return; }
+    if (!pos()) return;
+    const rec = { n, until, ims: [] as Phaser.GameObjects.Image[] };
+    this.chevs.set(key, rec); this.fit(rec); this.pop(rec.ims[n - 1]);
+    this.add({ t: 0, step: () => {
+      const q = pos(), now = s.time.now;
+      if (!q || now >= rec.until || rec.n <= 0 || this.chevs.get(key) !== rec) { for (const im of rec.ims) im.destroy(); rec.ims = []; if (this.chevs.get(key) === rec) this.chevs.delete(key); return false; }
+      const sd = side(), x = q.x + sd * 22, y0 = q.y - q.z - (q.h ?? 120) * 0.74, a = rec.until - now < 500 ? 0.45 + 0.55 * Math.abs(Math.sin(now / 45)) : 0.95;
+      rec.ims.forEach((im, i) => im.setVisible(true).setPosition(x, y0 - i * 8).setDepth(q.y + 6).setAlpha(a));
+      return true;
+    } });
+  }
+  /** A chevron spent (his new angle): the top one flicks up off him and fades; `left` stay. */
+  tackSpend(key: string, left: number, pos: () => (V3 & { h?: number }) | null): void {
+    const rec = this.chevs.get(key), top = rec?.ims[rec.ims.length - 1];
+    if (top) this.spr({ name: 'mw-chev', x: top.x, y: top.y, depth: top.depth, w: 18, angle: -90, life: 160, tint: MINT, add: true, glow: 0.2, my: (u) => -18 * out3(u), sx: kf([0, 1], [1, 1.5]), sy: kf([0, 1], [1, 1.5]), a: kf([0, 1], [1, 0, inQ]) });
+    else { const q = pos(); if (q) this.burst(q.x, q.y - q.z - (q.h ?? 120) * 0.74, 22, { tint: MINT, life: 100 }); }
+    if (rec) { rec.n = Math.max(0, left); this.fit(rec); }
+  }
+  /** He left the style: the chevrons go. */
+  tackClear(key: string): void { const rec = this.chevs.get(key); if (rec) rec.n = 0; }
+  /** A record's pictures: one chevron each. */
+  private fit(rec: { n: number; ims: Phaser.GameObjects.Image[] }): void {
+    const s = this.ctx.scene;
+    while (rec.ims.length > rec.n) rec.ims.pop()!.destroy();
+    while (rec.ims.length < rec.n) rec.ims.push(s.add.image(0, 0, 'mw-chev').setDisplaySize(16, 16).setAngle(-90).setTint(MINT).setBlendMode(Phaser.BlendModes.ADD).setVisible(false));
+  }
+  private pop(im: Phaser.GameObjects.Image | undefined): void {
+    if (!im) return;
+    this.ctx.scene.tweens.killTweensOf(im); im.setDisplaySize(16, 16);
+    this.ctx.scene.tweens.add({ targets: im, scaleX: im.scaleX * 1.5, scaleY: im.scaleY * 1.5, duration: 90, yoyo: true });
   }
 
   update(dt: number): void {

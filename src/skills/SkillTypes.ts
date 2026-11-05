@@ -80,6 +80,9 @@ export interface Reaction {
   curse?: number;
   /** Book Mage Levity Field: gravity turns over (ms): the body floats up and hangs there, unable to move. */
   levity?: number;
+  /** A shove into a real wall (a prop, the room's edge): he crashes into it and comes off it, bouncing once off the floor
+   *  (WALL CRASH) — off a standing shove too, not only a drive (`fly`). The Siege Warden's Rivet Drive. */
+  wall?: boolean;
 }
 
 export interface HitEvent {
@@ -118,6 +121,10 @@ export interface HitEvent {
   recall?: { speed?: number; loft?: number };
   /** The big star's light cut on its own way home (EdgeSpec `back`). Set by the runtime, never in the kit. */
   edgeBack?: boolean;
+  /** The Fulminant Conductor's Polarity (StyleMechanics POLARITY): a + strike marks the foe, a − strike snaps the mark. */
+  pol?: 1 | -1;
+  /** The Sailwright's Tack (StyleMechanics TACK): this hit leaves a pale-mint chevron on the foe. */
+  tack?: boolean;
 }
 
 export interface FinalSkill {
@@ -205,6 +212,17 @@ export interface FinalSkill {
   wip?: boolean;
   /** The fighting style whose kit it belongs to (Styles.ts); none: the class's own kit, its first style. */
   style?: string;
+  /** A style mechanic it feeds (StyleMechanics): its landed hit — a counter: its catch — earns the Siege Warden a gate
+   *  charge / the Radiant Duelist a facet. */
+  earns?: 'gate' | 'facets';
+  /** A style mechanic it spends at its start (StyleMechanics): the Sailwright's Tack (Up / Down held: a new angle), the
+   *  Duelist's facets (All In's stake: `stakes`), the Warden's gate charge (its `charged` hits instead). */
+  spends?: 'tack' | 'facets' | 'gate';
+  /** A gate charge spent: these hits instead of `hits` (the Warden's better effect). */
+  charged?: HitEvent[];
+  /** All In's stakes by the facets staked (0–3): its thrust's reach, and what a hit in the outer quarter of it does — the
+   *  payoff (none past `tip`: the plain thrust). */
+  stakes?: { length: number; tip: Reaction; dmg?: number }[];
 }
 
 export const PVP_MULT = 0.7;

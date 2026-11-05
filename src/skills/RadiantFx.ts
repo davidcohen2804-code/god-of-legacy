@@ -72,6 +72,13 @@ function textures(s: Phaser.Scene): void {
       const lg = g.createLinearGradient(0, 0, L, 0); lg.addColorStop(0, 'rgba(255,255,255,1)'); lg.addColorStop(1, 'rgba(255,255,255,0)');
       g.fillStyle = lg; g.beginPath(); g.moveTo(0, -2); g.lineTo(L, 0); g.lineTo(0, 2); g.closePath(); g.fill(); g.restore(); }
   });
+  mk('rd-facet', 20, 24, (g) => { // an Odds Facet (the House Edge): a small cut gold setting, a white glint
+    g.beginPath(); g.moveTo(10, 1); g.lineTo(19, 12); g.lineTo(10, 23); g.lineTo(1, 12); g.closePath();
+    const gr = g.createLinearGradient(0, 0, 20, 24); gr.addColorStop(0, 'rgba(255,244,200,1)'); gr.addColorStop(0.5, 'rgba(255,206,92,1)'); gr.addColorStop(1, 'rgba(186,128,38,1)');
+    g.fillStyle = gr; g.fill(); g.strokeStyle = 'rgba(84,46,8,0.95)'; g.lineWidth = 1.3; g.stroke();
+    g.strokeStyle = 'rgba(255,255,255,0.75)'; g.lineWidth = 0.8; g.beginPath(); g.moveTo(10, 2); g.lineTo(10, 22); g.moveTo(2, 12); g.lineTo(18, 12); g.stroke();
+    g.fillStyle = 'rgba(255,255,255,0.95)'; g.beginPath(); g.arc(7, 8, 1.8, 0, Math.PI * 2); g.fill();
+  });
   mk('rd-mote', 32, 32, (g) => { const gr = g.createRadialGradient(16, 16, 0, 16, 16, 15); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.4, 'rgba(226,212,255,0.6)'); gr.addColorStop(1, 'rgba(190,160,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 32, 32); });
   mk('rd-ring', 128, 128, (g) => { g.strokeStyle = 'rgba(236,226,255,0.95)'; g.lineWidth = 3; g.beginPath(); g.arc(64, 64, 58, 0, Math.PI * 2); g.stroke();
     g.strokeStyle = 'rgba(200,170,255,0.4)'; g.lineWidth = 8; g.beginPath(); g.arc(64, 64, 54, 0, Math.PI * 2); g.stroke(); });
@@ -88,6 +95,8 @@ interface Live { t: number; step(dt: number, t: number): boolean }
 export class RadiantFx {
   private live: Live[] = [];
   private incoming: Live[] = [];
+  /** The House Edge's facets beside each Duelist (his id): their pictures. */
+  private facetArt = new Map<string, Phaser.GameObjects.Image[]>();
   constructor(private ctx: RadiantCtx) {}
 
   // ------------------------------------------------------------------ the piece system
@@ -210,8 +219,11 @@ export class RadiantFx {
         this.onClock(r, T.startup * 0.25, () => { const t = this.tip(r, 'stance'), c = c0(), x0 = c.x - side * 40, y0 = c.y - c.z - 30;
           this.spr({ name: 'rd-mote', x: x0, y: y0, depth: TOP + 4, w: 14, life: Math.max(120, T.startup * 0.55), run: r, tint: GOLD, add: true, glow: 0.3,
             mx: (u) => (t.x - x0) * out3(u), my: (u) => (t.y - y0) * out3(u), a: kf([0, 0], [0.15, 1], [0.85, 1], [1, 0]) }); });
+        for (let k = 0; k < (r.style?.facets ?? 0); k++) this.onClock(r, T.startup * (0.3 + 0.16 * k), () => { const c = c0(); // the facets staked: each setting lights on the grip as it turns through his palms
+          this.spr({ name: 'rd-facet', x: c.x - side * (12 - 11 * k), y: c.y - c.z - 66, depth: TOP + 4, w: 12, life: Math.max(160, T.startup * (0.62 - 0.16 * k)), run: r, sx: kf([0, 1.8], [0.2, 1, out3]), sy: kf([0, 1.8], [0.2, 1, out3]), a: kf([0, 0], [0.08, 1], [0.85, 1], [1, 0]) });
+          this.flash(c.x - side * (12 - 11 * k), c.y - c.z - 66, 22, { run: r, tint: GOLD, life: 90 }); });
         this.onClock(r, T.startup * 0.8, () => { const t = this.tip(r, 'stance'); this.spade(t.x, t.y - 4, 18, { run: r, life: 140 }); });
-        this.onClock(r, Math.max(0, hitAt(0) - 30), () => { const t = this.tip(r); this.lance(t.x - side * 190, t.y, t.x + side * 40, t.y, 18, { run: r, life: 140 }); });
+        this.onClock(r, Math.max(0, hitAt(0) - 30), () => { const t = this.tip(r), ex = 15 * (r.style?.facets ?? 0); this.lance(t.x - side * 190, t.y, t.x + side * (40 + ex), t.y, 18, { run: r, life: 140 }); }); // (the more staked, the further the thrust)
         this.onClock(r, hitAt(0), () => { const t = this.tip(r), x = t.x + side * 30;
           this.spade(x, t.y, 34, { run: r, angle: side * 90, tall: 1.6, life: 190 }); this.flash(x, t.y, 52, { run: r }); this.ring(x, t.y, 70, { run: r, life: 200 });
           this.ctx.punch(0.022, 140); this.shake(r, 100, 0.0026); });
@@ -300,6 +312,19 @@ export class RadiantFx {
       im.setPosition(p.x, p.y - p.z).setDepth(p.y + 3); tr.setPosition(p.x, p.y - p.z).setDepth(p.y + 2.9);
       return true;
     } });
+  }
+
+  /** The House Edge's facets beside him, every frame (GPT: small gold settings — the foe sees them): one cut gold setting each
+   *  at his back shoulder, the newest popping in; none, or no body: gone. */
+  meter(id: string, n: number, at: (V3 & { h?: number }) | null, face: number): void {
+    const s = this.ctx.scene, want = at ? Math.max(0, Math.min(3, n)) : 0;
+    let ims = this.facetArt.get(id);
+    if (!ims) { if (!want) return; textures(s); ims = []; this.facetArt.set(id, ims); }
+    while (ims.length > want) ims.pop()!.destroy();
+    while (ims.length < want) { const im = s.add.image(0, 0, 'rd-facet').setDisplaySize(12, 14); ims.push(im); s.tweens.add({ targets: im, scaleX: im.scaleX * 1.7, scaleY: im.scaleY * 1.7, duration: 110, yoyo: true }); }
+    if (!at || !ims.length) { this.facetArt.delete(id); return; }
+    const h = at.h ?? 124, x = at.x - face * 30, y = at.y - at.z - h * 0.8;
+    ims.forEach((im, i) => im.setPosition(x, y + i * 14).setDepth(at.y + 6));
   }
 
   update(dt: number): void {

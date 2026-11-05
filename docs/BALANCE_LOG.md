@@ -4,6 +4,34 @@ Every balance change to any class's skills, newest first. Class chats: read this
 needs new visuals / motion (an effect sized to a new hitbox, an animation timed to a new startup), do that part.
 Values apply to the whole game (only damage may differ in PvP: arenaDmg / the arena's scaling).
 
+## 2026-11-05 — The styles' mechanics: the Polarity, the Tack, the House Edge, the Gate Pressure (David 4 Nov 14:59)
+- GPT's designs (scratchpad styles/*_styles.md); the numbers in `src/skills/StyleMechanics.ts`, which strikes feed or spend
+  them in the kits (`FinalKit`: a hit's `pol` / `tack`, a skill's `earns` / `spends` / `charged` / `stakes`). The same in the
+  open game and in PvP (the screen that judges a hit judges its mechanic; the attacker's is told with its HP report).
+- **The Fulminant Conductor's Polarity:** every strike + or − (`pol`): + Prong Tap, Rail Jab, Probe Jab, Riser Prong, Arc
+  Clamp, Rail Slide, Capacitor Kick; − Cross Contact, Break Stroke, Closing Stroke, Blue Needle, Zero Interval, Return Spark,
+  Insulator Split, Earth Pin (Faraday Fold: neither). A + hit marks the foe (one mark, 3 s); a − hit snaps it — the Arc Snap:
+  stun + D(40) inside that hit and `float` if he is in the air (no extra hit, no extra juggle); once a foe per 1.2 s; a
+  blocked or missed strike never marks; his marks go when he leaves the style.
+- **The Sailwright's Tack:** Fan Prick, Rib Rake, Sail Edge, Windward Spike and Tackline Draw leave a chevron on the foe (2 at
+  most, 3.5 s); Luff Step, Cut Across and Slipwake with Up / Down held spend one at their start (on the foe they cut at —
+  the locked one, else the nearest within 420 px; the floor clear that way): 24 px across the depth through the wind-up
+  and the cut 10 px deeper either side (`depth` + 10, a line's width + 20) — spent on a miss too; gone with the style.
+- **The Radiant Duelist's House Edge:** up to 3 facets — a Clean Read (a staff hit with the foe's centre in the outer
+  quarter of its reach; one a cast) or a Read the Room catch earns one; All In stakes them all at its start: reach
+  190 / 205 / 220 / 235, and only a hit in the outer quarter of that reach pays (`stakes`): 0 the strong stagger (stun
+  D(650), push 70, J16) · 1 a horizontal launch (push 120, launch 40, J18) · 2 a vertical relaunch (stun D(700), launch 100,
+  J20) · 3 a high relaunch (stun D(750), launch 135, J24, damage × 1.35); short of the tip, the plain thrust (the
+  strong stagger) that links into nothing; 2–3 staked and nothing landed: + 120 ms recovery (on top of the arena's whiff).
+  All In now links into High-Stakes Vault too (GPT: C→10, 12 — off a tip hit only). His staff strikes no longer step in
+  toward the foe (the melee lunge): his spacing is his game.
+- **The Siege Warden's Gate Pressure:** up to 2 charges (6 s from the last) — a Threshold Check that lands, a Sentry Catch
+  that catches; Lion's Clamp, Rivet Drive and Royal Portcullis spend one when he has it (`charged`): the clamp held
+  D(300) (from D(180)) · the drive's shove 170 (from 135) · the Portcullis' drive up shoves him 80 and into a real wall
+  he crashes off it. Rivet Drive's shove crashes him off a real wall with or without a charge (GPT; its description said so
+  already) — Reaction `wall`: Combat's WALL CRASH off a standing shove or a launch, not only a drive.
+- On the way: a far player's four-beat chain plays its fourth beat (a remote cast's stage was capped at the third).
+
 ## 2026-11-05 (night) — The rest of the styles' skills: the Assassin's six, the Warden's six, the Duelist's five, the Sailwright's six, the Conductor's five (David 4 Nov 14:59)
 - At the fight's pace `D(ms)`; GPT's times and reaches (X ± depth), DFO's damage — tune freely. Counters: the window
   (real ms) after the wind-up; a blow (or a shot, for the mage's) that reaches the caster in it is answered at once.

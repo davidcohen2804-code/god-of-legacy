@@ -87,6 +87,13 @@ function textures(s: Phaser.Scene): void {
     g.strokeStyle = 'rgba(200,236,255,0.7)'; g.lineWidth = 1;
     for (const [x0, y0, x1, y1] of [[30, 32, 22, 22], [44, 32, 52, 44], [96, 14, 104, 4], [100, 50, 92, 60]] as const) { g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); }
   });
+  mk('ml-teeth', 24, 32, (g) => { // the Polarity's mark: two tiny angular teeth of current, one over the other, pointing right (at him)
+    g.lineJoin = 'miter';
+    for (const y0 of [2, 17]) {
+      g.beginPath(); g.moveTo(2, y0); g.lineTo(22, y0 + 6.5); g.lineTo(2, y0 + 13); g.lineTo(7, y0 + 6.5); g.closePath();
+      g.fillStyle = 'rgba(108,200,255,0.95)'; g.fill(); g.strokeStyle = 'rgba(236,248,255,1)'; g.lineWidth = 1.3; g.stroke();
+    }
+  });
 }
 
 interface Spr {
@@ -100,6 +107,8 @@ interface Live { t: number; step(dt: number, t: number): boolean }
 export class LightningFx {
   private live: Live[] = [];
   private incoming: Live[] = [];
+  /** The Polarity's marks on the foes (attacker>target): their teeth. */
+  private teeth = new Map<string, { until: number; im: Phaser.GameObjects.Image }>();
   constructor(private ctx: LightningCtx) {}
 
   // ------------------------------------------------------------------ the piece system
@@ -266,6 +275,44 @@ export class LightningFx {
     if (big) { const a = rnd(-0.5, 0.5); this.rail(x - Math.cos(a) * 40, y - Math.sin(a) * 40, x + Math.cos(a) * 40, y + Math.sin(a) * 40, 6, { life: 100 }); }
     if (crit) this.spark(x, y, 70, { life: 130, tint: VOLT });
     if ((hit.reaction.launch ?? 0) >= 90) this.rail(x, at.y - at.z, x, at.y - at.z - 150, 6, { life: 160 });
+  }
+
+  // ------------------------------------------------------------------ the Polarity
+
+  /** A + strike marked him (GPT): two tiny angular blue teeth beside his torso, on the Conductor's side, pointing in — until
+   *  a − strike snaps them or they run out (they flicker in their last half second). */
+  polarMark(key: string, ms: number, pos: () => (V3 & { h?: number }) | null, side: () => number): void {
+    const s = this.ctx.scene; textures(s);
+    const cur = this.teeth.get(key), until = s.time.now + ms;
+    if (cur) { cur.until = until; this.pulse(cur.im); return; }
+    if (!pos()) return;
+    const im = s.add.image(0, 0, 'ml-teeth').setDisplaySize(13, 17).setBlendMode(Phaser.BlendModes.ADD).setVisible(false), rec = { until, im };
+    this.teeth.set(key, rec); this.pulse(im);
+    this.add({ t: 0, step: () => {
+      const q = pos(), now = s.time.now;
+      if (!q || now >= rec.until || this.teeth.get(key) !== rec) { im.destroy(); if (this.teeth.get(key) === rec) this.teeth.delete(key); return false; }
+      const sd = side();
+      im.setVisible(true).setPosition(q.x + sd * 25, q.y - q.z - (q.h ?? 120) * 0.56).setFlipX(sd > 0).setDepth(q.y + 6)
+        .setAlpha(rec.until - now < 500 ? 0.45 + 0.55 * Math.abs(Math.sin(now / 45)) : 1);
+      return true;
+    } });
+  }
+  /** A − strike snapped the mark (the Arc Snap): the teeth close on him and one very brief spark at the contact. */
+  polarSnap(key: string, pos: () => (V3 & { h?: number }) | null): void {
+    textures(this.ctx.scene);
+    const rec = this.teeth.get(key), q = pos();
+    if (rec) rec.until = 0; // (its step takes the teeth away)
+    if (!q) return;
+    const y = q.y - q.z - (q.h ?? 120) * 0.56;
+    if (rec) { const x0 = rec.im.x, sd = x0 < q.x ? -1 : 1; // the teeth shut in on him
+      this.spr({ name: 'ml-teeth', x: x0, y, depth: q.y + 6, w: 13, h: 17, flipX: sd > 0, life: 70, add: true, mx: (u) => -sd * 16 * out3(u), a: kf([0, 1], [0.6, 1], [1, 0]) }); }
+    this.spark(q.x, y, 40, { tint: VOLT, life: 95, delay: 40 }); this.spark(q.x, y, 22, { life: 70, delay: 50 });
+  }
+  /** He left the style: the mark goes. */
+  polarClear(key: string): void { const rec = this.teeth.get(key); if (rec) rec.until = 0; }
+  private pulse(im: Phaser.GameObjects.Image): void {
+    this.ctx.scene.tweens.killTweensOf(im); im.setDisplaySize(13, 17);
+    this.ctx.scene.tweens.add({ targets: im, scaleX: im.scaleX * 1.45, scaleY: im.scaleY * 1.45, duration: 80, yoyo: true });
   }
 
   // ------------------------------------------------------------------ frame
