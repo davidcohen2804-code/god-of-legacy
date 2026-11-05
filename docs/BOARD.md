@@ -100,7 +100,8 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
   counter has its own look (the longsword's guard and the katana's mirage ink no longer show on them).
 - On the way: the sidesteps across the lane step along the aim (toward a corner they cross the depth); a sweep wider than
   the arena's lane keeps its own depth (Crossbar Sweep).
-- **Open (DFO next):** the styles' mechanics — the Tack, the Polarity, the House Edge, the Gate Pressure.
+- ~~Open (DFO next): the styles' mechanics — the Tack, the Polarity, the House Edge, the Gate Pressure.~~ Done: step 11
+  (6b86d8feb), checked on two screens (ebb5c8e0f).
 - Checked: PVP 3D probes of all 37 on the partner (every hit lands — the counters struck in their windows, Steady Chamber's
   primed shot, the lane draws on a foe off the line, Falling Talon in the air; 0 errors, no 404s); PVP 3D films of all 37
   (the reel, sent to David); the open world on a monster (every one that is unlocked at the hero's level lands; 0 errors).
@@ -129,8 +130,8 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
   under the Warden's and the Assassin's; the Sniper's round a heavier streak).
 - `tools/heroes/cut.py`: an action may set its own `ground_y` (a pose reaching over his head on a taller canvas, 1280 × 908,
   the floor at 840).
-- **Open (class chats):** the styles' other templates and mechanics (the Tack, the Polarity, the House Edge, the Gate
-  Pressure).
+- ~~Open (class chats): the styles' other templates and mechanics (the Tack, the Polarity, the House Edge, the Gate
+  Pressure).~~ Done by DFO: the templates in step 10 (fd9611517), the mechanics in step 11 (6b86d8feb).
 - On the way: the Sniper's Last Horizon keeps its knockdown from afar (`farLaunch`: a shot past the poke range was a
   140 ms flinch).
 - Checked: PVP 3D probes of each ultimate on the partner (every hit lands — the Fivefold Night on a foe in the air too;
@@ -156,7 +157,8 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 - GPT's Three-Current Route, whole: Arcane Bolt → Astral Lift → the switch → Cut Across → Keel Drop → the switch → Riser Prong
   (off the bounce) → Probe Jab → Closing Stroke; his own "Polarity execution": tap → contact → Riser Prong → Probe Jab →
   Closing Stroke → Arc Clamp → Earth Pin → Return Spark.
-- **Open (Book Mage chat):** the six templates and the Polarity (GPT's + / − strikes: a + hit marks, a − hit snaps the mark).
+- ~~Open (Book Mage chat): the six templates and the Polarity (GPT's + / − strikes: a + hit marks, a − hit snaps the mark).~~
+  Done by DFO: the templates in step 10 (fd9611517), the mechanic in step 11 (6b86d8feb), checked on two screens (ebb5c8e0f).
 - On the way: the switch back to the book is one small flash of the book's blue at his hands (from the fan or the fork).
 - Checked: PVP 3D films of the Three-Current Route and his Polarity execution (every hit lands, 0 errors), the open world on
   a monster (every hit lands; no 404s of his).
@@ -175,9 +177,9 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 - The cross-style chain (GPT's "Three-Current Route", its first two currents): Arcane Bolt → Astral Lift → the switch →
   Cut Across → Keel Drop → Windward Spike; his own close launch: prick → reverse edge → Updraft Hook → Sail Edge → Cut
   Across → Keel Drop → Windward Spike.
-- **Open (Book Mage chat):** the seven templates and the Tack (GPT's chevron marks: a few hits leave one, Luff Step, Cut
-  Across and Slipwake spend one for a new angle — +24 px across the lane at the start, +10 depth); then the third style,
-  the Fulminant Conductor (Lightning), is DFO's next step.
+- ~~Open (Book Mage chat): the seven templates and the Tack (GPT's chevron marks: a few hits leave one, Luff Step, Cut
+  Across and Slipwake spend one for a new angle — +24 px across the lane at the start, +10 depth)~~; the third style, the
+  Fulminant Conductor, came in step 8. Done by DFO: the templates in step 10 (fd9611517), the mechanic in step 11 (6b86d8feb), checked on two screens (ebb5c8e0f).
 - On the way: the book's spells stay with the book — his fan's hits carry no element, no Prism, weave no rune; the
   switches neither attune the bolt nor spend a Grand Weave. Fixed: the book mage's Rift Gates and Tempest Ride asked the
   world for sheets they never had (two 404s: `Body.ts` BODY_ALIAS, their hero plans' stand-ins).
@@ -197,8 +199,8 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
   ~120 ms, a faceted spade opening at a heavy contact — no cards, no casino objects; PVP 3D answers him in violet-white).
 - The cross-style chain (GPT's "The Double Bluff", its middle): Staff Vault → the switch → Royal Turn → Collect the Debt →
   Curtain Call; his own "Gentleman's Lesson": jab → thrust → Crown Raise → Royal Turn → Collect the Debt → Curtain Call.
-- **Open (Gambler chat):** the six templates and the House Edge (GPT's gold facets: a hit in the outer quarter of a reach
-  earns one, All In stakes them — it plays its unstaked "Probe" for now).
+- ~~Open (Gambler chat): the six templates and the House Edge (GPT's gold facets: a hit in the outer quarter of a reach
+  earns one, All In stakes them — it plays its unstaked "Probe" for now).~~ Done by DFO: the templates in step 10 (fd9611517), the mechanic in step 11 (6b86d8feb), checked on two screens (ebb5c8e0f).
 - On the way: the Duelist deals no cards — his hits give the Hand nothing (Ace of Fate's joker neither) and the Hand is put
   away while he holds the staff (it is back with the cards).
 - Checked: PVP 3D films of the Double Bluff and his own chain (0 errors), the open world on a monster (every hit lands, no
@@ -219,7 +221,7 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
   light pillars).
 - The cross-style chain (GPT's "The Lion's Judgment"): Rising Slash → the switch → Drawbridge Lift → Anvil Drop → Royal
   Portcullis.
-- **Open (Warrior chat):** the seven templates and GATE PRESSURE (GPT's two charges); his run / jump / knockdown are GPT
+- ~~Open (Warrior chat): the seven templates and GATE PRESSURE (GPT's two charges)~~ — done by DFO: the templates in step 10 (fd9611517), the mechanic in step 11 (6b86d8feb), checked on two screens (ebb5c8e0f); **still open:** his run / jump / knockdown are GPT
   sheets for now — PixVerse clips when its credits are back (DFO; its page still shows 310 but the server says 0).
 - Checked: PVP 3D films of the chain and the kit (0 errors), the open world on a monster (every hit lands; the gold orbs
   round him are the warrior's own Combo Orbs). Fixed on the way: the world asked for a sheet for each of his 13 skills
