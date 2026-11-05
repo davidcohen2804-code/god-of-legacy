@@ -60,7 +60,7 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
   6 s), a far player's four-beat chain to its fourth beat; 0 errors. **Found and fixed:** the facets and the gate charges
   beside a far player never reached the foe's screen — the player's state message dropped them (`PvpController`).
   (Worth knowing, not changed: a fighter's Stance passive — the Gambler's 60 % — also turns away Rivet Drive's shove.)
-- Done: 6b86d8feb; the facets / charges to the foe: see the next commit.
+- Done: 6b86d8feb; ebb5c8e0f (the facets / charges to the foe).
 
 ### DFO (4 Nov, David 14:59) — the styles, step 10: the rest of every style's skills (37 — no template left)
 - **The Deadeye Sniper's five** (GPT's design, scratchpad styles/archer_styles.md): Stockbreaker (the rifle butt driven
