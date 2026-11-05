@@ -84,7 +84,8 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
   the line) and Capacitor Kick (the heel strike, the charge kicks him back).
 - Their poses: each style's own painted stills (new moves made of them: the Assassin's sweep, shift and talon, the
   Warden's sentry and false gate, the Duelist's read and vault, the Conductor's fold). The Assassin's Heel Sweep and
-  Falling Talon borrow his flying knee — **open: their own GPT stills** (the computer with GPT was not reachable).
+  Falling Talon have their own GPT stills since step 11 (the low sweep, the rising heel; the leg raised in the air, the
+  heel dropped like a talon — `as_sweep`, `as_talon`, pipe/as_still2.py; his body re-cut).
 - The effects: each style's own (ShurikenFx, WardenFx, RadiantFx, WindFx, LightningFx, ArcherFx); the Duelist's diamond,
   the fan's slices and the fork's needle fly with their own pictures (never the cards or the book's bolt); a style's
   counter has its own look (the longsword's guard and the katana's mirage ink no longer show on them).

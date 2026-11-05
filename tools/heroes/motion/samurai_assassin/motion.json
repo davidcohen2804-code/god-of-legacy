@@ -145,7 +145,7 @@
     },
     "as_sweep": {
       "frames": 2,
-      "source": "gpt stills: air_shot -> as_knee (Heel Sweep: down low for the sweep, then the rising heel — borrowed until its own stills)"
+      "source": "gpt stills: sweep -> heel (Heel Sweep: crouched low, the leg swept along the floor; then the rising heel kick that launches; pipe/as_still2.py)"
     },
     "as_shift": {
       "frames": 2,
@@ -153,7 +153,7 @@
     },
     "as_talon": {
       "frames": 2,
-      "source": "gpt stills: as_knee -> air_shot (Falling Talon: the leg raised in the air, then the drop — borrowed until its own stills)"
+      "source": "gpt stills: raise -> drop (Falling Talon: in the air, the leg raised high with the heel up; then the heel driven down like a talon; pipe/as_still2.py)"
     }
   },
   "hit_source": "pixverse as_hit.mp4 (433532602315716; its screen drifted to teal: keyed by its border colour, the rim cut, colour matched to the idle)",
