@@ -283,7 +283,9 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
   the butt, the hand kept clean (`cane_lines.py` rear segment, `GamblerFx.lightStaff`). Gambler chat: yours to tune.
 - **Her floor bombs find him** (`seekFoe`): Arc Mortar and the Broadside come down under the nearest foe in front inside
   their reach — in the arena too (a ground skill there otherwise lands 180 px ahead) and on monsters in the open game.
-- **Open (DFO):** the room's launch pillar still answers her launches (a column of light) — her own blast may carry them.
+- ~~Open (DFO): the room's launch pillar still answers her launches (a column of light) — her own blast may carry them.~~
+  Done (DFO, 5 Nov, 113bc1b3f): her blasts carry her launches — no column of light over them (it washed the foe flying out
+  of the blast); the main-hit impact stays. Filmed before / after in PVP 3D (Arc Mortar, Piston Lift).
 - **Archer chat:** the Sniper and the Cannoneer are yours from here (their visuals, motion, the templates); worth your pass:
   the Hunter's Mark over the foe is the bow's green leaf in every style.
 - Done: 57c6bbc7 (the staff), 6f24b0f5 (the Cannoneer, the tag-in), b507bd0a (her icons, the rings, the missile), 58f8cc77
