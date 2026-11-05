@@ -69,6 +69,10 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 - On the way: the sidesteps across the lane step along the aim (toward a corner they cross the depth); a sweep wider than
   the arena's lane keeps its own depth (Crossbar Sweep).
 - **Open (DFO next):** the styles' mechanics — the Tack, the Polarity, the House Edge, the Gate Pressure.
+- Checked: PVP 3D probes of all 37 on the partner (every hit lands — the counters struck in their windows, Steady Chamber's
+  primed shot, the lane draws on a foe off the line, Falling Talon in the air; 0 errors, no 404s); PVP 3D films of all 37
+  (the reel, sent to David); the open world on a monster (every one that is unlocked at the hero's level lands; 0 errors).
+- Done: fd9611517.
 
 ### DFO (4 Nov, David 14:59) — the styles, step 9: every style's ultimate, each with its own portrait
 - **Seven ultimates, one per style** (slot 7; GPT's beats — scratchpad styles/*_styles.md; each style's own portrait is its
