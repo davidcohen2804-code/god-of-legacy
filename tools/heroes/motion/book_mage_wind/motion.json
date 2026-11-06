@@ -7,10 +7,10 @@
   "hip_x": 384,
   "animations": {
     "idle": {
-      "frames": 5,
-      "source": "gpt sprite sheet idle_sheet.webp (figures 1,2,3,4,5; PixVerse out of credits)",
+      "frames": 64,
+      "source": "pixverse mw_idle.mp4 (540p, refs/book_mage_wind_magenta.jpg — magenta: his fan is mint; frames 27-90, the seam 1.08 steps), keyed by the screen's border colour, the magenta spill off the edges, scaled to his GPT idle's height (511)",
       "loop": true,
-      "fps": 6
+      "fps": 15
     },
     "walk": {
       "frames": 8,
