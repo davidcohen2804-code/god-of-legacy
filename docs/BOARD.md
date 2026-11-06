@@ -37,10 +37,11 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
   15 fps trembles): the Sailwright, the Conductor and the Duelist (idle, walk, run, jump, knockdown), the Warden (run, jump,
   knockdown — his green inputs `refs/warrior_siege_jump_green.jpg` / `_hit_green.jpg` are ready).
 - **Done:** the Duelist's idle (bfe9c2cc7) — 25 painted frames from `refs/gambler_radiant_green.jpg` (his approved look),
-  the loop cut where it flows back into itself, scaled to his old idle's height so his other moves still match. Next, a
-  clip a day: the Sailwright's idle, the Conductor's idle, then the walks, then the Warden's run / jump / knockdown.
+  the loop cut where it flows back into itself, scaled to his old idle's height so his other moves still match; the
+  Sailwright's idle (cb23c13a6, 6 Nov) — 64 frames from the magenta screen (`refs/book_mage_wind_magenta.jpg`: his fan is mint),
+  his coat tail swaying. Next, a clip a day: the Conductor's idle, then the walks, then the Warden's run / jump / knockdown.
 - For the prompts: in this clip the green faded to a pale blue after 2.5 s (only the first 60 frames key) — say the
-  background stays the same pure green all through, and put "background colour change, fade" in the negative.
+  background stays the same pure green all through, and put "background colour change, fade" in the negative. (Done so for the Sailwright: the magenta held; a screen that drifts anyway keys with `GKEY_MODE=bg`, its border colour.)
 
 ### DFO (4 Nov, David 14:59) — the styles, step 11: each style's own mechanic (the Polarity, the Tack, the House Edge, the Gate Pressure)
 - **GPT's four mechanics, in the game** (`src/skills/StyleMechanics.ts`; which strikes feed or spend them: the kits):
