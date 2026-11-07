@@ -1,4 +1,4 @@
-# God Of Legacy — automatic screenshots of build f4509ef (2026-11-07 06:09 UTC)
+# God Of Legacy — automatic screenshots of build d5cb583 (2026-11-07 16:57 UTC)
 
 ### 1920_01_main_menu.jpg
 ![1920_01_main_menu.jpg](1920_01_main_menu.jpg)
@@ -17,6 +17,9 @@
 
 ### 1920_05b_pvp_select.jpg
 ![1920_05b_pvp_select.jpg](1920_05b_pvp_select.jpg)
+
+### 1920_05c_test_select.jpg
+![1920_05c_test_select.jpg](1920_05c_test_select.jpg)
 
 ### 1920_06_hero_select.jpg
 ![1920_06_hero_select.jpg](1920_06_hero_select.jpg)
@@ -47,6 +50,9 @@
 
 ### 1280_05b_pvp_select.jpg
 ![1280_05b_pvp_select.jpg](1280_05b_pvp_select.jpg)
+
+### 1280_05c_test_select.jpg
+![1280_05c_test_select.jpg](1280_05c_test_select.jpg)
 
 ### 1280_06_hero_select.jpg
 ![1280_06_hero_select.jpg](1280_06_hero_select.jpg)

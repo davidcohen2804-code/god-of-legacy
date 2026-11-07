@@ -1,6 +1,6 @@
 {
-  "commit": "f4509ef",
-  "capturedAt": "2026-11-07 06:09 UTC",
+  "commit": "d5cb583",
+  "capturedAt": "2026-11-07 16:57 UTC",
   "files": [
     "1920_01_main_menu.jpg",
     "1920_02_start_hover.jpg",
@@ -8,6 +8,7 @@
     "1920_04_exit_confirm.jpg",
     "1920_05_exit_web_message.jpg",
     "1920_05b_pvp_select.jpg",
+    "1920_05c_test_select.jpg",
     "1920_06_hero_select.jpg",
     "1920_07_hero_samurai.jpg",
     "1920_08_hero_gambler.jpg",
@@ -18,6 +19,7 @@
     "1280_04_exit_confirm.jpg",
     "1280_05_exit_web_message.jpg",
     "1280_05b_pvp_select.jpg",
+    "1280_05c_test_select.jpg",
     "1280_06_hero_select.jpg",
     "1280_07_hero_samurai.jpg",
     "1280_08_hero_gambler.jpg",
