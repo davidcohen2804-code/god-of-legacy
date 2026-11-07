@@ -81,6 +81,11 @@ SHORTS = {'t': 'P', 'T': 'P', 'W': 'p', 'y': 'p', 'Y': 'p', 'B': 'P', 'b': 'p', 
 WRAPS = {'J': 'T', 'H': 't', 'B': 't', 'R': 'T', 'h': 't', 'b': 't', 'K': 't'}
 NECK = {(x, y) for y in range(27, 32) for x in range(18, 29) if x >= 21 or y >= 28}   # the neck, under the chin
 BOW_PX = {(35, 43)}                       # a pixel of the carried bow's string baked into the master: the bow's (GPT)
+_N8 = [(dx, dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1) if dx or dy]
+CAPE_HEM = {(x, y) for (x, y), l in MR.LAY.items()   # the cape hem's outline that came with the legs: the cape's (with
+            if l == 'legs' and M.px[y][x] == 'O' and  # the cape off it stuck out beside the shin)
+            any(M.get(x + dx, y + dy) in HOOD for dx, dy in _N8) and
+            not any(MR.LAY.get((x + dx, y + dy)) == 'legs' and M.get(x + dx, y + dy) not in 'O.' for dx, dy in _N8)}
 MAT = {'F': 'shirt', 'T': 'shirt', 'S': 'skin', 's': 'skin', 'P': 'shorts', 'p': 'shorts'}
 SHADE = {'shirt': 'T', 'skin': 's', 'shorts': 'p'}
 
@@ -92,6 +97,7 @@ def body() -> Grid:
         if (x, y) in NECK and l != 'head': g.px[y][x] = 'S' if x > 21 else 's'; continue
         if l in ('back', 'head') or y < 29 or (l == 'top' and ((y <= 35 and x < 14) or (y <= 44 and x < 13))): continue   # (the cape's collar and lining)
         if l == 'near' and y < 36: continue                                      # (the quiver's edge, not the arm)
+        if (x, y) in CAPE_HEM: continue
         if ch == 'O' or ch in SKIN: g.px[y][x] = ch; continue                    # outlines and the hands stay
         if l == 'top':
             if y <= 44: g.px[y][x] = SHIRT.get(ch, 'F')                            # shoulders, chest, under the belt

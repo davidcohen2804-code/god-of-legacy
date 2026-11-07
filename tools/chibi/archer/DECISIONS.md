@@ -164,6 +164,29 @@ before David sees it; David approves anything that changes approved art directio
   tufts stay a later polish; no further idle or walk changes now. Next: David's look, then the shot on the base —
   Raise again, then Full Draw, Release, Recover; the shot's arms are upper-body pose art over the base, the clothes over
   them, no longer one clothed master. [GPT]
+- Fixed after that review (8 Nov): on the idle's two risen frames the figure's top row (the hood's top outline) had
+  fallen out of the master's grid — the hood's top was open on 2 of 4 frames; now kept. The cape hem's outline that
+  came with the standing legs (5 px) belongs to the cape: without the cape it stuck out beside the near shin (base and
+  no-cape variants); walking it is left out (the walk's legs are elsewhere). Round trips unchanged.
+- **The production rule (GPT, 8 Nov): a new ordinary tunic or bracer must not require drawing a new attack animation;
+  only equipment that changes the actual silhouette needs additional pose-specific artwork** — for all five classes.
+- Arms for new poses (`src/arms_R.py`, approved as the architecture, GPT 8 Nov): an arm in a pose is a skeleton
+  (shoulder, elbow, wrist) and a hand drawing, drawn once as a material map — t along the arm (0 shoulder, 0.5 elbow,
+  1 wrist) and the tone across it (light, mid, shade; lit from the upper left), or outline. The base and every arm item
+  are colour bands over t (the base: the undershirt's short sleeve, skin; the tunic: its sleeve; the bracers: leather
+  with a cuff); hands are the hand's own tones (gloves would add theirs). Standard-fit equipment = new bands, no redraw;
+  silhouette-changing equipment (a wide sleeve, shoulder armour, a fur cuff) = a small pose-specific overlay. The
+  skeleton's 7 + 7–8 px is a guide, not a rule: foreshortening is allowed in the pose data, the look at native size
+  decides. Source data (geometry, zone maps, item definitions) is kept; the game gets precomposed frames. [GPT]
+- The shot's geometry (GPT 8 Nov, working): Raise — grip (40,37) +25°, the hand on the string at (25,34) (the arrow
+  level on the grip fist's top row), the draw elbow down behind the hand at (19,39), the bow elbow at (33,41); Full
+  Draw — grip (45,34), bow arm straight, the hand under the near jaw at (20,31), the draw elbow back at the shoulder's
+  height (12,33), the upper arm foreshortened (a slightly lower elbow to be judged on the sprite); Release — the grip
+  stays at (45,34), the string snaps forward, the limbs respond, the hand moves back; Recover — towards the compact
+  hip-level carry, grip and hand connected, the layer change only when the bow passes back by the torso. Not approved
+  yet: the final Full Draw elbow, the final shooting arms, any change of combat timing or projectile origin. The test:
+  Raise and Full Draw over standing and passing legs at ×2 and ×3 in three outfits (base, original, outfit B: other
+  sleeve colours and proportions) with no per-outfit correction (`src/shotbase_R.py`, not in the game). [GPT]
 - Open (for the integration, not decided): the arrow spawns 16 world px ahead of the feet and 34 px up (the combat
   code's fixed shot height, also used by the cover checks). With the chibi at ×2 that is the front of the hip, master
   (31,47), 34 px behind and 32 px below the drawn origin (48,31); at ×3, 59 and 65 px. The shot does not go into

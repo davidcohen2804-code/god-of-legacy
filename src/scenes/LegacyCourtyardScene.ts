@@ -108,7 +108,7 @@ import { ActorView, Equipped, RING_COLOR, preloadCosmetics, skinColor, grayKey, 
 import { ensureLightBeam } from '../skills/SkillFx';
 import HANDS from '../data/judgment-hands.json';
 import { baseLoop, ClassKey, dirOf, HERO_HEIGHT, HERO_LIFT, heroPortrait, loadBaseLook, loadGear, preloadBodies, registerBodies, resolvePose, PoseFrame, sideAim } from '../game/Body';
-import { chibiPose } from '../chibi/ChibiBody';
+import { chibiPose, preloadChibi } from '../chibi/ChibiBody';
 import { AnimSnap, LAND_MS, Mode, RECOVER_MS, castSeed, poseQuery } from '../game/PoseState';
 import { ARENA, CombatBody, counterStun, HitOutcome, gaugeOf, Kin, MAGE, PHYS, jump, newKin, settleOnBlocks, steer, stepKin } from '../combat/Combat';
 import { FinalSkill, HitEvent } from '../skills/SkillTypes';
@@ -752,6 +752,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     else preloadOpenWorld(this); // the open world: the start area and its neighbours (the rest streams in)
     if (!this.textures.exists(CT.dummy.key)) this.load.image(CT.dummy.key, CT.dummy.file);
     preloadBodies(this, classes, masks, pvp && !!me?.hero && !!classes); // (the arena's fighters are ready heroes: their painted bodies only)
+    preloadChibi(this, classes); // ?chibi: the new pixel-art body loads with the rest (no painted body first)
     if (me) loadBaseLook(this, genderOf(me), headLookOf(me)); // your hair, face and skin: layers on every base frame
     if (me) loadGear(this, genderOf(me), wornLook(me.gear)); // what you wear: the clothes and the sword on every base frame
     if (me) preloadLooks(this, [me]); // your full style for the portrait

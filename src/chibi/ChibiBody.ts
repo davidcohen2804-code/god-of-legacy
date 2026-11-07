@@ -35,17 +35,26 @@ const loading = new Set<string>();
 
 export const chibiOn = (cls: string): boolean => CHIBI.scale > 0 && READY.has(cls);
 
-/** Starts loading a class's chibi sprites (once); its pixels stay sharp (nearest filtering). */
-function load(scene: Phaser.Scene, cls: string): void {
+/** Starts loading a class's chibi sprites (once); its pixels stay sharp (nearest filtering). `start`: false from a
+ *  scene's preload (its own loading runs them). */
+function load(scene: Phaser.Scene, cls: string, start = true): void {
   const key = `chibi-${cls}`;
-  if (loading.has(key)) return;
+  if (loading.has(key) || scene.textures.exists(key)) return;
   loading.add(key);
   scene.load.atlas(key, `assets/chibi/${cls}/${cls}.png`, `assets/chibi/${cls}/${cls}.json`);
   scene.load.json(`${key}-anims`, `assets/chibi/${cls}/${cls}.anims.json`);
   scene.load.once(Phaser.Loader.Events.COMPLETE, () => {
     if (scene.textures.exists(key)) scene.textures.get(key).setFilter(Phaser.Textures.FilterMode.NEAREST);
   });
-  if (!scene.load.isLoading()) scene.load.start();
+  if (start && !scene.load.isLoading()) scene.load.start();
+}
+
+/** With the flag on, the chibi sprites load with the scene's own loading (under its loading screen), so the hero
+ *  enters the regular map already drawn as the chibi — not the painted body first (David 8 Nov: choose the hero,
+ *  enter the world, fully loaded; no TEST room needed). */
+export function preloadChibi(scene: Phaser.Scene, classes: string[] | undefined): void {
+  if (!CHIBI.scale) return;
+  for (const cls of classes ?? []) if (READY.has(cls)) load(scene, cls, false);
 }
 
 function frameAt(a: AnimDef, t: number): number {

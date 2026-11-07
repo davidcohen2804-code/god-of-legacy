@@ -96,10 +96,14 @@ def arm(wear) -> Grid:
     return g
 
 
-def back(wear) -> Grid:
+def back(wear, walking=False) -> Grid:
+    """The worn back parts (behind the body). Walking, without the cape hem's outline beside the standing legs (the
+    walk's legs are elsewhere: it would float)."""
     g = Grid(W, H)
     for k in IR.BEHIND:
         if k in wear: g.stamp(IR.BACK[k], 0, 0)
+    if walking:
+        for (x, y) in BR.CAPE_HEM: g.px[y][x] = '.'
     return g
 
 
@@ -135,11 +139,19 @@ def base_walk_legs(wi: int, bob: int) -> Grid:
 
 
 # --- the frames -----------------------------------------------------------------------------------------------------
+def keep_top(f: Grid, d: Grid) -> Grid:
+    """A risen frame keeps the figure's top row (shifting up a pixel pushed it out of the master's grid: the hood's
+    or hair's top outline was lost on the two risen idle frames)."""
+    for x in range(W):
+        if d.px[0][x] != '.': f.set(x + OX, OY - 1, d.px[0][x])
+    return f
+
+
 def idle(wear):
     d = IR.dress(list(wear))
     rise = A.lift(A.lift(A.shift_rows(d, 0, 44, -1), 31, 36, 46, 51), 11, 19, 47, 51)
-    return [(A.place(A.with_bow(d)), 400), (A.place(A.with_bow(rise, A.UP)), 300),
-            (A.place(A.with_bow(A.LAG(rise), A.UP)), 400), (A.place(A.with_bow(A.LAG(d))), 300)]
+    return [(A.place(A.with_bow(d)), 400), (keep_top(A.place(A.with_bow(rise, A.UP)), d), 300),
+            (keep_top(A.place(A.with_bow(A.LAG(rise), A.UP)), d), 400), (A.place(A.with_bow(A.LAG(d))), 300)]
 
 
 def blink(wear):
@@ -158,7 +170,7 @@ def walk(wear):
     seq = []
     for k, (wi, bob, s, lag) in enumerate(MR.PLAN):
         f = Grid(F, F)
-        b = back(wear)
+        b = back(wear, walking=True)
         f.stamp(A.LAG(b) if lag else b, OX, OY + bob)
         f.stamp(base_walk_legs(wi, bob), 0, 0)
         if 'boots' in wear: f.stamp(MR._LEGS[wi], 0, 0)

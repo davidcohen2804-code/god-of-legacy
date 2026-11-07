@@ -189,6 +189,14 @@ _LEGS = {wi: walk_legs(wi) for wi, _, _, _ in PLAN}
 A.FRAMES['walk4'] = walk4(PA, lambda wi, bob: _LEGS[wi])
 A.FRAMES['walk4b'] = walk4(PB, lambda wi, bob: boots_b(_LEGS[wi]), cuffed=True)
 _RISE_B = A.lift(A.lift(A.shift_rows(MASTER_B, 0, 44, -1), 31, 36, 46, 51), 11, 19, 47, 51)
-A.FRAMES['idleb'] = [(A.place(A.with_bow(MASTER_B)), 400), (A.place(A.with_bow(_RISE_B, A.UP)), 300),
-                     (A.place(A.with_bow(A.LAG(_RISE_B), A.UP)), 400), (A.place(A.with_bow(A.LAG(MASTER_B))), 300)]
+
+
+def _top(f: Grid) -> Grid:                                           # (the risen frames keep the hood's top row)
+    for x in range(M.w):
+        if MASTER_B.px[0][x] != '.': f.set(x + OX, OY - 1, MASTER_B.px[0][x])
+    return f
+
+
+A.FRAMES['idleb'] = [(A.place(A.with_bow(MASTER_B)), 400), (_top(A.place(A.with_bow(_RISE_B, A.UP))), 300),
+                     (_top(A.place(A.with_bow(A.LAG(_RISE_B), A.UP))), 400), (A.place(A.with_bow(A.LAG(MASTER_B))), 300)]
 A.FRAMES['blinkb'] = [(A.place(A.with_bow(A.blink(MASTER_B))), 130)]
