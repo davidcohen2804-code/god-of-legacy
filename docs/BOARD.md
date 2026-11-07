@@ -48,9 +48,9 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 - **Minimal motion (David 21:41, reviewed with GPT):** clothes swap only if the motion is minimal. A test behind the
   flag: `?chibi&walk=4` a 4-frame walk where only the legs, a 1 px bob, the free arm and the hem move (head, torso,
   bow one drawing each); `&outfit=b` a different tunic (one drawing) and boots (one per leg pose). GPT: viable,
-  strongest at ×2. David chooses between it and the 6-frame walk.
-- **Next:** David's choice of walk and his acceptance of the idle; then two proof compositions (Raise over the idle and
-  over a walk frame) at ×2 and ×3, then Full Draw, Release and Recover; then run, jump, hurt and charge.
+  strongest at ×2. **David chose it (7 Nov 23:06): the 4-frame walk is the default**; `&walk=6` keeps the old one.
+- **Next:** David's acceptance of the idle; then two proof compositions (Raise over the idle and over a walk frame) at
+  ×2 and ×3, then Full Draw, Release and Recover; then run, jump, hurt and charge — all under the minimal-motion rule.
 
 ### DFO (5 Nov) — the styles' bodies: PixVerse moves in place of the GPT sheets, a clip a day
 - PixVerse's free credits are back: 30 a day (+ 6 left over) — a 5 s clip costs 20 at 360p, 30 at 540p, 40 at 720p (no

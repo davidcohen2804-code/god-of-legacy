@@ -76,6 +76,11 @@ before David sees it; David approves anything that changes approved art directio
   screen (165 ms by default; `&wms=236` matches the 6-frame walk's real cycle — the pace formula plays that one at
   ~157 ms a frame, a 943 ms cycle, at the walking speed). The free arm swings ±2 px at the fist (±1 at the forearm);
   the hem lags a pixel on the passing frames.
+- **David chose the 4-frame walk at the planned pace (7 Nov 23:06): it is the game's walk now** (165 ms a frame on
+  screen); the 6-frame walk stays as the fallback (`&walk=6`). Outfit B stays a test item (`&outfit=b`), not a look.
+  Fixed in it the same night: the sleeve's highlight belongs to the top (gold on the red sleeve, no white stripe), the
+  boots take every leather tone of the leg drawings, and the fur cuff follows each leg where its boot shows under the
+  tunic (it steps down under the point, never lands on a toe). [David]
 - GPT's review of the test (7 Nov): "The 4-frame minimal-motion Archer walk is visually acceptable and
   production-beneficial, especially at gameplay scale ×2" — at ×3 the 6-frame walk is prettier, the trade-off is
   David's. Kept honest for David (no torso animation added back); if he wants more life, the first knob is a slightly

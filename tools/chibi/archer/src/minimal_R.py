@@ -24,6 +24,7 @@ def layer_of(x, y, ch):
     if x <= 10: return 'back'                                        # the cape's outline, the quiver's strap
     if ch in GREEN and y <= 34: return 'top'                         # the collar under the chin
     if y >= 52: return 'legs'
+    if 13 <= x <= 17 and 36 <= y <= 41 and ch == 'F': return 'top'     # the sleeve's highlight (the sleeve is the top's)
     if 11 <= x <= 20 and y >= 33 and ch not in GREEN + 'Tt': return 'near'
     if x >= 31 and y >= 33 and ch not in 'Tt': return 'far'
     return 'top'
@@ -95,21 +96,30 @@ def walk_legs(wi: int) -> Grid:
     return out
 
 
-def boots_b(legs: Grid, cuff_rows) -> Grid:
-    """Outfit B's boots on one leg pose: dark leather, a fur cuff a pixel wider on its first two rows."""
-    rec = {'B': 'N', 'H': 'N', 'R': 'N', 'b': 'n', 'h': 'n', 'K': 'n', 'J': 'X'}
+def boots_b(legs: Grid) -> Grid:
+    """Outfit B's boots on one leg pose: the same drawing in dark leather (every leather tone of the leg drawings)."""
+    rec = {'J': 'X', 'R': 'X', 't': 'X', 'H': 'N', 'B': 'N', 'e': 'N', 'h': 'n', 'b': 'n', 'E': 'n', 'K': 'n'}
     out = Grid(legs.w, legs.h)
     for y in range(legs.h):
         for x in range(legs.w):
             ch = legs.px[y][x]
             if ch != '.': out.px[y][x] = rec.get(ch, ch)
-    for j, y in enumerate(cuff_rows):
-        xs = [x for x in range(legs.w) if legs.px[y][x] not in '.O']
-        for x in xs: out.px[y][x] = 'F' if j == 0 else 'f'
-        for x in xs:                                                   # the flare: outline a pixel out on each side
-            for dx in (-1, 1):
-                if 0 <= x + dx < legs.w and legs.px[y][x + dx] == '.' and out.px[y][x + dx] == '.': out.px[y][x + dx] = 'O'
     return out
+
+
+def cuff(frame: Grid, legs: Grid, cover: set) -> None:
+    """Outfit B's fur cuff, on each leg where its boot comes out from under the clothes: per column, the first two
+    boot pixels that show right under the tunic (so it follows each leg's own top, steps down under the point and
+    never lands on a toe), a pixel of outline out to the side where the boot meets the air."""
+    for x in range(frame.w):
+        top = None
+        for y in range(frame.h):
+            if legs.px[y][x] not in '.O' and frame.px[y][x] == legs.px[y][x]: top = y; break
+        if top is None or not any((x, yy) in cover for yy in (top - 1, top - 2)): continue
+        frame.px[top][x] = 'F'
+        if frame.px[top + 1][x] == legs.px[top + 1][x] and legs.px[top + 1][x] not in '.O': frame.px[top + 1][x] = 'f'
+        for dx in (-1, 1):
+            if frame.px[top][x + dx] == '.': frame.px[top][x + dx] = 'O'
 
 
 def tunic_b(master: Grid) -> Grid:
@@ -121,7 +131,7 @@ def tunic_b(master: Grid) -> Grid:
         ch = master.px[y][x]
         if 24 <= x <= 27 and 42 <= y <= 45 and ch == 'Y': out.px[y][x] = 'f'
         elif 43 <= y <= 44 and ch in 'Bb': out.px[y][x] = 'K'
-        else: out.px[y][x] = {'T': 'M', 't': 'm', 'W': 'Y'}.get(ch, ch)
+        else: out.px[y][x] = {'T': 'M', 't': 'm', 'W': 'Y', 'F': 'Y'}.get(ch, ch)   # (the sleeve's edge in gold, as the hem)
     for y, x0, x1 in ((52, 22, 27), (53, 23, 26), (54, 24, 25)):
         out.px[y][x0 - 1] = out.px[y][x1 + 1] = 'O'
         for x in range(x0, x1 + 1): out.px[y][x] = 'm'
@@ -129,26 +139,28 @@ def tunic_b(master: Grid) -> Grid:
     return out
 
 
-STAND_CUFF = (53, 54)
 POINT = {(x, y) for y in range(52, 56) for x in range(21, 29)}
 _tb = tunic_b(M)
-MASTER_B = _tb.copy()                                                # the idle in outfit B: tunic B over boots B
-MASTER_B.stamp(boots_b(only(M, {'legs'}), STAND_CUFF), 0, 0)
-for (x, y) in POINT:
-    if _tb.px[y][x] in 'mO' and (y > 52 or 21 <= x <= 28) and _tb.px[y][x] != M.px[y][x]: MASTER_B.px[y][x] = _tb.px[y][x]
 PB = parts(_tb)
 for (x, y) in POINT:                                                 # the point belongs to the top, not to the legs
     if _tb.px[y][x] != M.px[y][x]: PB['body'].px[y][x] = _tb.px[y][x]
+_legs_b = boots_b(only(M, {'legs'}))
+MASTER_B = Grid(M.w, M.h)                                            # the idle in outfit B: back, boots B, tunic B, arm
+for g in (PB['back'], _legs_b, PB['body'], PB['arm']): MASTER_B.stamp(g, 0, 0)
+cuff(MASTER_B, _legs_b, {(x, y) for y in range(M.h) for x in range(M.w) if PB['body'].px[y][x] != '.'})
 
 
-def walk4(p: dict, legs_of):
+def walk4(p: dict, legs_of, cuffed=False):
     seq = []
     for wi, bob, s, lag in PLAN:
         f = Grid(A.F, A.F)
+        legs = legs_of(wi, bob)
         f.stamp(A.LAG(p['back']) if lag else p['back'], OX, OY + bob)
-        f.stamp(legs_of(wi, bob), 0, 0)
-        f.stamp(A.with_bow(p['body']), OX, OY + bob)
+        f.stamp(legs, 0, 0)
+        body = A.with_bow(p['body'])
+        f.stamp(body, OX, OY + bob)
         f.stamp(swing(p['arm'], s), OX, OY + bob)
+        if cuffed: cuff(f, legs, {(x + OX, y + OY + bob) for y in range(body.h) for x in range(body.w) if body.px[y][x] != '.'})
         seq.append((f, MS))
     return seq
 
@@ -156,7 +168,7 @@ def walk4(p: dict, legs_of):
 PA = parts(M)
 _LEGS = {wi: walk_legs(wi) for wi, _, _, _ in PLAN}
 A.FRAMES['walk4'] = walk4(PA, lambda wi, bob: _LEGS[wi])
-A.FRAMES['walk4b'] = walk4(PB, lambda wi, bob: boots_b(_LEGS[wi], (OY + bob + 53, OY + bob + 54)))
+A.FRAMES['walk4b'] = walk4(PB, lambda wi, bob: boots_b(_LEGS[wi]), cuffed=True)
 _RISE_B = A.lift(A.lift(A.shift_rows(MASTER_B, 0, 44, -1), 31, 36, 46, 51), 11, 19, 47, 51)
 A.FRAMES['idleb'] = [(A.place(A.with_bow(MASTER_B)), 400), (A.place(A.with_bow(_RISE_B, A.UP)), 300),
                      (A.place(A.with_bow(A.LAG(_RISE_B), A.UP)), 400), (A.place(A.with_bow(A.LAG(MASTER_B))), 300)]

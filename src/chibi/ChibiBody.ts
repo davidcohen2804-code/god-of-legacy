@@ -13,15 +13,16 @@ const params = typeof location !== 'undefined' ? new URLSearchParams(location.se
 export const CHIBI = { scale: params?.has('chibi') ? Math.max(1, Math.round(Number(params.get('chibi')) || 2)) : 0 };
 /** The classes drawn so far. */
 const READY = new Set(['archer']);
-/** The minimal-motion test (David 7 Nov 21:41, reviewed with GPT; tools/chibi/archer/src/minimal_R.py): `&walk=4` plays
- *  the 4-frame walk (rigid head, torso and bow; only the legs, a 1 px bob, the free arm and the hem move), `&outfit=b`
- *  swaps in a different tunic and boots (it needs the 4-frame walk: the 6-frame one would need every frame redrawn),
+/** Minimal motion (David 7 Nov 21:41, reviewed with GPT; tools/chibi/archer/src/minimal_R.py): the walk is 4 frames
+ *  (rigid head, torso and bow; only the legs, a 1 px bob, the free arm and the hem move) — David chose it over the
+ *  6-frame walk (7 Nov 23:06), which `&walk=6` still plays (the fallback). `&outfit=b` is the test outfit (a different
+ *  tunic and boots: one torso drawing, one per leg pose — the 6-frame walk would need every frame redrawn),
  *  `&wms=150` sets its frame time on screen (165 ms by default — GPT's test values, 165 and 150; it doesn't slow with
  *  the walking speed the way the 6-frame walk does, which shows each of its frames ~157 ms at the walking speed).
- *  Without them the 6-frame walk stays. */
+ *  */
 const TEST = {
   outfit: params?.get('outfit') === 'b' ? 'b' : '',
-  walk4: params?.get('walk') === '4' || params?.get('outfit') === 'b',
+  walk4: params?.get('walk') !== '6' || params?.get('outfit') === 'b',
   pace: 165 / Math.max(80, Math.min(300, Number(params?.get('wms')) || 165)),
 };
 
