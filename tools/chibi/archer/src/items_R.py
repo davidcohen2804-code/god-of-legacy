@@ -40,30 +40,34 @@ def owner(x, y, ch):
     return 'tunic'
 
 
+MASTER_CLEAN = M.copy()                                                  # the master without the bow's baked pixel
+for (x, y) in BR.BOW_PX: MASTER_CLEAN.px[y][x] = '.'
+
+
 def cut():
     own = {}
     for y in range(H):
         for x in range(W):
-            ch = M.px[y][x]
+            ch = MASTER_CLEAN.px[y][x]
             if ch == '.': continue
             if BASE.px[y][x] == ch: own[(x, y)] = 'base'; continue
             if ch != 'O': own[(x, y)] = owner(x, y, ch)
     for y in range(H):                                                   # an outline goes with the item it borders
         for x in range(W):
-            if M.px[y][x] != 'O' or (x, y) in own: continue
+            if MASTER_CLEAN.px[y][x] != 'O' or (x, y) in own: continue
             c = Counter(own[(x + dx, y + dy)] for dx in (-1, 0, 1) for dy in (-1, 0, 1)
                         if (x + dx, y + dy) in own and own[(x + dx, y + dy)] != 'base')
             own[(x, y)] = 'cape' if (x, y) == (6, 40) else (c.most_common(1)[0][0] if c else owner(x, y, 'O'))
     items = {k: Grid(W, H) for k in ORDER}
     for (x, y), k in own.items():
-        if k != 'base': items[k].px[y][x] = M.px[y][x]
+        if k != 'base': items[k].px[y][x] = MASTER_CLEAN.px[y][x]
     for k in ORDER:                        # an outline shared by two items is both's: removing one keeps the other's edge
-        mine = [(x, y) for (x, y), kk in own.items() if kk == k and M.px[y][x] != 'O']
+        mine = [(x, y) for (x, y), kk in own.items() if kk == k and MASTER_CLEAN.px[y][x] != 'O']
         for (x, y) in mine:
             for dx in (-1, 0, 1):
                 for dy in (-1, 0, 1):
                     q = (x + dx, y + dy)
-                    if q in own and M.px[q[1]][q[0]] == 'O' and own[q] not in ('base', k): items[k].px[q[1]][q[0]] = 'O'
+                    if q in own and MASTER_CLEAN.px[q[1]][q[0]] == 'O' and own[q] not in ('base', k): items[k].px[q[1]][q[0]] = 'O'
     back = {}
     for k in BEHIND:                                                     # behind the body / over it
         b, f = Grid(W, H), Grid(W, H)
@@ -96,14 +100,14 @@ def close(g: Grid) -> None:
     """Where a removed item leaves another one's edge bare (in the clothed outfit two items met without an outline),
     the edge gets its outline: an empty pixel inside the clothed silhouette, beside a coloured one, becomes outline.
     With every item on there is no such pixel, so the round trip is untouched."""
-    add = [(x, y) for y in range(H) for x in range(W) if g.px[y][x] == '.' and M.px[y][x] != '.' and
+    add = [(x, y) for y in range(H) for x in range(W) if g.px[y][x] == '.' and MASTER_CLEAN.px[y][x] != '.' and
            any(0 <= x + dx < W and 0 <= y + dy < H and g.px[y + dy][x + dx] not in '.O' for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)))]
     for (x, y) in add: g.px[y][x] = 'O'
 
 
 def roundtrip() -> int:
     g = dress()
-    return sum(1 for y in range(H) for x in range(W) if g.px[y][x] != M.px[y][x])
+    return sum(1 for y in range(H) for x in range(W) if g.px[y][x] != MASTER_CLEAN.px[y][x])
 
 
 if __name__ == '__main__':

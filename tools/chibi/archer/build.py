@@ -7,6 +7,7 @@ sys.path.insert(0, os.path.join(HERE, 'src')); sys.path.insert(0, os.path.join(H
 from PIL import Image
 import frames_R as A
 import minimal_R  # the minimal-motion test (walk4, outfit B: idleb, blinkb, walk4b) — adds to A.FRAMES
+import outfit_R   # the base body + items: the default idle / blink / walk4 from them, and the removal test's variants
 
 ROOT = os.path.abspath(os.path.join(HERE, '..', '..', '..'))
 OUT = os.path.join(ROOT, 'public', 'assets', 'chibi', 'archer')
@@ -19,7 +20,7 @@ for name, seq in A.FRAMES.items():
     names = []
     for i, (g, ms) in enumerate(seq):
         n = f'{name}_{i}'; frames.append((n, g)); names.append(n)
-    anims[name] = {'frames': names, 'ms': [ms for _, ms in seq], 'loop': LOOP.get(name, False),
+    anims[name] = {'frames': names, 'ms': [ms for _, ms in seq], 'loop': LOOP.get(name.split('~')[0], False),
                    'events': getattr(A, 'EVENTS', {}).get(name, {})}
 F = A.F
 rows = (len(frames) + COLS - 1) // COLS

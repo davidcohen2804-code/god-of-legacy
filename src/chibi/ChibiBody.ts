@@ -24,6 +24,8 @@ const TEST = {
   outfit: params?.get('outfit') === 'b' ? 'b' : '',
   walk4: params?.get('walk') !== '6' || params?.get('outfit') === 'b',
   pace: 165 / Math.max(80, Math.min(300, Number(params?.get('wms')) || 165)),
+  /** the base body's removal test (GPT 7 Nov): `&strip=nohood|notunic|nocape|noboots|nobracers|tunicboots|base` */
+  strip: params?.get('strip') ?? '',
 };
 
 interface AnimDef { frames: string[]; ms: number[]; loop: boolean; events: Record<string, number>; grip: ([number, number] | null)[] }
@@ -84,9 +86,10 @@ export function chibiPose(scene: Phaser.Scene, cls: string, dir: Dir, q: PoseQue
   }
   if (name === 'walk' && TEST.walk4 && def.anims.walk4 && q.k === 'loop') { name = 'walk4'; t = q.t * TEST.pace; } // (the minimal-motion test)
   if (TEST.outfit && def.anims[name + TEST.outfit]) name += TEST.outfit;
+  else if (TEST.strip && def.anims[`${name}~${TEST.strip}`]) name = `${name}~${TEST.strip}`;
   const a = def.anims[name], s = CHIBI.scale;
   let frame = a.frames[frameAt(a, t)];
-  const b = def.anims[`blink${TEST.outfit}`] ?? def.anims.blink; // the blink is laid on the idle's base frame every fourth cycle (an event, not part of the loop)
+  const b = def.anims[`blink${TEST.outfit}`] ?? def.anims[`blink~${TEST.strip}`] ?? def.anims.blink; // the blink is laid on the idle's base frame every fourth cycle (an event, not part of the loop)
   if (name.startsWith('idle') && b) {
     const cyc = a.ms.reduce((m, v) => m + v, 0), tt = ((t % (cyc * 4)) + cyc * 4) % (cyc * 4);
     if (tt >= cyc * 3 && tt - cyc * 3 < Math.min(b.ms[0], a.ms[0])) frame = b.frames[0];

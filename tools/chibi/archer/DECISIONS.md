@@ -144,6 +144,26 @@ before David sees it; David approves anything that changes approved art directio
   top never takes the arms, the hood never the bangs, the boots leave no hole). The acceptance test is the round trip:
   the base plus the original items must rebuild the approved Archer. Shown as clothed / base alone / outfit recomposed
   over the base; then the four walk poses and a removal test; only then the shot's arms again. [GPT]
+- The standing base body and the item cut are approved (GPT, 8 Nov): "Standing base body and item cut approved.
+  Round-trip reconstruction is exact, and all item-removal combinations close correctly." Items: hood (headwear), tunic
+  (top), bracers (forearms), boots (footwear), cape (back cloth), quiver (back accessory), bow (weapon). Rules: every
+  pixel of the approved Archer has one owner (the base or one item); an outline two items share is both's; a removal's
+  bare edge is closed with an outline by the composer; the cape and the quiver are split into a part behind the body
+  and a part over it (the shoulder wrap, the strap). Cleanup done: the carried bow's string pixel baked into the
+  master now belongs to the bow (the idle shows the string's own tone there). Polish later, not blocking: fuller hair
+  tufts at the back. Watched: the bare shins' thickness in motion. (`src/base_R.py`, `src/items_R.py`) [GPT]
+- In motion (`src/outfit_R.py`, 8 Nov): the game's idle, blink and 4-frame walk now come from the base and the items;
+  with every item on they are the approved frames (the string pixel apart). The walk's base legs are your leg drawings
+  recoloured — the top rows the shorts' hems, the last five rows the foot wraps wherever the foot is, skin between.
+  Bits of the walk drawings' cape outline that had come with the legs (2–13 px at the hem) were dropped — an intentional
+  ownership correction (they are the cape's; with the cape off they floated), which changes the walk by 2–10 px a
+  frame, all on the cape's hem. Removal test behind the flag:
+  `?chibi&strip=nohood|notunic|nocape|noboots|nobracers|tunicboots|base`. Approved (GPT, 8 Nov): "Modular standing +
+  4-frame walk clothing/removal system approved. Motion tests pass for all reviewed outfit-removal variants." The bare
+  shins stay as they are (acceptable at ×2; a slimmer lower leg only if David reacts to the boots-off look); the hair
+  tufts stay a later polish; no further idle or walk changes now. Next: David's look, then the shot on the base —
+  Raise again, then Full Draw, Release, Recover; the shot's arms are upper-body pose art over the base, the clothes over
+  them, no longer one clothed master. [GPT]
 - Open (for the integration, not decided): the arrow spawns 16 world px ahead of the feet and 34 px up (the combat
   code's fixed shot height, also used by the cover checks). With the chibi at ×2 that is the front of the hip, master
   (31,47), 34 px behind and 32 px below the drawn origin (48,31); at ×3, 59 and 65 px. The shot does not go into

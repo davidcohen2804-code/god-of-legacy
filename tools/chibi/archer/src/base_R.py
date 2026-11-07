@@ -80,6 +80,7 @@ SKINC = {'J': 'S', 'R': 'S', 'H': 'S', 'B': 'S', 'T': 'S', 't': 's', 'F': 'S', '
 SHORTS = {'t': 'P', 'T': 'P', 'W': 'p', 'y': 'p', 'Y': 'p', 'B': 'P', 'b': 'p', 'H': 'P', 'h': 'p', 'J': 'P', 'R': 'P'}
 WRAPS = {'J': 'T', 'H': 't', 'B': 't', 'R': 'T', 'h': 't', 'b': 't', 'K': 't'}
 NECK = {(x, y) for y in range(27, 32) for x in range(18, 29) if x >= 21 or y >= 28}   # the neck, under the chin
+BOW_PX = {(35, 43)}                       # a pixel of the carried bow's string baked into the master: the bow's (GPT)
 MAT = {'F': 'shirt', 'T': 'shirt', 'S': 'skin', 's': 'skin', 'P': 'shorts', 'p': 'shorts'}
 SHADE = {'shirt': 'T', 'skin': 's', 'shorts': 'p'}
 
@@ -112,7 +113,8 @@ def body() -> Grid:
                 g.px[y][x] = SHADE[mats.pop()]
     for y in range(27, H):                                                       # outline where the cape was
         for x in range(W):
-            if g.px[y][x] == '.' and M.px[y][x] != '.' and any(inside(*p) and g.px[p[1]][p[0]] not in '.O' for p in nbrs(x, y)):
+            if g.px[y][x] == '.' and M.px[y][x] != '.' and (x, y) not in BOW_PX and \
+                    any(inside(*p) and g.px[p[1]][p[0]] not in '.O' for p in nbrs(x, y)):
                 g.px[y][x] = 'O'
     return g
 

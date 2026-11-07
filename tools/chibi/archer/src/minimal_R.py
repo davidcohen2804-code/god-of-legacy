@@ -93,6 +93,25 @@ def walk_legs(wi: int) -> Grid:
             ch = g.px[y][x]
             if ch == '.' or ch in GREEN or ch in 'Ss' or (x >= OX + 32 and y < OY + 56): continue
             out.px[y][x] = ch
+    return drop_bits(out)
+
+
+def drop_bits(g: Grid, keep=20) -> Grid:
+    """Only the legs: small pieces cut off from them (bits of the drawing's cape outline at the hem, 2–13 px) go —
+    with the cape off they would float beside the legs."""
+    out = g.copy(); seen = set()
+    for y0 in range(g.h):
+        for x0 in range(g.w):
+            if g.px[y0][x0] == '.' or (x0, y0) in seen: continue
+            comp, stack = [], [(x0, y0)]; seen.add((x0, y0))
+            while stack:
+                x, y = stack.pop(); comp.append((x, y))
+                for dx in (-1, 0, 1):
+                    for dy in (-1, 0, 1):
+                        q = (x + dx, y + dy)
+                        if 0 <= q[0] < g.w and 0 <= q[1] < g.h and q not in seen and g.px[q[1]][q[0]] != '.': seen.add(q); stack.append(q)
+            if len(comp) < keep:
+                for (x, y) in comp: out.px[y][x] = '.'
     return out
 
 
