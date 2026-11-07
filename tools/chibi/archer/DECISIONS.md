@@ -57,9 +57,31 @@ before David sees it; David approves anything that changes approved art directio
 - The legs: the 4 best poses taken from the existing walk drawings, fitted to one fixed waist anchor, overlaps
   corrected; redrawn only if they fail the compositing test. The current 6-frame walk stays as the benchmark and the
   fallback. [GPT]
-- Slots: base body, face, hair, headwear, top, bottom, footwear, gloves, back (cape, quiver… as sub-slots), weapon,
-  effects. Every item has anchors, a layer order per pose (a sleeve can be behind the torso in one pose and in front in
-  another), overlap masks (headwear against hair), the region it covers, the poses it needs, rigid or deforming. [GPT]
+- Slots: base body, face, hair, headwear, top, bottom, footwear, gloves / forearms (its own slot in principle), back
+  cloth (cape, coat tails, scarf) and back accessory (quiver, banner, book…), weapon, effects. Every item has anchors,
+  a layer group per pose (a sleeve can be behind the torso in one pose and in front in another; the bow's order changes
+  between the carry and the shot), overlap masks (headwear against hair: a hood leaves the bangs), the region it covers,
+  the poses it needs, rigid or deforming. [GPT]
+- Support art: the pixels hidden under moving parts exist as their own regions (the torso behind the free arm, the hips
+  under the skirt, the cape behind the legs, the shoulders under the collar or headwear), so a swap or a swing never
+  opens a hole. [GPT]
+- The breakdown (layers of the master; walk frames 1, 3, 4, 6 for the legs; the free arm in 3 positions) was approved
+  as the basis of the test; the legs are used as they are and cleaned only where the test shows a fault. Risks to
+  watch: a free-arm swing too busy against the rigid body (keep the rhythm, cut the amplitude), the cape looking stuck
+  over moving legs, the passing legs' extra row reading as a change of proportion instead of the body's lift; timing
+  tried at 165 and 150 ms. [GPT]
+- The test build (`tools/chibi/archer/src/minimal_R.py`, behind the flag): `?chibi&walk=4` the 4-frame walk;
+  `&outfit=b` outfit B — a red tunic with a gold hem, a dark belt with a steel buckle and a point hanging below the
+  hem (one torso drawing), dark boots with a fur cuff (one drawing per leg pose); `&wms=150` the walk's frame time on
+  screen (165 ms by default; `&wms=236` matches the 6-frame walk's real cycle — the pace formula plays that one at
+  ~157 ms a frame, a 943 ms cycle, at the walking speed). The free arm swings ±2 px at the fist (±1 at the forearm);
+  the hem lags a pixel on the passing frames.
+- GPT's review of the test (7 Nov): "The 4-frame minimal-motion Archer walk is visually acceptable and
+  production-beneficial, especially at gameplay scale ×2" — at ×3 the 6-frame walk is prettier, the trade-off is
+  David's. Kept honest for David (no torso animation added back); if he wants more life, the first knob is a slightly
+  larger free-arm arc. Known, not blocking: the sleeve's highlight stayed in the arm layer (rule: the sleeve belongs to
+  the top, the bracer and fist to gloves / forearms); the fur cuff sits at a fixed height (in the standard, cuffs
+  follow the leg pose); the rigid skirt hiding the waist join may not carry over to every class. [GPT]
 - Rendering: a self-contained chibi compositor inside the flagged system (pose + equipment + facing → parts placed by
   anchors and layer rules), caching composites if needed; the shared renderer stays untouched. [GPT]
 - The test: side by side at ×2 and ×3 — appeal, a smooth loop without foot sliding, the bow's connection, a swap of a

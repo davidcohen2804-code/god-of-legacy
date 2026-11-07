@@ -45,8 +45,12 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 - **Designed, not drawn:** the shot — four reusable poses on the combat timeline (two releases in beat 1, one in beat
   2), the draw hand under the near jaw, the bow canted ~15°; GPT accepted the pose map as the working design (7 Nov,
   DECISIONS.md). Open for its integration: the arrow spawns at hip height on the ×2 chibi, below the drawn bow.
-- **Next:** David's in-game acceptance of idle + walk; then two proof compositions (Raise over the idle and over walk
-  frame 3) at ×2 and ×3, then Full Draw, Release and Recover; then run, jump, hurt and charge.
+- **Minimal motion (David 21:41, reviewed with GPT):** clothes swap only if the motion is minimal. A test behind the
+  flag: `?chibi&walk=4` a 4-frame walk where only the legs, a 1 px bob, the free arm and the hem move (head, torso,
+  bow one drawing each); `&outfit=b` a different tunic (one drawing) and boots (one per leg pose). GPT: viable,
+  strongest at ×2. David chooses between it and the 6-frame walk.
+- **Next:** David's choice of walk and his acceptance of the idle; then two proof compositions (Raise over the idle and
+  over a walk frame) at ×2 and ×3, then Full Draw, Release and Recover; then run, jump, hurt and charge.
 
 ### DFO (5 Nov) — the styles' bodies: PixVerse moves in place of the GPT sheets, a clip a day
 - PixVerse's free credits are back: 30 a day (+ 6 left over) — a 5 s clip costs 20 at 360p, 30 at 540p, 40 at 720p (no

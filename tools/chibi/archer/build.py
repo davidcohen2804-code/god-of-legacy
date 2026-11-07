@@ -6,6 +6,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, 'src')); sys.path.insert(0, os.path.join(HERE, '..'))
 from PIL import Image
 import frames_R as A
+import minimal_R  # the minimal-motion test (walk4, outfit B: idleb, blinkb, walk4b) — adds to A.FRAMES
 
 ROOT = os.path.abspath(os.path.join(HERE, '..', '..', '..'))
 OUT = os.path.join(ROOT, 'public', 'assets', 'chibi', 'archer')
@@ -13,7 +14,7 @@ COLS = 12
 
 frames = []          # (name, grid)
 anims = {}
-LOOP = {'idle': True, 'walk': True, 'run': True, 'blink': False}
+LOOP = {'idle': True, 'walk': True, 'run': True, 'blink': False, 'walk4': True, 'idleb': True, 'blinkb': False, 'walk4b': True}
 for name, seq in A.FRAMES.items():
     names = []
     for i, (g, ms) in enumerate(seq):

@@ -52,6 +52,64 @@
    ],
    "loop": true,
    "events": {}
+  },
+  "walk4": {
+   "frames": [
+    "walk4_0",
+    "walk4_1",
+    "walk4_2",
+    "walk4_3"
+   ],
+   "ms": [
+    165,
+    165,
+    165,
+    165
+   ],
+   "loop": true,
+   "events": {}
+  },
+  "walk4b": {
+   "frames": [
+    "walk4b_0",
+    "walk4b_1",
+    "walk4b_2",
+    "walk4b_3"
+   ],
+   "ms": [
+    165,
+    165,
+    165,
+    165
+   ],
+   "loop": true,
+   "events": {}
+  },
+  "idleb": {
+   "frames": [
+    "idleb_0",
+    "idleb_1",
+    "idleb_2",
+    "idleb_3"
+   ],
+   "ms": [
+    400,
+    300,
+    400,
+    300
+   ],
+   "loop": true,
+   "events": {}
+  },
+  "blinkb": {
+   "frames": [
+    "blinkb_0"
+   ],
+   "ms": [
+    130
+   ],
+   "loop": false,
+   "events": {}
   }
  }
 }

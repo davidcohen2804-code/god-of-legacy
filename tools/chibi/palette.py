@@ -21,5 +21,7 @@ PALETTE = {
     'P': '#4f4036', 'p': '#352b24',
     # feathers, bowstring
     'F': '#f5f1ea', 'f': '#a39d98',
+    # the minimal-motion test's outfit B (David 7 Nov): a red tunic, dark boots (archer/src/minimal_R.py)
+    'M': '#b4423a', 'm': '#7c2b27', 'N': '#4b4a52', 'n': '#2c2b31', 'X': '#74737c',
 }
 RGB = {k: tuple(int(v[i:i + 2], 16) for i in (1, 3, 5)) for k, v in PALETTE.items()}

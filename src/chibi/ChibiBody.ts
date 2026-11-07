@@ -13,6 +13,17 @@ const params = typeof location !== 'undefined' ? new URLSearchParams(location.se
 export const CHIBI = { scale: params?.has('chibi') ? Math.max(1, Math.round(Number(params.get('chibi')) || 2)) : 0 };
 /** The classes drawn so far. */
 const READY = new Set(['archer']);
+/** The minimal-motion test (David 7 Nov 21:41, reviewed with GPT; tools/chibi/archer/src/minimal_R.py): `&walk=4` plays
+ *  the 4-frame walk (rigid head, torso and bow; only the legs, a 1 px bob, the free arm and the hem move), `&outfit=b`
+ *  swaps in a different tunic and boots (it needs the 4-frame walk: the 6-frame one would need every frame redrawn),
+ *  `&wms=150` sets its frame time on screen (165 ms by default — GPT's test values, 165 and 150; it doesn't slow with
+ *  the walking speed the way the 6-frame walk does, which shows each of its frames ~157 ms at the walking speed).
+ *  Without them the 6-frame walk stays. */
+const TEST = {
+  outfit: params?.get('outfit') === 'b' ? 'b' : '',
+  walk4: params?.get('walk') === '4' || params?.get('outfit') === 'b',
+  pace: 165 / Math.max(80, Math.min(300, Number(params?.get('wms')) || 165)),
+};
 
 interface AnimDef { frames: string[]; ms: number[]; loop: boolean; events: Record<string, number>; grip: ([number, number] | null)[] }
 interface ChibiDef { frame: number; origin: [number, number]; height: number; facing: 'right' | 'left'; anims: Record<string, AnimDef> }
@@ -70,10 +81,12 @@ export function chibiPose(scene: Phaser.Scene, cls: string, dir: Dir, q: PoseQue
     name = FALLBACK[name] ?? 'idle';
     if (!def.anims[name]) name = 'idle';
   }
+  if (name === 'walk' && TEST.walk4 && def.anims.walk4 && q.k === 'loop') { name = 'walk4'; t = q.t * TEST.pace; } // (the minimal-motion test)
+  if (TEST.outfit && def.anims[name + TEST.outfit]) name += TEST.outfit;
   const a = def.anims[name], s = CHIBI.scale;
   let frame = a.frames[frameAt(a, t)];
-  const b = def.anims.blink; // the blink is laid on the idle's base frame every fourth cycle (an event, not part of the loop)
-  if (name === 'idle' && b) {
+  const b = def.anims[`blink${TEST.outfit}`] ?? def.anims.blink; // the blink is laid on the idle's base frame every fourth cycle (an event, not part of the loop)
+  if (name.startsWith('idle') && b) {
     const cyc = a.ms.reduce((m, v) => m + v, 0), tt = ((t % (cyc * 4)) + cyc * 4) % (cyc * 4);
     if (tt >= cyc * 3 && tt - cyc * 3 < Math.min(b.ms[0], a.ms[0])) frame = b.frames[0];
   }
