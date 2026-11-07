@@ -38,6 +38,14 @@ before David sees it; David approves anything that changes approved art directio
   (no run-time rotation of pixel art); the game draws bow, body, fist from the same anchor. [GPT]
 
 ## Animation
+- David approved the idle and the walk for now (7 Nov 23:26: "looks great"). His priority from here: changing clothes,
+  removing them and more must stay as easy as possible. So (GPT agreed): the two Raise proofs now; then a base body
+  under every item before any other shot pose — a modest, visible under-layer (a fitted plain undershirt, short-sleeved
+  or sleeveless; simple shorts or leggings a shade darker; bare forearms and hands; soft foot wraps), the hair completed
+  from today's bangs for the unhooded look (the same identity, not a new hairstyle); then the current outfit cut into
+  items over it (hood, tunic, cape, quiver, boots, bracers, bow), with an item matrix first (covers, hides, poses). Slots:
+  base body, face, hair; headwear, top, forearms / gloves, bottom, footwear, back cloth, back accessory, weapon; later
+  waist and effects. Every item: anchor, render group, coverage, hide mask. [David, GPT]
 - Idle: 4 frames, 400 / 300 / 400 / 300 ms; the chest, both fists and the bow rise 1 px; the cape's hem a beat
   behind; the blink is an occasional event, not part of the loop. [GPT]
 - Walk: 6 frames (two steps: contact, down, passing on each foot), 110 ms, the pace follows the real speed; bob
@@ -124,6 +132,18 @@ before David sees it; David approves anything that changes approved art directio
   without leaving the left fist. Then the same upper body over all four walk leg poses (is the system really
   reusable?), and only then Full Draw, Release and Recover. Minimal motion is not minimal impact: the walk stays
   simple, the shot keeps its four strong poses, reusing the head, equipment, legs and attachments. [GPT, 7 Nov]
+- The Raise proofs (7 Nov, `src/shot_R.py`, not in the game): the composition passes — no seam at the waist, the head,
+  cape and quiver unchanged over standing and passing legs, the bow angle good, the grip connected (provisional). The
+  artwork stays provisional and is kept as a technical reference, not polished now: the draw arm must show a bent elbow
+  (down and back) instead of a straight bar, the bow arm's elbow must read, and the nock must visibly meet the drawing
+  fingers. The carry → Raise jump (the grip 11 px up, 6 px forward) is judged in motion on the combat timeline first;
+  an in-between only if it pops, with no added latency. [GPT, 7 Nov]
+- The base body comes first (GPT, 7 Nov): derived by Claude from the approved master, not a new image — the face and
+  the bangs exactly as they are, the hair completed under the hood; a plain ivory short-sleeved undershirt, simple brown
+  or beige shorts, bare forearms and hands, neutral foot wraps; nothing removable baked in. Removal is independent (the
+  top never takes the arms, the hood never the bangs, the boots leave no hole). The acceptance test is the round trip:
+  the base plus the original items must rebuild the approved Archer. Shown as clothed / base alone / outfit recomposed
+  over the base; then the four walk poses and a removal test; only then the shot's arms again. [GPT]
 - Open (for the integration, not decided): the arrow spawns 16 world px ahead of the feet and 34 px up (the combat
   code's fixed shot height, also used by the cover checks). With the chibi at ×2 that is the front of the hip, master
   (31,47), 34 px behind and 32 px below the drawn origin (48,31); at ×3, 59 and 65 px. The shot does not go into
