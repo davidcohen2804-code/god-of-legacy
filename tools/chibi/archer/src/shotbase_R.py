@@ -25,7 +25,7 @@ LEGS = O.LEGS
 FAR_SH, NEAR_SH = (31, 34), (15, 33)                           # the shoulders (pose map A)
 
 
-def torso(wear) -> Grid:
+def torso(wear, close=True) -> Grid:
     """The rigid upper body without its arms: the base's torso and head, the support art where the near arm hung (the
     tunic's side when it is worn), the worn items' torso parts; the near side outlined against the cape, the front
     edge outlined where the bow arm hung."""
@@ -47,7 +47,7 @@ def torso(wear) -> Grid:
             if fill and any(g.get(xx, y) != '.' for xx in range(x - 4, x)): g.px[y][x] = fill
         xl = min(x for x in row if g.px[y][x] != '.') if any(g.px[y][x] != '.' for x in row) else None
         if xl is not None and y >= 36: g.px[y][xl] = 'O'
-    O.close_upper(g, O.back(wear))
+    if close: O.close_upper(g, O.back(wear))
     return g
 
 

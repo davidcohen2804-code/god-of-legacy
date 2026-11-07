@@ -38,3 +38,5 @@ json.dump(atlas, open(os.path.join(OUT, 'archer.json'), 'w'), indent=1)
 json.dump({'frame': F, 'origin': [48, 88], 'height': 62, 'facing': 'right', 'anims': anims},
           open(os.path.join(OUT, 'archer.anims.json'), 'w'), indent=1)
 print(len(frames), 'frames →', os.path.relpath(OUT, ROOT))
+import doll_R      # the paper doll: every frame as layers, composed in the game for the chosen look
+print('doll', doll_R.export(os.path.join(OUT, 'archer.doll.json')), 'bytes')

@@ -7,6 +7,7 @@
 import Phaser from 'phaser';
 import type { PoseFrame, PoseQuery } from '../game/Body';
 import type { Dir } from '../world/collision';
+import { composeLook, parseDoll, type DollData, type Look } from './ChibiDoll';
 
 const params = typeof location !== 'undefined' ? new URLSearchParams(location.search) : null;
 /** scale: world px per chibi pixel (0 = off). */
@@ -43,6 +44,7 @@ function load(scene: Phaser.Scene, cls: string, start = true): void {
   loading.add(key);
   scene.load.atlas(key, `assets/chibi/${cls}/${cls}.png`, `assets/chibi/${cls}/${cls}.json`);
   scene.load.json(`${key}-anims`, `assets/chibi/${cls}/${cls}.anims.json`);
+  scene.load.json(`${key}-doll`, `assets/chibi/${cls}/${cls}.doll.json`);
   scene.load.once(Phaser.Loader.Events.COMPLETE, () => {
     if (scene.textures.exists(key)) scene.textures.get(key).setFilter(Phaser.Textures.FilterMode.NEAREST);
   });
@@ -78,12 +80,74 @@ function animFor(q: PoseQuery): { name: string; t: number } {
 }
 const FALLBACK: Record<string, string> = { run: 'walk', alert: 'idle', jump_takeoff: 'idle', jump_rise: 'idle', jump_apex: 'idle', jump_fall: 'idle', jump_land: 'idle', hurt: 'idle', shot: 'idle' };
 
+// --- the paper doll (ChibiDoll): the look composed once into a texture -------------------------------------------------
+const ORIGINAL = ['boots', 'tunic', 'bracers', 'quiver', 'cape', 'hood'];
+/** The removal test (`&strip=`) as looks; without it the original Archer. */
+const STRIP: Record<string, string[]> = {
+  nohood: ORIGINAL.filter((i) => i !== 'hood'), notunic: ORIGINAL.filter((i) => i !== 'tunic'),
+  nocape: ORIGINAL.filter((i) => i !== 'cape' && i !== 'quiver'), noboots: ORIGINAL.filter((i) => i !== 'boots'),
+  nobracers: ORIGINAL.filter((i) => i !== 'bracers'), tunicboots: ['tunic', 'boots'], base: [],
+};
+let lookOverride: Look | null = null;
+/** The look the hero wears (the character creation / the cash shop set it; the composed texture follows). */
+export function setChibiLook(look: Look | null): void { lookOverride = look; }
+export function chibiLook(): Look { return lookOverride ?? { wear: STRIP[TEST.strip] ?? ORIGINAL }; }
+const composed = new Map<string, { sig: string; key: string; def: ChibiDef }>();
+
+function dollDef(scene: Phaser.Scene, cls: string): ChibiDef | null {
+  const jk = `chibi-${cls}-doll`;
+  if (!scene.cache.json.exists(jk)) return null;
+  const look = chibiLook(), sig = JSON.stringify(look);
+  const c = composed.get(cls);
+  if (c && c.sig === sig && scene.textures.exists(c.key)) return c.def;
+  const data = scene.cache.json.get(jk) as DollData;
+  const key = `chibi-${cls}-look${composed.size}-${Math.abs([...sig].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) | 0, 7))}`;
+  const anims = composeLook(scene, cls, parseDoll(cls, data), look, key);
+  const def: ChibiDef = { frame: data.frame, origin: data.origin, height: data.height, facing: data.facing,
+    anims: Object.fromEntries(Object.entries(anims).map(([n, a]) => [n, { ...a, events: {}, grip: [] }])) };
+  if (c && c.key !== key && scene.textures.exists(c.key)) scene.textures.remove(c.key);
+  composed.set(cls, { sig, key, def });
+  return def;
+}
+
+/** The shot family on a skill's own timeline (GPT 8 Nov): Raise in the first half of the startup, Full Draw to the
+ *  release, Release on screen at each spawn (two releases when the skill fires twice: the start and the end of its
+ *  active window, a quick re-tension between), then Recover. */
+function shotIndex(q: Extract<PoseQuery, { k: 'skill' }>): number {
+  const e = q.elapsed, s = Math.max(1, q.startup), a = q.active;
+  if (e < s) return e < s * 0.5 ? 0 : 1;
+  const t = e - s;
+  if (a > 40) return t < a * 0.5 ? 2 : t < a ? 1 : t < a + 70 ? 2 : 3;
+  return t < 70 ? 2 : 3;
+}
+
+function dollPose(scene: Phaser.Scene, cls: string, dir: Dir, q: PoseQuery, def: ChibiDef): PoseFrame {
+  const key = composed.get(cls)!.key;
+  let name = 'idle', t = 0, frame: string | null = null;
+  if (q.k === 'loop') {
+    if (q.state === 'walk' || q.state === 'run') { name = 'walk4'; t = q.t * TEST.pace * (q.state === 'run' ? 1.5 : 1); }
+    else t = q.t;
+  } else if (q.k === 'skill' && def.anims.shot) { name = 'shot'; frame = def.anims.shot.frames[shotIndex(q)]; }
+  else if (q.k === 'recovery' && def.anims.shot) { name = 'shot'; frame = def.anims.shot.frames[3]; } // (a skill's tail: the Recover pose, then the carry — no early pop of the bow)
+  const a = def.anims[name];
+  if (!frame) frame = a.frames[frameAt(a, t)];
+  const b = def.anims.blink;
+  if (name === 'idle' && b) { // the blink, laid on the idle's base frame every fourth cycle
+    const cyc = a.ms.reduce((m, v) => m + v, 0), tt = ((t % (cyc * 4)) + cyc * 4) % (cyc * 4);
+    if (tt >= cyc * 3 && tt - cyc * 3 < Math.min(b.ms[0], a.ms[0])) frame = b.frames[0];
+  }
+  const s = CHIBI.scale;
+  return { key, frame, wkey: `${key}-noweapon`, ox: def.origin[0] / def.frame, oy: def.origin[1] / def.frame, scale: s,
+    flip: (dir === 'left') !== (def.facing === 'left'), anchor: null, top: def.height * s };
+}
+
 /** The chibi body frame for this state — null when the flag is off, the class is not drawn yet, or its sprites are
  *  still loading (the caller then draws the painted body). */
 export function chibiPose(scene: Phaser.Scene, cls: string, dir: Dir, q: PoseQuery): PoseFrame | null {
   if (!chibiOn(cls)) return null;
   const key = `chibi-${cls}`;
   if (!scene.textures.exists(key) || !scene.cache.json.exists(`${key}-anims`)) { load(scene, cls); return null; }
+  if (!TEST.outfit && TEST.walk4) { const dd = dollDef(scene, cls); if (dd) return dollPose(scene, cls, dir, q, dd); }
   let def = defs.get(cls);
   if (!def) { def = scene.cache.json.get(`${key}-anims`) as ChibiDef; defs.set(cls, def); }
   const want = animFor(q);
