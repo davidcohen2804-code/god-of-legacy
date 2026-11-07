@@ -1,0 +1,199 @@
+"""The archer's animation frames (facing right; the game mirrors for left), built from the drawn master (master_R.txt)
+and the drawn key poses (guides/), never from geometric parts: the master locks identity (its head is laid on every
+frame, its palette is the only palette), the guides give each pose its body and cloth.
+`python3 frames_R.py` → FRAMES (name → [(Grid 96×96, ms)]) used by build.py."""
+import os, sys
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(HERE, '..', '..'))
+from pix import Grid
+from procbow import path_bow, WOOD
+
+F = 96                      # frame size
+FOOT = (48, 88)             # the feet's centre on the ground line (frame px)
+MASTER = Grid.load(os.path.join(HERE, 'master_R.txt'))
+MW, MH = MASTER.w, MASTER.h
+# the master's own ground row and the centre between its feet (the boots' columns on the lowest rows)
+_feet = [x for x in range(MW) for y in range(MH - 3, MH) if MASTER.get(x, y) != '.']
+M_FOOT = ((min(_feet) + max(_feet)) // 2, MH)       # (x, row under the feet)
+GRIP = (34, 48)                                       # the left (far) fist's centre on the master — the bow passes through it
+# THE CARRY (David + GPT, 7 Nov: the approved reference governs the bow's silhouette, not only the colours). Read off the
+# reference's idle at our scale, from the fist's centre: the riser starts inside the fist and leaves it at the front-top,
+# sweeps forward and up in one curve and ends in a small forward flick just under the chin; the string leaves under the
+# tip and runs down and back inside the curve, behind the chest. Behind the body (the far hand holds it): the fist closes
+# over the riser, nothing hangs below it. It turns and moves only with the hand (rot about the grip).
+CARRY_LIMB = [(-1.5, 1.0), (0, 0), (1.5, -0.5), (3, -1.5), (4.5, -2.5), (6, -3.5), (7, -5), (7.5, -7), (7.5, -10),
+              (7.5, -13), (8, -15), (8.5, -16.5), (9.5, -18)]       # (GPT's polish: the flick a pixel more compact)
+CARRY_STRING = ((8, -16), (-3, 3))
+BOW_STYLE = dict(WOOD, string='f')
+HEAD_ROWS = 30                                        # rows 0..29: hood, hair, face (the identity)
+QUIVER_BOX = (0, 10, 22, 31)                          # x0, x1, y0, y1 of the quiver's feathers (not head)
+
+
+def place(g: Grid, dx=0, dy=0) -> Grid:
+    """A master-sized grid into a 96 × 96 frame, feet on FOOT."""
+    f = Grid(F, F); f.stamp(g, FOOT[0] - M_FOOT[0] + dx, FOOT[1] - M_FOOT[1] + dy); return f
+
+
+def with_bow(body: Grid, grip=GRIP, rot=0.0) -> Grid:
+    """The carried bow (behind the body: the far, left hand holds it) under a master-sized body."""
+    b, _ = path_bow(body.w + 16, body.h, grip[0], grip[1], CARRY_LIMB, CARRY_STRING, rot=rot, style=BOW_STYLE)
+    out = Grid(body.w + 16, body.h); out.stamp(b, 0, 0); out.stamp(body, 0, 0); return out
+
+
+def shift_rows(g: Grid, y0: int, y1: int, dy: int) -> Grid:
+    """Rows y0..y1 moved by dy (−1: up); the row left behind keeps its old pixels (the cloth stretches a pixel)."""
+    out = g.copy()
+    for y in range(y0, y1 + 1):
+        for x in range(g.w):
+            if g.px[y][x] != '.': out.set(x, y + dy, g.px[y][x])
+    return out
+
+
+def shift_box(g: Grid, x0, x1, y0, y1, dx: int) -> Grid:
+    """The box's pixels moved sideways by dx; the edge they leave keeps its old pixels (cloth stretching, no gap)."""
+    out = g.copy()
+    for y in range(y0, y1 + 1):
+        for x in range(x0, x1 + 1):
+            if g.px[y][x] != '.': out.set(x + dx, y, g.px[y][x])
+    return out
+
+
+def lift(g: Grid, x0, x1, y0, y1) -> Grid:
+    """The box's pixels up a row; the row it leaves shows what was under its bottom edge (the row below the box)."""
+    out = g.copy()
+    for y in range(y0, y1 + 1):
+        for x in range(x0, x1 + 1): out.px[y - 1][x] = g.px[y][x]
+    for x in range(x0, x1 + 1): out.px[y1][x] = g.px[y1 + 1][x]
+    return out
+
+
+def blink(g: Grid) -> Grid:
+    """Eyes shut: the eye pixels become skin and a lash line closes along the eyes' lower half."""
+    out = g.copy()
+    for y in range(21, 24):
+        for x in list(range(22, 27)) + list(range(30, 33)): out.px[y][x] = 'S'
+    for x in range(22, 27): out.px[22][x] = 'O'
+    for x in range(30, 33): out.px[22][x] = 'O'
+    for x in list(range(21, 27)) + list(range(29, 34)): out.px[20][x] = 'S' if out.px[20][x] == 'O' else out.px[20][x]
+    out.px[21][21] = 'O'; out.px[21][29] = 'O'
+    return out
+
+
+HEAD = {(x, y) for y in range(HEAD_ROWS) for x in range(MW) if MASTER.get(x, y) != '.'}   # (the quiver's feathers with it)
+HOOD = {(x, y) for (x, y) in HEAD if y < 16}
+
+
+def _rgb(ch):
+    from palette import RGB
+    return RGB.get(ch)
+
+
+def head_fit(g: Grid):
+    """Where the master's head sits on a guide frame: the offset whose hood best matches (colour distance)."""
+    best = None
+    for dy in range(-4, 18):
+        for dx in range(-16, 17):
+            cost = 0; n = 0
+            for (x, y) in HOOD:
+                a = _rgb(MASTER.px[y][x]); b = _rgb(g.get(x + dx, y + dy))
+                if b is None: cost += 300
+                else: cost += sum(abs(i - j) for i, j in zip(a, b))
+                n += 1
+            if best is None or cost / n < best[0]: best = (cost / n, dx, dy)
+    return best
+
+
+def head_lock(g: Grid, keep_box=None):
+    """The guide frame with the master's head laid on it: the guide's own head (everything above the chin, inside the
+    head's reach) goes, then the master's head is stamped where the guide's sat — so every frame has one face."""
+    cost, dx, dy = head_fit(g)
+    out = g.copy()
+    xs = [x for x, _ in HEAD]; x0, x1 = min(xs) - 2, max(xs) + 3
+    for y in range(0, HEAD_ROWS + dy - 1):
+        for x in range(x0 + dx, x1 + dx):
+            if keep_box and keep_box[0] <= x <= keep_box[1] and keep_box[2] <= y <= keep_box[3]: continue
+            out.set(x, y, '.')
+    for (x, y) in HEAD: out.set(x + dx, y + dy, MASTER.px[y][x])
+    return out, (dx, dy, round(cost))
+
+
+# idle (GPT 7 Nov: subtle — the chest rises a pixel, the cape answers a beat later, an occasional blink). The hands and
+# the bow breathe with the chest (one unit through the grip; the bow never moves on its own). The blink is not part of
+# the loop: the game lays it on a base frame now and then.
+BASE = MASTER
+RISE = lift(lift(shift_rows(MASTER, 0, 44, -1), 31, 36, 46, 51), 11, 19, 47, 51)   # head, chest, both fists up a pixel
+UP = (GRIP[0], GRIP[1] - 1)
+LAG = lambda g: shift_box(g, 0, 9, 47, 57, -1)   # the cape's hem a pixel behind
+FRAMES = {
+    'idle': [(place(with_bow(BASE)), 400), (place(with_bow(RISE, UP)), 300), (place(with_bow(LAG(RISE), UP)), 400),
+             (place(with_bow(LAG(BASE))), 300)],
+    'blink': [(place(with_bow(blink(BASE))), 130)],
+}
+
+def far_fist(g: Grid, x_min: int, y_min: int = 0):
+    """The far (left) hand on a guide frame: the skin pixels right of x_min and below y_min (under the chin — the face
+    is skin too, and it can sit further forward than the hand), their centre — the bow's grip."""
+    pts = [(x, y) for y in range(y_min, g.h) for x in range(x_min, g.w) if g.get(x, y) in 'Ss']
+    if not pts: return None
+    # the right-most skin cluster (the far fist is the hand furthest along the facing direction)
+    xr = max(x for x, _ in pts); cl = [(x, y) for x, y in pts if x >= xr - 5]
+    return (round(sum(x for x, _ in cl) / len(cl)), round(sum(y for _, y in cl) / len(cl)))
+
+
+def from_guide(path_txt: str, pad=(10, 10), rot=0.0):
+    """A guide frame (native letters) → master head laid on it, the carry drawn through its far fist (turned by rot
+    about the grip), placed on the 96 × 96 frame with the feet on the ground line and the head over the master's x."""
+    f = Grid.load(path_txt)
+    g = Grid(f.w + 2 * pad[0], f.h + pad[1]); g.stamp(f, pad[0], pad[1])
+    g, (dx, dy, cost) = head_lock(g)
+    grip = far_fist(g, dx + 26, dy + HEAD_ROWS + 8)          # (the hands hang below the belt: the master's at rows 46–51)
+    ground = max(y for y in range(g.h) for x in range(g.w) if g.get(x, y) != '.') + 1
+    if grip: g = with_bow(g, grip, rot)
+    out = Grid(F, F)
+    ox = FOOT[0] - M_FOOT[0] - dx            # the head over the master's head x
+    oy = FOOT[1] - ground
+    out.stamp(g, ox, oy)
+    return out, {'head': (dx, dy), 'cost': cost, 'grip': grip}
+
+
+def drop_specks(g: Grid, min_size=6) -> Grid:
+    """Little islands of pixels cut off from the figure (left over from a guide's own head or quiver) go."""
+    seen = set(); out = g.copy()
+    for y in range(g.h):
+        for x in range(g.w):
+            if g.px[y][x] == '.' or (x, y) in seen: continue
+            comp = []; stack = [(x, y)]; seen.add((x, y))
+            while stack:
+                cx, cy = stack.pop(); comp.append((cx, cy))
+                for ddx in (-1, 0, 1):
+                    for ddy in (-1, 0, 1):
+                        nx, ny = cx + ddx, cy + ddy
+                        if (nx, ny) not in seen and g.get(nx, ny) != '.': seen.add((nx, ny)); stack.append((nx, ny))
+            if len(comp) < min_size:
+                for (cx, cy) in comp: out.px[cy][cx] = '.'
+    return out
+
+
+GUIDES = os.path.join(HERE, 'guides_native')
+# The walk (GPT + David, 7 Nov): the body is GPT's walk drawn with the bow hand low at the front of the hip, without
+# the bow (walk_34_twin.png at pitch 9.5); the frozen carry goes through that fist in every frame and trails the step a
+# little (GPT: at most 4–6°; contact near neutral, down a slight trail back, passing back through neutral).
+WALK_ROT = [0.0, -4.0, -1.5, 1.5]
+def _walk_twin():
+    import math
+    seq = []
+    for c, deg in enumerate(WALK_ROT):
+        g, info = from_guide(os.path.join(GUIDES, f'twin_r0c{c}.txt'), rot=math.radians(deg))
+        seq.append((drop_specks(g), 140))
+    return seq
+
+
+# (in review with GPT: frames 5–6, the second step, still to come — built only on request until the cycle is approved)
+if os.environ.get('CHIBI_WALK_WIP'): FRAMES['walk'] = _walk_twin()
+
+if __name__ == '__main__':
+    from pix import sheet
+    out = sys.argv[1] if len(sys.argv) > 1 else '.'
+    rows = [[g for g, _ in seq] for seq in FRAMES.values()]
+    sheet(rows, k=4).save(os.path.join(out, 'frames_R.png'))
+    print({k: len(v) for k, v in FRAMES.items()}, 'master feet', M_FOOT)

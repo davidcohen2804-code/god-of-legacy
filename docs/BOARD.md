@@ -31,6 +31,15 @@ The DFO PvP arena dynamics chat is the PvP director: it sets the bar per class, 
 Take the whole PvP up a level in everything — dynamics, skills, effects, hit frames, movement, camera, feel: every hit felt, every class unique and amazing, big moments that look like a cinematic, and reasons to keep playing.
 
 ## Open items
+### DFO (7 Nov, David 16:43) — the new chibi characters: the Archer first, a prototype behind `?chibi`
+- David's new direction for the characters: anime pixel art, light chibi, two facings (right, mirrored for left) in a
+  three-quarter view; the Archer first, behind a flag. The world, combat, skills, balance and camera stay as they are.
+  GPT (David's planning chat) reviews every pose before David sees it. The method for the next classes: `tools/chibi/README.md`.
+- **Done:** the idle (4 frames + an occasional blink), its bow carried as in the approved reference
+  (`tools/chibi/archer/guides/approved_reference.png`): one path from the left fist's centre, behind the body, moving
+  only with the hand. In the game: `?chibi` → TEST → Archer.
+- **Next:** the walk (6 frames: GPT is drawing the second step), then the shot, run, jump, hurt and charge.
+
 ### DFO (5 Nov) — the styles' bodies: PixVerse moves in place of the GPT sheets, a clip a day
 - PixVerse's free credits are back: 30 a day (+ 6 left over) — a 5 s clip costs 20 at 360p, 30 at 540p, 40 at 720p (no
   audio), so one 540p clip a day. The styles made while it had none move from GPT sprite sheets (a 5-frame idle playing at

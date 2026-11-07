@@ -108,6 +108,7 @@ import { ActorView, Equipped, RING_COLOR, preloadCosmetics, skinColor, grayKey, 
 import { ensureLightBeam } from '../skills/SkillFx';
 import HANDS from '../data/judgment-hands.json';
 import { baseLoop, ClassKey, dirOf, HERO_HEIGHT, HERO_LIFT, heroPortrait, loadBaseLook, loadGear, preloadBodies, registerBodies, resolvePose, PoseFrame, sideAim } from '../game/Body';
+import { chibiPose } from '../chibi/ChibiBody';
 import { AnimSnap, LAND_MS, Mode, RECOVER_MS, castSeed, poseQuery } from '../game/PoseState';
 import { ARENA, CombatBody, counterStun, HitOutcome, gaugeOf, Kin, MAGE, PHYS, jump, newKin, settleOnBlocks, steer, stepKin } from '../combat/Combat';
 import { FinalSkill, HitEvent } from '../skills/SkillTypes';
@@ -2064,7 +2065,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       skill: run ? { id: run.skill.id, stage: run.stage, elapsed: run.elapsed, ...run.timings, seed: castSeed(run.castId) } : undefined,
     };
     const dir = this.dir; // Whirlwind spins inside its own 360° body loop
-    const pose = resolvePose(this.cls, dir, poseQuery(snap), v.wantsBase || !hasJob(this.character!), genderOf(this.character), !!this.character!.hero, false, styleDef(this.cls, this.style)?.body);
+    const pose = chibiPose(this, this.cls, dir, poseQuery(snap)) // ?chibi: the new pixel-art body (David 7 Nov), the archer first
+      ?? resolvePose(this.cls, dir, poseQuery(snap), v.wantsBase || !hasJob(this.character!), genderOf(this.character), !!this.character!.hero, false, styleDef(this.cls, this.style)?.body);
     let tint: number | null = null, fill = false, alpha = 1;
     if (this.flash >= 0) { const iron = this.passives.takenMul < 1; tint = iron ? 0xc8d4e6 : 0xff9a9a; } // struck: a soft tint (MapleStory: no white flash over the body); Iron Body: steel sheen
     else if (this.body.hard.active(this.simMs)) tint = this.body.hard.kind === 'freeze' ? 0x9fd8ff : 0xb6ffb0;

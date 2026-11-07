@@ -1,0 +1,37 @@
+{
+ "frame": 96,
+ "origin": [
+  48,
+  88
+ ],
+ "height": 62,
+ "facing": "right",
+ "anims": {
+  "idle": {
+   "frames": [
+    "idle_0",
+    "idle_1",
+    "idle_2",
+    "idle_3"
+   ],
+   "ms": [
+    400,
+    300,
+    400,
+    300
+   ],
+   "loop": true,
+   "events": {}
+  },
+  "blink": {
+   "frames": [
+    "blink_0"
+   ],
+   "ms": [
+    130
+   ],
+   "loop": false,
+   "events": {}
+  }
+ }
+}
