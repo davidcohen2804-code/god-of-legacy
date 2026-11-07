@@ -110,6 +110,300 @@
    ],
    "loop": false,
    "events": {}
+  },
+  "idle~nohood": {
+   "frames": [
+    "idle~nohood_0",
+    "idle~nohood_1",
+    "idle~nohood_2",
+    "idle~nohood_3"
+   ],
+   "ms": [
+    400,
+    300,
+    400,
+    300
+   ],
+   "loop": true,
+   "events": {}
+  },
+  "blink~nohood": {
+   "frames": [
+    "blink~nohood_0"
+   ],
+   "ms": [
+    130
+   ],
+   "loop": false,
+   "events": {}
+  },
+  "walk4~nohood": {
+   "frames": [
+    "walk4~nohood_0",
+    "walk4~nohood_1",
+    "walk4~nohood_2",
+    "walk4~nohood_3"
+   ],
+   "ms": [
+    165,
+    165,
+    165,
+    165
+   ],
+   "loop": true,
+   "events": {}
+  },
+  "idle~notunic": {
+   "frames": [
+    "idle~notunic_0",
+    "idle~notunic_1",
+    "idle~notunic_2",
+    "idle~notunic_3"
+   ],
+   "ms": [
+    400,
+    300,
+    400,
+    300
+   ],
+   "loop": true,
+   "events": {}
+  },
+  "blink~notunic": {
+   "frames": [
+    "blink~notunic_0"
+   ],
+   "ms": [
+    130
+   ],
+   "loop": false,
+   "events": {}
+  },
+  "walk4~notunic": {
+   "frames": [
+    "walk4~notunic_0",
+    "walk4~notunic_1",
+    "walk4~notunic_2",
+    "walk4~notunic_3"
+   ],
+   "ms": [
+    165,
+    165,
+    165,
+    165
+   ],
+   "loop": true,
+   "events": {}
+  },
+  "idle~nocape": {
+   "frames": [
+    "idle~nocape_0",
+    "idle~nocape_1",
+    "idle~nocape_2",
+    "idle~nocape_3"
+   ],
+   "ms": [
+    400,
+    300,
+    400,
+    300
+   ],
+   "loop": true,
+   "events": {}
+  },
+  "blink~nocape": {
+   "frames": [
+    "blink~nocape_0"
+   ],
+   "ms": [
+    130
+   ],
+   "loop": false,
+   "events": {}
+  },
+  "walk4~nocape": {
+   "frames": [
+    "walk4~nocape_0",
+    "walk4~nocape_1",
+    "walk4~nocape_2",
+    "walk4~nocape_3"
+   ],
+   "ms": [
+    165,
+    165,
+    165,
+    165
+   ],
+   "loop": true,
+   "events": {}
+  },
+  "idle~noboots": {
+   "frames": [
+    "idle~noboots_0",
+    "idle~noboots_1",
+    "idle~noboots_2",
+    "idle~noboots_3"
+   ],
+   "ms": [
+    400,
+    300,
+    400,
+    300
+   ],
+   "loop": true,
+   "events": {}
+  },
+  "blink~noboots": {
+   "frames": [
+    "blink~noboots_0"
+   ],
+   "ms": [
+    130
+   ],
+   "loop": false,
+   "events": {}
+  },
+  "walk4~noboots": {
+   "frames": [
+    "walk4~noboots_0",
+    "walk4~noboots_1",
+    "walk4~noboots_2",
+    "walk4~noboots_3"
+   ],
+   "ms": [
+    165,
+    165,
+    165,
+    165
+   ],
+   "loop": true,
+   "events": {}
+  },
+  "idle~nobracers": {
+   "frames": [
+    "idle~nobracers_0",
+    "idle~nobracers_1",
+    "idle~nobracers_2",
+    "idle~nobracers_3"
+   ],
+   "ms": [
+    400,
+    300,
+    400,
+    300
+   ],
+   "loop": true,
+   "events": {}
+  },
+  "blink~nobracers": {
+   "frames": [
+    "blink~nobracers_0"
+   ],
+   "ms": [
+    130
+   ],
+   "loop": false,
+   "events": {}
+  },
+  "walk4~nobracers": {
+   "frames": [
+    "walk4~nobracers_0",
+    "walk4~nobracers_1",
+    "walk4~nobracers_2",
+    "walk4~nobracers_3"
+   ],
+   "ms": [
+    165,
+    165,
+    165,
+    165
+   ],
+   "loop": true,
+   "events": {}
+  },
+  "idle~tunicboots": {
+   "frames": [
+    "idle~tunicboots_0",
+    "idle~tunicboots_1",
+    "idle~tunicboots_2",
+    "idle~tunicboots_3"
+   ],
+   "ms": [
+    400,
+    300,
+    400,
+    300
+   ],
+   "loop": true,
+   "events": {}
+  },
+  "blink~tunicboots": {
+   "frames": [
+    "blink~tunicboots_0"
+   ],
+   "ms": [
+    130
+   ],
+   "loop": false,
+   "events": {}
+  },
+  "walk4~tunicboots": {
+   "frames": [
+    "walk4~tunicboots_0",
+    "walk4~tunicboots_1",
+    "walk4~tunicboots_2",
+    "walk4~tunicboots_3"
+   ],
+   "ms": [
+    165,
+    165,
+    165,
+    165
+   ],
+   "loop": true,
+   "events": {}
+  },
+  "idle~base": {
+   "frames": [
+    "idle~base_0",
+    "idle~base_1",
+    "idle~base_2",
+    "idle~base_3"
+   ],
+   "ms": [
+    400,
+    300,
+    400,
+    300
+   ],
+   "loop": true,
+   "events": {}
+  },
+  "blink~base": {
+   "frames": [
+    "blink~base_0"
+   ],
+   "ms": [
+    130
+   ],
+   "loop": false,
+   "events": {}
+  },
+  "walk4~base": {
+   "frames": [
+    "walk4~base_0",
+    "walk4~base_1",
+    "walk4~base_2",
+    "walk4~base_3"
+   ],
+   "ms": [
+    165,
+    165,
+    165,
+    165
+   ],
+   "loop": true,
+   "events": {}
   }
  }
 }
