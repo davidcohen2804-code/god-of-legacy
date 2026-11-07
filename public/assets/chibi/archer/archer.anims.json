@@ -32,6 +32,26 @@
    ],
    "loop": false,
    "events": {}
+  },
+  "walk": {
+   "frames": [
+    "walk_0",
+    "walk_1",
+    "walk_2",
+    "walk_3",
+    "walk_4",
+    "walk_5"
+   ],
+   "ms": [
+    110,
+    110,
+    110,
+    110,
+    110,
+    110
+   ],
+   "loop": true,
+   "events": {}
   }
  }
 }

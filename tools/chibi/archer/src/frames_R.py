@@ -140,14 +140,54 @@ def far_fist(g: Grid, x_min: int, y_min: int = 0):
     return (round(sum(x for x, _ in cl) / len(cl)), round(sum(y for _, y in cl) / len(cl)))
 
 
-def from_guide(path_txt: str, pad=(10, 10), rot=0.0):
+def retop(g: Grid, ground: int, height: int) -> Grid:
+    """The figure made `height` rows tall (feet kept on `ground`) by taking out or doubling rows at the shins — so a
+    cycle's bob is the one asked for, not whatever height each drawn pose happened to have."""
+    rows = [y for y in range(g.h) if any(g.px[y][x] != '.' for x in range(g.w))]
+    out = g.copy(); d = (ground - rows[0]) - height
+    e = ground - 10
+    for _ in range(max(0, d)):                                   # too tall: a shin row out, the body above drops
+        out.px.pop(e); out.px.insert(0, ['.'] * g.w)
+    for _ in range(max(0, -d)):                                  # too short: a shin row doubled, the body above rises
+        out.px.insert(e, list(out.px[e])); out.px.pop(0)
+    return out
+
+
+def lift_foot(g: Grid, x0, x1, y0, y1) -> Grid:
+    """A passing pose's lifted foot up a pixel (GPT: at ×2 it merged with the supporting boot): rows y0..y1 of columns
+    x0..x1 move up one (the shin a pixel more bent), and the row they leave becomes air under the sole."""
+    out = g.copy()
+    for y in range(y0, y1 + 1):
+        for x in range(x0, x1 + 1): out.px[y - 1][x] = g.px[y][x]
+    for x in range(x0, x1 + 1): out.px[y1][x] = '.'
+    return out
+
+
+def clear_row(g: Grid, y: int) -> Grid:
+    out = g.copy(); out.px[y] = ['.'] * g.w; return out
+
+
+def arm_back(g: Grid, x0, x1, y0, y1, d=2) -> Grid:
+    """A forearm and fist (columns x0..x1, rows y0..y1) moved d pixels back (toward the cape); the torso behind them
+    continues into the columns they leave (copied from just past the box)."""
+    out = g.copy()
+    for y in range(y0, y1 + 1):
+        for x in range(x0, x1 + 1): out.px[y][x - d] = g.px[y][x]
+        for i in range(d): out.px[y][x1 - d + 1 + i] = g.px[y][x1 + 1 + i]
+    return out
+
+
+def from_guide(path_txt: str, pad=(10, 10), rot=0.0, top=None, fix=None):
     """A guide frame (native letters) → master head laid on it, the carry drawn through its far fist (turned by rot
-    about the grip), placed on the 96 × 96 frame with the feet on the ground line and the head over the master's x."""
+    about the grip), placed on the 96 × 96 frame with the feet on the ground line and the head over the master's x
+    (top: the frame row the head's top should reach — the cycle's bob; fix: the hand pass on the guide's own grid)."""
     f = Grid.load(path_txt)
-    g = Grid(f.w + 2 * pad[0], f.h + pad[1]); g.stamp(f, pad[0], pad[1])
+    if fix: f = fix(f)
+    g = Grid(f.w + 2 * pad[0], f.h + pad[1] + 4); g.stamp(f, pad[0], pad[1] + 4)
     g, (dx, dy, cost) = head_lock(g)
-    grip = far_fist(g, dx + 26, dy + HEAD_ROWS + 8)          # (the hands hang below the belt: the master's at rows 46–51)
     ground = max(y for y in range(g.h) for x in range(g.w) if g.get(x, y) != '.') + 1
+    if top is not None: g = retop(g, ground, FOOT[1] - top)
+    grip = far_fist(g, dx + 26, dy + HEAD_ROWS + 8)          # (the hands hang below the belt: the master's at rows 46–51)
     if grip: g = with_bow(g, grip, rot)
     out = Grid(F, F)
     ox = FOOT[0] - M_FOOT[0] - dx            # the head over the master's head x
@@ -178,18 +218,26 @@ GUIDES = os.path.join(HERE, 'guides_native')
 # The walk (GPT + David, 7 Nov): the body is GPT's walk drawn with the bow hand low at the front of the hip, without
 # the bow (walk_34_twin.png at pitch 9.5); the frozen carry goes through that fist in every frame and trails the step a
 # little (GPT: at most 4–6°; contact near neutral, down a slight trail back, passing back through neutral).
-WALK_ROT = [0.0, -4.0, -1.5, 1.5]
+# Six frames, two steps (GPT): contact R, down R, passing, contact L (the twin), down L, passing (walk_34_step2.png,
+# GPT's second step at the twin's scale: pitch 11.26); 110 ms each, the pace following the real speed.
+WALK_SRC = ['twin_r0c0', 'twin_r0c1', 'twin_r0c2', 'twin_r0c3', 'step2_r0c0', 'step2_r0c1']
+WALK_ROT = [0.0, -3.0, -1.0, 1.0, 3.0, 1.0]
+WALK_TOP = [23, 24, 22, 23, 24, 22]          # the bob (GPT): contact level, down a pixel lower, passing a pixel higher
+WALK_FIX = {                                  # the hand pass (GPT): the passing frames' lifted foot a pixel up, air under it
+    'twin_r0c2': lambda g: lift_foot(g, 15, 19, 59, 62),
+    'step2_r0c0': lambda g: arm_back(g, 15, 23, 39, 46),   # (GPT: the right fist 2 px back, the swing even over 4–5–6)
+    'step2_r0c1': lambda g: lift_foot(clear_row(g, 66), 17, 21, 58, 61),   # (row 66: a doubled sole line)
+}
 def _walk_twin():
     import math
     seq = []
-    for c, deg in enumerate(WALK_ROT):
-        g, info = from_guide(os.path.join(GUIDES, f'twin_r0c{c}.txt'), rot=math.radians(deg))
-        seq.append((drop_specks(g), 140))
+    for src, deg, top in zip(WALK_SRC, WALK_ROT, WALK_TOP):
+        g, info = from_guide(os.path.join(GUIDES, f'{src}.txt'), rot=math.radians(deg), top=top, fix=WALK_FIX.get(src))
+        seq.append((drop_specks(g), 110))
     return seq
 
 
-# (in review with GPT: frames 5–6, the second step, still to come — built only on request until the cycle is approved)
-if os.environ.get('CHIBI_WALK_WIP'): FRAMES['walk'] = _walk_twin()
+FRAMES['walk'] = _walk_twin()
 
 if __name__ == '__main__':
     from pix import sheet
