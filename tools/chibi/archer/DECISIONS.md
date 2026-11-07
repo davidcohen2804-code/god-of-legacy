@@ -119,8 +119,11 @@ before David sees it; David approves anything that changes approved art directio
   grip is checked at 60 fps in the first composite test; an in-between pose only if it visibly pops. [GPT]
 - Render order, back → front: cape + quiver, far upper arm, legs, torso, head, bow, arrow, grip fist, string, near arm
   + draw hand. In Recover the bow goes back behind the body only once it is close to the torso again. [GPT]
-- Next, after David accepts the idle and walk: two proof compositions — Raise over the idle, Raise over walk frame 3 —
-  at ×2 and ×3; Full Draw, Release and Recover only after their review. [GPT]
+- Next, after David accepts the idle: two proof compositions — Raise over the standing legs, Raise over the walk's
+  passing legs (frame 2 of the 4-frame walk) — at ×2 and ×3, facing right; the bow moves from the carry into the Raise
+  without leaving the left fist. Then the same upper body over all four walk leg poses (is the system really
+  reusable?), and only then Full Draw, Release and Recover. Minimal motion is not minimal impact: the walk stays
+  simple, the shot keeps its four strong poses, reusing the head, equipment, legs and attachments. [GPT, 7 Nov]
 - Open (for the integration, not decided): the arrow spawns 16 world px ahead of the feet and 34 px up (the combat
   code's fixed shot height, also used by the cover checks). With the chibi at ×2 that is the front of the hip, master
   (31,47), 34 px behind and 32 px below the drawn origin (48,31); at ×3, 59 and 65 px. The shot does not go into
