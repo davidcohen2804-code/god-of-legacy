@@ -41,7 +41,8 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
   fist trailing a few degrees, the body down a pixel on each down frame and up a pixel on each passing frame), reviewed
   frame by frame with GPT. The grip (David saw the bow detached from the hand): three layers per frame — bow, body
   without the left fist, a grip-fist overlay (GPT's design A) — the wood entering the hand at mid-height, 1 px of riser
-  under the fist. In the game: `?chibi` → TEST → Archer. Decisions: `tools/chibi/archer/DECISIONS.md`.
+  under the fist. In the game: `?chibi` → START → Archer → ENTER WORLD (the regular map, loaded with it — David 8 Nov,
+  no TEST room). Decisions: `tools/chibi/archer/DECISIONS.md`.
 - **Designed, not drawn:** the shot — four reusable poses on the combat timeline (two releases in beat 1, one in beat
   2), the draw hand under the near jaw, the bow canted ~15°; GPT accepted the pose map as the working design (7 Nov,
   DECISIONS.md). Open for its integration: the arrow spawns at hip height on the ×2 chibi, below the drawn bow.
@@ -53,8 +54,10 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
   everything (face, bangs, hair, undershirt, shorts, bare arms, foot wraps) and the items cut from the approved Archer —
   hood, tunic, bracers, boots, cape, quiver, bow. The idle, blink and 4-frame walk are now composed from them (with
   everything on: the approved frames). Removal test: `?chibi&strip=nohood|notunic|nocape|noboots|nobracers|tunicboots|base`.
-- **Next:** David's look at the removal test; then the shot on the base (Raise, Full Draw, Release, Recover — the arms
-  as upper-body art over the base, the clothes over them); then run, jump, hurt and charge, under the minimal-motion rule.
+- **The shot on the base (in review with GPT, 8 Nov):** arms drawn once per pose as material maps, every outfit's sleeves
+  and bracers as colour bands — a new ordinary tunic or bracer needs no new attack animation (GPT's rule). The Raise
+  and Full Draw proofs in three outfits (`tools/chibi/archer/src/shotbase_R.py`, not in the game yet).
+- **Next:** the shot's four poses into the game; then run, jump, hurt and charge, under the minimal-motion rule.
 
 ### DFO (5 Nov) — the styles' bodies: PixVerse moves in place of the GPT sheets, a clip a day
 - PixVerse's free credits are back: 30 a day (+ 6 left over) — a 5 s clip costs 20 at 360p, 30 at 540p, 40 at 720p (no
