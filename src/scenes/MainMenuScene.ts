@@ -49,6 +49,7 @@ export class MainMenuScene extends Phaser.Scene {
     new MainMenuUI(this, {
       onStart: () => this.leave(() => this.scene.start('CharacterSelectScene')),
       onPvp: () => { ARENA3D.on = true; this.leave(() => this.scene.start('PvpSelectScene', { mode: 'cpu' })); }, // the fighter select (Tekken style) → the arena, a real 3D room (PVP 3D)
+      onTest: () => { ARENA3D.on = true; this.leave(() => this.scene.start('PvpSelectScene', { mode: 'test' })); }, // TEST: the same select, one fighter → alone in the room with every skill (David 7 Nov)
     });
   }
 

@@ -24,7 +24,7 @@ import { Sound } from '../audio/Sound';
 import { warmClip } from './HeroClip';
 import { rankLine, rankPlate } from './RankUI';
 
-export type VsMode = 'cpu' | 'player' | 'training';
+export type VsMode = 'cpu' | 'player' | 'training' | 'test';
 export interface RemoteView { name: string; hover: string; pick: string | null; /** their PvP rank */ rank?: { rp: number; title: string | null } }
 export interface PvpSelectHandlers {
   back(): void;
@@ -173,7 +173,10 @@ const CSS = `
 .gol-ps .ps-lv button.hard.on{color:#ffe2d8;background:linear-gradient(180deg,#b5361f,#5a120a);border-color:#e0503c}
 .gol-ps.go .ps-lv button:not(.on){opacity:.4}
 /* TRAINING: no count on top (nothing is won there) */
-.gol-ps.trn .ps-score{display:none}`;
+.gol-ps.trn .ps-score{display:none}
+.gol-ps .ps-tst{display:none}
+.gol-ps.tst .ps-tst{display:block;position:absolute;left:50%;top:118px;transform:translateX(-50%);padding:8px 44px;background:rgba(6,10,18,.78);clip-path:polygon(16px 0,100% 0,calc(100% - 16px) 100%,0 100%);color:#f3dca2;font:900 34px/1.2 Cinzel,Georgia,serif;letter-spacing:.18em;text-shadow:0 2px 0 #3a2208,0 0 18px rgba(243,200,110,.35);pointer-events:none}
+.gol-ps.tst .ps-tabs,.gol-ps.tst .ps-score,.gol-ps.tst .ps-vs,.gol-ps.tst .ps-pl.r,.gol-ps.tst .ps-cur.p2,.gol-ps.tst .ps-lv,.gol-ps.tst .ps-rkw{display:none}`;
 
 interface Side { hover: number; pick: number | null }
 /** The stage row's choice: the stages, then RANDOM (index STAGES.length) — kept from one visit of this screen to the next. */
@@ -185,7 +188,7 @@ let lastLevel: BotLevel = 'middle';
 
 export class PvpSelectUI {
   private readonly root: HTMLDivElement;
-  private readonly tabs: Record<VsMode, HTMLButtonElement>;
+  private readonly tabs: Partial<Record<VsMode, HTMLButtonElement>>;
   private readonly score: Record<'w' | 'd' | 'l', HTMLElement>;
   private readonly plate: Record<'l' | 'r', { side: HTMLElement; tag: HTMLElement; cls: HTMLElement; nm: HTMLElement; box: HTMLElement; rk: HTMLElement }>;
   private readonly tiles: HTMLDivElement[] = [];
@@ -229,6 +232,7 @@ export class PvpSelectUI {
     const tabs = this.el('div', 'ps-tabs', root);
     const tab = (m: VsMode, label: string) => { const b = this.el('button', '', tabs) as HTMLButtonElement; b.type = 'button'; b.textContent = label; b.addEventListener('click', () => this.setMode(m)); return b; };
     this.tabs = { cpu: tab('cpu', 'VS CPU'), player: tab('player', 'VS PLAYER'), training: tab('training', 'TRAINING') };
+    this.el('div', 'ps-tst', root).textContent = 'TEST'; // (TEST: one fighter, alone on the map with every skill)
     const back = this.el('button', 'gl-btn ps-back', root) as HTMLButtonElement; back.type = 'button'; back.textContent = 'BACK'; back.addEventListener('click', () => this.back());
     const mkPlate = (s: 'l' | 'r') => {
       const box = this.el('div', `ps-pl ${s}`, root), bd = this.el('div', 'ps-bd', box);
@@ -330,7 +334,7 @@ export class PvpSelectUI {
   /** The cursor the keys move: yours, or the CPU's once yours is locked in. */
   private side(): Side | null {
     if (this.going) return null;
-    if (this.mode === 'player') return this.p1.pick === null ? this.p1 : null;
+    if (this.mode === 'player' || this.mode === 'test') return this.p1.pick === null ? this.p1 : null;
     return this.active === 'p1' ? this.p1 : this.p2.pick === null ? this.p2 : null;
   }
   /** VS CPU / TRAINING: the stage, chosen at any time before GET READY (the row's cards, or ↑ / ↓). */
@@ -355,7 +359,7 @@ export class PvpSelectUI {
 
   private confirm(): void {
     if (this.going) return;
-    if (this.mode === 'player') {
+    if (this.mode === 'player' || this.mode === 'test') {
       if (this.p1.pick !== null) return;
       this.p1.pick = this.p1.hover; this.flashArt('l');
     } else if (this.active === 'p1') {
@@ -397,7 +401,7 @@ export class PvpSelectUI {
   private maybeGo(): void {
     if (this.going) return;
     const p1 = this.p1.pick === null ? null : ROSTER[this.p1.pick];
-    const p2 = this.local ? (this.p2.pick === null ? null : ROSTER[this.p2.pick]) : this.remote?.pick ?? null;
+    const p2 = this.mode === 'test' ? p1 : this.local ? (this.p2.pick === null ? null : ROSTER[this.p2.pick]) : this.remote?.pick ?? null; // (TEST: nobody opposite)
     if (!p1 || !p2) return;
     let stage: string | undefined;
     if (this.local && !ARENA3D.on) { // the stage chosen, or RANDOM drawn now (the row shows which before the arena; PVP 3D: its one stage)
@@ -418,7 +422,8 @@ export class PvpSelectUI {
 
   private render(): void {
     const m = this.mode, cpu = m !== 'player', trn = m === 'training', rem = this.remote, net = this.net; // (cpu: both picks here — VS CPU or TRAINING)
-    for (const k of Object.keys(this.tabs) as VsMode[]) this.tabs[k].classList.toggle('on', k === m);
+    for (const k of Object.keys(this.tabs) as VsMode[]) this.tabs[k]?.classList.toggle('on', k === m);
+    this.root.classList.toggle('tst', m === 'test'); // TEST: your fighter alone — no tabs, no opponent, no count
     this.root.classList.toggle('trn', trn);
     this.root.classList.toggle('cpu', m === 'cpu'); this.root.classList.toggle('go', this.going);
     for (const l of this.lvBtns) l.b.classList.toggle('on', l.v === this.level);
@@ -428,7 +433,7 @@ export class PvpSelectUI {
     this.fillPlate('l', '1P', 'YOU', lc, fighterFor(lc).name, this.p1.pick !== null);
     // right: the CPU (picked by you once yours is in) / the other player
     let rc: string | null = null, rName = '', rLocked = false, rState: 'live' | 'shade' | '' = '';
-    if (cpu) { rc = ROSTER[this.p2.pick ?? this.p2.hover]; rLocked = this.p2.pick !== null; rState = this.active === 'p1' ? 'shade' : rLocked ? '' : 'live'; rName = this.active === 'p1' ? '???' : BOT_NAMES[rc] ?? 'Sparring partner'; }
+    if (cpu && m !== 'test') { rc = ROSTER[this.p2.pick ?? this.p2.hover]; rLocked = this.p2.pick !== null; rState = this.active === 'p1' ? 'shade' : rLocked ? '' : 'live'; rName = this.active === 'p1' ? '???' : BOT_NAMES[rc] ?? 'Sparring partner'; }
     else if (rem) { rc = rem.pick ?? rem.hover; rLocked = !!rem.pick; rState = rLocked ? '' : 'live'; rName = rem.name; }
     this.showArt('r', rc, rState);
     this.plate.r.box.style.display = rc ? '' : 'none';
@@ -443,7 +448,7 @@ export class PvpSelectUI {
       el.querySelector('b')!.textContent = label;
     };
     place(this.cur.p1, this.p1.pick ?? this.p1.hover, '1P', this.p1.pick !== null);
-    const p2i = cpu ? (this.active === 'p1' ? null : this.p2.pick ?? this.p2.hover) : rem ? ROSTER.indexOf((rem.pick ?? rem.hover) as typeof ROSTER[number]) : null;
+    const p2i = m === 'test' ? null : cpu ? (this.active === 'p1' ? null : this.p2.pick ?? this.p2.hover) : rem ? ROSTER.indexOf((rem.pick ?? rem.hover) as typeof ROSTER[number]) : null;
     place(this.cur.p2, p2i !== null && p2i >= 0 ? p2i : null, cpu ? 'CPU' : '2P', cpu ? this.p2.pick !== null : !!rem?.pick);
     this.cur.p1.classList.toggle('p2s', !this.cur.p2.classList.contains('hide') && this.cur.p1.style.left === this.cur.p2.style.left);
     // the invite (VS PLAYER until the other one is in)
@@ -467,6 +472,7 @@ export class PvpSelectUI {
     const sl = rand ? 'RANDOM' : STAGES[on].name;
     if (this.stp.nm.dataset.t !== sl) { this.stp.nm.innerHTML = ''; this.metal(this.stp.nm, sl, 'gold'); this.stp.nm.dataset.t = sl; }
     this.stp.dots.forEach((d, k) => d.classList.toggle('on', k === on));
+    if (m === 'test') { this.hint.innerHTML = '<b>← →</b> CHOOSE &nbsp;·&nbsp; <b>ENTER</b> START &nbsp;·&nbsp; <b>ESC</b> BACK'; } else
     this.hint.innerHTML = `<b>← →</b> CHOOSE &nbsp;·&nbsp; ${cpu && !ARENA3D.on ? '<b>↑ ↓</b> STAGE &nbsp;·&nbsp; ' : ''}${m === 'cpu' ? '<b>L</b> CPU LEVEL &nbsp;·&nbsp; ' : ''}<b>ENTER</b> CONFIRM &nbsp;·&nbsp; <b>ESC</b> BACK`; // (PVP 3D: one stage — nothing to pick)
     // the middle
     const st = this.going ? 'GET READY!' : cpu ? (this.active === 'p1' ? 'CHOOSE YOUR FIGHTER' : trn ? 'CHOOSE YOUR PARTNER' : 'CHOOSE YOUR OPPONENT')

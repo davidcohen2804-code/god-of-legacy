@@ -61,7 +61,7 @@ export class PvpSelectScene extends Phaser.Scene {
     this.hover = data?.p1 ?? (sel && (ROSTER as readonly string[]).includes(sel.classId) ? sel.classId : 'samurai');
     this.ui = new PvpSelectUI(this.game.canvas.parentElement!, this.game.canvas, {
       back: () => { Sound.music(this, null, 500); this.leave(() => { clearPvpFromUrl(); this.scene.start('MainMenuScene'); }); },
-      mode: (m) => { if (m === 'player') this.openLobby(); else this.closeLobby(); if (m !== 'training') this.ui?.setScore(score(scoreKey(m, this.lobby?.room))); },
+      mode: (m) => { if (m === 'player') this.openLobby(); else this.closeLobby(); if (m === 'cpu' || m === 'player') this.ui?.setScore(score(scoreKey(m, this.lobby?.room))); },
       local: (hover, pick) => { this.hover = hover; this.lobby?.set(hover, pick, fighterFor(hover).name); },
       start: (p1, p2, m, stage, level) => this.start(p1, p2, m, stage, level),
       copyLink: async () => { try { await navigator.clipboard.writeText(window.location.href); return true; } catch { return false; } },
@@ -70,7 +70,7 @@ export class PvpSelectScene extends Phaser.Scene {
       stage: (id) => this.backdrop(id),
     }, { mode, p1: this.hover, p2: data?.p2 });
     if (mode === 'player') this.openLobby(); else clearPvpFromUrl();
-    if (mode !== 'training') this.ui.setScore(score(scoreKey(mode, this.lobby?.room)));
+    if (mode === 'cpu' || mode === 'player') this.ui.setScore(score(scoreKey(mode, this.lobby?.room))); // (TRAINING, TEST: no count)
     if (ARENA3D.on) addPetals(this, 34); // PVP 3D: the courtyard's cherry petals drifting down, behind the fighters and a few in front
     else addMotes(this, { x: 0, y: 80, w: DESIGN.width, h: 900 }, 26, { depth: 3, size: [8, 20], speed: [10, 22], alpha: 0.55 }); // embers drifting over the arena (and the fighters)
     this.events.on(Phaser.Scenes.Events.POST_UPDATE, this.layout, this);

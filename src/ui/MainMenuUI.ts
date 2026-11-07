@@ -6,7 +6,7 @@ import { SettingsModal, createModalBase, createTextButton } from './SettingsModa
 import { SettingsStore } from '../core/SettingsStore';
 import { PlatformAdapter } from '../core/PlatformAdapter';
 
-export interface MainMenuHandlers { onStart: () => void; onPvp: () => void }
+export interface MainMenuHandlers { onStart: () => void; onPvp: () => void; onTest: () => void }
 
 export class MainMenuUI {
   private settings: SettingsModal;
@@ -18,6 +18,7 @@ export class MainMenuUI {
 
     this.imageButton(ASSETS.start.key, MENU_BUTTONS.start, handlers.onStart);
     this.imageButton(ASSETS.pvp.key, MENU_BUTTONS.pvp, handlers.onPvp);
+    this.imageButton(ASSETS.test.key, MENU_BUTTONS.test, handlers.onTest);
     this.imageButton(ASSETS.settings.key, MENU_BUTTONS.settings, () => this.settings.open());
     this.imageButton(ASSETS.exit.key, MENU_BUTTONS.exit, () => this.openExit());
 

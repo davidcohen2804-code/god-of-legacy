@@ -11,17 +11,19 @@ export const ASSETS = {
   settings: { key: 'btn-settings', file: 'assets/SettingsButton.png' },
   exit: { key: 'btn-exit', file: 'assets/ExitButton.png' },
   pvp: { key: 'btn-pvp', file: 'assets/PvpArenaButton.png' },
+  test: { key: 'btn-test', file: 'assets/TestButton.png' },
 } as const;
 
 export const LOGO = { centerX: 960, top: 28, width: 900 } as const;
 
 export interface ButtonLayout { x: number; y: number; w: number; h: number }
 
-export const MENU_BUTTONS: Record<'start' | 'pvp' | 'settings' | 'exit', ButtonLayout> = {
-  start: { x: 960, y: 560, w: 600, h: 150 },
-  pvp: { x: 960, y: 690, w: 500, h: 120 }, // → the PvP fighter select
-  settings: { x: 960, y: 800, w: 500, h: 120 },
-  exit: { x: 960, y: 910, w: 500, h: 120 },
+export const MENU_BUTTONS: Record<'start' | 'pvp' | 'test' | 'settings' | 'exit', ButtonLayout> = {
+  start: { x: 960, y: 545, w: 600, h: 150 },
+  pvp: { x: 960, y: 665, w: 500, h: 120 }, // → the PvP fighter select
+  test: { x: 960, y: 765, w: 500, h: 120 }, // → TEST: pick a fighter, alone on one map, every skill (David 7 Nov)
+  settings: { x: 960, y: 865, w: 500, h: 120 },
+  exit: { x: 960, y: 965, w: 500, h: 120 },
 };
 
 export const BUTTON_FX = {

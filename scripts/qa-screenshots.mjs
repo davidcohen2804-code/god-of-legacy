@@ -18,18 +18,22 @@ for (const [w, h] of [[1920, 1080], [1280, 720]]) {
   const click = async (x, y) => { await W(p, 300); await p.mouse.move(x * k, y * k); await W(p, 400); await p.mouse.down(); await W(p, 100); await p.mouse.up(); await W(p, 1000); };
   const boot = async () => { await p.goto(URL); await p.waitForFunction(() => window.__game?.scene.isActive('MainMenuScene'), null, { timeout: 30000 }); await W(p, 1200); };
   // START → CHOOSE YOUR HERO, the five heroes (a click that lands while the menu is still settling is tried again)
-  const toSelect = async () => { for (let i = 0; ; i++) { await click(960, 585); try { await p.waitForSelector('.gol-cs .hrow', { timeout: 20000 }); return; } catch (e) { if (i >= 2) throw e; } } };
+  const toSelect = async () => { for (let i = 0; ; i++) { await click(960, 570); try { await p.waitForSelector('.gol-cs .hrow', { timeout: 20000 }); return; } catch (e) { if (i >= 2) throw e; } } };
   await p.goto(URL); await p.evaluate(() => localStorage.clear()); await boot();
   await shot(p, '01_main_menu', w);
-  await p.mouse.move(960 * k, 585 * k); await W(p, 600); await shot(p, '02_start_hover', w);
-  await click(960, 800); await shot(p, '03_settings', w);
+  await p.mouse.move(960 * k, 570 * k); await W(p, 600); await shot(p, '02_start_hover', w);
+  await click(960, 865); await shot(p, '03_settings', w);
   await p.keyboard.press('Escape'); await W(p, 500);
-  await click(960, 910); await shot(p, '04_exit_confirm', w);
+  await click(960, 965); await shot(p, '04_exit_confirm', w);
   await click(1066, 595); await W(p, 1200); await shot(p, '05_exit_web_message', w);
   await p.keyboard.press('Escape'); await W(p, 500);
-  await click(960, 690); await p.waitForSelector('.gol-ps'); await W(p, 1500);
+  await click(960, 665); await p.waitForSelector('.gol-ps'); await W(p, 1500);
   await p.waitForFunction(() => { const s = window.__game?.scene.getScene('PvpSelectScene'); return !!s?.arts && s.arts.l.enter >= 1 && !s.cameras.main.fadeEffect.isRunning; }, null, { timeout: 60000 }).catch(() => {}); // (software GL draws the living fighters slowly: wait until yours has come in)
   await W(p, 800); await shot(p, '05b_pvp_select', w); // PvP ARENA: the fighter select
+  await p.keyboard.press('Escape'); await p.waitForFunction(() => window.__game?.scene.isActive('MainMenuScene'), null, { timeout: 30000 }); await W(p, 1200);
+  await click(960, 765); await p.waitForSelector('.gol-ps.tst'); await W(p, 1500); // TEST: one fighter, alone on the map
+  await p.waitForFunction(() => { const s = window.__game?.scene.getScene('PvpSelectScene'); return !!s?.arts && s.arts.l.enter >= 1 && !s.cameras.main.fadeEffect.isRunning; }, null, { timeout: 60000 }).catch(() => {});
+  await W(p, 800); await shot(p, '05c_test_select', w);
   await p.keyboard.press('Escape'); await p.waitForFunction(() => window.__game?.scene.isActive('MainMenuScene'), null, { timeout: 30000 }); await W(p, 1200);
   await toSelect(); await W(p, 700); await shot(p, '06_hero_select', w); // (no characters to make: the five heroes, each played as he is — David 2 Nov 18:41)
   await p.click('.gol-cs .hrow >> nth=1'); await p.mouse.move(1000 * k, 500 * k); await W(p, 900); await shot(p, '07_hero_samurai', w);
