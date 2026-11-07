@@ -21,10 +21,25 @@ GRIP = (34, 48)                                       # the left (far) fist's ce
 # sweeps forward and up in one curve and ends in a small forward flick just under the chin; the string leaves under the
 # tip and runs down and back inside the curve, behind the chest. Behind the body (the far hand holds it): the fist closes
 # over the riser, nothing hangs below it. It turns and moves only with the hand (rot about the grip).
-CARRY_LIMB = [(-1.5, 1.0), (0, 0), (1.5, -0.5), (3, -1.5), (4.5, -2.5), (6, -3.5), (7, -5), (7.5, -7), (7.5, -10),
-              (7.5, -13), (8, -15), (8.5, -16.5), (9.5, -18)]       # (GPT's polish: the flick a pixel more compact)
+# THE GRIP (David + GPT, 7 Nov — the bow read as detached: an empty-hand drawing, the wood leaving from the fist's top
+# corner only, and the fist's dark outline as a seam). Three layers per frame: the bow, the body without its left fist,
+# a fist overlay drawn as a grip. The limb comes down into the fist's front edge at mid-height, the riser runs down
+# through the hand and 1 px of it shows under the fist (never more: it must not read as a hanging lower limb).
+CARRY_LIMB = [(0.5, 3.2), (0.5, 2.3), (1.0, 1.0), (2.0, 0.4), (3.5, 0.1), (5.0, -0.9), (6.3, -2.6), (7.2, -5),
+              (7.5, -7), (7.5, -10), (7.5, -13), (8, -15), (8.5, -16.5), (9.5, -18)]   # (the flick: GPT's compact one)
 CARRY_STRING = ((8, -16), (-3, 3))
 BOW_STYLE = dict(WOOD, string='f')
+# The carry fist (GPT's design A): a simple chibi mitten — a knuckle shade along the riser, a 1 px thumb over its top
+# edge, the outline open only where the wood leaves (front, mid-height) and enters (bottom). 6 × 7, the grip at (3, 3);
+# ' ' keeps the body's pixel, '.' leaves the overlay transparent (the bow's wood shows there). One drawing for every
+# carry frame (idle, walk), placed at each frame's own grip; the shot's poses get their own drawings.
+CARRY_FIST = ['  OOO ',
+              'OSSSSO',
+              'OSSsSS',
+              'OSsSS.',
+              'OsSSs.',
+              'OssSOO',
+              'OOO..O']
 HEAD_ROWS = 30                                        # rows 0..29: hood, hair, face (the identity)
 QUIVER_BOX = (0, 10, 22, 31)                          # x0, x1, y0, y1 of the quiver's feathers (not head)
 
@@ -34,10 +49,20 @@ def place(g: Grid, dx=0, dy=0) -> Grid:
     f = Grid(F, F); f.stamp(g, FOOT[0] - M_FOOT[0] + dx, FOOT[1] - M_FOOT[1] + dy); return f
 
 
-def with_bow(body: Grid, grip=GRIP, rot=0.0) -> Grid:
-    """The carried bow (behind the body: the far, left hand holds it) under a master-sized body."""
-    b, _ = path_bow(body.w + 16, body.h, grip[0], grip[1], CARRY_LIMB, CARRY_STRING, rot=rot, style=BOW_STYLE)
-    out = Grid(body.w + 16, body.h); out.stamp(b, 0, 0); out.stamp(body, 0, 0); return out
+def with_bow(body: Grid, grip=GRIP, rot=0.0, fist=CARRY_FIST) -> Grid:
+    """The carried bow in the far (left) hand, in three layers: the bow (behind), the body with its own left fist
+    taken out (the drawn fist's skin and right / lower outline around the grip), and the grip fist on top. The bow
+    turns by rot about the grip; the fist stays upright."""
+    gx, gy = grip
+    b, _ = path_bow(body.w + 16, body.h, gx, gy, CARRY_LIMB, CARRY_STRING, rot=rot, style=BOW_STYLE)
+    cut = body.copy()
+    for y in range(gy - 2, gy + 4):
+        for x in range(gx - 2, gx + 4): cut.set(x, y, '.')
+    out = Grid(body.w + 16, body.h); out.stamp(b, 0, 0); out.stamp(cut, 0, 0)
+    for j, row in enumerate(fist):
+        for i, ch in enumerate(row):
+            if ch not in ' .': out.set(gx - 3 + i, gy - 3 + j, ch)
+    return out
 
 
 def shift_rows(g: Grid, y0: int, y1: int, dy: int) -> Grid:

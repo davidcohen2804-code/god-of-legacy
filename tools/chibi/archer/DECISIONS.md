@@ -27,7 +27,12 @@ before David sees it; David approves anything that changes approved art directio
   The fix: three layers per frame — the bow, the body without the left fist, a fist overlay drawn as a grip (a simple
   chibi mitten: knuckle shade along the riser, a thumb over it, the outline open only where the wood enters and
   leaves; a narrow slot, never a hole). The riser leaves the hand at mid-height on its front edge. One grip system,
-  pose-specific fist drawings (carry, nock, draw, release…). [GPT approved the direction; the close-ups in review]
+  pose-specific fist drawings (carry, nock, draw, release…). [GPT; David saw the before / after]
+- The carry fist is GPT's design A (a diagonal knuckle shade along the riser, a 1 px thumb over its top edge; not B's
+  stacked fingers, which suggest a vertical handle). One drawing for every carry frame (idle, blink, walk), at each
+  frame's own grip; a walk frame gets its own variant only if it visibly fails. The fist stays upright; the bow turns
+  about the grip; in the idle's up frames hand, grip and bow rise together. Every frame is checked: the thumb on the
+  wood, wood in both front openings, exactly 1 px of stub. [GPT, 7 Nov]
 - Interchangeable bows: the character art carries no bow; every pose stores the grip anchor and axis; each bow is a
   colour style plus its carry path (and later its draw geometry), pre-rendered per frame into its own small atlas
   (no run-time rotation of pixel art); the game draws bow, body, fist from the same anchor. [GPT]

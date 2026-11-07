@@ -39,8 +39,11 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
   (`tools/chibi/archer/guides/approved_reference.png`): one path from the left fist's centre, behind the body, moving
   only with the hand. The walk: 6 frames, two steps (GPT's drawings, the master's head locked on, the bow through the
   fist trailing a few degrees, the body down a pixel on each down frame and up a pixel on each passing frame), reviewed
-  frame by frame with GPT. In the game: `?chibi` → TEST → Archer.
-- **Next:** the shot, run, jump, hurt and charge.
+  frame by frame with GPT. The grip (David saw the bow detached from the hand): three layers per frame — bow, body
+  without the left fist, a grip-fist overlay (GPT's design A) — the wood entering the hand at mid-height, 1 px of riser
+  under the fist. In the game: `?chibi` → TEST → Archer. Decisions: `tools/chibi/archer/DECISIONS.md`.
+- **Next:** David's in-game acceptance of idle + walk; then the shot (pose-specific grip art, a drawing hand, a
+  variable-length full-draw hold and an exact release event), then run, jump, hurt and charge.
 
 ### DFO (5 Nov) — the styles' bodies: PixVerse moves in place of the GPT sheets, a clip a day
 - PixVerse's free credits are back: 30 a day (+ 6 left over) — a 5 s clip costs 20 at 360p, 30 at 540p, 40 at 720p (no
