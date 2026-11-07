@@ -73,5 +73,9 @@ before David sees it; David approves anything that changes approved art directio
 - Next, after David accepts the idle and walk: two proof compositions — Raise over the idle, Raise over walk frame 3 —
   at ×2 and ×3; Full Draw, Release and Recover only after their review. [GPT]
 - Open (for the integration, not decided): the arrow spawns 16 world px ahead of the feet and 34 px up (the combat
-  code's fixed shot height). With the chibi at ×2 that is the front of the hip, master (31,47), 34 px behind and 32 px
-  below the drawn origin (48,31); at ×3, 59 and 65 px. To raise with the owner of the combat code before the shot goes in.
+  code's fixed shot height, also used by the cover checks). With the chibi at ×2 that is the front of the hip, master
+  (31,47), 34 px behind and 32 px below the drawn origin (48,31); at ×3, 59 and 65 px. The shot does not go into
+  production with that gap. No combat timing, cover-check or balance change is authorised; the direction to study is a
+  gameplay origin (collision, cover) kept apart from a visual origin (the drawn nock), checking that the arrow's look
+  joins its real path without a jump — in a joint review with the owner of the combat code, testing shots standing,
+  walking and in the air at ×2 and ×3. [GPT, 7 Nov]
