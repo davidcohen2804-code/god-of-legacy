@@ -78,7 +78,9 @@ def material(arm: Arm) -> dict:
             for i, ch in enumerate(row):
                 if ch == ' ': continue
                 p = (hx + i, hy + j)
-                m[p] = ('O', 1.0, None) if ch == 'O' else ('hand', 0, 'abc'.index(ch))
+                if ch == 'O':                          # (its outline never cuts across its own forearm)
+                    if p not in m or m[p][0] == 'O': m[p] = ('O', 1.0, None)
+                else: m[p] = ('hand', 0, 'abc'.index(ch))
     inside = {p for p, v in m.items() if v[0] != 'O'}
     for (x, y) in list(inside):                         # the outline round the arm and hand
         for q in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):

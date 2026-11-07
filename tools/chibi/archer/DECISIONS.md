@@ -187,6 +187,16 @@ before David sees it; David approves anything that changes approved art directio
   yet: the final Full Draw elbow, the final shooting arms, any change of combat timing or projectile origin. The test:
   Raise and Full Draw over standing and passing legs at ×2 and ×3 in three outfits (base, original, outfit B: other
   sleeve colours and proportions) with no per-outfit correction (`src/shotbase_R.py`, not in the game). [GPT]
+- The proof passes (GPT, 8 Nov): "The same arm-pose drawings dress the base, original outfit and outfit B with no
+  per-outfit correction." Locked: the Raise with the near upper arm down the side where it hangs in the idle (hand on
+  the string at (22,34), elbow (14,39), only the forearm crossing the torso — the sleeve over the chest read only by
+  its outline); the Full Draw with the lower elbow (12,35). Outfit B: no break. Hands stay provisional until the four
+  poses are locked. Next: Release and Recover the same way (three outfits, standing and passing), then the game. [GPT]
+- Drafted for that review: Release — grip (45,34) +15°, the string straight, the limbs springing forward (bend 3 → 2),
+  the arrow gone, the open hand thrown back to (16,30), the elbow (10.6,35); Recover — grip (40,41) +30°, the string
+  straight, the bow elbow down by the body (32.5,41), the draw hand dropping to (18,42), its elbow back and down
+  (11,39). A hand's outline never cuts across its own forearm (the fist continues the arm; a bracer's dark edge
+  separates them).
 - Open (for the integration, not decided): the arrow spawns 16 world px ahead of the feet and 34 px up (the combat
   code's fixed shot height, also used by the cover checks). With the chibi at ×2 that is the front of the hip, master
   (31,47), 34 px behind and 32 px below the drawn origin (48,31); at ×3, 59 and 65 px. The shot does not go into

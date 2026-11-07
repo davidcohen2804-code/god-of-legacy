@@ -52,12 +52,14 @@ def torso(wear) -> Grid:
 
 
 def raise_bow(grip, tilt, nock, half=16, bend=3) -> Grid:
+    """The bow in the hand at `grip`, tilted (degrees, top forward); the string pulled to `nock`, or straight (None)."""
     t = math.radians(tilt)
-    tip = lambda s: (grip[0] - bend * math.cos(t) - s * half * math.sin(t), grip[1] - bend * math.sin(t) + s * half * math.cos(t))
-    (x0, y0), (x1, y1) = tip(-1), tip(1)
-    mx, my = (x0 + x1) / 2, (y0 + y1) / 2
-    g, _ = bow(UW, H, grip[0], grip[1], half=half, bend=bend, tilt=t, pull=(mx - nock[0], nock[1] - my),
-               style=A.BOW_STYLE, recurve=1.0)
+    pull = None
+    if nock is not None:
+        tip = lambda s: (grip[0] - bend * math.cos(t) - s * half * math.sin(t), grip[1] - bend * math.sin(t) + s * half * math.cos(t))
+        (x0, y0), (x1, y1) = tip(-1), tip(1)
+        pull = ((x0 + x1) / 2 - nock[0], nock[1] - (y0 + y1) / 2)
+    g, _ = bow(UW, H, grip[0], grip[1], half=half, bend=bend, tilt=t, pull=pull, style=A.BOW_STYLE, recurve=1.0)
     return g
 
 
@@ -81,6 +83,14 @@ PINCH = [' OOO ',                                              # the draw hand o
          'ObcbO',
          'OcbcO',
          ' OOO ']
+OPEN = [' OOOO ',                                              # the Release: the fingers open, the flat hand thrown back
+        'ObbbbO',
+        'OcbbbO',
+        ' OOOO ']
+RELAXED = [' OOO ',                                            # the Recover: the loose hand on its way down
+           'ObbbO',
+           'OcbbO',
+           ' OOO ']
 
 
 def fist(rows, at):
@@ -95,24 +105,27 @@ def hand_holes(rows, at):
 
 
 POSES = {
-    # Raise (GPT 8 Nov): grip (40,37) +25°, the hand on the string at (25,34) — the arrow level on the grip fist's top
-    # row — the draw elbow down behind the hand at (19,39), the bow elbow at (33,41)
-    'raise': dict(grip=(40, 37), tilt=25, nock=(25, 34),
+    # Raise (GPT 8 Nov, locked): grip (40,37) +25°, the hand on the string at (22,34) (the arrow level on the grip
+    # fist's top row), the near upper arm down the side where it hangs in the idle, the elbow at (14,39), only the
+    # forearm crossing the chest; the bow elbow at (33,41)
+    'raise': dict(grip=(40, 37), tilt=25, nock=(22, 34), hand=(PINCH, (22, 34)),
                   far=AR.Arm('far', FAR_SH, (33.4, 40.6), (38.0, 38.2), r_up=1.7, r_fore=1.6, r_wrist=1.5),
-                  near=AR.Arm('near', NEAR_SH, (19.0, 38.8), (23.2, 35.6), r_up=2.0, r_fore=1.8, r_wrist=1.6)),
-    # the Raise, option: the hand at (22,34), the upper arm down the near side as it hangs, the elbow at (14,39)
-    'raise_alt': dict(grip=(40, 37), tilt=25, nock=(22, 34),
-                      far=AR.Arm('far', FAR_SH, (33.4, 40.6), (38.0, 38.2), r_up=1.7, r_fore=1.6, r_wrist=1.5),
-                      near=AR.Arm('near', NEAR_SH, (14.2, 39.0), (20.2, 35.4), r_up=2.0, r_fore=1.8, r_wrist=1.6)),
-    # Full Draw: grip (45,34) +15°, bow arm straight, the hand under the near jaw (20,31), the elbow back at the
-    # shoulder's height (the upper arm foreshortened: it points back, away from us), the forearm along the arrow
-    'draw': dict(grip=(45, 34), tilt=15, nock=(20, 31),
+                  near=AR.Arm('near', NEAR_SH, (14.2, 39.0), (20.2, 35.4), r_up=2.0, r_fore=1.8, r_wrist=1.6)),
+    # Full Draw (GPT 8 Nov, locked): grip (45,34) +15°, the bow arm straight, the hand under the near jaw (20,31), the
+    # elbow back and a little low (12,35) — the upper arm foreshortened, the forearm along the arrow
+    'draw': dict(grip=(45, 34), tilt=15, nock=(20, 31), hand=(PINCH, (20, 31)),
                  far=AR.Arm('far', FAR_SH, (38.0, 34.0), (43.0, 34.0), r_up=1.7, r_fore=1.6, r_wrist=1.5),
-                 near=AR.Arm('near', NEAR_SH, (12.0, 33.0), (17.8, 31.6), r_up=2.0, r_fore=1.8, r_wrist=1.6)),
-    # the Full Draw, option (GPT: test the elbow slightly lower)
-    'draw_low': dict(grip=(45, 34), tilt=15, nock=(20, 31),
-                     far=AR.Arm('far', FAR_SH, (38.0, 34.0), (43.0, 34.0), r_up=1.7, r_fore=1.6, r_wrist=1.5),
-                     near=AR.Arm('near', NEAR_SH, (12.4, 35.2), (17.8, 32.0), r_up=2.0, r_fore=1.8, r_wrist=1.6)),
+                 near=AR.Arm('near', NEAR_SH, (12.4, 35.2), (17.8, 32.0), r_up=2.0, r_fore=1.8, r_wrist=1.6)),
+    # Release: the grip stays at (45,34) +15°; the string snaps straight, the limbs spring forward (bend 3 → 2), the
+    # arrow gone; the hand open, thrown back to (16,30), the elbow a little further back (10.6,35)
+    'release': dict(grip=(45, 34), tilt=15, nock=None, bend=2, hand=(OPEN, (16, 30)),
+                    far=AR.Arm('far', FAR_SH, (38.0, 34.0), (43.0, 34.0), r_up=1.7, r_fore=1.6, r_wrist=1.5),
+                    near=AR.Arm('near', NEAR_SH, (10.6, 35.0), (14.2, 31.0), r_up=2.0, r_fore=1.8, r_wrist=1.6)),
+    # Recover: the bow down towards the hip-level carry, grip (40,41) +30°, the string straight; the bow arm's elbow
+    # down by the body (32.5,40.8); the draw hand dropping to (18,42), the elbow back and down (11,39)
+    'recover': dict(grip=(40, 41), tilt=30, nock=None, hand=(RELAXED, (18, 42)),
+                    far=AR.Arm('far', FAR_SH, (32.5, 40.8), (38.0, 41.0), r_up=1.7, r_fore=1.6, r_wrist=1.5),
+                    near=AR.Arm('near', NEAR_SH, (11.2, 38.9), (16.2, 41.2), r_up=2.0, r_fore=1.8, r_wrist=1.6)),
 }
 
 
@@ -128,20 +141,20 @@ def upper(pose: str, wear) -> Grid:
     g.stamp(torso(wear), 0, 0)
     for (x, y), (kind, t, _) in fm.items():                   # its forearm (from the elbow) in front of it
         if t >= 0.5 and fa.get(x, y) != '.': g.set(x, y, fa.get(x, y))
-    b = raise_bow(P['grip'], P['tilt'], P['nock'])
+    b = raise_bow(P['grip'], P['tilt'], P['nock'], bend=P.get('bend', 3))
     string = Grid(UW, H)
     for y in range(H):                                        # the string goes over the grip fist (drawn after it)
         for x in range(UW):
             if b.px[y][x] == 'f': string.px[y][x] = 'f'; b.px[y][x] = '.'
     g.stamp(b, 0, 0)
-    arrow(g, P['nock'])
+    if P['nock'] is not None: arrow(g, P['nock'])
     rows, at = fist(GRIP_FIST, P['grip'])
     for j, r in enumerate(rows):
         for i, ch in enumerate(r):
             if ch not in ' .': g.set(at[0] + i, at[1] + j, 'O' if ch == 'O' else AR.HAND['base']['abc'.index(ch)])
     g.stamp(string, 0, 0)
     near = P['near']
-    near.hand = fist(PINCH, P['nock'])
+    near.hand = fist(*P['hand'])
     m = AR.material(near)
     arm = AR.dress_arm(near, wear, m)
     AR.blend(arm, near, g, m)
