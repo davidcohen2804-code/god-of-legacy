@@ -43,6 +43,28 @@ before David sees it; David approves anything that changes approved art directio
 - Walk: 6 frames (two steps: contact, down, passing on each foot), 110 ms, the pace follows the real speed; bob
   contact 0, down −1, passing +1; the bow trails the step: 0 / −3 / −1 / +1 / +3 / +1 degrees. [GPT]
 
+## Minimal motion (David, 7 Nov 21:41 — the standard for all five classes; the Archer's walk is the first case)
+- David: swapping clothes breaks because of motion; move as little as the character allows while it stays correct.
+  [David]
+- The target is the fewest unique drawings for a whole character, its equipment and its actions — not the fewest
+  frames. Save animation in ordinary movement; spend it on meaningful actions (the shot keeps its four poses). [GPT]
+- The walk standard (a test first: it replaces the current walk only after a side-by-side and David's choice): 4 frames
+  — right contact, right passing, left contact, left passing — over about the old 660 ms cycle, following the real
+  speed. Only these move: the legs (4 poses, boots follow), a 1 px bob, the free arm (2–3 positions), the cape's hem
+  (1–2 variants). One drawing each, shifted by the bob: head, torso (tunic, belt), the bow arm in its carry, the bow
+  (one carry raster, no trailing angle), the quiver. The rigid torso must still look attached to the moving pelvis
+  (the tunic and belt overlap it; no visible joint). [GPT]
+- The legs: the 4 best poses taken from the existing walk drawings, fitted to one fixed waist anchor, overlaps
+  corrected; redrawn only if they fail the compositing test. The current 6-frame walk stays as the benchmark and the
+  fallback. [GPT]
+- Slots: base body, face, hair, headwear, top, bottom, footwear, gloves, back (cape, quiver… as sub-slots), weapon,
+  effects. Every item has anchors, a layer order per pose (a sleeve can be behind the torso in one pose and in front in
+  another), overlap masks (headwear against hair), the region it covers, the poses it needs, rigid or deforming. [GPT]
+- Rendering: a self-contained chibi compositor inside the flagged system (pose + equipment + facing → parts placed by
+  anchors and layer rules), caching composites if needed; the shared renderer stays untouched. [GPT]
+- The test: side by side at ×2 and ×3 — appeal, a smooth loop without foot sliding, the bow's connection, a swap of a
+  clearly different tunic and boots during the new walk, performance measured. [GPT]
+
 ## The shot (a design only, 7 Nov — nothing is drawn until David accepts the idle and walk)
 - The combat timeline is authoritative. Beat 1 (startup 85 / active 70 / recovery 110) fires two arrows, at 85 and
   155 ms: two distinct visual releases, the second draw a quick re-tension (never a full re-nock, never back to idle).
