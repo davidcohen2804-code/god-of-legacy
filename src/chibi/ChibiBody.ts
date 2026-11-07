@@ -110,6 +110,9 @@ function dollDef(scene: Phaser.Scene, cls: string): ChibiDef | null {
   return def;
 }
 
+/** The non-shot skills' category poses (GPT 8 Nov: one pose per body action, not one per skill). */
+const SKILL_POSE: Record<string, string> = { retreat_kick: 'kick', tree_of_life: 'kneel', hunters_roar: 'call', spirit_hawk: 'call' };
+
 /** The shot family on a skill's own timeline (GPT 8 Nov): Raise in the first half of the startup, Full Draw to the
  *  release, Release on screen at each spawn (two releases when the skill fires twice: the start and the end of its
  *  active window, a quick re-tension between), then Recover. */
@@ -124,11 +127,23 @@ function shotIndex(q: Extract<PoseQuery, { k: 'skill' }>): number {
 function dollPose(scene: Phaser.Scene, cls: string, dir: Dir, q: PoseQuery, def: ChibiDef): PoseFrame {
   const key = composed.get(cls)!.key;
   let name = 'idle', t = 0, frame: string | null = null;
+  const has = (n: string) => !!def.anims[n];
   if (q.k === 'loop') {
-    if (q.state === 'walk' || q.state === 'run') { name = 'walk4'; t = q.t * TEST.pace * (q.state === 'run' ? 1.5 : 1); }
-    else t = q.t;
-  } else if (q.k === 'skill' && def.anims.shot) { name = 'shot'; frame = def.anims.shot.frames[shotIndex(q)]; }
-  else if (q.k === 'recovery' && def.anims.shot) { name = 'shot'; frame = def.anims.shot.frames[3]; } // (a skill's tail: the Recover pose, then the carry — no early pop of the bow)
+    if (q.state === 'walk') { name = 'walk4'; t = q.t * TEST.pace; }
+    else if (q.state === 'run') { name = has('run') ? 'run' : 'walk4'; t = q.t; } // (the walk, faster, leaning a pixel forward)
+    else { name = q.state === 'alert' && has('stance') ? 'stance' : 'idle'; t = q.t; }  // the combat stance: a softened Raise
+  } else if (q.k === 'skill') {
+    const cat = SKILL_POSE[q.id];
+    if (cat && has(cat)) { name = cat; if (cat === 'kick') name = q.elapsed < q.startup ? 'land' : q.elapsed < q.startup + q.active + 120 ? 'kick' : 'air'; }
+    else if (has('shot')) { name = 'shot'; frame = def.anims.shot.frames[shotIndex(q)]; }
+  }
+  else if (q.k === 'recovery' && has('shot')) { name = 'shot'; frame = def.anims.shot.frames[3]; } // (a skill's tail: the Recover pose, then the carry — no early pop of the bow)
+  else if (q.k === 'jump') name = q.phase === 'takeoff' || q.phase === 'land' ? 'land' : 'air';
+  else if (q.k === 'hurt' || q.k === 'stunned' || q.k === 'launched') name = 'hurt';
+  else if (q.k === 'down') name = 'down';
+  else if (q.k === 'getup' || q.k === 'quickrise') name = 'getup';
+  else if (q.k === 'backstep' || q.k === 'airAttack') name = 'air';
+  if (!has(name)) name = 'idle';
   const a = def.anims[name];
   if (!frame) frame = a.frames[frameAt(a, t)];
   const b = def.anims.blink;

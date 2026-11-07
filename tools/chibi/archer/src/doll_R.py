@@ -329,9 +329,14 @@ def frame_json(f: Frame) -> dict:
 LOOPS = {'idle': True, 'walk4': True}
 
 
+LOOPS.update({'stance': True, 'run': True})
+
+
 def export(path: str):
     from palette import PALETTE
+    import poses_R                                         # the rest of the moves (GPT's minimal set)
     an = anims()
+    an.update(poses_R.anims())
     frames, out = [], {}
     for name, seq in an.items():
         idx = []

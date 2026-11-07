@@ -26,8 +26,15 @@ BANDS = {
     'tunic_b':   {'near': [(0.00, 0.68, 'MMm', None, 'Y')], 'far': [(0.00, 0.68, 'Mmm', None, 'y')]},
     'bracers_b': {'near': [(0.80, 0.97, 'NNn', 'X', None)], 'far': [(0.80, 0.97, 'Nnn', 'X', None)]},
 }
+# THE LEGS (the same rig: hip → knee → ankle, then the foot to the toe at t 1.0 → 1.15): the base's shorts, bare shin and
+# foot wraps; the boots from just under the shorts' hem, a dark band at their top
+for _side in ('nearleg', 'farleg'):
+    BANDS['base'][_side] = [(0.00, 0.58, 'PPp', None, 'p'), (0.58, 0.90, 'SSs', None, None), (0.90, 9, 'TTt', None, None)]
+    BANDS['tunic'][_side] = []
+    BANDS['bracers'][_side] = []
+BANDS['boots'] = {'near': [], 'far': [], 'nearleg': [(0.50, 9, 'JHh', 'b', None)], 'farleg': [(0.50, 9, 'JHh', 'b', None)]}
 HAND = {'base': 'SSs'}                                 # the hands' tones (gloves would add their own)
-ARM_ITEMS = ('tunic', 'tunic_b', 'bracers', 'bracers_b')                       # in their order, back to front
+ARM_ITEMS = ('boots', 'tunic', 'tunic_b', 'bracers', 'bracers_b')                       # in their order, back to front
 
 
 class Arm:
@@ -35,8 +42,9 @@ class Arm:
     (x, y) of the rows' (0, 0) in master px) — letters a/b/c light/mid/shade, O outline, ' ' nothing; edits: {(x, y):
     'O' | '.' | 0 | 1 | 2} applied to the map last."""
     def __init__(self, side, shoulder, elbow, wrist, hand=None, r_up=2.0, r_fore=1.8, r_wrist=1.6, edits=None,
-                 blend_shoulder=True):
+                 blend_shoulder=True, toe=None, r_toe=1.4):
         self.side, self.S, self.E, self.Wr = side, shoulder, elbow, wrist
+        self.toe, self.r_toe = toe, r_toe
         self.hand, self.r = hand, (r_up, r_fore, r_wrist)
         self.edits = edits or {}
         self.blend_shoulder = blend_shoulder
@@ -58,16 +66,18 @@ def _seg(p, a, b):
 def material(arm: Arm) -> dict:
     """The arm's map: (x, y) → ('arm', t, tone) | ('hand', 0, tone) | ('O', t, None)."""
     r_up, r_fore, r_wr = arm.r
-    xs = [arm.S[0], arm.E[0], arm.Wr[0]]; ys = [arm.S[1], arm.E[1], arm.Wr[1]]
+    pts = [arm.S, arm.E, arm.Wr] + ([arm.toe] if arm.toe else [])
+    xs = [p[0] for p in pts]; ys = [p[1] for p in pts]
+    segs = [(arm.S, arm.E), (arm.E, arm.Wr)] + ([(arm.Wr, arm.toe)] if arm.toe else [])
     m = {}
     for y in range(int(min(ys)) - 4, int(max(ys)) + 5):
         for x in range(int(min(xs)) - 4, int(max(xs)) + 5):
             best = None
-            for k, (a, b) in enumerate(((arm.S, arm.E), (arm.E, arm.Wr))):
+            for k, (a, b) in enumerate(segs):
                 u, d, v = _seg((x, y), a, b)
-                r = r_up if k == 0 else r_fore + (r_wr - r_fore) * u
+                r = r_up if k == 0 else (r_fore + (r_wr - r_fore) * u if k == 1 else arm.r_toe)
                 if d <= r + 1e-6 and (best is None or d / r < best[0]):
-                    best = (d / r, 0.5 * u if k == 0 else 0.5 + 0.5 * u, v, r)
+                    best = (d / r, 0.5 * u if k == 0 else (0.5 + 0.5 * u if k == 1 else 1.0 + 0.15 * u), v, r)
             if best is None: continue
             _, t, v, r = best
             tone = 0 if v >= r - 1.0 else (2 if v <= -(r - 1.0) else 1)
@@ -96,7 +106,7 @@ def dress_arm(arm: Arm, wear, m=None) -> Grid:
     """The arm in colours, master-sized + room in front (65 × 64): the base's bands, the worn items' over them."""
     m = m if m is not None else material(arm)
     g = Grid(65, 64)
-    layers = [BANDS['base'][arm.side]] + [BANDS[k][arm.side] for k in ARM_ITEMS if k in wear]
+    layers = [BANDS['base'][arm.side]] + [BANDS[k].get(arm.side, []) for k in ARM_ITEMS if k in wear]
 
     def band_of(t):
         hit = None

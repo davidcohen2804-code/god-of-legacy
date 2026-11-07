@@ -204,3 +204,26 @@ before David sees it; David approves anything that changes approved art directio
   gameplay origin (collision, cover) kept apart from a visual origin (the drawn nock), checking that the arrow's look
   joins its real path without a jump — in a joint review with the owner of the combat code, testing shots standing,
   walking and in the air at ×2 and ×3. [GPT, 7 Nov]
+
+## The paper doll and the rest of the moves (8 Nov night — David: GPT approves everything, he checks in the morning)
+- The game composes the Archer at runtime from layers (`src/doll_R.py` → `archer.doll.json`, `src/chibi/ChibiDoll.ts`):
+  every frame is the base's parts and each item's parts in order; with every original item on it is the approved
+  frame pixel for pixel; bare edges are closed inside the frame's reference silhouette (all removal variants clean).
+- Release and Recover approved (GPT): the grip locked, the recoil in the limbs and string, the hand thrown back; the
+  bow stays in front until the Recover ends, then the carry. The shot family plays on each shooting skill's timeline
+  (two releases on the double beat); the post-skill recovery holds the Recover pose.
+- The minimal move set (GPT): jump = 1 air pose + 1 landing squash; hit = 1 recoil (eyes shut); combat stance = a
+  softened Raise, breathing (the Archer's combat idle); run = the 4-frame walk, faster, 1 px forward lean; knockdown =
+  hit (launched), lying (the standing figure turned a quarter — provisional long-term), get-up crouch. Non-shot skills:
+  one pose per body action, not per skill — kick (retreat kick), kneel/place (tree of life), call/summon (hunter's
+  roar, spirit hawk). "Archer combat and utility animation should minimize unique poses." All approved (`src/poses_R.py`).
+- Creation and the first cash shop collection, art direction (GPT): hair — Wind-Tousled Fringe (the current),
+  Scout Crop, Falcon Tail; 8 colours (chestnut, dark walnut, honey blonde, ash blonde, copper red, raven black, silver
+  mist, dusty moss); eyes — Calm Focus (the current), Bright Curious, Sharp Hunter; 5 skin tones (fair porcelain to deep
+  cocoa); starter sets — Novice Fieldwear, Wanderer Greens, Village Scout; bows — Sprout Bow, Trail Bow; cash shop —
+  hats (Moonleaf Beret, Star Courier Cap, Candy Ribbon Hood), face (Round Scholar Glasses, Dreamer Monocle Clip, Star
+  Patch Sticker), tops (Rose Duelist Jacket, Night Scout Hoodie, Mint Festival Blouse), bottoms (Traveler Shorts,
+  Ribbon Skirt-Pants), overalls (Little Ranger Onepiece, Celestial Pajama Suit), capes (Petal Drifter Cape, Forest
+  Scout Mantle), shoes (Soft Field Boots, Moonstep Sandals, Star Runner Shoes) — cute fantasy, readable, the classic
+  2D MMO's spirit, original. Drawing order: hats, tops, shoes, capes, face, bottoms, overalls. (The colours: GPT's
+  reply, 8 Nov ~01:30, in `src/looks_R.py`.)
