@@ -60,6 +60,7 @@ import { QuestState } from '../characters/CharacterTypes';
 import { PvpController } from '../pvp/PvpController';
 import { ARENA3D, ON_BODY } from '../arena3d/flag';
 import { HERO3D } from '../arena3d/hero3dFlag';
+import { SPIRITS } from '../spirits/flag';
 import { portrait3d } from '../arena3d/heroArt3d';
 import type { Hero3D } from '../arena3d/Hero3D';
 import type { Doubles3D } from '../arena3d/Doubles3D';
@@ -4400,6 +4401,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const { img, sunDir } = a3.addLayer('arena3d-hero', h.scene);
     h.makeShadow(sunDir);
     h.setWeapon(mod.CLASS_WEAPON[this.cls] ?? 'sword');
+    if (SPIRITS.on && this.cls === 'samurai') (await import('../spirits/SpiritBody')).makeSpirit(h, img); // (Legacy of Spirits: the Spectral Samurai)
+    if (gen !== this.sceneGen || !this.sys.isActive() || this.a3d !== a3) { h.dispose(); return; }
     this.hero3d = { h, img, a3, others: [], loading: 0, Dbl: mod.Doubles3D, kage: new Map() }; this.hero3dWait = false;
     void h.equipAll(loadEquip3D(this.character?.id ?? 'guest')); // (what the character wore last)
     this.buildItemUi(mod.WEAPONS);

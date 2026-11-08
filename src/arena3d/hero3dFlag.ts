@@ -4,4 +4,4 @@
  *  `?hero3d=1` shows the 3D Beginner again.
  *  The painted world (2D maps) keeps its painted bodies until its maps are 3D. Kept apart from Hero3D so three.js loads
  *  only when a 3D place opens. */
-export const HERO3D = { on: typeof location !== 'undefined' && new URLSearchParams(location.search).get('hero3d') === '1' };
+export const HERO3D = { on: typeof location !== 'undefined' && (new URLSearchParams(location.search).get('hero3d') === '1' || new URLSearchParams(location.search).has('spirits')) }; // (?spirits: the Legacy of Spirits proof — src/spirits)

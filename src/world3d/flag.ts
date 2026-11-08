@@ -3,6 +3,6 @@
  *  when a 3D place really opens; `MAPS_3D` names the maps that exist in 3D so far (src/world3d/maps). */
 export const MAPS_3D = ['courtyard', 'terraces_1', 'terraces_2', 'training', 'training_2', 'training_3', 'plaza', 'orchard_1', 'orchard_2', 'ruins', 'ruins_2', 'ruins_3', 'gate_1', 'gate_2', 'temple', 'sky', 'dusk_1', 'dusk_village', 'dusk_2', 'dusk_bridge', 'dusk_wood', 'dusk_3', 'den_1', 'den_2', 'den_3', 'den_4', 'den_5', 'sakura_village', 'sakura_1', 'sakura_2', 'sakura_3', 'ironhold_village', 'ironhold_1', 'ironhold_2', 'ironhold_3'];
 export const WORLD3D = {
-  on: typeof location !== 'undefined' && new URLSearchParams(location.search).get('world3d') === '1',
+  on: typeof location !== 'undefined' && (new URLSearchParams(location.search).get('world3d') === '1' || new URLSearchParams(location.search).has('spirits')), // (?spirits: the Legacy of Spirits proof)
   has(areaId: string): boolean { return this.on && MAPS_3D.includes(areaId); },
 };
