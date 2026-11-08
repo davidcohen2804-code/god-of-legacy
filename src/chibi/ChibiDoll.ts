@@ -23,7 +23,7 @@ export interface DollCatalog {
   bows: [string, string, Record<string, string>][];
   shop: Record<string, [string, string, ShopDef][]>; archer: string[];
 }
-export interface ShopDef { att?: string; wear?: string[]; unwear?: string[]; maps?: Record<string, Record<string, string>>; cut?: string }
+export interface ShopDef { att?: string; wear?: string[]; unwear?: string[]; maps?: Record<string, Record<string, string>>; cut?: string; under?: string[]; over?: string[] }
 export interface DollData {
   frame: number; origin: [number, number]; height: number; facing: 'right' | 'left'; pal: Record<string, string>;
   anims: Record<string, DollAnim>; frames: unknown[];
@@ -42,6 +42,7 @@ export interface Look {
   eyes?: string; hat?: string; face?: string;
   cut?: string;                              // the hair hidden under headgear ('hood'); a hat drawing hides its own
   nobow?: boolean;                           // (an item's picture in the shop: the bow left out)
+  under?: string[]; over?: string[];         // drawings laid with the body: under the top (a skirt) / over the outfit (pouches)
 }
 
 const dolls = new Map<string, Doll>();
@@ -135,6 +136,8 @@ export function composeLook(scene: Phaser.Scene, cls: string, doll: Doll, look: 
   const cuts = [look.cut ? doll.cuts[look.cut] : undefined, hat?.cut].filter((c): c is Mask => !!c);
   const L = { hair: hair && lutArt(hair, true), eyes: eyes && lutArt(eyes, false), shut: eyes?.shut && lutArt(eyes.shut, false),
     hat: hat && lutArt(hat, false), face: face && lutArt(face, false) };
+  const arts = (ids?: string[]) => (ids ?? []).map((id) => doll.att[id]).filter((a): a is Art => !!a).map((a) => ({ a, lut: lutArt(a, false) }));
+  const under = arts(look.under), over = arts(look.over);
 
   const frameIdx = only ? [...new Set(only.flatMap((n) => doll.data.anims[n]?.frames ?? []))] : doll.frames.map((_, i) => i);
   const N = frameIdx.length, rows = Math.ceil(N / COLS);
@@ -163,8 +166,8 @@ export function composeLook(scene: Phaser.Scene, cls: string, doll: Doll, look: 
       if (typeof l === 'string') {
         if (l === '@hair') draw(hair, L.hair, fr.T, true);
         else if (l === '@eyes') { if (fr.shut && eyes?.shut) draw(eyes.shut, L.shut, fr.T); else draw(eyes, L.eyes, fr.T); }
-        else if (l === '@face') draw(face, L.face, fr.T);
-        else if (l === '@hat') draw(hat, L.hat, fr.T);
+        else if (l === '@face') { for (const u of under) draw(u.a, u.lut, fr.T); draw(face, L.face, fr.T); }
+        else if (l === '@hat') { draw(hat, L.hat, fr.T); for (const o of over) draw(o.a, o.lut, fr.T); }
         continue;
       }
       if (l.item !== 'base' && l.item !== 'bow' && !wear.has(l.item)) continue;

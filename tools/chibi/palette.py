@@ -17,6 +17,8 @@ PALETTE = {
     'T': '#ece2c8', 't': '#c09b5e',
     # the base's foot wraps (the tunic's colours, their own letters: sandals recolour them alone)
     'U': '#ece2c8', 'u': '#c09b5e',
+    # the Moonstep Sandals (GPT): the straps light / mid, the sole
+    'V': '#D8BE94', 'v': '#B08E63', 'Q': '#6B4E2C',
     # leather (belt, bracers, boots, quiver, bow)
     'R': '#9c6c46', 'B': '#704932', 'b': '#4a3122', 'K': '#30261c',
     # trousers

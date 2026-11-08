@@ -430,6 +430,9 @@ def export(path: str):
     bad = split_all(an)
     assert all(v[0] == 0 for v in bad.values()) and set(bad) <= {'hurt0'}, bad   # (the hit's shut eyes: the blink's
                                                                                   #  lids now, a pixel without the hood)
+    import variants_R                                      # the cash items with their own cut (sandals, petal cape, blouse)
+    for seq in an.values():
+        for f, _ in seq: variants_R.add_variants(f, head_T)
     frames, out = [], {}
     for name, seq in an.items():
         idx = []

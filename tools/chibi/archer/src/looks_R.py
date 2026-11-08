@@ -163,13 +163,13 @@ def styled(mask, src=WIND, keep_src=True, dark_bottom=True):
     return g
 
 
-CROP_MASK = spans({
-    4: [(16, 24)], 5: [(14, 27)], 6: [(12, 29)], 7: [(11, 31)], 8: [(10, 33)], 9: [(9, 34)], 10: [(8, 35)],
-    11: [(8, 36)], 12: [(7, 36)], 13: [(7, 36)], 14: [(7, 36)], 15: [(7, 36)],
-    16: [(7, 22), (24, 29), (31, 36)],                  # the fringe parts into three pointed bangs, swept forward
-    17: [(7, 21), (25, 28), (32, 36)],
-    18: [(7, 15), (19, 21), (26, 28), (33, 36)],
-    19: [(7, 15), (20, 21), (27, 28), (34, 36)],
+CROP_MASK = spans({                                       # (GPT: a pixel or two more volume at the back and the top)
+    3: [(17, 23)], 4: [(14, 26)], 5: [(12, 28)], 6: [(10, 30)], 7: [(9, 32)], 8: [(8, 33)], 9: [(7, 34)], 10: [(7, 35)],
+    11: [(6, 36)], 12: [(6, 36)], 13: [(6, 36)], 14: [(6, 36)], 15: [(6, 36)],
+    16: [(6, 22), (24, 29), (31, 36)],                  # the fringe parts into three pointed bangs, swept forward
+    17: [(6, 21), (25, 28), (32, 36)],
+    18: [(6, 15), (19, 21), (26, 28), (33, 36)],
+    19: [(6, 15), (20, 21), (27, 28), (34, 36)],
     20: [(7, 15), (21, 21), (28, 28), (34, 36)],
     21: [(7, 13), (35, 36)],
     22: [(8, 13)],
@@ -205,16 +205,16 @@ def _tail():
         for x in range(0, 12):
             if back.px[y][x] != '.' : g.px[y][x] = back.px[y][x]
             elif g.px[y][x] == 'O' and x < 8: g.px[y][x] = '.'
-    tail = grid([                                                          # the tied tail behind the head
-        '....OOO..',   # 9
-        '..OOJJHO.',   # 10
-        '.OJJJHHRO',   # 11
-        'OJJHHhhBO',   # 12
-        'OHHHhhhBO',   # 13
-        '.OHhhhbO.',   # 14
-        '.OhhhbO..',   # 15
+    tail = grid([                                                          # the tied tail behind the head: a band
+        '..OOO....',   # 9                                                   # of leather at its root, a pixel of
+        '.OJJHOO..',   # 10                                                  # outline between it and the tail
+        'OJJHHhORO',   # 11
+        'OJHHhhOBO',   # 12
+        'OHHhhbOBO',   # 13
+        '.OHhhbOO.',   # 14
+        '.OhhbO...',   # 15
         '..OhbO...',   # 16
-        '..OhO....',   # 17
+        '..ObO....',   # 17
         '...O.....',   # 18
     ], 9)
     for y in range(31):
@@ -280,7 +280,7 @@ def brim_cut(art: dict, extra=0):
 
 
 def _beret():
-    crown = ellipse(20.5, 1.5, 15.5, 5.2, tilt=-0.17)                    # the soft crown, drooping to the back
+    crown = ellipse(20.5, 1.5, 15.5, 5.2, tilt=-0.22)                    # the soft crown, drooping to the back (asymmetric)
     px = shade3(crown, 18, -1, 15, 6, 'a', 'm', 'd')
     band = {(x, y) for (x, y) in crown if (x, y + 2) not in crown and x >= 9}   # the band round the head
     for p in band: px[p] = 'd'
@@ -299,9 +299,9 @@ def _beret():
             ch = leaf.px[y][x]
             if ch != '.': px[(25 + x, -6 + y)] = ch
     for (x, y) in ((27, -2), (29, -3), (31, -4)): px[(x, y)] = 'd'        # the leaf's vein
-    px[(8, 8)] = 'k'; px[(8, 9)] = 'k'                                    # the tiny bead charm on its cord
+    px[(8, 8)] = 'q'; px[(8, 9)] = 'k'                                    # the tiny bead charm on its cord (a highlight on top)
     px[(9, 7)] = 'd'
-    a = Art(outlined(px), {'a': '#93A77A', 'm': '#6F8A63', 'd': '#3F4B36', 'k': '#D6C27A'})
+    a = Art(outlined(px), {'a': '#93A77A', 'm': '#6F8A63', 'd': '#3F4B36', 'k': '#D6C27A', 'q': '#F4E7B0'})
     a.cut = brim_cut({p: c for p, c in a.items() if p[0] >= 9})
     return a
 
@@ -338,24 +338,27 @@ BERET, CAP = _beret(), _cap()
 
 
 def _candy():
-    """The Candy Ribbon Hood's own drawing over the recoloured hood: the ribbon bow at the crown's back, the jewel knot
-    at the collar's front."""
+    """The Candy Ribbon Hood's own drawing over the recoloured hood (GPT: the ribbon and the jewel sell it): a big ribbon
+    bow at the crown's back, a bow with a jewel at the collar's front."""
     a = Art.rows([
-        '.......OO...',    # -6
-        '.OO...OlcO..',    # -5
-        'OlcO..OlcO..',    # -4
-        'OlccO.OlcxO.',    # -3
-        '.OlccOOccxO.',    # -2
-        '..OccxOcxO..',    # -1
-        '...OcxcxO...',    #  0
-        '....OxxO....',    #  1
-    ], 3, -6, {'c': '#C76B8E', 'l': '#E197B0', 'x': '#704055', 'v': '#F1D6DF', 'k': '#F1D6DF'})
+        '.OOO.....OOO..',    # -6
+        'OlvlO...OlvlO.',    # -5
+        'OllccO.OccllO.',    # -4
+        'OcccxxOxxcccO.',    # -3
+        '.OcxxOkOxxcO..',    # -2
+        '..OOOxkxOOO...',    # -1
+        '....OcxcO.....',    #  0
+        '...OcxOxcO....',    #  1
+        '...OxO.OxO....',    #  2
+        '....O...O.....',    #  3
+    ], 2, -6, {'c': '#C76B8E', 'l': '#E197B0', 'x': '#704055', 'v': '#F1D6DF', 'k': '#F1D6DF', 'w': '#FFFFFF'})
     a.over(Art.rows([
-        '.OOO.',           # 29
-        'OlvcO',           # 30
-        'OckxO',           # 31
-        '.OxO.',           # 32
-    ], 18, 29))
+        '.OO..OO.',           # 29
+        'OlcOOclO',           # 30
+        'OcxvwxcO',           # 31
+        'OxOvkOxO',           # 32
+        '.O.OO.O.',           # 33
+    ], 15, 29))
     a.cut = set()                                                         # (the hood's own cut)
     return a
 
@@ -392,6 +395,30 @@ STAR = Art.rows([
 ], 19, 23, {'k': '#F2D26B', 'w': '#F6E8A9', 'd': '#A17E1F'})
 STAR[(24, 22)] = 'w'                                                      # a tiny sparkle beside it
 
+# the Ribbon Skirt-Pants' skirt (GPT: a layered short skirt over the shorts): laid at the hips like the head's drawings,
+# between the hands, a ribbon knot at the waist, pleats, a pale ruffle at the hem
+SKIRT = Art.rows([
+    '.OOOOOOOOOOO..',   # 44
+    '.OddddddppddO.',   # 45
+    '.OlrrrrOpOprO.',   # 46
+    '.OlrrrrrOrOrO.',   # 47
+    '.OlrrdrrrrrrO.',   # 48
+    '.OlrdrrrdrrdO.',   # 49
+    '.OrdrrrdrrdrrO',   # 50
+    'OldrrrdrrdrrdO',   # 51
+    'OppppppppppppO',   # 52
+    '.OOOOOOOOOOOO.',   # 53
+], 18, 44, {'r': '#7F586A', 'l': '#A97A8D', 'p': '#E1CAD4', 'd': '#44303A'})
+# the Little Ranger Onepiece's utility pouches on the belt
+POUCH = Art.rows([
+    '.OOO.....OOO.',    # 42
+    'OkkkO...OkkkO',    # 43
+    'ObwbO...ObwbO',    # 44
+    'ObbbO...ObbbO',    # 45
+    '.OOO.....OOO.',    # 46
+], 19, 42, {'k': '#C7B98D', 'b': '#8B623E', 'w': '#E8DDB5'})
+
+
 
 # --- colours (GPT's hex) -------------------------------------------------------------------------------------------------
 def _rgb(h): return tuple(int(h[i:i + 2], 16) for i in (1, 3, 5))
@@ -408,7 +435,7 @@ HAIR_COLOURS = [  # (GPT: dark, mid, light) → the hair's letters: J light, H m
     ('copper', 'Copper Red', '#964A2E', '#B85F3A', '#D77A53'),
     ('raven', 'Raven Black', '#262327', '#403B45', '#5A5460'),
     ('silver', 'Silver Mist', '#9A9FA8', '#BEC3CA', '#D8DCE2'),
-    ('moss', 'Dusty Moss Green', '#58664A', '#72835F', '#93A277'),
+    ('moss', 'Dusty Moss Green', '#56634F', '#707F68', '#8F9C86'),     # (GPT: a touch greyer / cooler than the greens)
 ]
 SKINS = [  # (GPT: base, shade) → S, s
     ('porcelain', 'Fair Porcelain', '#F2D8C1', '#D9B79B'),
@@ -478,27 +505,27 @@ SHOP = {  # the first cash shop collection (GPT): the drawings (hats, face) and 
     'top': [
         ('rose', 'Rose Duelist Jacket', {'wear': ['tunic'], 'maps': {'tunic': tunic_map('#A9444D', '#D76872', '#D7B15E', '#4D2A2E')}}),
         ('nightscout', 'Night Scout Hoodie', {'wear': ['tunic'], 'maps': {'tunic': tunic_map('#3E4658', '#657089', '#AFC1D6', '#232A37')}}),
-        ('mint', 'Mint Festival Blouse', {'wear': ['tunic'], 'maps': {'tunic': tunic_map('#9DC7B0', '#C6E0D0', '#F4F0E3', '#5E7767')}}),
+        ('mint', 'Mint Festival Blouse', {'wear': ['blouse'], 'unwear': ['tunic'], 'maps': {'blouse': tunic_map('#9DC7B0', '#C6E0D0', '#F4F0E3', '#5E7767')}}),
     ],
     'bottom': [
         ('traveler', 'Traveler Shorts', {'maps': {'base': shorts_map('#6B5847', '#3A2D24')}}),
-        ('ribbon', 'Ribbon Skirt-Pants', {'maps': {'base': shorts_map('#7F586A', '#44303A')}}),
+        ('ribbon', 'Ribbon Skirt-Pants', {'maps': {'base': shorts_map('#7F586A', '#44303A')}, 'under': ['skirt']}),
     ],
     'overall': [
         ('ranger', 'Little Ranger Onepiece', {'wear': ['tunic'], 'maps': {
             'tunic': tunic_map('#7E8A5D', mix('#7E8A5D', '#C7B98D', 0.45), '#C7B98D', '#473422', belt='#8B623E'),
-            'base': shorts_map('#7E8A5D', '#473422')}}),
+            'base': shorts_map('#7E8A5D', '#473422')}, 'over': ['pouch']}),
         ('pajama', 'Celestial Pajama Suit', {'wear': ['tunic'], 'maps': {
             'tunic': tunic_map('#7D7EB6', '#A7A9D8', '#F1E8B0', '#454774'),
             'base': shorts_map('#7D7EB6', '#454774')}}),
     ],
     'cape': [
-        ('petal', 'Petal Drifter Cape', {'wear': ['cape'], 'maps': {'cape': cape_map('#D48CA1', '#E7B3C0', '#F2D8E0', '#784556')}}),
+        ('petal', 'Petal Drifter Cape', {'wear': ['petalcape'], 'unwear': ['cape'], 'maps': {'petalcape': cape_map('#D48CA1', '#E7B3C0', '#F2D8E0', '#784556')}}),
         ('forest', 'Forest Scout Mantle', {'wear': ['cape'], 'maps': {'cape': cape_map('#6D8158', '#90A56E', '#C4C98A', '#39442E')}}),
     ],
     'shoes': [
         ('fieldboots', 'Soft Field Boots', {'wear': ['boots'], 'maps': {'boots': boots_map('#6A4A38', '#8D6A54', '#B69A7C')}}),
-        ('moonstep', 'Moonstep Sandals', {'unwear': ['boots'], 'maps': {'base': {'U': '#D8BE94', 'u': '#B08E63'}}}),
+        ('moonstep', 'Moonstep Sandals', {'wear': ['sandals'], 'unwear': ['boots']}),
         ('starrunner', 'Star Runner Shoes', {'wear': ['boots'], 'maps': {'boots': boots_map('#5D6C86', '#8EA1BF', '#F0E2A0', '#30384A')}}),
     ],
 }
@@ -538,7 +565,7 @@ def export_json():
         'eyes': {k: dict(_att(o, EYE_PAL[k]), shut=_att(sh)) for k, o, sh in
                  (('calm', CALM, CALM_SHUT), ('bright', BRIGHT, CALM_SHUT), ('sharp', SHARP, CALM_SHUT))},
         'att': {'moonleaf': _att(BERET, cut=BERET.cut), 'courier': _att(CAP, cut=CAP.cut), 'candy': _att(CANDY),
-                'glasses': _att(GLASSES), 'monocle': _att(MONOCLE), 'star': _att(STAR)},
+                'glasses': _att(GLASSES), 'monocle': _att(MONOCLE), 'star': _att(STAR), 'skirt': _att(SKIRT), 'pouch': _att(POUCH)},
         'cuts': {'hood': _att({p: '#' for p in hood_cut()})},
         'hairLetters': 'JHhb', 'skinLetters': 'Ss',
         'catalog': {

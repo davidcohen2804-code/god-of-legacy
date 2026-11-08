@@ -133,7 +133,7 @@ function dollDef(scene: Phaser.Scene, cls: string): ChibiDef | null {
 }
 
 /** The non-shot skills' category poses (GPT 8 Nov: one pose per body action, not one per skill). */
-const SKILL_POSE: Record<string, string> = { retreat_kick: 'kick', tree_of_life: 'kneel', hunters_roar: 'call', spirit_hawk: 'call' };
+const SKILL_POSE: Record<string, string> = { retreat_kick: 'kick', tree_of_life: 'kneel', vine_trap: 'kneel', hunters_roar: 'call', spirit_hawk: 'call' }; // (Vine Mine: buried in the floor — the place pose)
 
 /** The shot family on a skill's own timeline (GPT 8 Nov): Raise in the first half of the startup, Full Draw to the
  *  release, Release on screen at each spawn (two releases when the skill fires twice: the start and the end of its

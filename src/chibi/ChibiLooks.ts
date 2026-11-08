@@ -53,9 +53,11 @@ export function resolveLook(spec: LookSpec, cat: DollCatalog): Look {
   if (spec.outfit === 'archer') cat.archer.forEach((i) => wear.add(i));
   else { const o = cat.outfits.find((x) => x[0] === spec.outfit) ?? cat.outfits[0]; o[2].forEach((i) => wear.add(i)); addMaps(o[3]); }
   const eq = spec.equip, body: Slot[] = eq.overall ? ['overall', 'cape', 'shoes'] : ['top', 'bottom', 'cape', 'shoes'];
+  const under: string[] = [], over: string[] = [];
   for (const slot of body) {
     const d = shopDef(cat, slot, eq[slot]);
     if (!d) continue;
+    under.push(...(d.under ?? [])); over.push(...(d.over ?? []));
     for (const k of Object.keys(d.maps ?? {})) if (k !== 'base') delete maps[k];          // (the item's colours, whole)
     d.wear?.forEach((i) => wear.add(i)); d.unwear?.forEach((i) => wear.delete(i));
     addMaps(d.maps);
@@ -72,5 +74,5 @@ export function resolveLook(spec: LookSpec, cat: DollCatalog): Look {
   if (bow && Object.keys(bow[2]).length) maps.bow = { ...bow[2] };
   const skin = cat.skins.find((s) => s[0] === spec.skin)?.[2];
   const hairMap = cat.hairColours.find((c) => c[0] === spec.hairColour)?.[2];
-  return { wear: [...wear], maps, skin, hair: spec.hair, hairMap, eyes: spec.eyes, hat, face, cut };
+  return { wear: [...wear], maps, skin, hair: spec.hair, hairMap, eyes: spec.eyes, hat, face, cut, under, over };
 }

@@ -29,6 +29,8 @@ const CSS = `
 .gc .pill{cursor:pointer;padding:10px 18px;border-radius:999px;background:#18233a;border:1px solid rgba(255,255,255,.1);font:600 15px var(--gl-body);color:var(--gl-text);transition:transform 120ms,border-color 120ms,background 120ms}
 .gc .pill:hover{border-color:rgba(231,196,124,.5);transform:translateY(-1px)}
 .gc .pill.on{background:linear-gradient(180deg,#3a2f1b,#251d10);border-color:var(--gl-gold);color:var(--gl-gold2);box-shadow:0 0 0 3px rgba(231,196,124,.15)}
+.gc .pill.cls{margin-left:18px;border-style:dashed;border-color:rgba(231,196,124,.45)}
+.gc .pill .tag{margin-left:8px;padding:2px 7px;border-radius:6px;background:rgba(231,196,124,.16);color:var(--gl-gold2);font:700 10.5px var(--gl-body);letter-spacing:1px;vertical-align:1px}
 .gc .sw{cursor:pointer;width:44px;height:44px;border-radius:50%;border:2px solid rgba(255,255,255,.18);box-shadow:inset 0 -6px 10px rgba(0,0,0,.25);transition:transform 120ms}
 .gc .sw:hover{transform:scale(1.08)}
 .gc .sw.on{border-color:var(--gl-gold2);box-shadow:0 0 0 3px rgba(231,196,124,.35),inset 0 -6px 10px rgba(0,0,0,.25)}
@@ -90,10 +92,11 @@ export class ChibiCreateScene extends Phaser.Scene {
       const g = el('div', 'grp', opts), lab = el('div', 'lab', g, label), i = el('i', '', lab, note);
       return { row: el('div', 'row', g), note: i };
     };
-    const pills = (label: string, items: [string, string][], key: keyof Omit<LookSpec, 'equip'>) => {
+    const pills = (label: string, items: [string, string][], key: keyof Omit<LookSpec, 'equip'>, cls: string[] = []) => {
       const { row } = group(label);
       const els = items.map(([id, name]) => {
-        const p = el('div', 'pill', row, name);
+        const p = el('div', cls.includes(id) ? 'pill cls' : 'pill', row, name);
+        if (cls.includes(id)) el('span', 'tag', p, 'CLASS');
         p.onclick = () => { this.spec[key] = id; els.forEach((e, k) => e.classList.toggle('on', items[k][0] === id)); this.recompose(); };
         p.classList.toggle('on', this.spec[key] === id);
         return p;
@@ -114,8 +117,8 @@ export class ChibiCreateScene extends Phaser.Scene {
     swatches('Hair colour', cat.hairColours.map(([id, n, m]) => [id, n, m.H]), 'hairColour');
     pills('Eyes', cat.eyes, 'eyes');
     swatches('Skin', cat.skins.map(([id, n, m]) => [id, n, m.S]), 'skin');
-    pills('First outfit', [...cat.outfits.map(([id, n]) => [id, n] as [string, string]), ['archer', 'Archer Kit']], 'outfit');
-    pills('First bow', cat.bows.filter(([id]) => id !== 'hunter').map(([id, n]) => [id, n] as [string, string]).concat([['hunter', "Hunter's Bow"]]), 'bow');
+    pills('First outfit', [...cat.outfits.map(([id, n]) => [id, n] as [string, string]), ['archer', 'Archer Kit']], 'outfit', ['archer']); // (GPT: the class's own look, apart from the starters)
+    pills('First bow', cat.bows.filter(([id]) => id !== 'hunter').map(([id, n]) => [id, n] as [string, string]).concat([['hunter', "Hunter's Bow"]]), 'bow', ['hunter']);
 
     const back = el('div', 'btn', root, 'BACK'); back.style.left = '150px';
     back.onclick = () => this.scene.start('CharacterSelectScene');
