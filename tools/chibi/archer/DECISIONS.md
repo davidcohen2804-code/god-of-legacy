@@ -256,3 +256,10 @@ before David sees it; David approves anything that changes approved art directio
   owner review, highest priority is a final in-world camera/scale pass; after that, the next most valuable art addition
   is Night Scout as a collapsed-hood / raised-collar top. Shop price-tier tuning is lower priority." Prices put on its
   tiers (face / shoes / bottoms 900–1,100; hats / tops / capes 1,400–1,600; overalls 2,200).
+- GPT's review 3: the Night Scout's collapsed hood and the tops as whole garments (sleeves, shoulders) approved — "no
+  blocking visual issue, approved for David's review". The world pass (×2 and ×3, two opposite looks, idle / walk /
+  shot / stance / jump / place / kick, a bright courtyard, a dusk forest, a dark cellar; the shop's whole flow in the
+  world): no mismatch (GPT: verified through the report). The camera: the world zooms ~0.96 / ~0.72, so the chibi's
+  pixels are not on an integer screen scale there — **David's decision**; GPT: do not force an integer camera zoom (it
+  changes the framing, the play area, combat readability); compare the current camera with pixel-perfect rendering
+  first (a low-resolution render scaled by a whole number is one option, with its own trade-offs). Nothing changed.
