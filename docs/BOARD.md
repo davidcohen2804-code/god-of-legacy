@@ -43,9 +43,6 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
   without the left fist, a grip-fist overlay (GPT's design A) — the wood entering the hand at mid-height, 1 px of riser
   under the fist. In the game: `?chibi` → START → Archer → ENTER WORLD (the regular map, loaded with it — David 8 Nov,
   no TEST room). Decisions: `tools/chibi/archer/DECISIONS.md`.
-- **Designed, not drawn:** the shot — four reusable poses on the combat timeline (two releases in beat 1, one in beat
-  2), the draw hand under the near jaw, the bow canted ~15°; GPT accepted the pose map as the working design (7 Nov,
-  DECISIONS.md). Open for its integration: the arrow spawns at hip height on the ×2 chibi, below the drawn bow.
 - **Minimal motion (David 21:41, reviewed with GPT):** clothes swap only if the motion is minimal. A test behind the
   flag: `?chibi&walk=4` a 4-frame walk where only the legs, a 1 px bob, the free arm and the hem move (head, torso,
   bow one drawing each); `&outfit=b` a different tunic (one drawing) and boots (one per leg pose). GPT: viable,
@@ -54,10 +51,19 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
   everything (face, bangs, hair, undershirt, shorts, bare arms, foot wraps) and the items cut from the approved Archer —
   hood, tunic, bracers, boots, cape, quiver, bow. The idle, blink and 4-frame walk are now composed from them (with
   everything on: the approved frames). Removal test: `?chibi&strip=nohood|notunic|nocape|noboots|nobracers|tunicboots|base`.
-- **The shot on the base (in review with GPT, 8 Nov):** arms drawn once per pose as material maps, every outfit's sleeves
-  and bracers as colour bands — a new ordinary tunic or bracer needs no new attack animation (GPT's rule). The Raise
-  and Full Draw proofs in three outfits (`tools/chibi/archer/src/shotbase_R.py`, not in the game yet).
-- **Next:** the shot's four poses into the game; then run, jump, hurt and charge, under the minimal-motion rule.
+- **In the game (behind `?chibi`, all GPT-approved, 8 Nov night):** the paper doll — every frame composed from the
+  base and the items for the look worn (the approved look pixel for pixel); the shot family (Raise, Full Draw, Release,
+  Recover) on every shooting skill's own timeline; the minimal move set (landing, air, hit, combat stance, run,
+  knockdown, get-up; kick / kneel-place / call for the non-shot skills — Vine Mine and Tree of Life place, Retreat
+  Kick kicks, Hunter's Roar and Spirit Hawk call).
+- **Character creation + cash shop (David 8 Nov 00:58; GPT's art direction and two reviews):** START → Archer →
+  ENTER WORLD → Create Your Archer (3 hair styles, 8 hair colours, 3 eyes, 5 skins, 3 starter outfits + the class's
+  Archer Kit, 2 starter bows + the Hunter's Bow) → the world in that look. The Cosmetic Shop button / O opens the
+  chibi's Cash Shop: 3 hats, 3 face accessories, 3 tops, 2 bottoms, 2 overalls, 2 capes, 3 shoes — try on, buy with
+  test gems, wear / take off. Kept in the browser. Files: `src/chibi/`, `tools/chibi/archer/src/looks_R.py`,
+  `variants_R.py`.
+- **Open:** the arrow's visual origin vs. the hip-height spawn on the ×2 chibi (needs the combat code's owner); the
+  Night Scout's collapsed hood; the knockdown pose is provisional (GPT).
 
 ### DFO (5 Nov) — the styles' bodies: PixVerse moves in place of the GPT sheets, a clip a day
 - PixVerse's free credits are back: 30 a day (+ 6 left over) — a 5 s clip costs 20 at 360p, 30 at 540p, 40 at 720p (no

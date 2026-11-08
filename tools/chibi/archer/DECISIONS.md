@@ -227,3 +227,32 @@ before David sees it; David approves anything that changes approved art directio
   Scout Mantle), shoes (Soft Field Boots, Moonstep Sandals, Star Runner Shoes) — cute fantasy, readable, the classic
   2D MMO's spirit, original. Drawing order: hats, tops, shoes, capes, face, bottoms, overalls. (The colours: GPT's
   reply, 8 Nov ~01:30, in `src/looks_R.py`.)
+
+## Character creation and the cash shop (8 Nov night)
+- The head is split (`src/looks_R.py`): the face stays in the base (the forehead filled with skin, the ear, the jaw);
+  the hair, the eyes, hats, face accessories, the skirt and the pouches are single drawings in the master's pixels,
+  laid on each frame at the head's place (the frame's T, turned for the knockdown). With the approved hair, eyes and
+  items every frame is still the approved one, pixel for pixel (`doll_R.split_all`); the hit's shut eyes use the blink's
+  lids (a pixel differs without the hood). The stance's breathing frames had lost the hood's top outline row — fixed.
+- A look = the items worn + recolours per item (GPT's hex) + skin + hair style and colour + eyes + head drawings. Hats
+  hide the hair above their band; the hood hides the hair outside its outline. The foot wraps have their own letters.
+- Creation (`src/chibi/ChibiCreateScene.ts`, behind ?chibi): START → Archer → ENTER WORLD → Create Your Archer (live
+  preview idle / walk / turn; hair style, hair colour, eyes, skin, first outfit, first bow) → the world. The class's
+  own look stays offered, apart from the starters: Archer Kit and Hunter's Bow with a CLASS tag (GPT).
+- Cash shop (`src/chibi/ChibiShop.ts`): the Cosmetic Shop button / O in the world; tabs Hats, Face, Tops, Bottoms,
+  Overalls, Capes, Shoes; the item on the character as its picture; click to try on; buy with 20,000 test gems
+  (prices 900–2,400, GPT: fine for now); wear / take off; an overall replaces the top and the bottom. Kept in the
+  browser (localStorage), no real money anywhere.
+- GPT's review 1 (all approved; fixes applied): Scout Crop fuller at the back/top, Falcon Tail's tie apart from the
+  hair, Dusty Moss Green greyer, the Candy hood's bow and jewel knot carry the item, the beret droops more, a bead
+  highlight. Recolours are fine for a first collection; own silhouettes in this order — Moonstep Sandals, Ribbon
+  Skirt-Pants, Petal Drifter Cape, Mint Festival Blouse, Little Ranger Onepiece, then Night Scout (a collapsed hood /
+  raised collar, never a second full hood). Done tonight per frame from their sources (`src/variants_R.py`): the open
+  foot (sole, toes, strap, ankle tie), the petal hem, the blouse's rounded hem with a light trim; the skirt and the
+  pouches as hip drawings.
+- Skills: Vine Mine (buried in the floor) plays the place pose like the Tree of Life.
+- GPT's review 2: "All reviewed first-pass silhouette items are approved: Moonstep Sandals, Ribbon Skirt-Pants, Petal
+  Drifter Cape, Mint Festival Blouse, and Little Ranger Onepiece detail pass. Hair and hat fixes also pass. Before
+  owner review, highest priority is a final in-world camera/scale pass; after that, the next most valuable art addition
+  is Night Scout as a collapsed-hood / raised-collar top. Shop price-tier tuning is lower priority." Prices put on its
+  tiers (face / shoes / bottoms 900–1,100; hats / tops / capes 1,400–1,600; overalls 2,200).

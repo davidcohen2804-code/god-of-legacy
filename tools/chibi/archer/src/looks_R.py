@@ -409,6 +409,17 @@ SKIRT = Art.rows([
     'OppppppppppppO',   # 52
     '.OOOOOOOOOOOO.',   # 53
 ], 18, 44, {'r': '#7F586A', 'l': '#A97A8D', 'p': '#E1CAD4', 'd': '#44303A'})
+# the Night Scout's collapsed hood (GPT: a hoodie-inspired top — a hood bunched behind the neck and a collar band, never
+# a second full hood): laid at the hair's place, under the hair
+COWL = Art.rows([
+    '...OOOO............',   # 27
+    '..OlllnO...........',   # 28
+    '.OllnnnnO..........',   # 29
+    'OllnnndttO.........',   # 30
+    'OlnnnddddttOOOOOOOO.',  # 31
+    'OnnnddddddlllllllnnO',  # 32
+    '.OdddOOOOOOOOOOOOOO.',  # 33
+], 11, 27, {'n': '#3E4658', 'l': '#657089', 'd': '#232A37', 't': '#AFC1D6'})
 # the Little Ranger Onepiece's utility pouches on the belt
 POUCH = Art.rows([
     '.OOO.....OOO.',    # 42
@@ -503,9 +514,12 @@ SHOP = {  # the first cash shop collection (GPT): the drawings (hats, face) and 
         ('star', 'Star Patch Sticker', {'att': 'star'}),
     ],
     'top': [
-        ('rose', 'Rose Duelist Jacket', {'wear': ['tunic'], 'maps': {'tunic': tunic_map('#A9444D', '#D76872', '#D7B15E', '#4D2A2E')}}),
-        ('nightscout', 'Night Scout Hoodie', {'wear': ['tunic'], 'maps': {'tunic': tunic_map('#3E4658', '#657089', '#AFC1D6', '#232A37')}}),
-        ('mint', 'Mint Festival Blouse', {'wear': ['blouse'], 'unwear': ['tunic'], 'maps': {'blouse': tunic_map('#9DC7B0', '#C6E0D0', '#F4F0E3', '#5E7767')}}),
+        ('rose', 'Rose Duelist Jacket', {'wear': ['tunic'], 'maps': {'tunic': tunic_map('#A9444D', '#D76872', '#D7B15E', '#4D2A2E'),
+                                                                     'base': {'F': '#D76872', 'T': '#A9444D'}}}),   # (the sleeves too)
+        ('nightscout', 'Night Scout Hoodie', {'wear': ['tunic'], 'maps': {'tunic': tunic_map('#3E4658', '#657089', '#AFC1D6', '#232A37'),
+                                                                           'base': {'F': '#657089', 'T': '#3E4658'}}, 'nape': ['cowl']}),
+        ('mint', 'Mint Festival Blouse', {'wear': ['blouse'], 'unwear': ['tunic'], 'maps': {'blouse': tunic_map('#9DC7B0', '#C6E0D0', '#F4F0E3', '#5E7767'),
+                                                                                      'base': {'F': '#C6E0D0', 'T': '#9DC7B0'}}}),
     ],
     'bottom': [
         ('traveler', 'Traveler Shorts', {'maps': {'base': shorts_map('#6B5847', '#3A2D24')}}),
@@ -517,7 +531,7 @@ SHOP = {  # the first cash shop collection (GPT): the drawings (hats, face) and 
             'base': shorts_map('#7E8A5D', '#473422')}, 'over': ['pouch']}),
         ('pajama', 'Celestial Pajama Suit', {'wear': ['tunic'], 'maps': {
             'tunic': tunic_map('#7D7EB6', '#A7A9D8', '#F1E8B0', '#454774'),
-            'base': shorts_map('#7D7EB6', '#454774')}}),
+            'base': {**shorts_map('#7D7EB6', '#454774'), 'F': '#A7A9D8', 'T': '#7D7EB6'}}}),
     ],
     'cape': [
         ('petal', 'Petal Drifter Cape', {'wear': ['petalcape'], 'unwear': ['cape'], 'maps': {'petalcape': cape_map('#D48CA1', '#E7B3C0', '#F2D8E0', '#784556')}}),
@@ -565,7 +579,7 @@ def export_json():
         'eyes': {k: dict(_att(o, EYE_PAL[k]), shut=_att(sh)) for k, o, sh in
                  (('calm', CALM, CALM_SHUT), ('bright', BRIGHT, CALM_SHUT), ('sharp', SHARP, CALM_SHUT))},
         'att': {'moonleaf': _att(BERET, cut=BERET.cut), 'courier': _att(CAP, cut=CAP.cut), 'candy': _att(CANDY),
-                'glasses': _att(GLASSES), 'monocle': _att(MONOCLE), 'star': _att(STAR), 'skirt': _att(SKIRT), 'pouch': _att(POUCH)},
+                'glasses': _att(GLASSES), 'monocle': _att(MONOCLE), 'star': _att(STAR), 'skirt': _att(SKIRT), 'pouch': _att(POUCH), 'cowl': _att(COWL)},
         'cuts': {'hood': _att({p: '#' for p in hood_cut()})},
         'hairLetters': 'JHhb', 'skinLetters': 'Ss',
         'catalog': {

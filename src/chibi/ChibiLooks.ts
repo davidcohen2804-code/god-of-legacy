@@ -38,8 +38,9 @@ export function shopState(cls: string): ShopState {
   return s && typeof s.gems === 'number' ? { gems: s.gems, owned: [...(s.owned ?? [])] } : { gems: START_GEMS, owned: [] };
 }
 export function saveShop(cls: string, s: ShopState): void { put(SHOP_KEY(cls), s); }
-/** Prices per slot (the shop's test prices). */
-export const PRICE: Record<Slot, number> = { hat: 1800, face: 900, top: 1600, bottom: 1200, overall: 2400, cape: 2000, shoes: 1000 };
+/** Prices per slot (the shop's test prices, on GPT's tiers: face / shoes / bottoms 900–1,200; hats / tops / capes
+ *  1,200–1,700; overalls 1,700–2,400). */
+export const PRICE: Record<Slot, number> = { hat: 1500, face: 900, top: 1400, bottom: 1100, overall: 2200, cape: 1600, shoes: 1000 };
 
 export function shopDef(cat: DollCatalog, slot: Slot, id: string | undefined): ShopDef | undefined {
   return id ? cat.shop[slot]?.find((x) => x[0] === id)?.[2] : undefined;
@@ -53,11 +54,11 @@ export function resolveLook(spec: LookSpec, cat: DollCatalog): Look {
   if (spec.outfit === 'archer') cat.archer.forEach((i) => wear.add(i));
   else { const o = cat.outfits.find((x) => x[0] === spec.outfit) ?? cat.outfits[0]; o[2].forEach((i) => wear.add(i)); addMaps(o[3]); }
   const eq = spec.equip, body: Slot[] = eq.overall ? ['overall', 'cape', 'shoes'] : ['top', 'bottom', 'cape', 'shoes'];
-  const under: string[] = [], over: string[] = [];
+  const under: string[] = [], over: string[] = [], nape: string[] = [];
   for (const slot of body) {
     const d = shopDef(cat, slot, eq[slot]);
     if (!d) continue;
-    under.push(...(d.under ?? [])); over.push(...(d.over ?? []));
+    under.push(...(d.under ?? [])); over.push(...(d.over ?? [])); nape.push(...(d.nape ?? []));
     for (const k of Object.keys(d.maps ?? {})) if (k !== 'base') delete maps[k];          // (the item's colours, whole)
     d.wear?.forEach((i) => wear.add(i)); d.unwear?.forEach((i) => wear.delete(i));
     addMaps(d.maps);
@@ -74,5 +75,5 @@ export function resolveLook(spec: LookSpec, cat: DollCatalog): Look {
   if (bow && Object.keys(bow[2]).length) maps.bow = { ...bow[2] };
   const skin = cat.skins.find((s) => s[0] === spec.skin)?.[2];
   const hairMap = cat.hairColours.find((c) => c[0] === spec.hairColour)?.[2];
-  return { wear: [...wear], maps, skin, hair: spec.hair, hairMap, eyes: spec.eyes, hat, face, cut, under, over };
+  return { wear: [...wear], maps, skin, hair: spec.hair, hairMap, eyes: spec.eyes, hat, face, cut, under, over, nape };
 }
