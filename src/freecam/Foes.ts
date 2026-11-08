@@ -103,6 +103,13 @@ export class Slime {
 
   get center(): THREE.Vector3 { return new THREE.Vector3(this.x, this.y + this.height * 0.5, this.z); }
 
+  /** Seen through (0..1 of its body): the king between the camera and the hero. */
+  seeThrough(k: number): void {
+    const o = 1 - 0.6 * k;
+    if (Math.abs(this.mat.opacity - o) < 0.01) return;
+    this.mat.transparent = true; this.mat.opacity = o; this.mat.depthWrite = o > 0.98;
+  }
+
   /** A blow taken: its flash and squash, a small push away, the hunt begins. True when it falls. */
   hurt(dmg: number, fromX: number, fromZ: number, by: string): boolean {
     if (!this.alive) return false;
@@ -117,8 +124,8 @@ export class Slime {
   update(ms: number, c: FoeCtx): void {
     const dt = ms / 1000, s = this.kind.scale;
     this.shownFor = Math.max(0, this.shownFor - ms);
-    this.flash = Math.max(0, this.flash - dt * 6);
-    this.mat.emissive.setHex(this.kind.deep).lerp(WHITE, this.flash * 0.85); this.mat.emissiveIntensity = 0.18 + this.flash * 0.9;
+    this.flash = Math.max(0, this.flash - dt * (this.boss ? 10 : 6)); // (the king takes many blows a second: a short, soft flash)
+    this.mat.emissive.setHex(this.kind.deep).lerp(WHITE, this.flash * (this.boss ? 0.22 : 0.85)); this.mat.emissiveIntensity = 0.18 + this.flash * (this.boss ? 0.25 : 0.9);
     if (!this.alive) { this.dying(ms, c); return; }
     if (this.spawnK < 1) this.spawnK = Math.min(1, this.spawnK + dt * 2.5);
     // a push taken slides out
@@ -224,13 +231,15 @@ export class KingSlime extends Slime {
     this.yaw = Math.atan2(dx, dz);
     if (this.nextBlow <= 0) {
       const near = c.party.filter((p) => Math.hypot(p.x - this.x, p.z - this.z) < 3.2).length;
-      if (near >= 2 || d < 2.2) this.warning = { kind: 'stomp', x: this.x, z: this.z, r: 3.4, left: 1300, ms: 1300 };
-      else this.warning = { kind: 'leap', x: prey.x, z: prey.z, r: 2.4, left: 1500, ms: 1500 };
+      // a stomp when the party crowds it, else a leap onto one of them (the hero most often: he must see it coming)
+      const pick = Math.random() < 0.55 ? c.party.find((p) => p.id === 'hero') ?? prey : c.party[Math.floor(Math.random() * c.party.length)];
+      if (near >= 2 && Math.random() < 0.6) this.warning = { kind: 'stomp', x: this.x, z: this.z, r: 3.4, left: 1300, ms: 1300 };
+      else this.warning = { kind: 'leap', x: pick.x, z: pick.z, r: 2.4, left: 1500, ms: 1500 };
       c.warn(this.warning.x, this.warning.z, this.warning.r, this.warning.ms);
       return;
     }
     if (d > 2.0) { const step = Math.min(d - 1.6, 1.1); this.jump(this.x + (dx / d) * step, this.z + (dz / d) * step, 700, 0.35); }
-    else if (this.bumpCd <= 0) { this.bumpCd = 1800; c.strike(prey.id, 24 + Math.round(Math.random() * 10), this.x, this.z); this.jump(this.x + (dx / d) * 0.2, this.z + (dz / d) * 0.2, 360, 0.2); }
+    else if (this.bumpCd <= 0) { this.bumpCd = 1800; c.strike(prey.id, 16 + Math.round(Math.random() * 8), this.x, this.z); this.jump(this.x + (dx / d) * 0.2, this.z + (dz / d) * 0.2, 360, 0.2); }
   }
   update(ms: number, c: FoeCtx): void {
     super.update(ms, c);

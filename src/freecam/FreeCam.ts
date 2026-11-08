@@ -131,8 +131,8 @@ export class FreeCam {
     // the target's ring and the king's mark on the floor
     const ringMat = new THREE.MeshBasicMaterial({ color: 0xffb03a, transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide });
     this.tgRing = new THREE.Mesh(new THREE.RingGeometry(0.86, 1, 48, 1), ringMat); this.tgRing.rotation.x = -Math.PI / 2; this.tgRing.renderOrder = 4; this.tgRing.visible = false; this.scene.add(this.tgRing);
-    const tmat = (o: number) => new THREE.MeshBasicMaterial({ color: 0xff3b2f, transparent: true, opacity: o, depthWrite: false, side: THREE.DoubleSide, fog: false });
-    this.tele = { base: new THREE.Mesh(new THREE.CircleGeometry(1, 64), tmat(0.16)), fill: new THREE.Mesh(new THREE.CircleGeometry(1, 64), tmat(0.26)), edge: new THREE.Mesh(new THREE.RingGeometry(0.95, 1, 64, 1), tmat(0.9)) };
+    const tmat = (o: number, c = 0xff2a1e) => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: o, depthWrite: false, side: THREE.DoubleSide, fog: false });
+    this.tele = { base: new THREE.Mesh(new THREE.CircleGeometry(1, 64), tmat(0.24, 0xd0140a)), fill: new THREE.Mesh(new THREE.CircleGeometry(1, 64), tmat(0.38)), edge: new THREE.Mesh(new THREE.RingGeometry(0.93, 1, 64, 1), tmat(0.95, 0xff4a30)) };
     for (const m of Object.values(this.tele)) { m.rotation.x = -Math.PI / 2; m.renderOrder = 4; m.visible = false; this.scene.add(m); }
     this.resize();
     window.addEventListener('resize', () => this.resize());
@@ -153,9 +153,10 @@ export class FreeCam {
       this.makeComposer();
       this.fx = new Fx3D(this.host());
       this.hud.loading(0.08, 'Loading the party…');
-      const prog = [0, 0, 0], tick = (i: number) => (k: number) => { prog[i] = k; this.hud.loading(0.08 + 0.8 * ((prog[0] + prog[1] + prog[2]) / 3)); };
-      const [h, k, l] = await Promise.all([Hero3D.load({}, tick(0)), Hero3D.load({}, tick(1)), Hero3D.load({ female: true }, tick(2))]);
-      this.me = this.addBody('hero', 'Archer', 'You · Lv.10', h, 225.8, 21.6, Math.PI, 'bow', 820);
+      const prog = [0, 0, 0], tick = (i: number) => (k: number) => { prog[i] = k; this.hud.loading(0.08 + 0.8 * ((prog[0] * 2 + prog[1] + prog[2]) / 4)); };
+      const h = await Hero3D.load({}, tick(0)); // (the hero first: the allies then find the same files in the browser's cache)
+      const [k, l] = await Promise.all([Hero3D.load({}, tick(1)), Hero3D.load({ female: true }, tick(2))]);
+      this.me = this.addBody('hero', 'Archer', 'You · Lv.10', h, 225.8, 21.6, Math.PI, 'bow', 900);
       this.addBody('kael', 'Kael', 'Warrior · ally', k, 222.2, 19.4, Math.PI * 0.8, 'sword', 1400);
       this.addBody('lyra', 'Lyra', 'Mage · ally', l, 228.6, 19.8, -Math.PI * 0.8, 'staff', 1000);
       this.allyBrain.set('kael', { home: new THREE.Vector3(222.2, 0, 19.4), angle: -2.4, cd: 600, stage: 0 });
@@ -339,8 +340,20 @@ export class FreeCam {
 
   // ------------------------------------------------------------------ the character view and the outfits
 
-  private startView(): void { this.view = { yaw0: this.me.yaw, t: 0 }; this.moveTo = null; this.attacking = false; this.hud.view(true, OUTFITS[this.outfit].name); }
-  private endView(): void { this.view = null; this.hud.view(false, ''); }
+  /** The character view: the world holds still and steps aside (the foes and the allies hidden), the camera goes round
+   *  the hero close and low — his front, side and back. */
+  private startView(): void {
+    this.view = { yaw0: this.me.yaw, t: 0 }; this.moveTo = null; this.attacking = false; this.hud.view(true, OUTFITS[this.outfit].name);
+    for (const s of this.shots) { s.done = true; s.p.done = true; this.scene.remove(s.mesh); }
+    this.shots = []; this.zones = [];
+    for (const f of this.foes) f.root.visible = false;
+    for (const b of this.bodies) if (b.id !== 'hero') b.hero.scene.visible = false;
+  }
+  private endView(): void {
+    this.view = null; this.hud.view(false, '');
+    for (const f of this.foes) f.root.visible = f.alive;
+    for (const b of this.bodies) b.hero.scene.visible = true;
+  }
   private async nextOutfit(): Promise<void> {
     this.outfit = (this.outfit + 1) % OUTFITS.length;
     await this.me.hero.equipAll(OUTFITS[this.outfit].e);
@@ -443,11 +456,13 @@ export class FreeCam {
     this.renderer.domElement.style.cursor = this.mouse.right ? 'grabbing' : this.hover ? 'crosshair' : 'default';
     for (const s of this.skills) s.left = Math.max(0, s.left - ms);
     this.heroThink(ms);
-    this.alliesThink(ms);
-    const ctx = this.foeCtx();
-    for (const f of this.foes) f.update(ms, ctx);
-    this.stepShots(ms);
-    this.stepZones(ms);
+    if (!this.view) {
+      this.alliesThink(ms);
+      const ctx = this.foeCtx();
+      for (const f of this.foes) f.update(ms, ctx);
+      this.stepShots(ms);
+      this.stepZones(ms);
+    }
     for (const b of this.bodies) this.driveBody(b, ms);
     this.stepCamera(ms);
     // the place: its life, its sun following the hero (the shadows: every frame — the bodies move)
@@ -479,7 +494,7 @@ export class FreeCam {
 
   /** The king's blow lands: every one of the party inside its circle is struck; the floor answers. */
   private slam(x: number, z: number, r: number, leap: boolean): void {
-    for (const b of this.bodies) if (b.downMs <= 0 && Math.hypot(b.x - x, b.z - z) < r + 0.2) this.hurtBody(b, leap ? 230 : 170, x, z);
+    for (const b of this.bodies) if (b.downMs <= 0 && Math.hypot(b.x - x, b.z - z) < r + 0.2) this.hurtBody(b, leap ? 160 : 120, x, z);
     const px: V3 = { x: x * U, y: (z / DK) * U, z: 0 };
     this.fx.impact(px, 0xc49aff, { r: 130, embers: 26 });
     this.fx.crack(px.x, px.y, 0xb48cff, { r: r * U * 0.55, chunks: 16, up: 1.3 });
@@ -508,7 +523,7 @@ export class FreeCam {
       if (b.downMs <= 0) { b.hp = b.max; b.hurtMs = 0; }
       return;
     }
-    if (this.t - b.lastHit > 4) b.hp = Math.min(b.max, b.hp + 22 * dt);
+    if (this.t - b.lastHit > 3) b.hp = Math.min(b.max, b.hp + 35 * dt);
     // the cast in hand
     if (b.cast) {
       const c = b.cast; c.elapsed += ms;
@@ -603,6 +618,7 @@ export class FreeCam {
     if (b.id === 'kael') {
       this.fx.slash(to, Math.sin(b.yaw) >= 0 ? 1 : -1, STEEL, { r: 70, w: 16, ms: 220 });
       this.strikeFoe(k, [26, 36], finalSkill('warrior_basic')!, at, 0, 'kael');
+      k.aggro = 'kael'; // (the warrior holds it: the king turns on him once he is at its side — the archer shoots from range)
     } else {
       const from: V3 = { x: b.x * U + Math.sin(b.yaw) * 40, y: (b.z / DK) * U + (Math.cos(b.yaw) * 40) / DK, z: 150 };
       this.fx.bolt(from, to, ARCANE, { ms: 220, w: 8, forks: 2, hue: true });
@@ -693,17 +709,23 @@ export class FreeCam {
     if (this.kick > 0.001) { pos.x += (Math.random() - 0.5) * this.kick * 2; pos.y += (Math.random() - 0.5) * this.kick * 2; this.kick *= Math.max(0, 1 - dt * 10); }
     this.camera.position.copy(pos);
     this.camera.lookAt(this.look);
+    // the king between the camera and the hero: seen through
+    if (this.king) {
+      const a = pos, bb = new THREE.Vector3(b.x, b.y + 0.9, b.z), ab = bb.clone().sub(a), t = THREE.MathUtils.clamp(this.king.center.sub(a).dot(ab) / ab.lengthSq(), 0, 1);
+      const dd = a.clone().addScaledVector(ab, t).distanceTo(this.king.center);
+      this.king.seeThrough(this.king.alive && t > 0.05 && t < 0.97 && dd < this.king.radius * 1.15 ? 1 : 0);
+    }
   }
 
   /** The target's ring under it, the king's mark filling on the floor. */
   private stepMarks(): void {
-    const tg = this.target && this.target.alive ? this.target : null;
+    const tg = this.target && this.target.alive && !this.view ? this.target : null;
     this.tgRing.visible = !!tg;
     if (tg) {
       const s = tg.radius * 1.3 + Math.sin(this.t * 6) * 0.03;
       this.tgRing.position.set(tg.x, this.ground(tg.x, tg.z) + 0.03, tg.z); this.tgRing.scale.set(s, s, 1); this.tgRing.rotation.z = this.t * 0.8;
     }
-    const w = this.king?.alive ? this.king.warning : null;
+    const w = this.king?.alive && !this.view ? this.king.warning : null;
     for (const m of Object.values(this.tele)) m.visible = !!w;
     if (w) {
       const k = 1 - Math.max(0, w.left) / w.ms, y = this.ground(w.x, w.z) + 0.035;
@@ -727,12 +749,12 @@ export class FreeCam {
     this.hud.skills(this.skills.map((s) => ({ key: s.key, name: s.name, icon: '', left: s.left, total: s.cd || 1, on: !!cast && cast.skill === s })));
     const plates: PlateView[] = [];
     for (const f of this.foes) {
-      if (!f.alive || this.camera.position.distanceTo(f.center) > 24) continue;
+      if (!f.alive || this.view || this.camera.position.distanceTo(f.center) > 24) continue;
       const p = project(f.x, f.y + f.height + (f.boss ? 0.55 : 0.28), f.z); if (!p.on) continue;
       plates.push({ id: `f${f.id}`, x: p.x, y: p.y, name: f.kind.name, lv: f.kind.lv, hp: f.hp, max: f.maxHp, kind: f.boss ? 'boss' : 'foe', target: f === tg, bar: f.boss || f.shownFor > 0 || f === tg || f === this.hover });
     }
     for (const b of this.bodies) {
-      if (b.id === 'hero') continue;
+      if (b.id === 'hero' || this.view) continue;
       const p = project(b.x, b.y + H + 0.45, b.z); if (!p.on) continue;
       plates.push({ id: b.id, x: p.x, y: p.y, name: b.name, hp: b.hp, max: b.max, kind: 'ally', target: false, bar: true });
     }

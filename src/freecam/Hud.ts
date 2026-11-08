@@ -49,7 +49,8 @@ const CSS = `
 .fc-dmg.crit { font-size: 32px; color: #ffe066; }
 .fc-dmg.hurt { color: #ff5a5a; font-size: 22px; }
 .fc-dmg.ally { font-size: 18px; color: #ffd8a8; opacity: 0.85; }
-.fc-toast { position: absolute; left: 50%; top: 22%; transform: translateX(-50%); padding: 10px 22px; font: 700 20px Cinzel, Georgia, serif; letter-spacing: 0.05em; color: #ffe3a3; text-shadow: 0 2px 8px #000; opacity: 0; transition: opacity 0.3s; text-align: center; white-space: nowrap; }
+.fc-layer { position: absolute; inset: 0; overflow: hidden; }
+.fc-toast { position: absolute; left: 50%; top: 16%; transform: translateX(-50%); max-width: min(620px, 64vw); padding: 10px 24px; border-radius: 10px; background: rgba(18,16,24,0.6); font: 700 17px/1.45 Cinzel, Georgia, serif; letter-spacing: 0.04em; color: #ffe3a3; text-shadow: 0 2px 6px #000; opacity: 0; transition: opacity 0.3s; text-align: center; }
 .fc-view { position: absolute; left: 50%; bottom: 128px; transform: translateX(-50%); padding: 12px 20px; font: 600 13px/1.7 Inter, sans-serif; display: none; text-align: center; }
 .fc-view b { font: 700 14px Cinzel, Georgia, serif; color: #ffe3a3; letter-spacing: 0.04em; }
 .fc-view kbd { font: 700 11px Inter, sans-serif; padding: 0 5px; border: 1px solid rgba(255,255,255,0.28); border-radius: 4px; }
@@ -80,6 +81,8 @@ export class Hud {
   private plates = new Map<string, { e: HTMLDivElement; bar: HTMLElement; n: HTMLElement; key: string }>();
   private dmgs: { e: HTMLDivElement; x: number; y: number; z: number; t: number; ms: number; dx: number }[] = [];
   private toastEl: HTMLDivElement; private toastT = 0;
+  /** The names over the bodies and the numbers: under the panels. */
+  private layer: HTMLDivElement;
   private viewEl: HTMLDivElement;
   private veil: HTMLDivElement; private veilBar: HTMLElement; private veilText: HTMLElement;
   onMode?: (m: ModeId) => void;
@@ -87,6 +90,7 @@ export class Hud {
   constructor(parent: HTMLElement) {
     const st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st);
     this.root = el('div', 'fc-hud', parent);
+    this.layer = el('div', 'fc-layer', this.root);
     this.partyBox = el('div', 'fc-party', this.root);
     this.targetBox = el('div', 'fc-target fc-panel', this.root); this.targetBox.style.display = 'none';
     this.tName = el('div', 'n', this.targetBox);
@@ -167,7 +171,7 @@ export class Hud {
       seen.add(p.id);
       let v = this.plates.get(p.id);
       const cls = `fc-plate ${p.kind}${p.target ? ' tg' : ''}`;
-      if (!v) { const e = el('div', cls, this.root), n = el('div', 'n', e), w = el('div', 'fc-bar hp', e), bar = el('i', '', w); v = { e, bar, n, key: '' }; this.plates.set(p.id, v); }
+      if (!v) { const e = el('div', cls, this.layer), n = el('div', 'n', e), w = el('div', 'fc-bar hp', e), bar = el('i', '', w); v = { e, bar, n, key: '' }; this.plates.set(p.id, v); }
       if (v.e.className !== cls) v.e.className = cls;
       const key = `${p.name}|${p.lv ?? ''}`; if (v.key !== key) { v.n.innerHTML = p.lv ? `${p.name}<small>Lv.${p.lv}</small>` : p.name; v.key = key; }
       (v.bar.parentElement as HTMLElement).style.display = p.bar ? '' : 'none';
@@ -179,7 +183,7 @@ export class Hud {
 
   /** A number rising from a point in the room (units); `update` places it each frame. */
   damage(x: number, y: number, z: number, value: number, kind: 'hit' | 'crit' | 'hurt' | 'ally'): void {
-    const e = el('div', `fc-dmg${kind === 'hit' ? '' : ' ' + kind}`, this.root, String(Math.round(value)));
+    const e = el('div', `fc-dmg${kind === 'hit' ? '' : ' ' + kind}`, this.layer, String(Math.round(value)));
     this.dmgs.push({ e, x, y, z, t: 0, ms: kind === 'crit' ? 1100 : 850, dx: (Math.random() - 0.5) * 30 });
     if (this.dmgs.length > 40) { const d = this.dmgs.shift()!; d.e.remove(); }
   }
