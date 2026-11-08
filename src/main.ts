@@ -80,6 +80,7 @@ async function loadFonts(): Promise<void> {
 
 loadFonts().then(() => {
   if (STUDIO) { void import('./studio/main').then((m) => m.startStudio()); return; } // (its own page: the game is not started)
+  if (new URLSearchParams(location.search).has('freecam')) { void import('./freecam/FreeCam').then((m) => m.startFreeCam()); return; } // (the free-camera trial, David 8 Nov: its own page, the game is not started)
   const game = new Phaser.Game({
     type: Phaser.WEBGL,
     parent: 'game',
