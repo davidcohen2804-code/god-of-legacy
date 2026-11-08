@@ -29,7 +29,7 @@ BANDS = {
 # THE LEGS (the same rig: hip → knee → ankle, then the foot to the toe at t 1.0 → 1.15): the base's shorts, bare shin and
 # foot wraps; the boots from just under the shorts' hem, a dark band at their top
 for _side in ('nearleg', 'farleg'):
-    BANDS['base'][_side] = [(0.00, 0.58, 'PPp', None, 'p'), (0.58, 0.90, 'SSs', None, None), (0.90, 9, 'TTt', None, None)]
+    BANDS['base'][_side] = [(0.00, 0.58, 'PPp', None, 'p'), (0.58, 0.90, 'SSs', None, None), (0.90, 9, 'UUu', None, None)]
     BANDS['tunic'][_side] = []
     BANDS['bracers'][_side] = []
 BANDS['boots'] = {'near': [], 'far': [], 'nearleg': [(0.50, 9, 'JHh', 'b', None)], 'farleg': [(0.50, 9, 'JHh', 'b', None)]}

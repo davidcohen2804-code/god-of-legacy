@@ -8,6 +8,7 @@ import Phaser from 'phaser';
 import type { PoseFrame, PoseQuery } from '../game/Body';
 import type { Dir } from '../world/collision';
 import { composeLook, parseDoll, type DollData, type Look } from './ChibiDoll';
+import { resolveLook, savedSpec, type LookSpec } from './ChibiLooks';
 
 const params = typeof location !== 'undefined' ? new URLSearchParams(location.search) : null;
 /** scale: world px per chibi pixel (0 = off). */
@@ -89,18 +90,39 @@ const STRIP: Record<string, string[]> = {
   nobracers: ORIGINAL.filter((i) => i !== 'bracers'), tunicboots: ['tunic', 'boots'], base: [],
 };
 let lookOverride: Look | null = null;
-/** The look the hero wears (the character creation / the cash shop set it; the composed texture follows). */
+/** A look laid over the saved one (a try-on). */
 export function setChibiLook(look: Look | null): void { lookOverride = look; }
-export function chibiLook(): Look { return lookOverride ?? { wear: STRIP[TEST.strip] ?? ORIGINAL }; }
+/** The look the hero wears: the removal test's (`&strip=`), else the one chosen at the character creation and in the
+ *  cash shop (ChibiLooks: kept in this browser), else the Archer as approved. */
+export function chibiLook(cls: string, data: DollData): Look {
+  if (lookOverride) return lookOverride;
+  if (TEST.strip) { const wear = STRIP[TEST.strip] ?? ORIGINAL; return { wear, cut: wear.includes('hood') ? 'hood' : undefined }; }
+  const spec = savedSpec(cls);
+  if (spec && data.looks) return resolveLook(spec, data.looks.catalog);
+  return { wear: ORIGINAL, cut: 'hood' };
+}
 const composed = new Map<string, { sig: string; key: string; def: ChibiDef }>();
+
+/** A spec composed for a preview (the creation screen, the cash shop): only the anims asked for. */
+export function composeSpec(scene: Phaser.Scene, cls: string, spec: LookSpec, key: string, only = ['idle', 'blink', 'walk4'], extra?: Partial<Look>) {
+  const data = scene.cache.json.get(`chibi-${cls}-doll`) as DollData | undefined;
+  if (!data?.looks) return null;
+  return composeLook(scene, cls, parseDoll(cls, data), { ...resolveLook(spec, data.looks.catalog), ...extra }, key, only);
+}
+export const dollData = (scene: Phaser.Scene, cls: string): DollData | undefined => scene.cache.json.get(`chibi-${cls}-doll`) as DollData | undefined;
+/** Loads a class's paper doll (for a scene that shows it before the world). */
+export function loadDoll(scene: Phaser.Scene, cls: string): void {
+  const jk = `chibi-${cls}-doll`;
+  if (!scene.cache.json.exists(jk)) scene.load.json(jk, `assets/chibi/${cls}/${cls}.doll.json`);
+}
 
 function dollDef(scene: Phaser.Scene, cls: string): ChibiDef | null {
   const jk = `chibi-${cls}-doll`;
   if (!scene.cache.json.exists(jk)) return null;
-  const look = chibiLook(), sig = JSON.stringify(look);
+  const data = scene.cache.json.get(jk) as DollData;
+  const look = chibiLook(cls, data), sig = JSON.stringify(look);
   const c = composed.get(cls);
   if (c && c.sig === sig && scene.textures.exists(c.key)) return c.def;
-  const data = scene.cache.json.get(jk) as DollData;
   const key = `chibi-${cls}-look${composed.size}-${Math.abs([...sig].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) | 0, 7))}`;
   const anims = composeLook(scene, cls, parseDoll(cls, data), look, key);
   const def: ChibiDef = { frame: data.frame, origin: data.origin, height: data.height, facing: data.facing,

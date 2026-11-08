@@ -108,7 +108,8 @@ import { ActorView, Equipped, RING_COLOR, preloadCosmetics, skinColor, grayKey, 
 import { ensureLightBeam } from '../skills/SkillFx';
 import HANDS from '../data/judgment-hands.json';
 import { baseLoop, ClassKey, dirOf, HERO_HEIGHT, HERO_LIFT, heroPortrait, loadBaseLook, loadGear, preloadBodies, registerBodies, resolvePose, PoseFrame, sideAim } from '../game/Body';
-import { chibiPose, preloadChibi } from '../chibi/ChibiBody';
+import { chibiOn, chibiPose, preloadChibi } from '../chibi/ChibiBody';
+import { ChibiShop } from '../chibi/ChibiShop';
 import { AnimSnap, LAND_MS, Mode, RECOVER_MS, castSeed, poseQuery } from '../game/PoseState';
 import { ARENA, CombatBody, counterStun, HitOutcome, gaugeOf, Kin, MAGE, PHYS, jump, newKin, settleOnBlocks, steer, stepKin } from '../combat/Combat';
 import { FinalSkill, HitEvent } from '../skills/SkillTypes';
@@ -1105,7 +1106,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (pvpRoom) { this.curtain = takeArenaLoading(); this.curtainAt = performance.now(); }
     if (pvpRoom) this.startPvp(pvpRoom, { playerId, characterId: character.id, classId: this.cls, name: character.name, gender: genderOf(character), ...(character.hero ? { hero: true } : {}), ...(headLookOf(character) ? { look: headLookOf(character)! } : {}), rp: myRank().rp, title: myRank().title, ...(Object.keys(loadEquip3D(character.id)).length ? { items3d: loadEquip3D(character.id) as Record<string, string> } : {}) }); // (its 3D items: the others put them on its body)
 
+    if (!pvpRoom && chibiOn(this.cls)) this.chibiShop = new ChibiShop(this, this.cls, { onOpen: (o) => { this.chatTyping(o); if (!o) this.ci?.reset(); } }); // ?chibi: the chibi's cash shop (O)
+
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.chibiShop?.destroy(); this.chibiShop = undefined;
       this.events.off(Phaser.Scenes.Events.POST_UPDATE);
       this.game.events.off(Phaser.Core.Events.BLUR, stop);
       this.game.events.off(Phaser.Core.Events.HIDDEN, stop);
@@ -3409,7 +3413,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (phase === 'startup') (run.attackerId === BOT_ID ? this.bot?.view : this.pvp?.remotes.get(run.attackerId))?.startSkill(run.skill.id, run.stage, dirOf(run.aim.x, run.aim.y, 'right'), run.aim, castSeed(run.castId));
   }
 
+  /** ?chibi: the chibi hero's cash shop (opened by the Cosmetic Shop button / O). */
+  private chibiShop?: ChibiShop;
+
   private togglePanel(k: 'K' | 'I' | 'O' | 'J' | 'P' | 'U'): void {
+    if (k === 'O' && this.chibiShop) { this.skillBook?.close(); this.cosPanel?.close(); this.questLog?.close(); this.partyUi?.close(); this.statsWin?.close(); this.chibiShop.toggle(); this.ci?.reset(); return; }
     if (k === 'U') { if (this.arena) return; this.skillBook?.close(); this.cosPanel?.close(); this.questLog?.close(); this.partyUi?.close(); this.refreshStats(); this.statsWin?.toggle(); this.ci?.reset(); return; }
     if (k === 'P') { this.skillBook?.close(); this.cosPanel?.close(); this.questLog?.close(); this.partyUi?.toggle(); this.ci?.reset(); return; }
     this.partyUi?.close();

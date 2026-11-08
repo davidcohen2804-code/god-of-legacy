@@ -85,8 +85,8 @@ def pose(P) -> D.Frame:
         _, grip, rot = P['bow']
         b, _ = path_bow(UW, H, grip[0] + dx, grip[1] + dy, A.CARRY_LIMB, A.CARRY_STRING, rot=rot, style=A.BOW_STYLE)
         f.add('bow', b, OX, OY)                                   # behind everything (the far hand holds it)
-    f.add('cape.back', shifted(capeb, dx, dy), OX, OY)
-    f.add('quiver.back', shifted(quivb, dx, dy), OX, OY)
+    f.add('cape.back', capeb, OX + dx, OY + dy)                 # (moved in the frame: nothing clipped at the top)
+    f.add('quiver.back', quivb, OX + dx, OY + dy)
     for lg in P['legs']:                                         # the legs (base, the boots' bands)
         for key, g in limb_layers(lg)[0]: f.add(key.replace('base.', 'base.').replace('legarm', 'leg'), g, OX, OY)
     up = []
@@ -125,8 +125,9 @@ def pose(P) -> D.Frame:
     for key, g in nl:
         AR.blend(g, near, body, nm)
         up.append((key, g))
-    for key, g in up: f.add(key, None if g is None else shifted(g, dx, dy), OX, OY)
+    for key, g in up: f.add(key, g, OX + dx, OY + dy)
     f.head = (dx, dy)
+    f.shut = bool(P.get('shut'))
     return f
 
 
@@ -209,6 +210,7 @@ def down_frame():
                 o.set(nx, ny, ch)
         f.layers.append((key, o))
     f.head = (0, 0)
+    f.T = (0, 1, OY - 8, -1, 0, 113 - OX)                       # (the head turned with the body)
     return f
 
 

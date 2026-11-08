@@ -13,6 +13,7 @@ import { CharacterSelectScene } from './scenes/CharacterSelectScene';
 import { CharacterCreateScene } from './scenes/CharacterCreateScene';
 import { LegacyCourtyardScene } from './scenes/LegacyCourtyardScene';
 import { PvpSelectScene } from './scenes/PvpSelectScene';
+import { ChibiCreateScene } from './chibi/ChibiCreateScene';
 import { ErrorCapture } from './qa/ErrorCapture';
 import { isQAMode, startQAPanel } from './qa/QAPanel';
 import { startTestMode } from './qa/TestMode';
@@ -86,7 +87,7 @@ loadFonts().then(() => {
     height: DESIGN.height,
     backgroundColor: '#000000',
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
-    scene: [BootScene, MainMenuScene, CharacterSelectScene, CharacterCreateScene, PvpSelectScene, LegacyCourtyardScene],
+    scene: [BootScene, MainMenuScene, CharacterSelectScene, CharacterCreateScene, PvpSelectScene, LegacyCourtyardScene, ChibiCreateScene], // (ChibiCreateScene: ?chibi only)
     pipeline: { KeyBlack: KeyBlackPipeline } as unknown as Phaser.Types.Core.PipelineConfig, // (painted-on-black effects that keep their colours: src/fx/keyBlack.ts)
   });
 

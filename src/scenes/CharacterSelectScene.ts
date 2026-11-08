@@ -11,6 +11,7 @@ import { ThroneHero, preloadThrone } from '../ui/ThronePresence';
 import { HERO3D } from '../arena3d/hero3dFlag';
 import type { HeroPreview3D } from '../arena3d/HeroPreview3D';
 import { genderOf } from '../characters/Look';
+import { chibiOn } from '../chibi/ChibiBody';
 /** Each class's weapon in the 3D Beginner's hand (as Hero3D's CLASS_WEAPON, without loading it here). */
 const CLASS_WEAPON3D: Record<string, 'sword' | 'katana' | 'bow' | 'staff' | 'cane'> = { warrior: 'sword', samurai: 'katana', archer: 'bow', book_mage: 'staff', gambler: 'cane' };
 
@@ -108,7 +109,12 @@ export class CharacterSelectScene extends Phaser.Scene {
     this.ui = new CharacterSelectUI(this.game.canvas.parentElement!, this.game.canvas, {
       onBack: () => this.scene.start('MainMenuScene'),
       onPick: (cls) => CharacterStore.startHero(cls, CLASS_NAMES[cls] ?? cls, HERO_LEVEL), // (the hero played: its own record, kept by class)
-      onEnterWorld: () => { CharacterStore.touchHero(); clearPvpFromUrl(); this.scene.start('LegacyCourtyardScene', { pvpRoom: null }); }, // always the world, never the arena (PvP has its own button)
+      onEnterWorld: () => {
+        CharacterStore.touchHero(); clearPvpFromUrl();
+        const cls = CharacterStore.getSelectedCharacter()?.classId ?? '';
+        if (chibiOn(cls)) { this.scene.start('ChibiCreateScene', { cls }); return; } // (?chibi: the chibi character creation first, then the world)
+        this.scene.start('LegacyCourtyardScene', { pvpRoom: null });
+      }, // always the world, never the arena (PvP has its own button)
       onPvp: () => { CharacterStore.touchHero(); this.scene.start('PvpSelectScene', { mode: 'cpu', p1: CharacterStore.getSelectedCharacter()?.classId }); }, // the fighter select
       onPreview: (key) => {
         if (HERO3D.on) { // the 3D Beginner stands on the pedestal: no painted hero, no throne

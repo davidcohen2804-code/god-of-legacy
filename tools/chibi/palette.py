@@ -15,6 +15,8 @@ PALETTE = {
     'E': '#211a14', 'e': '#6b4630', 'W': '#fbf7f1',
     # tunic (cream, tan)
     'T': '#ece2c8', 't': '#c09b5e',
+    # the base's foot wraps (the tunic's colours, their own letters: sandals recolour them alone)
+    'U': '#ece2c8', 'u': '#c09b5e',
     # leather (belt, bracers, boots, quiver, bow)
     'R': '#9c6c46', 'B': '#704932', 'b': '#4a3122', 'K': '#30261c',
     # trousers

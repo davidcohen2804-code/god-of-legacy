@@ -78,7 +78,8 @@ SHIRT = {'T': 'F', 't': 'T', 'W': 'F', 'F': 'F', 'B': 'F', 'b': 'T', 'R': 'F', '
          'L': 'F', 'G': 'F', 'g': 'T', 'D': 'T', 'H': 'F', 'h': 'T', 'J': 'F'}
 SKINC = {'J': 'S', 'R': 'S', 'H': 'S', 'B': 'S', 'T': 'S', 't': 's', 'F': 'S', 'h': 's', 'b': 's', 'K': 's'}
 SHORTS = {'t': 'P', 'T': 'P', 'W': 'p', 'y': 'p', 'Y': 'p', 'B': 'P', 'b': 'p', 'H': 'P', 'h': 'p', 'J': 'P', 'R': 'P'}
-WRAPS = {'J': 'T', 'H': 't', 'B': 't', 'R': 'T', 'h': 't', 'b': 't', 'K': 't'}
+WRAPS = {'J': 'U', 'H': 'u', 'B': 'u', 'R': 'U', 'h': 'u', 'b': 'u', 'K': 'u'}   # (the wraps' own letters: the
+#  undershirt's colours, so sandals can recolour them alone)
 NECK = {(x, y) for y in range(27, 32) for x in range(18, 29) if x >= 21 or y >= 28}   # the neck, under the chin
 BOW_PX = {(35, 43)}                       # a pixel of the carried bow's string baked into the master: the bow's (GPT)
 _N8 = [(dx, dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1) if dx or dy]
@@ -109,7 +110,7 @@ def body() -> Grid:
             if ch == 'F' and y > 38: continue                                    # (a pixel of the carried bow's string)
             g.px[y][x] = SHIRT.get(ch, 'F') if y <= 38 else SKINC.get(ch, 'S')
         elif l == 'legs':
-            g.px[y][x] = SHORTS.get(ch, 'P') if y <= 54 else (SKINC.get(ch, 'S') if y <= 58 else WRAPS.get(ch, 't'))
+            g.px[y][x] = SHORTS.get(ch, 'P') if y <= 54 else (SKINC.get(ch, 'S') if y <= 58 else WRAPS.get(ch, 'u'))
     for y in range(29, 53):                    # the master's seams inside one material (collar folds, the sleeve's top,
         for x in range(W):                     # the tunic's split) close up: an outline amid one material takes its shade
             if g.px[y][x] != 'O': continue

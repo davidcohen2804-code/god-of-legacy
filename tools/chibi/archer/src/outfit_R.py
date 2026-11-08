@@ -109,7 +109,7 @@ def back(wear, walking=False) -> Grid:
 
 SKIN_W = {**BR.SKINC, 'e': 's', 'E': 's'}
 SHORTS_W = {**BR.SHORTS, 'e': 'p', 'E': 'p'}
-WRAPS_W = {**BR.WRAPS, 'e': 't', 'E': 't'}
+WRAPS_W = {**BR.WRAPS, 'e': 'u', 'E': 'u'}
 
 
 def base_walk_legs(wi: int, bob: int) -> Grid:
@@ -133,7 +133,7 @@ def base_walk_legs(wi: int, bob: int) -> Grid:
                 ch = legs.px[y][x]
                 if ch == 'O': out.px[y][x] = 'O'
                 elif y <= OY + bob + 54: out.px[y][x] = SHORTS_W.get(ch, 'P')
-                elif y >= bottom - 4: out.px[y][x] = WRAPS_W.get(ch, 't')
+                elif y >= bottom - 4: out.px[y][x] = WRAPS_W.get(ch, 'u')
                 else: out.px[y][x] = SKIN_W.get(ch, 'S')
     return out
 

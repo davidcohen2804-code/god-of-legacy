@@ -36,6 +36,8 @@ class Frame:
     def __init__(self):
         self.layers = []
         self.head = (0, 0)
+        self.T = None                                     # the head's place (master px → frame px), when not a move
+        self.shut = False                                 # the eyes shut (the blink, the hit)
 
     def add(self, key, g, ox=0, oy=0):
         if g is None: self.layers.append((key, None)); return
@@ -109,7 +111,7 @@ def to_frame(layers, ox=OX, oy=OY, head=(0, 0)) -> Frame:
 def dressed():
     """IR.dress as layers: the back parts, the base, '@' head slots, the items in order (hood last), '@hat'."""
     L = [('cape.back', IR.BACK['cape'].copy()), ('quiver.back', IR.BACK['quiver'].copy()), ('base', BR.BASE.copy()),
-         ('@eyes', None), ('@hair', None), ('@face', None)]
+         ('@hair', None), ('@eyes', None), ('@face', None)]
     for k in IR.ORDER: L.append((k, IR.ITEMS[k].copy()))
     L.append(('@hat', None))
     return L
@@ -154,7 +156,8 @@ def blink_frame():
                 for key, g in d:
                     if g is not None and key != 'base': g.px[y][x] = '.'
                 dict(d)['base'].px[y][x] = shut.px[y][x]
-    return [(to_frame(with_bow(d, W, H)), 130)]
+    f = to_frame(with_bow(d, W, H)); f.shut = True
+    return [(f, 130)]
 
 
 # --- the walk (outfit_R.walk) ------------------------------------------------------------------------------------------
@@ -170,7 +173,7 @@ def walk_frames():
         up = [('base.upper', O.B_UPPER),
               ('base.support', O.pick(O.B_SUPPORT, lambda x, y: (x, y) in O.NEAR)),
               ('tunic.support', O.pick(O.T_SUPPORT, lambda x, y: (x, y) in O.NEAR)),
-              ('@eyes', None), ('@hair', None), ('@face', None)]
+              ('@hair', None), ('@eyes', None), ('@face', None)]
         for it in IR.ORDER: up.append((it, O.item_part(it, lambda x, y: (x, y) not in O.NEAR and (x, y) not in O.LEGS)))
         up.append(('@hat', None))
         for key, g in with_bow(up, W, H): f.add(key, g, OX, OY + bob)
@@ -195,7 +198,7 @@ def torso_layers():
     for y in range(H):
         for x in range(W):
             if tun.px[y][x] != base.px[y][x] and tun.px[y][x] != '.': tl.px[y][x] = tun.px[y][x]
-    L = [('base.torso', base), ('@eyes', None), ('@hair', None), ('@face', None), ('tunic.torso', tl)]
+    L = [('base.torso', base), ('@hair', None), ('@eyes', None), ('@face', None), ('tunic.torso', tl)]
     for k in SB.ORDER:
         if k in ('tunic', 'boots', 'boots_b', 'tunic_b', 'bracers_b'): continue
         L.append((k, O.pick(SB.ITEMS[k], lambda x, y: (x, y) not in SB.ARMS and (x, y) not in SB.LEGS)))
@@ -322,8 +325,10 @@ def frame_json(f: Frame) -> dict:
         if g is None: L.append([key]); continue
         b = bbox(g)
         if b: L.append([key, b[0], b[1], rle(g, *b)])
-    ref = f.flat(ORIG); b = bbox(ref)
-    return {'L': L, 'ref': [b[0], b[1], rle(ref, *b, fill=True)], 'head': list(f.head)}
+    ref = getattr(f, 'ref', None) or f.flat(ORIG); b = bbox(ref)
+    d = {'L': L, 'ref': [b[0], b[1], rle(ref, *b, fill=True)], 'head': list(f.head), 'T': list(head_T(f))}
+    if f.shut: d['shut'] = 1
+    return d
 
 
 LOOPS = {'idle': True, 'walk4': True}
@@ -332,18 +337,106 @@ LOOPS = {'idle': True, 'walk4': True}
 LOOPS.update({'stance': True, 'run': True})
 
 
+# --- the head's looks (looks_R): the face in the base, the hair and the eyes laid on per frame ---------------------
+HEAD_LAYERS = ('base', 'base.upper', 'base.torso')
+
+
+def head_T(f: Frame):
+    if f.T is not None: return f.T
+    return (1, 0, OX + f.head[0], 0, 1, OY + f.head[1])
+
+
+def at(T, x, y):
+    return T[0] * x + T[1] * y + T[2], T[3] * x + T[4] * y + T[5]
+
+
+def split_head(f: Frame):
+    """The base's head → the face (looks_R.FACE); the hair and the eyes go to their slots (drawn per look)."""
+    import looks_R as LK
+    T = head_T(f)
+    body = BR.body()
+    for key, g in f.layers:
+        if g is None or key not in HEAD_LAYERS: continue
+        for y in range(31):
+            for x in range(W):
+                if LK.HD.px[y][x] == '.': continue
+                X, Y = at(T, x, y)
+                v = LK.FACE.px[y][x]
+                g.set(X, Y, v if v != '.' else body.px[y][x])
+        return key
+    raise ValueError('no head layer')
+
+
+def draw_att(g: Grid, att: Grid, T, cut=None):
+    for y in range(att.h):
+        for x in range(att.w):
+            ch = att.px[y][x]
+            if ch == '.' or (cut and (x, y) in cut): continue
+            X, Y = at(T, x, y)
+            if 0 <= X < F and 0 <= Y < F: g.px[Y][X] = ch
+
+
+def compose(f: Frame, wear=ORIG, hair=None, eyes=None, shut=None, hat=None, acc=None, cut=None) -> Grid:
+    """The game's composition of a split frame (ChibiDoll.ts): the worn layers, the attachments at their slots, the bare
+    edges closed inside the reference."""
+    import looks_R as LK
+    hair = LK.WIND if hair is None else hair
+    eyes = (LK.CALM_SHUT if f.shut else LK.CALM) if eyes is None else (shut if f.shut and shut is not None else eyes)
+    T = head_T(f)
+    g = Grid(F, F)
+    for key, L in f.layers:
+        if L is None:
+            if key == '@hair': draw_att(g, hair, T, cut)
+            elif key == '@eyes': draw_att(g, eyes, T)
+            elif key == '@face' and acc is not None: draw_att(g, acc, T)
+            elif key == '@hat' and hat is not None: draw_att(g, hat, T)
+            continue
+        if item_of(key) in ('base', 'bow') or item_of(key) in wear: g.stamp(L, 0, 0)
+    ref = f.ref
+    add = [(x, y) for y in range(F) for x in range(F) if g.px[y][x] == '.' and ref.px[y][x] != '.' and
+           any(0 <= x + dx < F and 0 <= y + dy < F and g.px[y + dy][x + dx] not in '.O' for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)))]
+    for (x, y) in add: g.px[y][x] = 'O'
+    return g
+
+
+def split_all(an):
+    """Every frame's head split; the check: with the approved hair, eyes and items every frame is what it was (and so
+    is every removal of items)."""
+    rep = {}
+    for name, seq in an.items():
+        for i, (f, _) in enumerate(seq):
+            f.ref = f.flat(ORIG)
+            before = {w: runtime(f, w) for w in (ORIG, (), ('tunic', 'boots'))}
+            split_head(f)
+            f.ref = before[ORIG]
+            bad = [same(compose(f, w), before[w]) for w in before]
+            if any(bad): rep[f'{name}{i}'] = bad
+    return rep
+
+
+def att_json(g: Grid, pal=None, mask=False) -> dict:
+    b = bbox(g)
+    d = {'x': b[0], 'y': b[1], 'rle': rle(g, *b, fill=mask)}
+    if pal: d['pal'] = pal
+    return d
+
+
 def export(path: str):
     from palette import PALETTE
     import poses_R                                         # the rest of the moves (GPT's minimal set)
+    import looks_R
     an = anims()
     an.update(poses_R.anims())
+    bad = split_all(an)
+    assert all(v[0] == 0 for v in bad.values()) and set(bad) <= {'hurt0'}, bad   # (the hit's shut eyes: the blink's
+                                                                                  #  lids now, a pixel without the hood)
     frames, out = [], {}
     for name, seq in an.items():
         idx = []
         for f, ms in seq: idx.append(len(frames)); frames.append(frame_json(f))
         out[name] = {'frames': idx, 'ms': [ms for _, ms in seq], 'loop': LOOPS.get(name, False)}
     data = {'frame': F, 'origin': [A.FOOT[0], A.FOOT[1]], 'height': 62, 'facing': 'right', 'pal': PALETTE,
-            'anims': out, 'frames': frames}
+            'anims': out, 'frames': frames, 'looks': looks_R.export_json()}
     s = json.dumps(data, separators=(',', ':'))
     open(path, 'w').write(s)
     return len(s)
