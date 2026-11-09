@@ -12,7 +12,7 @@ import { SUN_GATE } from '../../world/SunGate';
 import { footBox, rng, ux, uz, uy, type Disposable } from '../kit/units';
 import { skyAndLight } from '../kit/sky';
 import { Tiles, flagstoneCanvas, ashlarCanvas, terracottaCanvas, slateCanvas } from '../kit/materials';
-import { terraceSlab, balustrade, wallRun, stair, tower, block, urn, ivyRun, farMountains, sunRune, contactShade, ivyCanvas } from '../kit/terrain';
+import { terraceSlab, balustrade, wallRun, stair, tower, block, urn, ivyRun, farMountains, sunRune, contactShade, ivyCanvas, FLUSH } from '../kit/terrain';
 import { pond } from '../life/pond';
 import type { Dressing } from './dressing';
 import { LOOKS, type LookName } from './looks';
@@ -138,7 +138,7 @@ export const islandTerrace = (areaId: string, spec: TerraceSpec) => (focus: Plac
     for (const h of levels) {
       const yTop = uy(h.H), zF2 = uz(h.front), zB2 = uz(h.back), hx0 = ux(h.x), hx1 = ux(h.x + h.w);
       wallRun(P, Math.min(hx0, xW0 - 4), Math.max(hx1, xW1 + 4), yLow, yTop - yLow, zF2 + 0.02, { thick: 0.7, cornice: false, pilasterEvery: 4.2 });
-      P.add('moulding', box(Math.max(hx1, xW1 + 4) - Math.min(hx0, xW0 - 4), 0.16, 0.3, (xW0 + xW1) / 2, yTop - 0.16, zF2 + 0.1, 1, 0.03)); // the lip
+      P.add('moulding', box(Math.max(hx1, xW1 + 4) - Math.min(hx0, xW0 - 4), 0.16 - FLUSH, 0.3, (xW0 + xW1) / 2, yTop - 0.16, zF2 + 0.1, 1, 0.03)); // the lip (its top under the paving's: FLUSH)
       mkGround(hx1 - hx0 + 18, zF2 - zB2 + 0.4, (hx0 + hx1) / 2, yTop, (zF2 + zB2) / 2 - 0.1, 2.2);
       for (const b of h.blocks ?? []) block(P, ux(b.x0), ux(b.x1), uz(b.front - b.depth), uz(b.front), yTop, uy(b.h));
       for (const t of climb.filter((c) => Math.abs(c.base - yLow * 100) < 2)) { // the stacked blocks on the floor below, against this wall

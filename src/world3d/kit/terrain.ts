@@ -4,6 +4,12 @@
 import * as THREE from 'three';
 import { Parts, box, cyl, lathe, worldUV } from '../../arena3d/RoomKit';
 import type { Disposable } from './units';
+import { SPIRITS } from '../../spirits/flag';
+
+/** How far a body's top sits under the face that covers it — a cornice, a cap, the paving of the floor above — so the
+ *  two never lie in one plane (?spirits, GPT step 4P: two faces in one plane fight for the same pixels and the one that
+ *  shows flips with the camera; tools/spirits/zfight.cjs finds them). 0 elsewhere: the maps as they were. */
+export const FLUSH = SPIRITS.on ? 0.02 : 0;
 
 /** The terrace: its top slab (the walkable paving is the place's ground plane; this is the slab's body and its front wall
  *  dropping to the valley), a moulding under the lip and buttresses down the face. `sink`: the body's and the lip
@@ -36,7 +42,7 @@ export function balustrade(P: Parts, x0: number, x1: number, y: number, z: numbe
 /** A wall behind the floor: ashlar with pilasters every few units, a cornice along its top, a plinth at its foot. */
 export function wallRun(P: Parts, x0: number, x1: number, y: number, h: number, z: number, o: { thick?: number; pilasterEvery?: number; mat?: string; cornice?: boolean } = {}): void {
   const t = o.thick ?? 0.8, mat = o.mat ?? 'wall', w = x1 - x0, cx = (x0 + x1) / 2;
-  P.add(mat, box(w, h, t, cx, y, z - t / 2, 1.3));
+  P.add(mat, box(w, h - FLUSH, t, cx, y, z - t / 2, 1.3)); // (its top under the cornice's, or under the paving of the floor it holds up)
   P.add('moulding', box(w + 0.1, 0.22, 0.14, cx, y, z + 0.04, 1, 0.02));
   if (o.cornice !== false) P.add('moulding', box(w + 0.2, 0.18, t + 0.25, cx, y + h - 0.18, z - t / 2 + 0.06, 1, 0.03), box(w + 0.1, 0.1, t + 0.1, cx, y + h - 0.34, z - t / 2 + 0.03, 1, 0.02));
   const every = o.pilasterEvery ?? 3.2;

@@ -8,7 +8,10 @@ export const SPIRITS = { on: Q.has('spirits'), lean: Q.get('lean') !== '0', lite
   /** `&lv=1`…`&lv=100`: the spirit's light shown at that level (the art review), whatever the character's level. */
   lv: Q.has('lv') ? Math.max(1, Math.min(100, Number(Q.get('lv')) || 1)) : null,
   /** `&ghost`: the spirit form and its way into the world (GPT's stage 2, under review — SpiritForm, SpiritLoading). */
-  ghost: Q.has('ghost') };
+  ghost: Q.has('ghost'),
+  /** The world's exploration camera, its pitch in degrees (GPT, 10 Nov, after the 19 / 24 / 30 / 36 comparison: 24° at
+   *  9 units for the next playable test; `&cam=30` the wider 30° / 10.5 to compare, `&cam=19` the earlier 19° / 7). */
+  cam: Q.has('cam') ? Number(Q.get('cam')) || 24 : 24 };
 
 /** The Spectral Samurai's own modelled body (gate 1b, in assets/hero3d): GPT's four drawings → the shape → the drawings
  *  baked on → the Beginner's 65-bone skeleton fitted in (tools/hero3d, src/spirit_samurai). */

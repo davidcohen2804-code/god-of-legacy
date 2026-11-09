@@ -8,6 +8,7 @@
 // and skill stays the game's own. Hero3D is untouched (its parts are reached as they are).
 import * as THREE from 'three';
 import type { Hero3D } from '../arena3d/Hero3D';
+import { SPIRITS } from './flag';
 
 export interface SpiritLook {
   /** The body's dark base, its light inside, its glowing rim, the dark line round it. */
@@ -472,14 +473,23 @@ export class SpiritFinish {
 /** The Spectral Samurai's modelled body finished as a spirit (gate 1b). */
 export function makeSpiritFinish(hero: Hero3D): SpiritFinish { return new SpiritFinish(hero); }
 
-/** The camera for the spirits (GPT, gate 1: the hero about 30 % of the screen's height as the first target — about 7 of
- *  the world's 9 units away; the pull-back for several foes and each place's own framing kept). */
+/** The camera for the spirits (gate 1 had him nearer, 7 of the world's 9 units away at 19°; now the camera chosen for
+ *  the next playable test, `SPIRITS.cam`; the pull-back for several foes and each place's own framing kept). */
 export function frameSpirit(a3: unknown): void {
-  const a = a3 as { CAM?: { dist: number; pitch: number } };
-  // (GPT, 9 Nov, after the 17° / 19° comparison: 19° for the world's exploration camera — more of the floor and the
-  // blocks' tops for the depth movement; the cave's and the sky's own cameras keep theirs)
-  if (a.CAM) a.CAM = { ...a.CAM, dist: a.CAM.dist * (7 / 9), pitch: a.CAM.pitch === 17 ? 19 : a.CAM.pitch };
+  const a = a3 as { CAM?: { dist: number; pitch: number }; sunShadow?: { a: number; b: number } };
+  // (GPT, 10 Nov, after the 19 / 24 / 30 / 36 comparison in the courtyard: 24° at 9 units for the next playable test,
+  // compared with 30° / 10.5 — `&cam`; the world's own camera is 17° at 9: its distance scaled for every place, its
+  // pitch only where it is the world's — the cave's and the sky's own cameras keep theirs)
+  const [pitch, dist] = SPIRIT_CAMS[SPIRITS.cam] ?? SPIRIT_CAMS[24];
+  if (!a.CAM) return;
+  const was = a.CAM.pitch, now = was === 17 ? pitch : was;
+  a.CAM = { ...a.CAM, dist: a.CAM.dist * (dist / 9), pitch: now };
+  // (the painted bodies' sun shadows were laid for the pitch the place was built with: laid again for this one)
+  const S = a.sunShadow, r = Math.PI / 180;
+  if (S && now !== was) { S.a *= Math.cos(was * r) / Math.cos(now * r); S.b *= Math.tan(now * r) / Math.tan(was * r); }
 }
+/** The exploration cameras compared for the spirits (`&cam`): pitch°, distance in units at the world's own 9. */
+const SPIRIT_CAMS: Record<number, [number, number]> = { 19: [19, 7], 24: [24, 9], 30: [30, 10.5], 36: [36, 12] };
 
 /** The Spectral Samurai laid on a 3D hero. (No halo round his layer: a glow there rings his cast shadow on the floor
  *  too — his own light is the rim, the eyes and the blade.) */

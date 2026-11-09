@@ -69,6 +69,29 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
   was z-fighting: the terrace slab's top lay in the paving's own plane (`terraceSlab(…, sink)`, 2 cm under it, passed
   only under `?spirits` in islandTerrace). **FYI Maps:** the same z-fight shows the slab's ashlar through the paving in
   `?world3d=1` at some camera positions — passing `sink` 0.02 there too would fix it; your call.
+- **10 Nov — GPT's decisions on the new Samurai (David's anime spirit illustration):** a NEW 3D body on the same 65-bone
+  skeleton (the motion library, the equipment and the spirit layer kept and adapted); GPT drew the four model views
+  (front, right, back, left — approved by GPT as the reconstruction input; David's approval pending, then: the shape →
+  the bake → the rig → the neutral mesh shown from four sides → the spirit materials). The exploration camera for the
+  next playable test: **24° at 9 units**, FOV 34 (`SPIRITS.cam`, `src/spirits/SpiritBody.ts frameSpirit`; `&cam=30` the
+  wider 30° / 10.5 to compare, `&cam=19` the earlier 19° / 7), not locked yet.
+- **4P — the maps' coplanar faces (behind `?spirits` only):** `tools/spirits/zfight.cjs` (a built copy served, the lab
+  builds each map) lists faces of different pieces lying in one plane over the same spot — they flicker with the camera
+  (the courtyard floor's flip was one). Found on every island map: the back wall's top inside its cornice (`wallRun`),
+  the upper floors' wall tops and lip in their paving's plane (terraces_2, orchard_1, ruins: the courtyard floor's own
+  case), the temple platform's top in its cap's, the masters' stage. Fixed under `?spirits` by `FLUSH`
+  (`kit/terrain.ts`: the covered top 2 cm under its cover; 0 without `?spirits`). **FYI Maps:** the same faces fight in
+  `?world3d=1` (exporting `FLUSH = 0.02` for it too would fix them); the ones outside the island kit are listed in the
+  next 4P note.
+- **Request — to: DFO PvP arena dynamics (the game's speed at a low frame rate; GPT 4P: "low FPS must not make the whole
+  simulation run in slow motion"):** the world steps by Phaser's smoothed delta (`LegacyCourtyardScene.update`, capped at
+  50 ms), so it keeps real time down to 20 fps — except where Phaser's `TimeStep` holds each frame's delta to 1/60 s:
+  while the game's window is not focused (`inFocus`), and for 120 frames after it regains focus or the tab is shown
+  again, and at boot (`resetDelta` → `_coolDown = panicMax`, default 120). Below 60 fps those stretches run in slow
+  motion (at 40 fps: ~3 s at 2/3 speed each time the player comes back to the game; an unfocused but visible window,
+  always). Proposal, your call (the engine's step is yours): the game config's `fps: { panicMax: 0 }`, and whether a
+  visible but unfocused window should keep real time (`game.loop.blur` / `inFocus`). I'll confirm focused play on
+  David's PC.
 - **Stage 2 under GPT's review, behind `?spirits&ghost` only:** the Samurai as a see-through spirit whose light grows
   with his level (`src/spirits/SpiritForm.ts`: the spirit material, the spirit blade with a one-hand hilt, wisps, a
   ripple and a soft contact shadow) and its own way into the world (`src/spirits/SpiritLoading.ts`, up until he is

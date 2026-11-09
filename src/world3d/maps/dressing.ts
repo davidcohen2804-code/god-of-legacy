@@ -8,7 +8,7 @@ import type { Life, Wind } from '../life/kit';
 import { banner } from '../life/cloth';
 import { pond } from '../life/pond';
 import { footBox } from '../kit/units';
-import { balustrade, sunRune } from '../kit/terrain';
+import { balustrade, sunRune, FLUSH } from '../kit/terrain';
 import type { AreaDef } from '../../world/Areas';
 import type { Disposable } from '../kit/units';
 import { growTrees, crownCanvas, leafFall } from '../kit/trees';
@@ -260,7 +260,7 @@ export function templeFront(c: DressCtx, x: number, TW: number, PH: number, zP: 
   c.M.lacquer ??= std({ color: 0xb8302a, roughness: 0.35, metalness: 0.05 }); c.M.plaster ??= std({ color: 0xf2e8da, roughness: 0.95 });
   c.M.door ??= std({ color: 0xe8c080, emissive: 0xff9a40, emissiveIntensity: 1.1, roughness: 0.6 });
   const bays = o.bays ?? 7, doorBays = o.doorBays ?? [2, 3, 4], zC = zP - 0.5, zW = zP - 1.7, yT = PH, cx = x;
-  P.add('wall', box(TW, PH, 6.4, cx, 0, zP - 3.2, 1.3)); P.add('moulding', box(TW + 0.2, 0.1, 6.6, cx, yT - 0.1, zP - 3.2, 1.3, 0.03));
+  P.add('wall', box(TW, PH - FLUSH, 6.4, cx, 0, zP - 3.2, 1.3)); P.add('moulding', box(TW + 0.2, 0.1, 6.6, cx, yT - 0.1, zP - 3.2, 1.3, 0.03)); // (the platform's top under its cap's: FLUSH)
   const steps = Math.max(3, Math.round(PH / 0.18));
   for (let k = 1; k <= steps; k++) P.add('moulding', box(TW * 0.3, k * (PH / steps), (steps + 1 - k) * 0.28, cx, 0, zP + (steps + 1 - k) * 0.14, 1.1, 0.02));
   const px: number[] = []; for (let i = 0; i <= bays; i++) px.push(cx - TW / 2 + 0.6 + (i * (TW - 1.2)) / bays);
@@ -283,7 +283,7 @@ export const templeRoad: Dressing = (c) => {
   const TW = 14, zP = zWall - 0.2;
   templeFront(c, cx, TW, 1.1, zP);
   // the Masters' stage (the prop) with four banners behind it: red, blue, green, white
-  for (const p of c.A.props.filter((q) => q.id === 'stage')) { const b = fb(p.foot, c.ax), h = uy(p.h || 66); P.add('balustrade', box(b.w, h, b.d, b.cx, 0, b.cz, 1.1, 0.03)); P.add('moulding', box(b.w + 0.2, 0.08, b.d + 0.2, b.cx, h - 0.08, b.cz, 1.1, 0.02)); P.add('moulding', box(1.4, h / 2, 0.5, b.cx, 0, b.z1 + 0.25, 1.1, 0.02));
+  for (const p of c.A.props.filter((q) => q.id === 'stage')) { const b = fb(p.foot, c.ax), h = uy(p.h || 66); P.add('balustrade', box(b.w, h - FLUSH, b.d, b.cx, 0, b.cz, 1.1, 0.03)); P.add('moulding', box(b.w + 0.2, 0.08, b.d + 0.2, b.cx, h - 0.08, b.cz, 1.1, 0.02)); P.add('moulding', box(1.4, h / 2, 0.5, b.cx, 0, b.z1 + 0.25, 1.1, 0.02));
     for (const [i, dx] of [-1.8, -0.6, 0.6, 1.8].entries()) { P.add('dark', cyl(0.04, 0.04, 2.6, b.cx + dx, h, b.z0 + 0.2, 6)); life.push(banner(scene, { x: b.cx + dx + 0.02, y: h + 2.5, z: b.z0 + 0.22, yaw: 0, w: 0.5, h: 1.6, emblem: i === 0 }, { wind: air, seed: 120 + i })); } }
   // stone lions at the road's west mouth, the Waystone at the east end under a little roof
   for (const dz of [-0.6, 0.9]) P.add('moulding', box(0.9, 0.6, 1.2, c.F.x0 + 1.6, 0, c.F.zB - 1.0 + dz * 0.4, 1.1, 0.03), lathe([[0.001, 0], [0.3, 0.02], [0.34, 0.5], [0.26, 0.8], [0.32, 1.0], [0.2, 1.2], [0.001, 1.26]], c.F.x0 + 1.6, 0.6, c.F.zB - 1.0 + dz * 0.4, 12));

@@ -95,7 +95,7 @@ export async function startSpiritLab(): Promise<void> {
     renderer.autoClear = true; composer.render();
     renderer.autoClear = false; renderer.clearDepth(); renderer.render(sc, cam);
     renderer.clearDepth(); renderer.render(front3, cam);
-    (window as unknown as { __lab: unknown }).__lab = { frac: frac(), dist, t };
+    (window as unknown as { __lab: unknown }).__lab = { frac: frac(), dist, t, scene3, front3 }; // (the place's scenes: the map checks — tools/spirits/zfight.cjs)
   };
   renderer.setAnimationLoop(frame);
 }
