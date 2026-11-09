@@ -12,6 +12,7 @@ import GATE_DATA from '../data/world-gate.json';
 import TOWER_DATA from '../data/world-towers.json';
 import HEIGHT_DATA from '../data/world-heights.json';
 import { Pt, WorldObject } from './WorldGeometry';
+import { SPIRITS } from '../spirits/flag';
 
 export const AREA_W = DATA.size[0];
 export const AREA_H = DATA.size[1];
@@ -188,8 +189,17 @@ const skyUnder = () => {
 };
 const cloudProps = () => CLOUDS.map((c, i) => ({ id: `sky-${i}`, foot: [[c.x0, SKY.band[0]], [c.x1, SKY.band[0]], [c.x1, SKY.band[1]], [c.x0, SKY.band[1]]] as Pt[],
   base: [[c.x0, SKY.band[0]], [c.x1, SKY.band[0]], [c.x1, SKY.band[1]], [c.x0, SKY.band[1]]] as Pt[], h: c.z, top: c.z, soft: true, stand: [SKY.band[0], SKY.band[1]] as [number, number] }));
+/** Legacy of Spirits (behind ?spirits): in the 3D world an area's stone block is a whole cube built on its foot
+ *  (world3d/maps/islandTerrace: footBox(p.foot)), not a painted top face with open floor behind it — so it takes its
+ *  whole foot (nobody walks into it from behind or from the sides: David, 9 Nov, the hero sank into the cubes) and its
+ *  whole top is where one stands. (The towers' and the maps above's blocks are built on their base, as they collide.) */
+const asCube = <P extends { id: string; foot: Pt[]; base?: Pt[]; stand?: [number, number] }>(p: P): P => {
+  if (!SPIRITS.on || !p.stand || !p.base || !/^[^-]+-block/.test(p.id)) return p;
+  const ys = p.foot.map((q) => q[1]);
+  return { ...p, base: p.foot, stand: [Math.min(...ys) + 2, Math.max(...ys) - 3] };
+};
 export function worldObjects(): WorldObject[] {
-  return ([...STRIP.props, ...GATE.props, ...towerProps(), ...heightProps(), ...cloudProps(), ...skyUnder()] as { id: string; foot: Pt[]; base?: Pt[]; h: number; top?: number; soft?: boolean; stand?: [number, number] }[]).map((p) => ({
+  return ([...(STRIP.props as unknown as { id: string; foot: Pt[]; base?: Pt[]; stand?: [number, number] }[]).map(asCube), ...GATE.props, ...towerProps(), ...heightProps(), ...cloudProps(), ...skyUnder()] as { id: string; foot: Pt[]; base?: Pt[]; h: number; top?: number; soft?: boolean; stand?: [number, number] }[]).map((p) => ({
     id: p.id, footprint: p.stand && p.base ? p.base : p.foot, height: p.h, ...(p.top !== undefined ? { topZ: p.top } : {}), ...(p.stand ? { stand: p.stand } : {}),
     ...(p.base ? { base: p.base } : {}), ...(p.soft ? { soft: true } : {}),
     cover: 'hard' as const, occluder: [], frontY: Math.max(...p.foot.map((q) => q[1])) + 1,

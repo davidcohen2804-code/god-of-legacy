@@ -12,6 +12,8 @@ import { HERO3D } from '../arena3d/hero3dFlag';
 import type { HeroPreview3D } from '../arena3d/HeroPreview3D';
 import { genderOf } from '../characters/Look';
 import { chibiOn } from '../chibi/ChibiBody';
+import { SPIRITS } from '../spirits/flag';
+import { buildSpiritSelect, preloadSpiritSelect } from '../spirits/SpiritSelect';
 /** Each class's weapon in the 3D Beginner's hand (as Hero3D's CLASS_WEAPON, without loading it here). */
 const CLASS_WEAPON3D: Record<string, 'sword' | 'katana' | 'bow' | 'staff' | 'cane'> = { warrior: 'sword', samurai: 'katana', archer: 'bow', book_mage: 'staff', gambler: 'cane' };
 
@@ -35,6 +37,7 @@ export class CharacterSelectScene extends Phaser.Scene {
   constructor() { super('CharacterSelectScene'); }
 
   preload(): void {
+    if (SPIRITS.on) { preloadSpiritSelect(this); return; } // (Legacy of Spirits: its own select, src/spirits/SpiritSelect)
     preloadLife(this); preloadThrone(this);
     for (const c of HERO_CARDS) if (!this.textures.exists(`hero.card.${c}`)) this.load.image(`hero.card.${c}`, `assets/final/heroes/${c}/card.png`); // the five heroes, painted (the stage shows the chosen one)
     const chars = CharacterStore.getSlots().map((s) => s.character);
@@ -47,6 +50,7 @@ export class CharacterSelectScene extends Phaser.Scene {
 
   create(): void {
     CharacterStore.endHero(); // back from a START HERO session: the stored characters again
+    if (SPIRITS.on) { this.createSpirits(); return; }
     for (const s of CharacterStore.getSlots()) buildLook(this, s.character); // one picture per look: stage + slot portraits
     this.cameras.main.fadeIn(240, 0, 0, 0);
     const bg = this.add.image(DESIGN.width / 2, DESIGN.height / 2, 'characterSelect.background');
@@ -144,5 +148,18 @@ export class CharacterSelectScene extends Phaser.Scene {
       this.ui?.destroy();
       this.ui = undefined;
     });
+  }
+
+  /** Legacy of Spirits (GPT, 9 Nov): the Spectral Samurai is the hero of this phase — his own saved record, as the
+   *  regular select's pick (CharacterStore.startHero: kept by class, written only when he enters the world). */
+  private createSpirits(): void {
+    this.cameras.main.fadeIn(240, 0, 0, 0);
+    CharacterStore.startHero('samurai', CLASS_NAMES.samurai ?? 'Samurai', HERO_LEVEL);
+    const off = buildSpiritSelect(this, {
+      level: CharacterStore.getSelectedCharacter()?.level ?? HERO_LEVEL,
+      onBack: () => { CharacterStore.endHero(); this.scene.start('MainMenuScene'); },
+      onEnter: () => { CharacterStore.touchHero(); clearPvpFromUrl(); this.scene.start('LegacyCourtyardScene', { pvpRoom: null }); },
+    });
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, off);
   }
 }

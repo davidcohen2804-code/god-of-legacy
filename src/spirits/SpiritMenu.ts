@@ -18,7 +18,7 @@ const PLATE = { w: 372 * R, h: 58 * R, wMain: 410 * R, hMain: 64 * R };
 const ROWS = [412, 490, 565, 640, 715].map((y) => y * R);
 const RULE_TOP = 325 * R, RULE_BOTTOM = 778 * R;
 
-const C = {
+export const C = {
   plate: [0x2b1a44, 0x170e26], plateMain: [0x8c1426, 0x4c0814], gold: 0xd9b46a, goldHi: 0xf3d9a0, goldDim: 0x8a6a36,
   text: '#fbf3e2', textMain: '#fff6e4', sub: '#e6d6b4', // (the plain ones' words a little brighter — GPT, 9 Nov: faint at 1280 × 720)
 } as const;
@@ -72,7 +72,7 @@ function drawPlate(g: Phaser.GameObjects.Graphics, w: number, h: number, main: b
 }
 
 /** A gold rule with a diamond in the middle (above and below the menu). */
-function drawRule(scene: Phaser.Scene, x: number, y: number, w: number): void {
+export function drawRule(scene: Phaser.Scene, x: number, y: number, w: number): void {
   const g = scene.add.graphics().setDepth(6);
   g.lineStyle(1.4, C.gold, 0.85); g.lineBetween(x - w / 2, y, x - 18, y); g.lineBetween(x + 18, y, x + w / 2, y);
   g.fillStyle(C.gold, 1);
@@ -88,7 +88,7 @@ const ART = {
 } as const;
 
 /** Soft round light (white, faded to nothing at its edge), made once. */
-function glowTex(scene: Phaser.Scene, key: string, r: number): string {
+export function glowTex(scene: Phaser.Scene, key: string, r: number): string {
   if (scene.textures.exists(key)) return key;
   const c = scene.textures.createCanvas(key, r * 2, r * 2)!; const x = c.getContext();
   const gr = x.createRadialGradient(r, r, 0, r, r, r); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.35, 'rgba(255,255,255,0.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
@@ -96,7 +96,7 @@ function glowTex(scene: Phaser.Scene, key: string, r: number): string {
 }
 
 /** A leaf or a petal (made once each): an almond shape, its vein a shade darker. */
-function leafTex(scene: Phaser.Scene, key: string, col: number, w: number, h: number): string {
+export function leafTex(scene: Phaser.Scene, key: string, col: number, w: number, h: number): string {
   if (scene.textures.exists(key)) return key;
   const g = scene.make.graphics({}, false);
   g.fillStyle(col, 1); g.fillEllipse(w / 2, h / 2, w, h);
