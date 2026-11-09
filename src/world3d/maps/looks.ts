@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import type { SkyOpts } from '../kit/sky';
 
-export type LookName = 'golden' | 'crimson' | 'dusk' | 'sakura' | 'ironhold';
+export type LookName = 'golden' | 'crimson' | 'dusk' | 'sakura' | 'ironhold' | 'spirit';
 
 export interface Look {
   /** The tiles' folder (public/assets/world3d/tex/<kit>) and the names of the paving / wall tiles in it. */
@@ -22,6 +22,8 @@ export interface Look {
   night?: boolean;
   /** Moss tile for the kit (dusk's ground under the roots). */
   moss?: boolean;
+  /** At night: the motes' colour (fireflies by default) and warm lights in the stair's lantern posts. */
+  motes?: number; lanterns?: boolean;
 }
 
 const sunA = new THREE.Vector3(0.55, 0.42, 0.72);
@@ -58,6 +60,17 @@ export const LOOKS: Record<LookName, Look> = {
     ivy: ['#ffc6d8', '#f59ab9', '#fff0f4', '#e88aa8', '#7aa05a'], flowers: ['#f59ab9', '#ffd0dc', '#6a9a4a'],
     crown: ['#ffc6d8', '#f59ab9', '#fff0f4'], crownColor: 0xffffff, crownEmissive: 0x4a1a2a, crownEmissiveIntensity: 0.5,
     fall: { petal: true, size: [0.085, 0.07], hue: [0.94, 0.98], sat: [0.6, 0.9], light: [0.7, 0.84], emissive: 0x3a1420 },
+  },
+  spirit: { // Legacy of Spirits (behind ?spirits; GPT, 9 Nov): the Legacy Courtyard in moonlit twilight — a violet-blue sky, the
+    // moon's cool light from the front left, the sandstone cooler and a little desaturated (its detail kept), warm pools
+    // round the brazier and the lanterns, crimson and magenta in the leaves; never so dark that the Samurai is lost
+    kit: 'island', pavingTile: 'sandstone_paving', wallTile: 'sandstone_wall', pavingBase: [200, 188, 178], wallBase: [190, 178, 170],
+    sky: { sunFrom: new THREE.Vector3(-0.45, 0.72, 0.55), sunColor: 0xb8c2ff, sunIntensity: 1.55, hemiSky: 0x8e8ac8, hemiGround: 0x2e2840, hemiIntensity: 1.05, top: 0x1c1844, mid: 0x4a3a82, low: 0x9472b2, background: 0x3a3066, fog: { color: 0x3e3468, near: 36, far: 110 }, exposure: 1.0, cloud: 0x7c72b4 },
+    tint: { paving: 0xd2ccdc, wall: 0xaca6bc, balustrade: 0xd6d2e0, moulding: 0xdedae6, roof: 0x5a6488, terracotta: 0xa88898, wood: 0x3a2a2a, barkBase: [58, 44, 46], bark: 0xa898a4, valley: 0x221e38, mountains: 0x2a2248, mist: 0x9a8cc8, clouds: 0x6a5c98 },
+    ivy: ['#9a1a3a', '#c42a52', '#d8407a', '#7a1030', '#b8306a', '#4a5a3a'], flowers: ['#d8306a', '#f06aa0', '#4a6a3a'],
+    crown: ['#c42a4a', '#e0507a', '#8a1a34'], crownColor: 0xf0c8d8, crownEmissive: 0x3a0a1a, crownEmissiveIntensity: 0.4,
+    fall: { petal: false, size: [0.1, 0.1], hue: [0.94, 1.0], sat: [0.6, 0.85], light: [0.38, 0.55], emissive: 0x2a0812 },
+    night: true, motes: 0xc9a8ff, lanterns: true,
   },
   ironhold: { // red crags under a hot dusty sky, the sun from the right; pines, dry scrub, ash in the air
     kit: 'ironhold', pavingTile: 'red_ashlar', wallTile: 'crag_red_strata', pavingBase: [172, 138, 116], wallBase: [164, 100, 78],

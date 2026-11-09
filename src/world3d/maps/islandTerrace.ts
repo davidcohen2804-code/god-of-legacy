@@ -16,6 +16,7 @@ import { terraceSlab, balustrade, wallRun, stair, tower, block, urn, ivyRun, far
 import { pond } from '../life/pond';
 import type { Dressing } from './dressing';
 import { LOOKS, type LookName } from './looks';
+import { SPIRITS } from '../../spirits/flag';
 import { growTrees, leafFall, crownCanvas, mapleLeafCanvas } from '../kit/trees';
 import { type Life, type Wind, stillAir, tex as lifeTex, dotCanvas, Puffs, smokeCanvas } from '../life/kit';
 import { birds } from '../life/birds';
@@ -70,7 +71,7 @@ export const islandTerrace = (areaId: string, spec: TerraceSpec) => (focus: Plac
   const R = rng(spec.seed ?? 20261018);
   const disposables: Disposable[] = [];
   let shadowDirty = true;
-  const look = LOOKS[spec.look ?? (spec.dusk ? 'dusk' : spec.crimson ? 'crimson' : 'golden')], T = look.tint;
+  const look = LOOKS[SPIRITS.on && areaId === 'courtyard' ? 'spirit' : spec.look ?? (spec.dusk ? 'dusk' : spec.crimson ? 'crimson' : 'golden')], T = look.tint; // (?spirits: the courtyard in moonlit twilight)
   const tiles = new Tiles(renderer, look.kit, () => { shadowDirty = true; }); disposables.push(tiles);
   const cx = (F.x0 + F.x1) / 2, zMid = (F.zB + F.zF) / 2;
   const zWall = levels.length ? uz(levels[0].front) + 0.02 : F.zB - (spec.wallBack ?? 4.2), zFront = F.zF + 0.42;          // the back wall's face (a deep band of paving behind the walk line: the wall stays low in the frame, the sky over it); the terrace's lip
@@ -266,6 +267,8 @@ export const islandTerrace = (areaId: string, spec: TerraceSpec) => (focus: Plac
 
   // ------------------------------------------------------------------ the brazier's fire and the warm light
   if (benchNpc) { const L = new THREE.PointLight(0xff9a40, 2.6, 7, 2); L.position.set(brazier.x, 1.3, brazier.z); scene.add(L); warm.push(L); }
+  // (at night with lanterns: the stair's two gilt lantern posts lit, warm pools at the stair's foot)
+  if (look.lanterns && spec.stair) for (const side of [-1, 1]) { const L = new THREE.PointLight(0xffb060, 2.2, 6.5, 2); L.position.set(sx + side * (sw / 2 + 0.2), WALL_H + 0.8, nz - 0.1); scene.add(L); }
   const flame = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xffa040, transparent: true, opacity: 0.85, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
   flame.position.set(brazier.x, 1.12, brazier.z); flame.scale.set(0.9, 1.3, 1); flame.visible = !!benchNpc; scene.add(flame); disposables.push(flame.material);
   const smoke = new Puffs(soft ? 40 : 90, lifeTex(smokeCanvas(2)), false); scene.add(smoke.pts); disposables.push(smoke);
@@ -287,7 +290,7 @@ export const islandTerrace = (areaId: string, spec: TerraceSpec) => (focus: Plac
     for (const x of towersX) for (let k = 0; k < 4; k++) { const a = (k / 4) * Math.PI * 2 + 0.4; perches.push(new THREE.Vector3(x + Math.cos(a) * 2.15, 6.6 + 0.95 + 0.5, zWall - 1.5 + Math.sin(a) * 2.15)); }
     for (let x = F.x0 + 1.6; x < F.x1; x += 4.8) perches.push(new THREE.Vector3(x, 0.9 + 0.17, zFront + 0.12));
     life.push(birds(scene, { cx, cz: zWall - 6, rx: 16, rz: 9, y: 9.5, perches }, { n: soft ? 6 : 10, wind: air, seed: 77, color: dusk ? 0x1a1420 : undefined })); // (bats, at dusk)
-    if (dusk) life.push(fireflies(scene, [{ x: cx - 6, y: 1.0, z: zFront - 0.6, r: 2.6 }, { x: cx + 5, y: 1.1, z: zMid, r: 2.6 }, { x: cx, y: 1.4, z: zWall + 1.0, r: 3 }, { x: xW0 + 4, y: 1.2, z: zMid, r: 2.2 }, { x: xW1 - 4, y: 1.2, z: zMid, r: 2.2 }], { n: soft ? 28 : 70, wind: air, seed: 9, color: 0xd8ff8a }));
+    if (dusk) life.push(fireflies(scene, [{ x: cx - 6, y: 1.0, z: zFront - 0.6, r: 2.6 }, { x: cx + 5, y: 1.1, z: zMid, r: 2.6 }, { x: cx, y: 1.4, z: zWall + 1.0, r: 3 }, { x: xW0 + 4, y: 1.2, z: zMid, r: 2.2 }, { x: xW1 - 4, y: 1.2, z: zMid, r: 2.2 }], { n: soft ? 28 : 70, wind: air, seed: 9, color: look.motes ?? 0xd8ff8a }));
     else life.push(butterflies(scene, [{ x: cx - 5, y: 1.2, z: zFront - 0.2, r: 1.4 }, { x: cx + 4, y: 1.2, z: zFront - 0.3, r: 1.4 }, { x: axp - 2, y: 1.0, z: F.zB + 0.4, r: 1.2 }], { n: soft ? 4 : 8, wind: air, seed: 5 }));
     if (spec.stair) for (const [i, x] of [nx0 - 0.95, nx1 + 0.95].entries()) life.push(banner(scene, { x, y: 0, z: nz + 0.35, yaw: i === 0 ? 0 : Math.PI, w: 0.56, h: 2.2, pole: true }, { wind: air, seed: 11 + i }));
     if (spec.arch) life.push(pond(scene, { x: sx, z: zWall - 0.95, w: sw + 0.3, d: 0.9, y: 0 }, { wind: air, stone: M.balustrade, mirror: !soft, sunDir, sunColor: new THREE.Color(0xffc27a), skyLow: new THREE.Color(0xffb862), skyMid: new THREE.Color(0xcc7488), koi: 3, pads: 3 }));

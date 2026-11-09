@@ -18,6 +18,8 @@ export interface SkyOpts {
   exposure?: number; envIntensity?: number;
   /** How far the sun's shadow map reaches round the hero (units). */
   shadowReach?: number;
+  /** The slow band of cloud's colour (default: the golden hour's warm white). */
+  cloud?: number;
 }
 
 export interface Sky {
@@ -30,12 +32,12 @@ export interface Sky {
 }
 
 const SKY_VERT = 'varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }';
-const SKY_FRAG = 'uniform vec3 uTop; uniform vec3 uMid; uniform vec3 uLow; uniform float uDim; uniform float uTime; varying vec3 vP;\n'
+const SKY_FRAG = 'uniform vec3 uTop; uniform vec3 uMid; uniform vec3 uLow; uniform vec3 uCloud; uniform float uDim; uniform float uTime; varying vec3 vP;\n'
   + 'float h(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }\n'
   + 'float n(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(h(i), h(i + vec2(1, 0)), f.x), mix(h(i + vec2(0, 1)), h(i + vec2(1, 1)), f.x), f.y); }\n'
   + 'void main(){ float y = clamp(vP.y, -0.2, 1.0); vec3 c = y < 0.12 ? mix(uLow * 1.08, uMid, smoothstep(-0.05, 0.12, y)) : mix(uMid, uTop, smoothstep(0.12, 0.62, y));\n'
   + ' vec2 q = vec2(atan(vP.x, vP.z) * 3.0 + uTime * 0.004, y * 9.0); float cl = n(q * vec2(2.0, 1.0)) * 0.6 + n(q * 4.1) * 0.4; cl = smoothstep(0.55, 0.85, cl) * smoothstep(0.02, 0.18, y) * (1.0 - smoothstep(0.3, 0.55, y));\n'
-  + ' c = mix(c, vec3(1.0, 0.72, 0.6), cl * 0.45); gl_FragColor = vec4(c * (1.0 - uDim * 0.55), 1.0); }';
+  + ' c = mix(c, uCloud, cl * 0.45); gl_FragColor = vec4(c * (1.0 - uDim * 0.55), 1.0); }';
 
 export function skyAndLight(scene: THREE.Scene, front: THREE.Scene, renderer: THREE.WebGLRenderer, o: SkyOpts): Sky {
   const disposables: Disposable[] = [];
@@ -61,7 +63,7 @@ export function skyAndLight(scene: THREE.Scene, front: THREE.Scene, renderer: TH
   const hemiF = new THREE.HemisphereLight(o.hemiSky, o.hemiGround, o.hemiIntensity); front.add(hemiF);
 
   const skyMat = new THREE.ShaderMaterial({ side: THREE.BackSide, depthWrite: false, fog: false,
-    uniforms: { uTop: { value: new THREE.Color(o.top) }, uMid: { value: new THREE.Color(o.mid) }, uLow: { value: new THREE.Color(o.low) }, uDim: { value: 0 }, uTime: { value: 0 } },
+    uniforms: { uTop: { value: new THREE.Color(o.top) }, uMid: { value: new THREE.Color(o.mid) }, uLow: { value: new THREE.Color(o.low) }, uCloud: { value: o.cloud !== undefined ? new THREE.Color(o.cloud) : new THREE.Vector3(1.0, 0.72, 0.6) }, uDim: { value: 0 }, uTime: { value: 0 } },
     vertexShader: SKY_VERT, fragmentShader: SKY_FRAG });
   const sky = new THREE.Mesh(new THREE.SphereGeometry(160, 32, 16), skyMat); sky.position.set(o.cx, 0, o.cz); scene.add(sky);
   disposables.push(sky.geometry, skyMat);

@@ -221,7 +221,7 @@ export function buildSpiritSelect(scene: Phaser.Scene, h: SpiritSelectHandlers):
   button(L.back, false, 'BACK', 'back', () => leave(h.onBack));
   button(L.enter, true, 'ENTER WORLD', 'swords', () => leave(h.onEnter));
   const kb = scene.input.keyboard;
-  const enter = () => leave(h.onEnter), back = () => leave(h.onBack);
+  const enter = (e?: KeyboardEvent) => { if (!e?.repeat) leave(h.onEnter); }, back = () => leave(h.onBack); // (a held key from the menu's Enter never walks straight through)
   kb?.on('keydown-ENTER', enter); kb?.on('keydown-ESC', back);
   return () => { gone = true; kb?.off('keydown-ENTER', enter); kb?.off('keydown-ESC', back); pv?.destroy(); };
 }
