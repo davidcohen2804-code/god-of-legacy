@@ -32,6 +32,12 @@ const WIND = 180, ACTIVE = 120, RECOVER = 260; // strike phases (ms), the frame 
 
 export const mobFrameKey = (set: string, dir: Side, action: Action, i: number) => `mob-${set}-${dir}-${action}-${i}`;
 
+/** Every frame of a monster's set is in (Legacy of Spirits loads a map's monsters with the map: GPT step 4P). */
+export function mobSetLoaded(scene: Phaser.Scene, set: string): boolean {
+  for (const dir of ['left', 'right'] as Side[]) for (const [action, n] of Object.entries(C.actions) as [Action, number][]) for (let i = 0; i < n; i++) if (!scene.textures.exists(mobFrameKey(set, dir, action, i))) return false;
+  return true;
+}
+
 export function preloadMonsterFrames(scene: Phaser.Scene, set: string): void {
   for (const dir of ['left', 'right'] as Side[]) {
     for (const [action, n] of Object.entries(C.actions) as [Action, number][]) {

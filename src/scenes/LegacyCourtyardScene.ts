@@ -756,7 +756,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       for (const e of this.stage.extras ?? []) if (!this.textures.exists(e.key)) this.load.image(e.key, e.file);
       loadArenaSound(this, this.stage.id, [cls, sd?.foe?.cls ?? sd?.botCls]); // (the two fighters' classes' own sounds; another class sends for its own when it shows up)
     }
-    else preloadOpenWorld(this, { pictures: !(SPIRITS.on && WORLD3D.has(areaAt((sd?.at ?? toWorld(START.area, [START.x, START.y])).x).id)) }); // the open world: the start area and its neighbours (the rest streams in); Legacy of Spirits starting in 3D: not the painted world's pictures (never drawn there)
+    else { const lean3d = SPIRITS.on && WORLD3D.has(areaAt((sd?.at ?? toWorld(START.area, [START.x, START.y])).x).id); preloadOpenWorld(this, { pictures: !lean3d, mobs: !lean3d }); } // the open world: the start area and its neighbours (the rest streams in); Legacy of Spirits starting in 3D: not the painted world's pictures (never drawn there), the monsters with their maps (GPT step 4P)
     if (!this.textures.exists(CT.dummy.key)) this.load.image(CT.dummy.key, CT.dummy.file);
     preloadBodies(this, classes, masks, pvp && !!me?.hero && !!classes); // (the arena's fighters are ready heroes: their painted bodies only)
     preloadChibi(this, classes); // ?chibi: the new pixel-art body loads with the rest (no painted body first)
@@ -894,7 +894,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       // The open world: one long world left to right, the camera following you along it.
       const startAt = at ?? toWorld(START.area, [START.x, START.y]);
       const in3d = WORLD3D.has(areaAt(startAt.x).id); // (the world in 3D: only the maps rebuilt so far)
-      this.world = new OpenWorld(this, { no2d: in3d, spawnIn: in3d ? (id) => id === areaAt(startAt.x).id : undefined, sunGateOpen: this.quests[SUN_GATE_KEY]?.state === 'done' || !!this.quests.training_grounds /* (walked the old road east before the gate stood: it stays open) */, onArea: (a) => { if (a.name !== this.areaName) { this.areaName = a.name; this.areaTitle?.show(a.name); } if (a.id === 'afterglow') this.openSunGate(); } }, startAt);
+      this.world = new OpenWorld(this, { no2d: in3d, lazyMobs: in3d && SPIRITS.on, spawnIn: in3d ? (id) => id === areaAt(startAt.x).id : undefined, sunGateOpen: this.quests[SUN_GATE_KEY]?.state === 'done' || !!this.quests.training_grounds /* (walked the old road east before the gate stood: it stays open) */, onArea: (a) => { if (a.name !== this.areaName) { this.areaName = a.name; this.areaTitle?.show(a.name); } if (a.id === 'afterglow') this.openSunGate(); } }, startAt);
       if (in3d) { // the map as a 3D place: the stage, its camera on the hero, the skills' 3D pieces (three.js loads only here)
         const gen = this.sceneGen, areaId = areaAt(startAt.x).id;
         void import('../world3d/World3D').then(({ World3D }) => {

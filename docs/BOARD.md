@@ -56,7 +56,9 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
   larger than the window shows it, the quality step-down aimed at 60 fps (bloom off first, the level remembered),
   the stair lanterns' light drawn as glow, entry marks (`performance` marks `gol:*`); starting in 3D, the painted
   world's pictures (strip tiles, props, gate, backdrop — never drawn there) are not preloaded
-  (`preloadOpenWorld(scene, { pictures })`, default unchanged; Maps: the same would suit `?world3d=1`); his gameplay
+  (`preloadOpenWorld(scene, { pictures, mobs })`, default unchanged; Maps: the same would suit `?world3d=1`), and the
+  monsters' frames come with their maps (`WorldHooks.lazyMobs`: a map's sets before its monsters spawn, the
+  neighbours' next — the entry loaded all 1 150 frame files of every monster before); his gameplay
   body (15k triangles, `tools/spirits/lite.mjs`) behind `&lite=1` until GPT compares it. `&lean=0` gives the old
   picture to compare.
 - **Request — to: Maps:** in `?world3d=1` the 3D cubes still collide only on the painted block's front strip (`base`), so

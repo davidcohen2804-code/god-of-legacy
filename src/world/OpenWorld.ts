@@ -15,7 +15,7 @@ const MINIMAP_UP_URL = 'assets/world/minimap/world_up.jpg';
 import { ARENA, ARENA_AREA, GATE, ARENA_MINIMAP_URL, AREA_H, AREA_W, AreaDef, arenaTileKey, arenaTileUrl, belowTerrace, AreaNpc, BACKDROP, MOB_KINDS, ROW, START, TILES, TOWERS, HEIGHTS, type Heights, CLOUDS, SKY, SKY_AREA, heightArea, WORLD_FLOOR, WORLD_H, WORLD_W, areaAt, tileKey, tileUrl, toWorld, worldObjects } from './Areas';
 import { WorldObject, actorDepth, setWorldGeometry } from './WorldGeometry';
 import { Backdrop, preloadBackdrop } from './Backdrop';
-import { Monster, preloadMonsterFrames } from './Monster';
+import { Monster, mobSetLoaded, preloadMonsterFrames } from './Monster';
 import { CourtyardAmbience } from './Ambience';
 import { NAME_DEPTH } from '../game/ActorView';
 import { keyCap, namePlate } from '../game/Plates';
@@ -52,12 +52,15 @@ export interface WorldHooks {
   /** The world in 3D (src/world3d): none of the painted pictures — the strip, the backdrop, the props' cut-outs, the
    *  maps above, the gate's painting — only what plays (the floor, the NPCs, the monsters, the portal). */
   no2d?: boolean;
+  /** Legacy of Spirits (GPT step 4P): the monsters' frames are not all loaded with the world (1 150 files — most of its
+   *  entry): a map's come before its monsters are spawned, the neighbours' next, then the rest a set at a time. */
+  lazyMobs?: boolean;
 }
 
 /** The picture tiles within `reach` px of world x. */
 const tilesNear = (x: number, reach: number): number[] => TILES.flatMap(([tx, tw], i) => (tx + tw > x - reach && tx < x + reach ? [i] : []));
 
-export function preloadOpenWorld(scene: Phaser.Scene, o: { pictures?: boolean } = {}): void {
+export function preloadOpenWorld(scene: Phaser.Scene, o: { pictures?: boolean; mobs?: boolean } = {}): void {
   const L = (k: string, url: string) => { if (!scene.textures.exists(k)) scene.load.image(k, url); };
   // (pictures: false — Legacy of Spirits, GPT step 4P: the world starts in 3D, where the painted world is never drawn
   // (OpenWorld's no2d): its strip, arena, banners, sky clouds, gate and props' pictures are not loaded)
@@ -73,7 +76,7 @@ export function preloadOpenWorld(scene: Phaser.Scene, o: { pictures?: boolean } 
   for (const [name, a] of Object.entries(ART)) if (!scene.textures.exists(`npc-${name}`)) scene.load.spritesheet(`npc-${name}`, `assets/world/npc/${name}.png`, { frameWidth: a.w, frameHeight: a.h });
   L('kit.drop_beam', KIT('drop_beam')); L('kit.marker_portal', KIT('marker_portal'));
   for (const t of Object.values(MARK_TEX)) L(t, KIT(t.slice(4)));
-  for (const set of new Set(Object.values(MOB_KINDS).map((k) => k.frames))) preloadMonsterFrames(scene, set);
+  if (o.mobs !== false) for (const set of new Set(Object.values(MOB_KINDS).map((k) => k.frames))) preloadMonsterFrames(scene, set); // (mobs: false — they come with their maps: OpenWorld's lazyMobs)
   if (pics) preloadBackdrop(scene);
 }
 
@@ -403,9 +406,40 @@ export class OpenWorld {
     }
   }
 
+  // ------------------------------------------------------------------ lazy monsters (Legacy of Spirits, GPT step 4P)
+  private wantAreas = new Set<string>();
+  private lazyDead = false;
+  /** The monster frame sets a map needs (its own monsters and the floors' above it). */
+  private mobSetsOf(id: string): string[] {
+    const kinds: string[] = [];
+    for (const h of this.heightsOf(id)) for (const def of [h.mobs, h.boss]) if (def?.kind) kinds.push(def.kind);
+    const a = ROW.find((r) => r.id === id); for (const def of [a?.mobs, a?.mobs2]) if (def?.kind) kinds.push(def.kind);
+    return [...new Set(kinds.map((k) => MOB_KINDS[k]?.frames).filter((f): f is string => !!f))];
+  }
+  /** `sets` loaded (the missing ones queued on the scene's loader), then `done`. */
+  private loadSets(sets: string[], done: () => void): void {
+    const need = sets.filter((s) => !mobSetLoaded(this.scene, s));
+    if (!need.length) { done(); return; }
+    for (const s of need) preloadMonsterFrames(this.scene, s);
+    const L = this.scene.load;
+    const check = () => { if (this.lazyDead) { L.off(Phaser.Loader.Events.COMPLETE, check); return; } if (need.every((s) => mobSetLoaded(this.scene, s))) { L.off(Phaser.Loader.Events.COMPLETE, check); done(); } };
+    L.on(Phaser.Loader.Events.COMPLETE, check);
+    if (!L.isLoading()) L.start();
+  }
+  /** The maps either side of `id`: their monsters' frames, one set at a time (a crossing finds its monsters ready;
+   *  the rest of the world's never loaded until a map near it is reached). */
+  private prefetchNear(id: string): void {
+    if (this.lazyDead) return;
+    const at = ROW.findIndex((r) => r.id === id); if (at < 0) return;
+    const sets = [...new Set([ROW[at - 1], ROW[at + 1]].flatMap((r) => (r ? this.mobSetsOf(r.id) : [])))];
+    const next = () => { if (this.lazyDead) return; const s = sets.find((x) => !mobSetLoaded(this.scene, x)); if (s) this.loadSets([s], () => this.scene.time.delayedCall(200, next)); };
+    next();
+  }
+
   /** A monster born now (the den's stages): of `kind`, at home (x, y), with its own id. */
   spawnMob(kind: string, x: number, y: number, id: string): Monster | null {
     const k = MOB_KINDS[kind]; if (!k) return null;
+    if (this.hooks.lazyMobs && !mobSetLoaded(this.scene, k.frames)) this.loadSets([k.frames], () => undefined); // (lazy: its frames on their way — it shows as they come)
     const m = new Monster(this.scene, id, k, { x, y }, this.mobs.length); m.aggressive = true; this.mobs.push(m); return m; // (spawned to fight — the den: it sees you and comes)
   }
   /** The monsters whose id starts with `prefix`, gone. */
@@ -459,8 +493,15 @@ export class OpenWorld {
     if (id === 'sky') return HEIGHTS.filter((h) => h.cloud);
     const a = ROW.find((r) => r.id === id); return a ? HEIGHTS.filter((h) => !h.cloud && h.x < a.span[1] && h.x + h.w > a.span[0]) : [];
   }
-  /** One map's monsters, the floors above it included (the world in 3D spawns a map's as the hero crosses into it). */
+  /** One map's monsters, the floors above it included (the world in 3D spawns a map's as the hero crosses into it).
+   *  Lazy monsters: once their frames are in. */
   spawnArea(id: string): void {
+    if (!this.hooks.lazyMobs) { this.spawnAreaNow(id); return; }
+    this.wantAreas.add(id);
+    this.loadSets(this.mobSetsOf(id), () => { if (this.wantAreas.has(id)) this.spawnAreaNow(id); });
+    this.scene.time.delayedCall(1500, () => this.prefetchNear(id)); // (then the maps either side of it)
+  }
+  private spawnAreaNow(id: string): void {
     for (const h of this.heightsOf(id)) this.spawnHeight(h);
     const a = ROW.find((r) => r.id === id); if (!a || this.mobs.some((m) => m.id.startsWith(`mob:${id}:`))) return;
     for (const [j, def] of [a.mobs, a.mobs2].entries()) {
@@ -470,6 +511,7 @@ export class OpenWorld {
   }
   /** A map's monsters gone (the hero left its 3D place), the floors above it included. */
   removeArea(id: string): void {
+    this.wantAreas.delete(id);
     for (const h of this.heightsOf(id)) this.removeMobs(`mob:${h.id}:`);
     this.removeMobs(`mob:${id}:`);
   }
@@ -673,6 +715,7 @@ export class OpenWorld {
   }
 
   destroy(): void {
+    this.lazyDead = true;
     this.sunGate.destroy();
     this.scene.load.off(Phaser.Loader.Events.FILE_COMPLETE, this.onFile, this);
     for (const m of this.mobs) m.destroy();
