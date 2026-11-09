@@ -66,8 +66,8 @@ export const LOOKS: Record<LookName, Look> = {
     // round the brazier and the lanterns, crimson and magenta in the leaves; never so dark that the Samurai is lost
     kit: 'island', pavingTile: 'sandstone_paving', wallTile: 'sandstone_wall', pavingBase: [200, 188, 178], wallBase: [190, 178, 170],
     sky: { sunFrom: new THREE.Vector3(-0.45, 0.72, 0.55), sunColor: 0xa4b4ff, sunIntensity: 1.35, hemiSky: 0x7078b8, hemiGround: 0x1e1a2c, hemiIntensity: 0.75, top: 0x141234, mid: 0x3a2e6e, low: 0x7a5c9e, background: 0x2a2450, fog: { color: 0x2e2850, near: 34, far: 100 }, exposure: 0.92, envIntensity: 0.2, cloud: 0x6a62a4 },
-    tint: { paving: 0x9c98b8, wall: 0x8a84a4, balustrade: 0xa4a0bc, moulding: 0xb0acc6, roof: 0x4a5478, terracotta: 0x8a6478, wood: 0x2e2224, barkBase: [58, 44, 46], bark: 0x9a8a98, valley: 0x1a1830, mountains: 0x221c40, mist: 0x7a6cae, clouds: 0x5a4e8a },
-    ivy: ['#7a1430', '#9a1c3a', '#b8284a', '#5a0c22', '#a83060', '#3a4a34', '#2e3c2c'], flowers: ['#c42a5a', '#e0609a', '#3a5a34'],
+    tint: { paving: 0x9c98b8, wall: 0x7a7a94, balustrade: 0x9a9ab2, moulding: 0xa6a6be, roof: 0x4a5478, terracotta: 0x6e5a6e, wood: 0x2e2224, barkBase: [58, 44, 46], bark: 0x9a8a98, valley: 0x1a1830, mountains: 0x221c40, mist: 0x7a6cae, clouds: 0x5a4e8a },
+    ivy: ['#7a1430', '#9a1c3a', '#b8284a', '#5a0c22', '#a83060', '#3a4a34', '#2e3c2c'], flowers: ['#a8304e', '#c45a84', '#34502e'],
     crown: ['#a82440', '#c8406a', '#6e1428'], crownColor: 0xd8b0c0, crownEmissive: 0x2a0812, crownEmissiveIntensity: 0.3,
     fall: { petal: false, size: [0.1, 0.1], hue: [0.94, 1.0], sat: [0.6, 0.85], light: [0.38, 0.55], emissive: 0x2a0812 },
     night: true, motes: 0xc9a8ff, lanterns: true,
