@@ -6,11 +6,13 @@ import { Parts, box, cyl, lathe, worldUV } from '../../arena3d/RoomKit';
 import type { Disposable } from './units';
 
 /** The terrace: its top slab (the walkable paving is the place's ground plane; this is the slab's body and its front wall
- *  dropping to the valley), a moulding under the lip and buttresses down the face. */
-export function terraceSlab(P: Parts, x0: number, x1: number, zB: number, zF: number, y: number, drop: number, mat = 'wall'): void {
+ *  dropping to the valley), a moulding under the lip and buttresses down the face. `sink`: the body's and the lip
+ *  moulding's tops that far under the paving (with 0 they lie in the paving's own plane, and the two fight for the same
+ *  pixels: the slab's ashlar shows through the paving in patches that change with the camera and the picture's size). */
+export function terraceSlab(P: Parts, x0: number, x1: number, zB: number, zF: number, y: number, drop: number, mat = 'wall', sink = 0): void {
   const w = x1 - x0, d = zF - zB;
-  P.add(mat, box(w, drop, d, (x0 + x1) / 2, y - drop, (zB + zF) / 2, 1.3));
-  P.add('moulding', box(w + 0.1, 0.14, 0.18, (x0 + x1) / 2, y - 0.14, zF + 0.04, 1, 0.03));
+  P.add(mat, box(w, drop - sink, d, (x0 + x1) / 2, y - drop, (zB + zF) / 2, 1.3));
+  P.add('moulding', box(w + 0.1, 0.14 - sink, 0.18, (x0 + x1) / 2, y - 0.14, zF + 0.04, 1, 0.03));
   P.add('moulding', box(w + 0.1, 0.1, 0.12, (x0 + x1) / 2, y - 0.9, zF + 0.02, 1, 0.02));
   for (let x = x0 + 2; x < x1 - 1; x += 4) P.add(mat, box(0.5, drop - 0.3, 0.35, x, y - drop, zF + 0.12, 1.3, 0.02));
 }

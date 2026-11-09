@@ -7,8 +7,9 @@
 import Phaser from 'phaser';
 import * as THREE from 'three';
 import { Hero3D } from '../arena3d/Hero3D';
-import { SPIRIT_BODY } from './flag';
+import { SPIRIT_BODY, SPIRITS } from './flag';
 import { makeSpiritFinish } from './SpiritBody';
+import { makeSpiritForm } from './SpiritForm';
 
 /** The menus' night light on him: the moon from the front left, a violet rim behind him, the lanterns' warmth low from
  *  the right, and a soft frontal fill at face height (GPT, 9 Nov: the face read too dark — keep its silhouette and the
@@ -33,7 +34,7 @@ export class SpiritPreview {
   private frame = Hero3D.HEIGHT * 1.08;
 
   private constructor(private scene: Phaser.Scene, private hero: Hero3D, private key: string, private w: number, private h: number) {
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, premultipliedAlpha: false, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, premultipliedAlpha: SPIRITS.ghost, preserveDrawingBuffer: true, powerPreference: 'high-performance' }); // (&ghost, premultiplied: the spirit's see-through body composites right)
     this.renderer.setPixelRatio(1); this.renderer.setSize(w * SpiritPreview.RES, h * SpiritPreview.RES, false);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace; this.renderer.toneMapping = THREE.ACESFilmicToneMapping; this.renderer.toneMappingExposure = 1.0;
     this.renderer.setClearColor(0x000000, 0);
@@ -46,10 +47,10 @@ export class SpiritPreview {
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.destroy());
   }
 
-  /** The Spectral Samurai, katana in hand, `w`×`h` design px. */
-  static async create(scene: Phaser.Scene, o: { w?: number; h?: number; key?: string } = {}): Promise<SpiritPreview> {
+  /** The Spectral Samurai, the spirit blade in hand, `w`×`h` design px, his light at `level`'s tier. */
+  static async create(scene: Phaser.Scene, o: { w?: number; h?: number; key?: string; level?: number } = {}): Promise<SpiritPreview> {
     const hero = await Hero3D.load({ female: false, body: SPIRIT_BODY });
-    makeSpiritFinish(hero);
+    if (SPIRITS.ghost) makeSpiritForm(hero, { level: SPIRITS.lv ?? o.level ?? 1, lit: 0.22, ground: () => 0 }); else makeSpiritFinish(hero);
     hero.flatToView = true; // (the blade's flat to the viewer, not its edge)
     hero.setWeapon('katana');
     return new SpiritPreview(scene, hero, o.key ?? 'spirit-preview', o.w ?? 520, o.h ?? 760);
@@ -92,7 +93,7 @@ export class SpiritPreview {
       const t = this.scene.textures.createCanvas(k, S, S)!, x = t.getContext();
       x.save(); x.beginPath(); x.arc(S / 2, S / 2, S / 2, 0, Math.PI * 2); x.clip();
       x.drawImage(R.domElement, 0, 0, S, S);
-      if (dark) { x.globalCompositeOperation = 'source-in'; x.fillStyle = '#0b0817'; x.fillRect(0, 0, S, S); }
+      if (dark) { for (let i = 0; i < 3; i++) x.drawImage(R.domElement, 0, 0, S, S); x.globalCompositeOperation = 'source-in'; x.fillStyle = '#0b0817'; x.fillRect(0, 0, S, S); } // (his see-through body built up to a solid shape first)
       x.restore(); t.refresh();
     };
     draw(key, false); draw(`${key}-dark`, true);

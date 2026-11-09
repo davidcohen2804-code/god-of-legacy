@@ -122,7 +122,7 @@ export const islandTerrace = (areaId: string, spec: TerraceSpec) => (focus: Plac
   { // the valley: a dark floor far below, in the haze
     const m = std({ color: T.valley, roughness: 1 }); const g = new THREE.PlaneGeometry(400, 400); g.rotateX(-Math.PI / 2); g.translate(cx, -16, zMid); disposables.push(g); scene.add(new THREE.Mesh(g, m));
   }
-  terraceSlab(P, xW0 - 4, xW1 + 4, zWall - 0.4, zFront, 0, 3.0);
+  terraceSlab(P, xW0 - 4, xW1 + 4, zWall - 0.4, zFront, 0, 3.0, 'wall', SPIRITS.on ? 0.02 : 0); // (?spirits, GPT step 4P: the slab's top 2 cm under the paving — in its plane, its ashlar showed through the paving in camera-dependent patches: the floor's "brown state")
   // the balustrade along the lip (in front of whoever stands at the edge), its urns on pedestals where the data puts them
   if (!spec.noBalustrade) balustrade(P, xW0 - 4, xW1 + 4, 0, zFront + 0.12, { post: 1.6, h: 0.82, gaps: spec.frontGaps });
   if (!spec.noBalustrade) for (const p of A.props.filter((q) => q.id.startsWith('urn'))) { const b = footBox(p.foot, ax); P.add('balustrade', box(0.56, 0.62, 0.56, b.cx, 0, zFront + 0.12, 1, 0.02)); urn(P, b.cx, 0.62, zFront + 0.12, 0.7); }
@@ -268,6 +268,7 @@ export const islandTerrace = (areaId: string, spec: TerraceSpec) => (focus: Plac
   // ------------------------------------------------------------------ the brazier's fire and the warm light
   if (benchNpc) { const L = new THREE.PointLight(0xff9a40, look.lanterns ? 4.6 : 2.6, look.lanterns ? 4.8 : 7, 2); L.position.set(brazier.x, 1.3, brazier.z); scene.add(L); warm.push(L); } // (at night with lanterns: a warm pool round the brazier, fading out within a few steps — never tinting the far floor)
   // (at night with lanterns: the stair's two gilt lantern posts lit, warm pools at the stair's foot)
+  const glows: THREE.PointLight[] = [];
   if (look.lanterns && spec.stair) for (const side of [-1, 1]) {
     const lx = sx + side * (sw / 2 + 0.2);
     if (!SPIRITS.lean) { const L = new THREE.PointLight(0xffb060, 2.0, 4.2, 2); L.position.set(lx, WALL_H + 0.8, nz - 0.1); scene.add(L); continue; }
@@ -278,6 +279,7 @@ export const islandTerrace = (areaId: string, spec: TerraceSpec) => (focus: Plac
     const pm = new THREE.MeshBasicMaterial({ map: glowTex, color: 0xffa050, transparent: true, opacity: 0.32, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }); disposables.push(pm);
     const pg = new THREE.PlaneGeometry(3.4, 2.4); pg.rotateX(-Math.PI / 2); disposables.push(pg);
     const pool = new THREE.Mesh(pg, pm); pool.position.set(lx, 0.012, nz + 0.7); pool.renderOrder = 1; scene.add(pool);
+    const G = new THREE.PointLight(0xffb060, 2.0, 4.2, 2); G.position.set(lx, WALL_H + 0.8, nz - 0.1); glows.push(G); // (not in the place: the light the 3D bodies near it get — GPT: he must not walk past a lantern unlit)
   }
   const flame = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xffa040, transparent: true, opacity: 0.85, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
   flame.position.set(brazier.x, 1.12, brazier.z); flame.scale.set(0.9, 1.3, 1); flame.visible = !!benchNpc; scene.add(flame); disposables.push(flame.material);
@@ -335,7 +337,7 @@ export const islandTerrace = (areaId: string, spec: TerraceSpec) => (focus: Plac
   };
 
   return {
-    sun: sky.sun, hemi: sky.hemi, warm, groundY,
+    sun: sky.sun, hemi: sky.hemi, warm, glows, groundY,
     blow: (x, y, z, Rr, s) => leaves.blow(x, y, z, Rr, s),
     gust: (st, dir) => { boost = Math.max(boost, st); boostDir = dir < 0 ? -1 : 1; leaves.shake(st); },
     update,

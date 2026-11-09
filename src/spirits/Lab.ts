@@ -14,6 +14,7 @@ import { AREAS } from '../world/Areas';
 import { Hero3D } from '../arena3d/Hero3D';
 import type { Room } from '../arena3d/Room';
 import { makeSpirit, makeSpiritFinish } from './SpiritBody';
+import { makeSpiritForm } from './SpiritForm';
 import { SPIRIT_BODY } from './flag';
 
 const Q = new URLSearchParams(location.search);
@@ -53,7 +54,8 @@ export async function startSpiritLab(): Promise<void> {
   if (Q.has('neutral')) { // (the body's shape alone: grey, no drawing, no light of its own — for the art review)
     const body = (h as unknown as { body: THREE.SkinnedMesh | null }).body;
     if (body) body.material = new THREE.MeshStandardMaterial({ color: 0xb4b0bc, roughness: 0.8, metalness: 0 });
-  } else if (!Q.has('plain') && !Q.has('addons')) makeSpiritFinish(h);
+  } else if (Q.has('form')) makeSpiritForm(h, { level: Number(Q.get('lv') ?? 100), preset: () => Number(Q.get('preset') ?? 0), ground: () => room.groundY(h.root.position.x, h.root.position.z) }); // (the spirit form: &form&lv=1…100&preset=0…2)
+  else if (!Q.has('plain') && !Q.has('addons')) makeSpiritFinish(h);
   const spirit = Q.has('addons') ? makeSpirit(h) : null; // (gate 1's dressed Beginner: &body=beginner_m.glb&addons)
   if (spirit && Q.has('bare')) for (const s of (spirit as unknown as { strands: { mesh: THREE.Mesh }[] }).strands) s.mesh.removeFromParent(); // (the body alone: its own painting)
   if (spirit && Q.has('noline')) (spirit as unknown as { outline: THREE.Object3D }).outline.removeFromParent();

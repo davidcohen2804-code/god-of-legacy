@@ -331,7 +331,7 @@ export class CosmeticPanel {
     if (this.spirit) { if (host && this.spirit.canvas.parentElement !== host) host.appendChild(this.spirit.canvas); return; }
     if (this.spiritLoading) return;
     this.spiritLoading = true;
-    import('../spirits/SpiritStage').then(({ SpiritStage }) => SpiritStage.create(PREVIEW.w, PREVIEW.h)).then((st) => {
+    import('../spirits/SpiritStage').then(({ SpiritStage }) => SpiritStage.create(PREVIEW.w, PREVIEW.h, this.character.level ?? 1)).then((st) => {
       if (this.dead) { st.dispose(); return; }
       this.spirit = st; this.mountSpirit();
     }).catch((e) => { this.spiritLoading = false; console.warn('[spirits] the window preview', e); });

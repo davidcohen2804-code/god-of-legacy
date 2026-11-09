@@ -146,7 +146,7 @@ export function buildSpiritSelect(scene: Phaser.Scene, h: SpiritSelectHandlers):
   runeCircle(scene, L.hero.x, L.hero.feet);
   let pv: SpiritPreview | null = null, gone = false;
   void import('./SpiritPreview').then(async ({ SpiritPreview }) => {
-    const p = await SpiritPreview.create(scene, { w: L.hero.w, h: L.hero.h });
+    const p = await SpiritPreview.create(scene, { w: L.hero.w, h: L.hero.h, level: h.level });
     if (gone || !scene.sys.isActive()) { p.destroy(); return; }
     pv = p; p.image.setPosition(L.hero.x, L.hero.feet).setOrigin(0.5, 0.99).setDepth(5).setAlpha(0);
     scene.tweens.add({ targets: p.image, alpha: 1, duration: 420, ease: 'Sine.easeOut' });

@@ -26,6 +26,9 @@ export interface Room {
   hemi: THREE.HemisphereLight;
   /** Lights that keep burning when the room darkens (lanterns, the temple's doors). */
   warm: THREE.PointLight[];
+  /** Lanterns drawn as glow in the place (the 3D world's lean picture): their lights are not in the room, only given to
+   *  the 3D bodies' layers near them (Arena3D.addLayer). */
+  glows?: THREE.PointLight[];
   /** Height of the walkable surface at (x, z) (the deck, the ground). */
   groundY(x: number, z: number): number;
   /** A blow at (x, y, z): petals (falling and lying) within R are thrown away from it. */

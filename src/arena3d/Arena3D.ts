@@ -218,7 +218,8 @@ export class Arena3D {
     this.CAM = { ...CAM_ARENA, ...opts.cam }; this.dist = this.CAM.dist; this.buildPlace = opts.build ?? buildRoom;
     const soft = !!(navigator as { webdriver?: boolean }).webdriver; // (test browsers render on the CPU: half size, no shadows)
     this.lean = !!opts.lean && !soft;
-    const lv0 = this.lean ? Arena3D.savedLevel() : 0; this.quality.level = lv0;
+    const man = this.lean ? Arena3D.manualLevel() : null; this.manual = man !== null; // (lean: the player's own choice in the settings, else automatic)
+    const lv0 = this.lean ? man ?? Arena3D.savedLevel() : 0; this.quality.level = lv0;
     const [w, h] = soft ? [Math.round(scene.scale.width * 0.4), Math.round(scene.scale.height * 0.4)] : this.sizeFor(lv0);
     // one three.js canvas: the room is drawn into it, handed to Phaser (a GPU copy), then the railing, handed over too
     this.bgCanvas = document.createElement('canvas');
@@ -266,7 +267,7 @@ export class Arena3D {
    *  sorted among the 2D bodies by the returned image's depth (set it each frame), lit like the room (its sun, sky and
    *  the hits' lights mirrored, a soft fill from the camera's side). Returns the image and the sun's direction (world,
    *  towards the sun) for a cast shadow. */
-  addLayer(key: string, sc: THREE.Scene): { img: Phaser.GameObjects.Image; sunDir: THREE.Vector3 } {
+  addLayer(key: string, sc: THREE.Scene, at?: () => THREE.Vector3): { img: Phaser.GameObjects.Image; sunDir: THREE.Vector3 } {
     const W = this.scene.scale.width, H = this.scene.scale.height;
     if (this.scene.textures.exists(key)) this.scene.textures.remove(key);
     this.scene.textures.addImage(key, this.bgCanvas as unknown as HTMLImageElement);
@@ -278,6 +279,11 @@ export class Arena3D {
     for (const p of pts) p.visible = this.hitOn;
     this.layerPts.push(pts);
     sc.add(sun, sunT, hemi, fill, fillT, ...pts);
+    // (lean, GPT step 4P: the room's warm lights reach the body too — the brazier's and the lanterns drawn as glow: one
+    // light, the strongest where the body stands, its intensity 0 away from them — always there, so no shader change)
+    const near = this.lean && at ? new THREE.PointLight(0xffa050, 0, 1, 2) : null;
+    if (near) sc.add(near);
+    const lit = (L: THREE.PointLight, p: THREE.Vector3): number => { const d = L.position.distanceTo(p); if (L.distance > 0 && d >= L.distance) return 0; const c = L.distance > 0 ? Math.max(0, 1 - (d / L.distance) ** 4) ** 2 : 1; return (L.intensity * c) / Math.max(d ** L.decay, 0.01); };
     sc.environment = this.scene3.environment; (sc as THREE.Scene & { environmentIntensity: number }).environmentIntensity = 0.32;
     const sunDir = new THREE.Vector3(0, 1, 0);
     this.extra.push({ scene: sc, key, img, before: () => {
@@ -287,6 +293,11 @@ export class Arena3D {
       hemi.color.copy(R.hemi.color); hemi.groundColor.copy(R.hemi.groundColor); hemi.intensity = R.hemi.intensity;
       fill.position.copy(this.camera.position).add(new THREE.Vector3(-3, 4, 0)); fillT.position.copy(this.look); fillT.updateMatrixWorld(); fill.intensity = 1.1 * (1 - 0.6 * this.dimNow);
       this.hitLights.forEach((h, i) => { const p = pts[i]; p.color.copy(h.L.color); p.intensity = h.L.intensity; p.distance = h.L.distance; p.decay = h.L.decay; p.position.copy(h.L.position); });
+      if (near && at) {
+        const p = at(); let best: THREE.PointLight | null = null, most = 0;
+        for (const L of [...R.warm, ...(R.glows ?? [])]) { const v = lit(L, p); if (v > most) { most = v; best = L; } }
+        if (best) { near.color.copy(best.color); near.intensity = best.intensity; near.distance = best.distance; near.decay = best.decay; near.position.copy(best.position); } else near.intensity = 0;
+      }
     } });
     return { img, sunDir };
   }
@@ -329,11 +340,17 @@ export class Arena3D {
    *  surface, even dark), the picture never larger than the window shows it, and a slow computer going lighter sooner
    *  (a target of 60 fps instead of 45), bloom off first, then remembered for the next visit. The regular game: off. */
   private lean = false;
+  /** Lean: the quality the player chose in the settings (no automatic step-down). */
+  private manual = false;
+  private lastWatchFrame = -1;
   private settleMs = 0;
   private hitOn = true;
   private layerPts: THREE.PointLight[][] = [];
   private static readonly LEVEL_KEY = 'gol-a3d-lean-level';
   private static savedLevel(): number { try { const v = Number(localStorage.getItem(Arena3D.LEVEL_KEY)); return Number.isFinite(v) ? Math.max(0, Math.min(2, Math.round(v))) : 0; } catch { return 0; } }
+  /** The 3D picture's quality the player chose (the settings' Graphics: High 0, Medium 1, Low 2), or null for automatic. */
+  static readonly QUALITY_KEY = 'gol-a3d-quality';
+  static manualLevel(): number | null { try { const v = localStorage.getItem(Arena3D.QUALITY_KEY); return v === '0' || v === '1' || v === '2' ? Number(v) : null; } catch { return null; } }
   /** The picture's size at a quality level: its share of the game's size, and never more pixels than the window shows. */
   private sizeFor(lv: number): [number, number] {
     const W = this.scene.scale.width, H = this.scene.scale.height, res = lv === 0 ? RES : lv === 1 ? 0.7 : 0.58;
@@ -374,12 +391,23 @@ export class Arena3D {
   /** The frame time watched over the first fights: a slow computer gets a lighter room (smaller render, no
    *  multisampling; then no shadows) so the fight stays smooth. */
   private quality = { level: 0, ema: 16, t: 0 };
+  /** The picture's quality level now (0 full … 2 the lightest): the spirit form cuts its extras by it. */
+  get qualityLevel(): number { return this.quality.level; }
   private watchFrames(ms: number): void {
     const Q = this.quality;
+    if (this.lean) { // lean: the real time between pictures, once a picture (the game's own step is held at 1/60 s: a slow computer plays slower instead, and never looked slow here)
+      const L = this.scene.game.loop; if (L.frame === this.lastWatchFrame) return; this.lastWatchFrame = L.frame;
+      if ((L.frame & 63) === 0) { // (the settings' Graphics, changed in play: taken at once)
+        const man = Arena3D.manualLevel(); this.manual = man !== null;
+        if (man !== null && man !== Q.level) { this.setLevel(man, false); return; }
+      }
+      if (this.manual) return;
+      ms = L.rawDelta;
+    }
     if (this.soft || Q.level >= 2 || ms <= 0 || ms > 250) return;
     if (this.lean && (this.settleMs += ms) < 3500) return; // (lean: not the entry's first seconds — the shaders compiling, the arrival — or a fast computer would be stepped down for good)
     Q.ema += (ms - Q.ema) * 0.04; Q.t += ms;
-    if (Q.t < 4000 || Q.ema <= (this.lean ? 18 : 21.5)) return;
+    if (Q.t < (this.lean ? 5000 : 4000) || Q.ema <= (this.lean ? 18.5 : 21.5)) return; // (lean: only ever down within a visit, after 5 s of slow pictures — no switching back and forth)
     this.setLevel(Q.level + 1, true);
   }
   /** A quality level: the picture's size, its multisampling and bloom, the shadows (`lower`: a slower step down — lean

@@ -34,6 +34,7 @@ import { HudEffect, HudMarker, HudSlot, HudState, PortraitRef } from '../ui/hud/
 import { Character } from '../characters/CharacterTypes';
 import { Dir } from '../world/collision';
 import type { CursedSwordsman } from '../world/CursedSwordsman';
+import { showSpiritLoading, type SpiritCurtain } from '../spirits/SpiritLoading';
 import { showLoading } from '../ui/LoadingScreen';
 import { CHAT_MAX_LEN, ChatBox, ChatKind, EMOTES } from '../ui/ChatBox';
 import { SpeechBubbles } from '../ui/SpeechBubbles';
@@ -606,6 +607,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private w3d: World3D | null = null;
   /** Legacy of Spirits: the blocks' occlusion of the 3D hero in this place (src/spirits/Occlusion); its teardown. */
   private spiritOcc?: () => void;
+  /** The Spectral Samurai's spirit form on the 3D hero (its light follows his level). */
+  private spiritForm?: import('../spirits/SpiritForm').SpiritForm;
+  /** Legacy of Spirits' way into the world (up until the Samurai is there). */
+  private spiritCurtain?: SpiritCurtain;
   /** The world in 3D's story beats: whom the hero talks to, the maps entered this session (the chapter openings play once), the den stage last seen. */
   private talkAt: { x: number; y: number } | null = null; private visited3d = new Set<string>(); private denStageSeen = 0;
   /** A pose the battle holds (the intro before ROUND n, the winner's pose), until sim time. */
@@ -775,6 +780,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     // the arena from the fighter select: the two fighters face to face while it loads (else the plain loading screen)
     const foe = sd?.foe ?? (sd?.botCls ? { cls: sd.botCls, name: BOT_NAMES[sd.botCls] ?? BOT_NAME } : null);
     if (pvp && !training && me && cls && foe && showArenaLoading(this, { name: me.name, cls, you: true }, foe, this.stage)) Sound.vsIntro(cls, foe.cls); // (the slam, both fighters' lines, GET READY)
+    else if (SPIRITS.on && SPIRITS.ghost && !pvp) this.spiritCurtain = showSpiritLoading(this, areaAt((sd?.at ?? toWorld(START.area, [START.x, START.y])).x).name); // (Legacy of Spirits: its own way in, up until the Samurai is there)
     else showLoading(this, training ? 'TRAINING' : pvp ? 'PVP ARENA' : 'GOD OF LEGACY'); // (training: no match, no VS)
   }
 
@@ -900,12 +906,13 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         void import('../world3d/World3D').then(({ World3D }) => {
           if (gen !== this.sceneGen || !this.sys.isActive()) return;
           cam.stopFollow(); cam.removeBounds(); cam.setRoundPixels(false);
-          mark('w3d-module'); const w = this.w3d = new World3D(this, areaId); this.a3d = w.a3d; mark('w3d-built');
+          mark('w3d-module'); const w = this.w3d = new World3D(this, areaId); this.a3d = w.a3d; mark('w3d-built'); this.spiritCurtain?.progress(0.72);
           this.motes?.setVisible(false);
           this.wire3D(w.a3d); this.attachHero3D(w.a3d);
           this.arrive3D(w, this.kin.x < (w.floor.x0 + w.floor.x1) / 2 ? w.floor.x0 : w.floor.x1, 2400); // (the first map: from its near edge)
         });
       }
+      if (!in3d) { this.spiritCurtain?.lift(); this.spiritCurtain = undefined; } // (a painted map: nothing more to wait for)
       this.world.onNpcClick = (n) => this.talkTo(n);
       this.input.keyboard?.on('keydown', () => this.w3d?.skip()); // (a chapter opening on the 3D stage: any key skips it)
       this.den = new Den(this, !in3d, {
@@ -1717,6 +1724,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     ch.level = r.level; ch.exp = r.exp;
     CharacterStore.setProgress(ch.id, r.level, r.exp);
     if (!r.ups) return;
+    this.spiritForm?.setLevel(SPIRITS.lv ?? ch.level); // (a new tier: his light grows at once)
     const k = this.kin;
     this.fx!.callout({ x: k.x, y: k.y, z: k.z + 60 }, 'LEVEL UP!', '#ffd34a', 0);
     this.fx!.shockwave(k.x, k.y, 160, 0xffd27a);
@@ -4393,7 +4401,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private attachHero3D(a3: Arena3D): void {
     if (!HERO3D.on) return;
     const old = this.hero3d;
-    if (old) { for (const d of old.kage.values()) d.dispose(); old.h.dispose(); for (const o of old.others) o.h.dispose(); old.ui?.remove(); this.hero3d = undefined; }
+    if (old) { for (const d of old.kage.values()) d.dispose(); this.spiritForm?.dispose(); this.spiritForm = undefined; old.h.dispose(); for (const o of old.others) o.h.dispose(); old.ui?.remove(); this.hero3d = undefined; }
     this.hero3dWait = true;
     void this.startHero3D(a3, this.sceneGen);
   }
@@ -4403,13 +4411,19 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private async startHero3D(a3: Arena3D, gen: number): Promise<void> {
     const mod = await import('../arena3d/Hero3D');
     const spirit = SPIRITS.on && this.cls === 'samurai'; // (Legacy of Spirits: the Spectral Samurai's own body)
-    mark('hero-load');
-    const h = await mod.Hero3D.load({ female: genderOf(this.character) === 'female', body: spirit ? (SPIRITS.lite && this.w3d ? SPIRIT_BODY_LITE : SPIRIT_BODY) : undefined, shadow: spirit && SPIRITS.lite && this.w3d ? SPIRIT_SHADOW_LITE : undefined }); // (&lite=1, the world: his gameplay body and its lighter shadow — GPT step 4P, to compare)
+    mark('hero-load'); this.spiritCurtain?.progress(0.8);
+    const h = await mod.Hero3D.load({ female: genderOf(this.character) === 'female', body: spirit ? (SPIRITS.lite && this.w3d ? SPIRIT_BODY_LITE : SPIRIT_BODY) : undefined, shadow: spirit && SPIRITS.lite && this.w3d ? SPIRIT_SHADOW_LITE : undefined }); // (the world: his gameplay body and its lighter shadow — GPT step 4P; &lite=0 the full one)
     if (gen !== this.sceneGen || !this.sys.isActive() || this.a3d !== a3) { h.dispose(); return; }
-    const { img, sunDir } = a3.addLayer('arena3d-hero', h.scene);
+    const { img, sunDir } = a3.addLayer('arena3d-hero', h.scene, () => h.root.position); // (where he stands: the room's warm lights near him reach him — lean)
     h.makeShadow(sunDir);
     h.setWeapon(mod.CLASS_WEAPON[this.cls] ?? 'sword');
-    if (spirit) { const sp = await import('../spirits/SpiritBody'); sp.makeSpiritFinish(h); sp.frameSpirit(a3); } // (the spirit's finish, the camera nearer)
+    if (spirit) { // (the spirit's finish, the camera nearer; &ghost: the spirit form — David and GPT, 9 Nov evening: a see-through spirit whose light grows with his level)
+      const sp = await import('../spirits/SpiritBody');
+      this.spiritForm?.dispose(); this.spiritForm = undefined;
+      if (SPIRITS.ghost) this.spiritForm = (await import('../spirits/SpiritForm')).makeSpiritForm(h, { level: SPIRITS.lv ?? this.character?.level ?? 1, preset: () => a3.qualityLevel, ground: () => (this.kin.supportZ ?? 0) / 100 });
+      else sp.makeSpiritFinish(h);
+      sp.frameSpirit(a3);
+    }
     a3.prewarmLayer(h.scene); // (lean: his look compiled for both states of the blows' lights — no hitch at the first blow)
     if (SPIRITS.on) { // (a block in front of him hides him: the place's blocks drawn into depth before his picture)
       const oc = await import('../spirits/Occlusion'); this.spiritOcc?.();
@@ -4417,6 +4431,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     }
     if (gen !== this.sceneGen || !this.sys.isActive() || this.a3d !== a3) { h.dispose(); return; }
     this.hero3d = { h, img, a3, others: [], loading: 0, Dbl: mod.Doubles3D, kage: new Map() }; this.hero3dWait = false; mark('hero-ready');
+    this.spiritCurtain?.lift(); this.spiritCurtain = undefined; // (he is there: the way in lifts)
     if (!spirit) void h.equipAll(loadEquip3D(this.character?.id ?? 'guest')); // (what the character wore last — the Beginner's pieces, not on the spirit's own body)
     if (!SPIRITS.on) this.buildItemUi(mod.WEAPONS); // (not in the spirits' art preview: the 3D items' test panel)
   }
@@ -4429,7 +4444,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const h = await mod.Hero3D.load({ female });
     H.loading--;
     if (gen !== this.sceneGen || !this.sys.isActive() || this.hero3d !== H || this.a3d !== H.a3) { h.dispose(); return; }
-    const { img, sunDir } = H.a3.addLayer(`arena3d-hero${H.others.length + 2}`, h.scene);
+    const { img, sunDir } = H.a3.addLayer(`arena3d-hero${H.others.length + 2}`, h.scene, () => h.root.position);
     h.makeShadow(sunDir); img.setVisible(false);
     H.others.push({ h, img, female, rp: null, cls: '', last: null });
   }

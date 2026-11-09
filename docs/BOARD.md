@@ -45,9 +45,9 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
   a smaller tray, icon buttons, the map drawn from the places' data) and the windows (4B: the inventory's stage shows
   the 3D Samurai — `src/spirits/SpiritStage.ts`, its own small renderer, only while open — the skill book restyled,
   Master Aldric's name and role as one nameplate, no name badge under the player).
-- **Next (GPT's order):** 4P — performance and loading. Measured on David's PC (Intel UHD, integrated): the 3D world at
-  41–47 fps (p50 20.8 ms), GPU-bound; 20.6 s to enter the world. Then 4C (integration checks), the Samurai's combat
-  identity, the first boss (the Broken Seal Warden).
+- **Next (GPT's order, 9 Nov night):** close 4P (David's PC: first hit, skills, a long session), then the spirit form
+  everywhere (select, way in, portrait, inventory, world), the map and camera pass (a wider, higher view), the boss,
+  the skills. Measured before 4P on David's PC (Intel UHD): 41 fps, 16.5 s to enter; after: ~60 fps standing, 6.3 s.
 - **FYI — PvP / DFO arena dynamics:** the same measurement concerns every 3D room (`Arena3D`): with its 3D draw paused
   the screen runs at 105 fps. The 4P changes will be made behind `?spirits` first; whatever proves itself there can be
   proposed for the PvP rooms.
@@ -60,8 +60,19 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
   monsters' frames come with their maps (`WorldHooks.lazyMobs`: a map's sets before its monsters spawn, the
   neighbours' next — the entry loaded all 1 150 frame files of every monster before); his gameplay
   body (15k triangles, `tools/spirits/lite.mjs`) and its lighter floor shadow (~4.7k, `Hero3D.load({ shadow })`, an
-  optional file) behind `&lite=1` until GPT compares it. `&lean=0` gives the old
-  picture to compare.
+  optional file) — approved by GPT, now the default (`&lite=0` the full one). `&lean=0` gives the old picture to compare.
+- **4P, 9 Nov night (behind `?spirits` only):** the quality watcher reads the real time between pictures
+  (`game.loop.rawDelta` — the game's own step is capped at 1/60 s, so a slow PC was never seen as slow) with a 5 s
+  hysteresis, and a manual Graphics choice in the settings (Auto / High / Medium / Low, `gol-a3d-quality`, taken at once);
+  the 3D bodies' layers get one warm light — the room's warm light or glow-drawn lantern nearest the body
+  (`Arena3D.addLayer(key, scene, at?)`, lean only; `Room.glows?`, optional); the courtyard floor's brown/violet flip
+  was z-fighting: the terrace slab's top lay in the paving's own plane (`terraceSlab(…, sink)`, 2 cm under it, passed
+  only under `?spirits` in islandTerrace). **FYI Maps:** the same z-fight shows the slab's ashlar through the paving in
+  `?world3d=1` at some camera positions — passing `sink` 0.02 there too would fix it; your call.
+- **Stage 2 under GPT's review, behind `?spirits&ghost` only:** the Samurai as a see-through spirit whose light grows
+  with his level (`src/spirits/SpiritForm.ts`: the spirit material, the spirit blade with a one-hand hilt, wisps, a
+  ripple and a soft contact shadow) and its own way into the world (`src/spirits/SpiritLoading.ts`, up until he is
+  there). Without `&ghost` nothing of it runs.
 - **Request — to: Maps:** in `?world3d=1` the 3D cubes still collide only on the painted block's front strip (`base`), so
   the hero walks into the back three quarters of every cube. The `?spirits` fix (`asCube` in `src/world/Areas.ts`: an
   area block's footprint = its whole 3D foot) can be switched on for `?world3d=1` too if you agree.

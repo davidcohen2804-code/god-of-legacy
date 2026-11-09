@@ -2,6 +2,13 @@ import Phaser from 'phaser';
 import { BUTTON_FX, COLORS, DESIGN, FONT_FAMILY, HUD, RESOLUTIONS, Resolution, SETTINGS_PANEL as P } from '../config/layout';
 import { SettingsStore } from '../core/SettingsStore';
 import { PlatformAdapter } from '../core/PlatformAdapter';
+import { SPIRITS } from '../spirits/flag';
+
+/** Legacy of Spirits (GPT step 4P): the 3D world's quality — automatic (it steps down on a slow computer) or the
+ *  player's own (High / Medium / Low), read by the 3D stage (Arena3D.manualLevel) — at once while a world is open. */
+const QUALITY_KEY = 'gol-a3d-quality';
+const QUALITY: [string, string][] = [['Auto', 'auto'], ['High', '0'], ['Medium', '1'], ['Low', '2']];
+const qualityNow = (): string => { try { const v = localStorage.getItem(QUALITY_KEY); return QUALITY.find(([, k]) => k === v)?.[0] ?? 'Auto'; } catch { return 'Auto'; } };
 
 const CX = DESIGN.width / 2;
 const CY = DESIGN.height / 2;
@@ -80,8 +87,9 @@ export class SettingsModal {
   open(): void {
     if (this.root) return;
     const s = this.scene;
-    const top = CY - P.h / 2;
-    this.root = createModalBase(s, P.w, P.h, 'modal');
+    const H = P.h + (SPIRITS.on ? P.rowGap : 0); // (the spirits: one more row, Graphics)
+    const top = CY - H / 2;
+    this.root = createModalBase(s, P.w, H, 'modal');
     this.root.add(s.add.text(CX, top + P.headerOffsetY, 'SETTINGS', {
       fontFamily: FONT_FAMILY, fontSize: `${P.headerSize}px`, fontStyle: 'bold', color: '#f3e3bd', resolution: 2,
     }).setOrigin(0.5).setLetterSpacing(3));
@@ -93,8 +101,9 @@ export class SettingsModal {
     this.slider(rowY(2), 'SFX Volume', st.sfxVolume, (v) => SettingsStore.set('sfxVolume', v), 'ico_controls');
     this.toggle(rowY(3), 'Fullscreen', 'ico_display');
     this.dropdown(rowY(4), 'Resolution', st.resolution, 'ico_display');
+    if (SPIRITS.on) this.dropdown(rowY(5), 'Graphics', qualityNow(), 'ico_display', QUALITY.map(([l]) => l), (l) => { try { localStorage.setItem(QUALITY_KEY, QUALITY.find(([x]) => x === l)?.[1] ?? 'auto'); } catch { /* (this visit only) */ } });
 
-    this.root.add(createTextButton(s, CX, CY + P.h / 2 - P.back.offsetY, P.back.w, P.back.h, 'Back', () => this.close()));
+    this.root.add(createTextButton(s, CX, CY + H / 2 - P.back.offsetY, P.back.w, P.back.h, 'Back', () => this.close()));
     s.input.keyboard?.on('keydown-ESC', this.onEsc);
   }
 
@@ -191,7 +200,8 @@ export class SettingsModal {
     this.root!.add([g, hit]);
   }
 
-  private dropdown(y: number, label: string, initial: Resolution, icon?: string): void {
+  /** A choice box (Resolution; the spirits' Graphics: `options` and `pick` given). */
+  private dropdown(y: number, label: string, initial: string, icon?: string, options?: readonly string[], pick?: (v: string) => void): void {
     const s = this.scene;
     this.label(y, label, icon);
     const x0 = P.controlX, w = P.controlW, h = 40;
@@ -209,26 +219,27 @@ export class SettingsModal {
     hit.on('pointerout', () => drawBox(false));
     hit.on('pointerup', () => (this.dropdownList ? this.closeDropdown() : this.openDropdown(x0, y + h / 2, w, (r) => {
       txt.setText(r);
-      SettingsStore.set('resolution', r);
-      PlatformAdapter.applyResolution(s.game, r);
-    })));
+      if (pick) { pick(r); return; }
+      SettingsStore.set('resolution', r as Resolution);
+      PlatformAdapter.applyResolution(s.game, r as Resolution);
+    }, options, txt.text)));
     this.root!.add([box, txt, hit]);
   }
 
-  private openDropdown(x0: number, top: number, w: number, onPick: (r: Resolution) => void): void {
+  private openDropdown(x0: number, top: number, w: number, onPick: (r: string) => void, options: readonly string[] = RESOLUTIONS, chosen?: string): void {
     const s = this.scene;
     const ih = 40;
     const list = s.add.container(0, 0).setDepth(1001);
     const catcher = s.add.zone(CX, CY, DESIGN.width, DESIGN.height).setInteractive();
     catcher.on('pointerup', () => this.closeDropdown());
     list.add(catcher);
-    const current = SettingsStore.get().resolution;
-    RESOLUTIONS.forEach((r, i) => {
+    const current = chosen ?? SettingsStore.get().resolution;
+    options.forEach((r, i) => {
       const iy = top + 6 + i * ih;
       const g = s.add.graphics();
       const draw = (hover: boolean) => {
         g.clear();
-        const first = i === 0, last = i === RESOLUTIONS.length - 1;
+        const first = i === 0, last = i === options.length - 1;
         g.fillStyle(hover ? 0x1f2c44 : 0x111a2b, 1).fillRoundedRect(x0, iy, w, ih, { tl: first ? 10 : 0, tr: first ? 10 : 0, bl: last ? 10 : 0, br: last ? 10 : 0 });
         if (!last) g.lineStyle(1, 0xffffff, 0.06).lineBetween(x0 + 8, iy + ih, x0 + w - 8, iy + ih);
       };

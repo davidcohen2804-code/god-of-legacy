@@ -4,8 +4,9 @@
 // it); the window's own controls (the animation, the turn, rotate) move him as they moved the old 2D preview.
 import * as THREE from 'three';
 import { Hero3D } from '../arena3d/Hero3D';
-import { SPIRIT_BODY } from './flag';
+import { SPIRIT_BODY, SPIRITS } from './flag';
 import { makeSpiritFinish } from './SpiritBody';
+import { makeSpiritForm } from './SpiritForm';
 import { spiritLights } from './SpiritPreview';
 
 /** What the window's preview is doing (its own state machine: idle, walk, run, the jump's beats, the basic attack's
@@ -38,10 +39,10 @@ export class SpiritStage {
     this.cam.position.set(0, c + 0.06, d); this.cam.lookAt(0, c, 0);
   }
 
-  /** The Spectral Samurai, katana in hand, for a `w`×`h` (design px) stage. */
-  static async create(w: number, h: number): Promise<SpiritStage> {
+  /** The Spectral Samurai, the spirit blade in hand, for a `w`×`h` (design px) stage, his light at `level`'s tier. */
+  static async create(w: number, h: number, level = 1): Promise<SpiritStage> {
     const hero = await Hero3D.load({ female: false, body: SPIRIT_BODY });
-    makeSpiritFinish(hero);
+    if (SPIRITS.ghost) makeSpiritForm(hero, { level: SPIRITS.lv ?? level, lit: 0.22, ground: () => 0 }); else makeSpiritFinish(hero);
     hero.flatToView = true; // (the blade's flat to the viewer, not its edge)
     hero.setWeapon('katana');
     return new SpiritStage(hero, w, h);
