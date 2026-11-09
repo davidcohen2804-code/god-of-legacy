@@ -433,8 +433,8 @@ export class SpiritBody {
   }
 }
 
-/** The Spectral Samurai laid on a 3D hero (and its halo on the layer it is drawn in). */
-export function makeSpirit(hero: Hero3D, layer?: { preFX?: { addGlow(color?: number, outer?: number, inner?: number, knockout?: boolean, quality?: number, distance?: number): unknown } | null }, look: SpiritLook = SPECTRAL_SAMURAI): SpiritBody {
-  layer?.preFX?.addGlow(look.halo, 2.2, 0, false, 0.12, 10);
+/** The Spectral Samurai laid on a 3D hero. (No halo round his layer: a glow there rings his cast shadow on the floor
+ *  too — his own light is the rim, the eyes and the blade.) */
+export function makeSpirit(hero: Hero3D, _layer?: unknown, look: SpiritLook = SPECTRAL_SAMURAI): SpiritBody {
   return new SpiritBody(hero, look);
 }
