@@ -969,7 +969,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.view = new ActorView(this, this.cls, x, y);
     this.view.setBaseLook(headLookOf(character), genderOf(character));
     this.view.setGear(wornLook(character.gear), genderOf(character));
-    this.view.setName(character.name);
+    if (!SPIRITS.on) this.view.setName(character.name); // (?spirits: no name badge under him — GPT: it pulled the eye off the model; the HUD shows his name)
     this.loadCosmetics();
 
     this.rt = new SkillRuntime({
@@ -2829,7 +2829,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     return this.kage ??= new KageLocal(this, {
       makeView: () => {
         const ch = this.character!, g = genderOf(ch), v = new ActorView(this, this.cls, this.kin.x, this.kin.y);
-        v.setBaseLook(headLookOf(ch), g); v.setGear(wornLook(CharacterStore.getGear(ch.id) ?? ch.gear), g); v.setName(ch.name); v.setEquipped(this.equipped);
+        v.setBaseLook(headLookOf(ch), g); v.setGear(wornLook(CharacterStore.getGear(ch.id) ?? ch.gear), g); if (!SPIRITS.on) v.setName(ch.name); v.setEquipped(this.equipped);
         if (this.tagsOn) { v.setTag(this.myTag(false), PVP.labelDepth, TAG_SCALE); v.setRing(colorNum(classColor(this.cls))); } // battle: your doubles wear your tag (with no YOU) and ring
         return v;
       },

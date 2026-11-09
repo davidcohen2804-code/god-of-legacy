@@ -17,6 +17,16 @@ const STYLE_ID = 'gol-hud-style';
 const COMBO_RANKS = [{ at: 8, word: 'GREAT', color: '#7fd8ff' }, { at: 16, word: 'EXCELLENT', color: '#ffd24a' }, { at: 25, word: 'LEGENDARY', color: '#ff5a3a' }];
 
 const K = (f: string) => `assets/final/ui/kit/${f}.png`;
+/** Legacy of Spirits: the map's markers drawn in the palette (the hero a gold arrow, a person a violet dot in a gold ring,
+ *  a quest a gold star, a foe a crimson diamond, the way on a violet diamond). */
+const svgMark = (body: string) => `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="48" height="48">${body}</svg>`)}`;
+const SPIRIT_MARK: Record<string, string> = {
+  player: svgMark('<path d="M12 2.5l6.5 17-6.5-3.6-6.5 3.6z" fill="#f2d98f" stroke="#1b1230" stroke-width="1.6" stroke-linejoin="round"/>'),
+  npc: svgMark('<circle cx="12" cy="12" r="6.2" fill="#9a6bff" stroke="#e4c26a" stroke-width="2"/>'),
+  quest: svgMark('<path d="M12 2.8l2.7 5.8 6.3.7-4.7 4.3 1.3 6.2L12 16.6l-5.6 3.2 1.3-6.2L3 9.3l6.3-.7z" fill="#f2d98f" stroke="#1b1230" stroke-width="1.4" stroke-linejoin="round"/>'),
+  enemy: svgMark('<path d="M12 3l8 9-8 9-8-9z" fill="#c81f46" stroke="#f2d98f" stroke-width="1.6"/>'),
+  portal: svgMark('<path d="M12 3.5l7 8.5-7 8.5-7-8.5z" fill="#733d98" stroke="#d9b8ff" stroke-width="1.8"/>'),
+};
 /** HUD geometry (1920x1080 design px). The player card (portrait, level, name, HP / resource) top-left, buffs under it. */
 const G0 = {
   card: { x: 18, y: 16, w: 436, h: 104 },
@@ -42,13 +52,13 @@ const G0 = {
  *  the EXP bar in it), a larger map, the panels' buttons as one row of icons at the bottom right. */
 const G: typeof G0 = SPIRITS.on ? ({
   ...G0,
-  card: { x: 16, y: 14, w: 520, h: 140 },
-  portrait: { x: 14, y: 14, d: 112 },
-  name: { x: 142, y: 8, w: 362, h: 30 },
-  hp: { x: 142, y: 58, w: 362, h: 24 },
-  mp: { x: 142, y: 88, w: 362, h: 18 },
-  exp: { x: 142, y: 114, w: 362, h: 12 },
-  buffs: { x: 22, y: 166, size: 40, gap: 8 },
+  card: { x: 16, y: 14, w: 520, h: 154 },
+  portrait: { x: 16, y: 20, d: 114 },
+  name: { x: 146, y: 10, w: 358, h: 30 },
+  hp: { x: 146, y: 66, w: 358, h: 24 },
+  mp: { x: 146, y: 97, w: 358, h: 18 },
+  exp: { x: 146, y: 124, w: 358, h: 16 },
+  buffs: { x: 22, y: 180, size: 40, gap: 8 },
   minimap: { x: 1650, y: 14, w: 256, h: 256, view: { x: 8, y: 8, w: 240, h: 240 } },
   region: { x: 1650, y: 278, w: 256, h: 40 },
   gold: { right: 1904, y: 890 },
@@ -657,6 +667,7 @@ export class WorldHUD {
       el.btn.classList.toggle('ult-ready', s.tier === 'ultimate' && state === 'ready');
       el.btn.classList.toggle('sig', s.tier === 'signature');
       el.btn.classList.toggle('pressed', state === 'pressed');
+      el.btn.classList.toggle('cool', state === 'cooldown');
       el.last = key;
       el.btn.classList.toggle('off', disabled);
       el.btn.classList.toggle('empty', !s.iconUrl); // no skill art: the kit's empty socket, the small pictogram in it
@@ -706,7 +717,7 @@ export class WorldHUD {
         if (!markersDue) continue;
         el = document.createElement('img');
         el.className = 'mk'; el.alt = ''; el.draggable = false;
-        el.src = K(mk.kind === 'player' ? 'marker_player' : mk.kind === 'npc' ? 'marker_npc' : mk.kind === 'quest' ? 'marker_quest_star' : mk.kind === 'enemy' ? 'marker_boss' : 'marker_portal');
+        el.src = SPIRITS.on ? SPIRIT_MARK[mk.kind] ?? SPIRIT_MARK.portal : K(mk.kind === 'player' ? 'marker_player' : mk.kind === 'npc' ? 'marker_npc' : mk.kind === 'quest' ? 'marker_quest_star' : mk.kind === 'enemy' ? 'marker_boss' : 'marker_portal');
         el.style.zIndex = mk.kind === 'player' ? '3' : '2';
         view.appendChild(el);
         this.markers.set(mk.id, el);
@@ -765,7 +776,8 @@ export class WorldHUD {
     if (key === b.last) return;
     b.last = key;
     b.fill.style.width = `${b.w * ratio}px`;
-    if (b.val) b.val.textContent = !ok ? '' : what === 'EXP' ? `EXP  ${Math.round(value).toLocaleString('en-US')} / ${Math.round(max).toLocaleString('en-US')}  (${(ratio * 100).toFixed(2)}%)` : `${Math.max(0, Math.round(value))} / ${Math.round(max)}`;
+    if (b.val && SPIRITS.on && what === 'EXP') { b.val.textContent = ok ? `EXP  ${(ratio * 100).toFixed(2)}%` : ''; b.root.title = ok ? `EXP ${Math.round(value).toLocaleString('en-US')} / ${Math.round(max).toLocaleString('en-US')}` : ''; } // (the spirits: the share alone, the numbers on hover)
+    else if (b.val) b.val.textContent = !ok ? '' : what === 'EXP' ? `EXP  ${Math.round(value).toLocaleString('en-US')} / ${Math.round(max).toLocaleString('en-US')}  (${(ratio * 100).toFixed(2)}%)` : `${Math.max(0, Math.round(value))} / ${Math.round(max)}`;
     b.root.setAttribute('aria-label', ok ? `${what} ${Math.round(value)} of ${Math.round(max)}` : 'unknown');
   }
 

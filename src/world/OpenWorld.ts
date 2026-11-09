@@ -19,6 +19,7 @@ import { Monster, preloadMonsterFrames } from './Monster';
 import { CourtyardAmbience } from './Ambience';
 import { NAME_DEPTH } from '../game/ActorView';
 import { keyCap, namePlate } from '../game/Plates';
+import { SPIRITS } from '../spirits/flag';
 import { Kin } from '../combat/Combat';
 import { HUD } from '../config/layout';
 
@@ -385,6 +386,12 @@ export class OpenWorld {
       const name = this.scene.add.text(p.x, ly + 22, n.name, { fontFamily: 'Cinzel, Georgia, serif', fontSize: '14px', fontStyle: '700', color: '#f3e3bd', resolution: 2 }).setOrigin(0.5).setDepth(nd + 0.0002);
       const plate = namePlate(this.scene, p.x, ly + 22, name.width + PLATE.pad * 2, PLATE.h).setDepth(nd + 0.0001);
       const title = this.scene.add.text(p.x, ly + 48, n.title, { fontFamily: HUD.bodyFont, fontSize: '12.5px', fontStyle: '600', color: '#e4e8ee', stroke: '#0b1220', strokeThickness: 3, resolution: 2 }).setOrigin(0.5).setDepth(nd + 0.0002);
+      if (SPIRITS.on) { // (Legacy of Spirits, GPT 9 Nov: one nameplate, the role right under it — kept together as one piece, so the 3D
+        // place's projection never lays the role over the name)
+        const tag = this.scene.add.container(p.x, ly + 22).setDepth(nd + 0.0002);
+        plate.setPosition(0, 0); name.setPosition(0, 0); title.setPosition(0, PLATE.h / 2 + 11).setFontSize(12).setColor('#cbbde6').setStroke('#120b21', 3);
+        tag.add([plate, name, title]);
+      }
       const top = p.y - art.h * art.oy / art.q; // head top (world px)
       const mark = this.scene.add.image(p.x, top - 26, MARK_TEX.available).setDisplaySize(15, 42).setDepth(nd + 0.0003).setVisible(false);
       // a click on the game itself only (not one on a window drawn over the NPC: the inventory, the skill book)

@@ -10,6 +10,18 @@ import { Hero3D } from '../arena3d/Hero3D';
 import { SPIRIT_BODY } from './flag';
 import { makeSpiritFinish } from './SpiritBody';
 
+/** The menus' night light on him: the moon from the front left, a violet rim behind him, the lanterns' warmth low from
+ *  the right, and a soft frontal fill at face height (GPT, 9 Nov: the face read too dark — keep its silhouette and the
+ *  eyes' glow, never a human, lit face). */
+export function spiritLights(sc: THREE.Scene): void {
+  sc.add(new THREE.HemisphereLight(0x8f8ad0, 0x1a1026, 0.9));
+  const moon = new THREE.DirectionalLight(0xdcdcff, 1.9); moon.position.set(-2.4, 3.4, 3.2); sc.add(moon);
+  const rim = new THREE.DirectionalLight(0x9a6bff, 2.4); rim.position.set(1.8, 2.2, -3.2); sc.add(rim);
+  const rim2 = new THREE.DirectionalLight(0x9a6bff, 1.2); rim2.position.set(-2.2, 1.6, -2.6); sc.add(rim2);
+  const warm = new THREE.DirectionalLight(0xffb070, 0.35); warm.position.set(3, 0.8, 1.5); sc.add(warm);
+  const face = new THREE.DirectionalLight(0xd6d0ff, 0.55); face.position.set(0.3, 1.6, 4); face.target.position.set(0, 1.4, 0); sc.add(face, face.target);
+}
+
 export class SpiritPreview {
   /** Drawn at this many times its size on screen (the menus show him large: the face and the hair stay sharp). */
   static readonly RES = 2;
@@ -25,16 +37,7 @@ export class SpiritPreview {
     this.renderer.setPixelRatio(1); this.renderer.setSize(w * SpiritPreview.RES, h * SpiritPreview.RES, false);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace; this.renderer.toneMapping = THREE.ACESFilmicToneMapping; this.renderer.toneMappingExposure = 1.0;
     this.renderer.setClearColor(0x000000, 0);
-    // the night's light: the moon from the front left, a violet rim behind him, the lanterns' warmth low from the right
-    const sc = hero.scene;
-    sc.add(new THREE.HemisphereLight(0x8f8ad0, 0x1a1026, 0.9));
-    const moon = new THREE.DirectionalLight(0xdcdcff, 1.9); moon.position.set(-2.4, 3.4, 3.2); sc.add(moon);
-    const rim = new THREE.DirectionalLight(0x9a6bff, 2.4); rim.position.set(1.8, 2.2, -3.2); sc.add(rim);
-    const rim2 = new THREE.DirectionalLight(0x9a6bff, 1.2); rim2.position.set(-2.2, 1.6, -2.6); sc.add(rim2);
-    const warm = new THREE.DirectionalLight(0xffb070, 0.35); warm.position.set(3, 0.8, 1.5); sc.add(warm);
-    // a soft frontal fill at face height (GPT, 9 Nov: the face read too dark — keep its silhouette and the eyes' glow,
-    // never a human, lit face)
-    const face = new THREE.DirectionalLight(0xd6d0ff, 0.55); face.position.set(0.3, 1.6, 4); face.target.position.set(0, 1.4, 0); sc.add(face, face.target);
+    spiritLights(hero.scene);
     this.cam.aspect = w / h; this.frameTo(this.frame);
     if (scene.textures.exists(key)) scene.textures.remove(key);
     scene.textures.addImage(key, this.renderer.domElement as unknown as HTMLImageElement);

@@ -10,6 +10,9 @@ import { CharacterStore } from '../characters/CharacterStore';
 import { genderOf, headLookOf } from '../characters/Look';
 import { syncOverlay } from './CharacterSelectUI';
 import { PreviewStage, Rect, holeMask } from './PreviewStage';
+import { SPIRITS } from '../spirits/flag';
+import { spiritName } from '../spirits/Hud';
+import type { SpiritStage, StagePose } from '../spirits/SpiritStage';
 import { ActorView, COSMETICS, CosSlot, Equipped, cosmetic, slotOf } from '../game/ActorView';
 import { BaseLook, ClassKey, resolvePose } from '../game/Body';
 import { AnimSnap, LAND_MS, Mode, poseQuery } from '../game/PoseState';
@@ -203,6 +206,8 @@ class CosPreview {
   private z = 0;
   private vz = 0;
   private basic;
+  /** Legacy of Spirits: his pose goes to the 3D Samurai's stage instead of the 2D body. */
+  drive3d?: (p: StagePose, ms: number) => void;
 
   constructor(scene: Phaser.Scene, private stage: PreviewStage, readonly cls: ClassKey, private floor = 80, private gender: 'male' | 'female' = 'male', look: BaseLook | null = null) {
     this.basic = kitFor(cls)[0];
@@ -246,6 +251,7 @@ class CosPreview {
       case 'hurt': { const c = this.t % 900; mode = c < 320 ? 'hurt' : 'idle'; mt = c; break; }
       case 'dead': { const c = this.t % 2200; mode = c < 1700 ? 'dead' : 'idle'; mt = c; break; }
     }
+    if (this.drive3d) { this.drive3d({ mode, speed, vz, z: this.z, dir: this.dir, skill }, ms); return; }
     const pose = resolvePose(this.cls, this.dir, poseQuery({ mode, t: mt, speed, vz, skill, stunMs: 320 }), this.view.wantsBase, this.gender);
     this.view.render(ms, pose, this.stage.ox, this.stage.oy + this.floor, this.z, 0, this.dir);
   }
@@ -292,11 +298,19 @@ export class CosmeticPanel {
   private shopStage: PreviewStage;
   private invPrev: CosPreview;
   private shopPrev: CosPreview;
+  /** Legacy of Spirits (GPT, step 4B): the Spectral Samurai himself in the windows' stage — his 3D body drawn by a small
+   *  renderer of its own, only while a window is open — instead of the scene's preview camera, which looks at a far
+   *  corner of the 2D scene that the 3D place's picture covers (it showed a piece of wall). */
+  private s3d = false;
+  private spirit: SpiritStage | null = null;
+  private spiritLoading = false;
+  private dead = false;
 
   constructor(scene: Phaser.Scene, private host: HTMLElement, private canvas: HTMLCanvasElement, private character: Character,
     private getEquipped: () => Equipped, private onEquip: (e: Equipped) => void, private onGear?: (g: GearState) => void) {
     ensureStyles();
     this.cls = character.classId as ClassKey;
+    this.s3d = SPIRITS.on && this.cls === 'samurai';
     this.items = (COSMETICS[this.cls] ?? []) as Item[];
     this.root = document.createElement('div');
     this.root.className = 'gol-cs gol-cp';
@@ -308,6 +322,19 @@ export class CosmeticPanel {
     this.invPrev = new CosPreview(scene, this.invStage, this.cls, 104, genderOf(character), headLookOf(character));
     this.shopPrev = new CosPreview(scene, this.shopStage, this.cls, 104, genderOf(character), headLookOf(character));
     this.invPrev.setVisible(false); this.shopPrev.setVisible(false);
+    if (this.s3d) { const d3 = (p: StagePose, ms: number) => this.spirit?.drive(p, ms); this.invPrev.drive3d = d3; this.shopPrev.drive3d = d3; }
+  }
+
+  /** The 3D Samurai's canvas in the shown window's stage (made the first time a window opens). */
+  private mountSpirit(): void {
+    const host = (this.tab === 'inventory' ? this.inv : this.shop).querySelector<HTMLElement>('.stage');
+    if (this.spirit) { if (host && this.spirit.canvas.parentElement !== host) host.appendChild(this.spirit.canvas); return; }
+    if (this.spiritLoading) return;
+    this.spiritLoading = true;
+    import('../spirits/SpiritStage').then(({ SpiritStage }) => SpiritStage.create(PREVIEW.w, PREVIEW.h)).then((st) => {
+      if (this.dead) { st.dispose(); return; }
+      this.spirit = st; this.mountSpirit();
+    }).catch((e) => { this.spiritLoading = false; console.warn('[spirits] the window preview', e); });
   }
 
   // ------------------------------------------------------------------ ownership (local store; backend-ready seam)
@@ -390,14 +417,14 @@ export class CosmeticPanel {
   /** The window, its stage for the live preview (a hole the scene's preview camera shows through, with a fine frame). */
   private windowFrame(): HTMLDivElement {
     const bg = this.el('div', 'bg gl-win', this.root); this.place(bg, WIN.x, WIN.y, WIN.w, WIN.h);
-    holeMask(bg, PREVIEW);
-    const st = this.el('div', 'stage', bg); this.place(st, PREVIEW.x, PREVIEW.y, PREVIEW.w, PREVIEW.h);
+    if (!this.s3d) holeMask(bg, PREVIEW); // (the spirits: no hole — the 3D Samurai's own canvas lies in the stage)
+    const st = this.el('div', this.s3d ? 'stage sp3d' : 'stage', bg); this.place(st, PREVIEW.x, PREVIEW.y, PREVIEW.w, PREVIEW.h);
     return bg;
   }
 
   private buildInventory(): HTMLDivElement {
     const bg = this.windowFrame();
-    this.header(bg, 'INVENTORY', `${this.character.name} · ${hasJob(this.character) ? CLASS_NAMES[this.cls] ?? this.cls : 'Beginner'}`, 'Cosmetic Shop', 'shop');
+    this.header(bg, 'INVENTORY', `${spiritName(this.cls, this.character.name)} · ${hasJob(this.character) ? CLASS_NAMES[this.cls] ?? this.cls : 'Beginner'}`, 'Cosmetic Shop', 'shop');
     this.stateBar(bg, () => this.invPrev);
     const tabs = this.el('div', 'tabsrow gl-tabs', bg);
     for (const [t, label] of MAIN_TABS) {
@@ -709,8 +736,10 @@ export class CosmeticPanel {
     this.root.classList.add('open');
     this.inv.classList.toggle('on', tab === 'inventory');
     this.shop.classList.toggle('on', tab === 'shop');
-    this.invStage.setVisible(tab === 'inventory'); this.invPrev.setVisible(tab === 'inventory');
-    this.shopStage.setVisible(tab === 'shop'); this.shopPrev.setVisible(tab === 'shop');
+    const two = !this.s3d;
+    this.invStage.setVisible(two && tab === 'inventory'); this.invPrev.setVisible(two && tab === 'inventory');
+    this.shopStage.setVisible(two && tab === 'shop'); this.shopPrev.setVisible(two && tab === 'shop');
+    if (this.s3d) this.mountSpirit();
     this.refresh();
     this.layout();
   }
@@ -737,5 +766,5 @@ export class CosmeticPanel {
   get previewState(): { state: PState; dir: Dir; tryOn: Equipped } { const p = this.tab === 'inventory' ? this.invPrev : this.shopPrev; return { state: p.state, dir: p.dir, tryOn: this.tryOn }; }
   setPreview(state: PState, dir?: Dir): void { const p = this.tab === 'inventory' ? this.invPrev : this.shopPrev; p.setState(state); if (dir) { p.dir = dir; p.autoTurn = false; } this.syncStates(); }
 
-  destroy(): void { this.invPrev.destroy(); this.shopPrev.destroy(); this.invStage.destroy(); this.shopStage.destroy(); this.root.remove(); }
+  destroy(): void { this.dead = true; this.spirit?.dispose(); this.spirit = null; this.invPrev.destroy(); this.shopPrev.destroy(); this.invStage.destroy(); this.shopStage.destroy(); this.root.remove(); }
 }
