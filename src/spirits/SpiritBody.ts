@@ -475,8 +475,10 @@ export function makeSpiritFinish(hero: Hero3D): SpiritFinish { return new Spirit
 /** The camera for the spirits (GPT, gate 1: the hero about 30 % of the screen's height as the first target — about 7 of
  *  the world's 9 units away; the pull-back for several foes and each place's own framing kept). */
 export function frameSpirit(a3: unknown): void {
-  const a = a3 as { CAM?: { dist: number } };
-  if (a.CAM) a.CAM = { ...a.CAM, dist: a.CAM.dist * (7 / 9) };
+  const a = a3 as { CAM?: { dist: number; pitch: number } };
+  // (GPT, 9 Nov, after the 17° / 19° comparison: 19° for the world's exploration camera — more of the floor and the
+  // blocks' tops for the depth movement; the cave's and the sky's own cameras keep theirs)
+  if (a.CAM) a.CAM = { ...a.CAM, dist: a.CAM.dist * (7 / 9), pitch: a.CAM.pitch === 17 ? 19 : a.CAM.pitch };
 }
 
 /** The Spectral Samurai laid on a 3D hero. (No halo round his layer: a glow there rings his cast shadow on the floor
