@@ -57,21 +57,24 @@ export interface WorldHooks {
 /** The picture tiles within `reach` px of world x. */
 const tilesNear = (x: number, reach: number): number[] => TILES.flatMap(([tx, tw], i) => (tx + tw > x - reach && tx < x + reach ? [i] : []));
 
-export function preloadOpenWorld(scene: Phaser.Scene): void {
+export function preloadOpenWorld(scene: Phaser.Scene, o: { pictures?: boolean } = {}): void {
   const L = (k: string, url: string) => { if (!scene.textures.exists(k)) scene.load.image(k, url); };
+  // (pictures: false — Legacy of Spirits, GPT step 4P: the world starts in 3D, where the painted world is never drawn
+  // (OpenWorld's no2d): its strip, arena, banners, sky clouds, gate and props' pictures are not loaded)
+  const pics = o.pictures !== false;
   // the world around the start comes with the scene; the rest streams in right after
-  for (const i of tilesNear(toWorld(START.area, [START.x, START.y]).x, AREA_W * 1.5)) L(tileKey(i), tileUrl(i));
-  ARENA.tiles.forEach((_, i) => L(arenaTileKey(i), arenaTileUrl(i)));
-  L(BANNERS_KEY, BANNERS_URL);
+  if (pics) for (const i of tilesNear(toWorld(START.area, [START.x, START.y]).x, AREA_W * 1.5)) L(tileKey(i), tileUrl(i));
+  if (pics) ARENA.tiles.forEach((_, i) => L(arenaTileKey(i), arenaTileUrl(i)));
+  if (pics) L(BANNERS_KEY, BANNERS_URL);
   if (!scene.textures.exists('cloud-form')) scene.load.spritesheet('cloud-form', 'assets/final/fx/cloud_form.png', { frameWidth: 80, frameHeight: 120 });
-  SKY.sprites.forEach((sp, i) => L(`sky-cloud-${i}`, sp.img));
-  L('world-gate-back', 'assets/world/gate/back.png'); L('world-gate-front', 'assets/world/gate/front.png');
-  for (const id of Object.keys(CUTS)) L(`prop-${id}`, `assets/world/props/${id}.png`);
+  if (pics) SKY.sprites.forEach((sp, i) => L(`sky-cloud-${i}`, sp.img));
+  if (pics) { L('world-gate-back', 'assets/world/gate/back.png'); L('world-gate-front', 'assets/world/gate/front.png'); }
+  if (pics) for (const id of Object.keys(CUTS)) L(`prop-${id}`, `assets/world/props/${id}.png`);
   for (const [name, a] of Object.entries(ART)) if (!scene.textures.exists(`npc-${name}`)) scene.load.spritesheet(`npc-${name}`, `assets/world/npc/${name}.png`, { frameWidth: a.w, frameHeight: a.h });
   L('kit.drop_beam', KIT('drop_beam')); L('kit.marker_portal', KIT('marker_portal'));
   for (const t of Object.values(MARK_TEX)) L(t, KIT(t.slice(4)));
   for (const set of new Set(Object.values(MOB_KINDS).map((k) => k.frames))) preloadMonsterFrames(scene, set);
-  preloadBackdrop(scene);
+  if (pics) preloadBackdrop(scene);
 }
 
 /** Camera up high: the height where it is drawn back all the way, how far back (share of the zoom), how fast it

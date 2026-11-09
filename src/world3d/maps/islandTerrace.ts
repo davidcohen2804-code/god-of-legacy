@@ -268,7 +268,17 @@ export const islandTerrace = (areaId: string, spec: TerraceSpec) => (focus: Plac
   // ------------------------------------------------------------------ the brazier's fire and the warm light
   if (benchNpc) { const L = new THREE.PointLight(0xff9a40, look.lanterns ? 4.6 : 2.6, look.lanterns ? 4.8 : 7, 2); L.position.set(brazier.x, 1.3, brazier.z); scene.add(L); warm.push(L); } // (at night with lanterns: a warm pool round the brazier, fading out within a few steps — never tinting the far floor)
   // (at night with lanterns: the stair's two gilt lantern posts lit, warm pools at the stair's foot)
-  if (look.lanterns && spec.stair) for (const side of [-1, 1]) { const L = new THREE.PointLight(0xffb060, 2.0, 4.2, 2); L.position.set(sx + side * (sw / 2 + 0.2), WALL_H + 0.8, nz - 0.1); scene.add(L); }
+  if (look.lanterns && spec.stair) for (const side of [-1, 1]) {
+    const lx = sx + side * (sw / 2 + 0.2);
+    if (!SPIRITS.lean) { const L = new THREE.PointLight(0xffb060, 2.0, 4.2, 2); L.position.set(lx, WALL_H + 0.8, nz - 0.1); scene.add(L); continue; }
+    // (lean, GPT step 4P: their light drawn instead of lit — a light costs every lit pixel of the place, every frame: a
+    // warm halo round the lantern and its pool on the floor at the stair's foot, additive, no light)
+    const hm = new THREE.SpriteMaterial({ map: glowTex, color: 0xffb060, transparent: true, opacity: 0.5, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }); disposables.push(hm);
+    const hs = new THREE.Sprite(hm); hs.position.set(lx, WALL_H + 0.8, nz - 0.1); hs.scale.set(1.5, 1.5, 1); scene.add(hs);
+    const pm = new THREE.MeshBasicMaterial({ map: glowTex, color: 0xffa050, transparent: true, opacity: 0.32, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }); disposables.push(pm);
+    const pg = new THREE.PlaneGeometry(3.4, 2.4); pg.rotateX(-Math.PI / 2); disposables.push(pg);
+    const pool = new THREE.Mesh(pg, pm); pool.position.set(lx, 0.012, nz + 0.7); pool.renderOrder = 1; scene.add(pool);
+  }
   const flame = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xffa040, transparent: true, opacity: 0.85, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
   flame.position.set(brazier.x, 1.12, brazier.z); flame.scale.set(0.9, 1.3, 1); flame.visible = !!benchNpc; scene.add(flame); disposables.push(flame.material);
   const smoke = new Puffs(soft ? 40 : 90, lifeTex(smokeCanvas(2)), false); scene.add(smoke.pts); disposables.push(smoke);

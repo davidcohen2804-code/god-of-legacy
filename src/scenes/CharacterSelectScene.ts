@@ -14,6 +14,7 @@ import { genderOf } from '../characters/Look';
 import { chibiOn } from '../chibi/ChibiBody';
 import { SPIRITS } from '../spirits/flag';
 import { buildSpiritSelect, preloadSpiritSelect } from '../spirits/SpiritSelect';
+import { mark } from '../spirits/perf';
 /** Each class's weapon in the 3D Beginner's hand (as Hero3D's CLASS_WEAPON, without loading it here). */
 const CLASS_WEAPON3D: Record<string, 'sword' | 'katana' | 'bow' | 'staff' | 'cane'> = { warrior: 'sword', samurai: 'katana', archer: 'bow', book_mage: 'staff', gambler: 'cane' };
 
@@ -158,7 +159,7 @@ export class CharacterSelectScene extends Phaser.Scene {
     const off = buildSpiritSelect(this, {
       level: CharacterStore.getSelectedCharacter()?.level ?? HERO_LEVEL,
       onBack: () => { CharacterStore.endHero(); this.scene.start('MainMenuScene'); },
-      onEnter: () => { CharacterStore.touchHero(); clearPvpFromUrl(); this.scene.start('LegacyCourtyardScene', { pvpRoom: null }); },
+      onEnter: () => { mark('enter'); CharacterStore.touchHero(); clearPvpFromUrl(); this.scene.start('LegacyCourtyardScene', { pvpRoom: null }); },
     });
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, off);
   }

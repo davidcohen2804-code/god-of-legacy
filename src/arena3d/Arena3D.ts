@@ -214,10 +214,12 @@ export class Arena3D {
   /** `opts.build`: the place to build (default: the arena's temple courtyard); `opts.cam`: camera settings over the arena's.
    *  The rest — the picture (bloom, shadows, the glow layer), placing the 2D world where this camera sees it, the fighters'
    *  sun shadows and light, the skills' 3D pieces, the blows' answers — is the same for any 3D place. */
-  constructor(private scene: Phaser.Scene, private floor: Floor, opts: { build?: BuildPlace; cam?: Partial<Cam3D> } = {}) {
+  constructor(private scene: Phaser.Scene, private floor: Floor, opts: { build?: BuildPlace; cam?: Partial<Cam3D>; lean?: boolean } = {}) {
     this.CAM = { ...CAM_ARENA, ...opts.cam }; this.dist = this.CAM.dist; this.buildPlace = opts.build ?? buildRoom;
     const soft = !!(navigator as { webdriver?: boolean }).webdriver; // (test browsers render on the CPU: half size, no shadows)
-    const res = soft ? 0.4 : RES, w = Math.round(scene.scale.width * res), h = Math.round(scene.scale.height * res);
+    this.lean = !!opts.lean && !soft;
+    const lv0 = this.lean ? Arena3D.savedLevel() : 0; this.quality.level = lv0;
+    const [w, h] = soft ? [Math.round(scene.scale.width * 0.4), Math.round(scene.scale.height * 0.4)] : this.sizeFor(lv0);
     // one three.js canvas: the room is drawn into it, handed to Phaser (a GPU copy), then the railing, handed over too
     this.bgCanvas = document.createElement('canvas');
     this.fgCanvas = this.bgCanvas;
@@ -226,9 +228,13 @@ export class Arena3D {
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.localClippingEnabled = true; // (the skills' pieces split round the fighters: behind them in the room, in front over them)
     this.camera = new THREE.PerspectiveCamera(this.CAM.fov, w / h, 0.5, 400);
+    if (this.lean) try { performance.mark('gol:room-build'); } catch { /* (no marks) */ }
     this.build(soft);
+    if (this.lean) try { performance.mark('gol:room-built'); } catch { /* (no marks) */ }
     this.soft = soft;
-    this.makeComposer(w, h, soft ? 0 : 4); // (multisampled: the room's edges stay smooth)
+    if (this.lean && lv0 >= 1) this.scaleBits(h); // (lean, a slow computer known from before: no bloom from the start)
+    else this.makeComposer(w, h, soft || lv0 >= 1 ? 0 : 4); // (multisampled: the room's edges stay smooth)
+    if (lv0 >= 2) this.renderer.shadowMap.enabled = false;
     this.focus = { x: (floor.x0 + floor.x1) / 2, y: (floor.back + floor.front) / 2, z: 0, span: 0 };
     this.place(true);
     // the two layers: the room behind everything, the railing (front3) over the fighters
@@ -244,7 +250,13 @@ export class Arena3D {
     ImpactFx.screenOf = (x, y, z) => this.project(x, y, z);
     ImpactFx.drawnAt = (x, wy) => this.drawnAt(x, wy);
     for (const o of this.front3.children) this.roomFront.add(o); // (everything there now is the room's: the skills' pieces come later)
+    if (this.lean) { this.setHitLights(false); try { performance.mark('gol:fx-warm'); } catch { /* (no marks) */ } } // (lean: the first pictures' look — the blows' lights out — is what the warm-up compiles)
     this.fx.warm(this.renderer);
+    if (this.lean) try { performance.mark('gol:fx-warmed'); } catch { /* (no marks) */ }
+    if (this.lean) { // the blows' lights out while no blow is lit, their lit look compiled in the background (no hitch at the first blow); the picture's size follows the window
+      this.prewarmLit(this.scene3, this.composer ? this.composer.renderTarget1 : null); this.prewarmLit(this.front3, null);
+      window.addEventListener('resize', this.onResize);
+    }
     scene.events.on(Phaser.Scenes.Events.PRE_RENDER, this.apply, this);
     scene.events.on(Phaser.Scenes.Events.RENDER, this.restore, this);
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, this.destroy, this);
@@ -263,6 +275,8 @@ export class Arena3D {
     const hemi = new THREE.HemisphereLight();
     const fill = new THREE.DirectionalLight(0xffeedd, 1.1), fillT = new THREE.Object3D(); fill.target = fillT; // (a painted fighter reads lit from the front: so does this one, the low sun being behind the courtyard)
     const pts = this.hitLights.map(() => new THREE.PointLight(0xffffff, 0, 1, 1.6));
+    for (const p of pts) p.visible = this.hitOn;
+    this.layerPts.push(pts);
     sc.add(sun, sunT, hemi, fill, fillT, ...pts);
     sc.environment = this.scene3.environment; (sc as THREE.Scene & { environmentIntensity: number }).environmentIntensity = 0.32;
     const sunDir = new THREE.Vector3(0, 1, 0);
@@ -302,9 +316,55 @@ export class Arena3D {
     this.composer.addPass(new RenderPass(this.scene3, this.camera));
     this.composer.addPass(new UnrealBloomPass(new THREE.Vector2(Math.round(w / 2), Math.round(h / 2)), 0.5, 0.55, 0.86));
     this.composer.addPass(new OutputPass());
-    const ps = h / (2 * Math.tan(THREE.MathUtils.degToRad(this.CAM.fov / 2))); // (a particle's size in units → px at 1 unit away)
+    this.scaleBits(h);
+  }
+  /** The particles' size for a picture `h` px tall (a particle's size in units → px at 1 unit away). */
+  private scaleBits(h: number): void {
+    const ps = h / (2 * Math.tan(THREE.MathUtils.degToRad(this.CAM.fov / 2)));
     for (const b of [this.dustB, this.dustF, this.chipB, this.chipF, this.glowB, this.glowF]) b.setScale(ps);
   }
+
+  // ------------------------------------------------------------------ lean (Legacy of Spirits, GPT step 4P)
+  /** Lean: the blows' point lights taken out of the scenes while none is lit (each light costs every pixel of every lit
+   *  surface, even dark), the picture never larger than the window shows it, and a slow computer going lighter sooner
+   *  (a target of 60 fps instead of 45), bloom off first, then remembered for the next visit. The regular game: off. */
+  private lean = false;
+  private hitOn = true;
+  private layerPts: THREE.PointLight[][] = [];
+  private static readonly LEVEL_KEY = 'gol-a3d-lean-level';
+  private static savedLevel(): number { try { const v = Number(localStorage.getItem(Arena3D.LEVEL_KEY)); return Number.isFinite(v) ? Math.max(0, Math.min(2, Math.round(v))) : 0; } catch { return 0; } }
+  /** The picture's size at a quality level: its share of the game's size, and never more pixels than the window shows. */
+  private sizeFor(lv: number): [number, number] {
+    const W = this.scene.scale.width, H = this.scene.scale.height, res = lv === 0 ? RES : lv === 1 ? 0.7 : 0.58;
+    let k = 1;
+    if (this.lean) try { const r = this.scene.game.canvas.getBoundingClientRect(), d = (r.width * (window.devicePixelRatio || 1)) / W; if (d > 0.05) k = Math.min(1, d); } catch { k = 1; }
+    return [Math.max(64, Math.round(W * res * k)), Math.max(36, Math.round(H * res * k))];
+  }
+  private setHitLights(on: boolean): void {
+    this.hitOn = on;
+    for (const h of this.hitLights) { h.L.visible = on; h.F.visible = on; }
+    for (const pts of this.layerPts) for (const p of pts) p.visible = on;
+  }
+  /** `sc`'s look with the blows' lights lit, its programs made now (the browser's GPU process compiles them while the
+   *  game goes on — nothing here waits for them): the first blow finds them ready instead of a hitch; the look with them
+   *  out is made by the place's first picture, as before. `rt`: what it is drawn into (null: the canvas). */
+  private prewarmLit(sc: THREE.Scene, rt: THREE.WebGLRenderTarget | null): void {
+    const r = this.renderer, prev = r.getRenderTarget();
+    r.setRenderTarget(rt); this.setHitLights(true);
+    try { r.compile(sc, this.camera); } catch { /* (made at the first blow instead) */ }
+    this.setHitLights(false); r.setRenderTarget(prev);
+  }
+  /** A 3D layer's scene (a body with its finish on): its look with the blows' lights lit compiled in the background. */
+  prewarmLayer(sc: THREE.Scene): void { if (this.lean) this.prewarmLit(sc, null); }
+  private resizeT: ReturnType<typeof setTimeout> | null = null;
+  private onResize = (): void => {
+    if (this.resizeT) clearTimeout(this.resizeT);
+    this.resizeT = setTimeout(() => {
+      this.resizeT = null; if (this.disposed) return;
+      const [w] = this.sizeFor(this.quality.level), now = this.renderer.domElement.width;
+      if (Math.abs(w - now) / now > 0.08) this.setLevel(this.quality.level, false);
+    }, 400);
+  };
 
   private buildPlace: BuildPlace;
   /** Test browsers (CPU drawing): a smaller picture, no multisampling. */
@@ -316,16 +376,27 @@ export class Arena3D {
     const Q = this.quality;
     if (this.soft || Q.level >= 2 || ms <= 0 || ms > 250) return;
     Q.ema += (ms - Q.ema) * 0.04; Q.t += ms;
-    if (Q.t < 4000 || Q.ema <= 21.5) return;
-    Q.level++; Q.t = 0; Q.ema = 16;
-    const res = Q.level === 1 ? 0.7 : 0.58, W = this.scene.scale.width, H = this.scene.scale.height, w = Math.round(W * res), h = Math.round(H * res);
+    if (Q.t < 4000 || Q.ema <= (this.lean ? 18 : 21.5)) return;
+    this.setLevel(Q.level + 1, true);
+  }
+  /** A quality level: the picture's size, its multisampling and bloom, the shadows (`lower`: a slower step down — lean
+   *  remembers it for the next visit). */
+  private setLevel(lv: number, lower: boolean): void {
+    const Q = this.quality; Q.level = lv; Q.t = 0; Q.ema = 16;
+    const W = this.scene.scale.width, H = this.scene.scale.height, [w, h] = this.sizeFor(lv);
     this.renderer.setSize(w, h, false);
-    this.makeComposer(w, h, 0);
-    if (Q.level === 2) this.renderer.shadowMap.enabled = false;
+    if (this.lean && lv >= 1) { this.composer?.dispose(); this.composer = undefined; this.scaleBits(h); } // (lean: bloom off first)
+    else this.makeComposer(w, h, lv === 0 && !this.soft ? 4 : 0);
+    if (lv >= 2) this.renderer.shadowMap.enabled = false;
     for (const [k, img] of [['arena3d-bg', this.bg], ['arena3d-fg', this.fg], ['arena3d-fx', this.fxImg], ...this.extra.map((l) => [l.key, l.img] as const)] as const) {
       this.scene.textures.remove(k); this.scene.textures.addImage(k, this.bgCanvas as unknown as HTMLImageElement); img.setTexture(k).setDisplaySize(W, H);
     }
-    console.info(`[PVP 3D] lighter room (level ${Q.level}): render ${w}×${h}`);
+    if (this.lean) { // (the new picture's look — no bloom, no shadows — with the blows' lights lit, compiled in the background)
+      this.prewarmLit(this.scene3, this.composer ? this.composer.renderTarget1 : null); this.prewarmLit(this.front3, null);
+      for (const l of this.extra) this.prewarmLit(l.scene, null);
+    }
+    if (this.lean && lower) try { localStorage.setItem(Arena3D.LEVEL_KEY, String(lv)); } catch { /* (remembered for this visit only) */ }
+    console.info(`[${this.lean ? '3D lean' : 'PVP 3D'}] ${lower ? 'lighter room' : 'resized'} (level ${lv}): render ${w}×${h}`);
   }
 
   // ------------------------------------------------------------------ the room
@@ -526,6 +597,7 @@ export class Arena3D {
       h.left -= ms; const k = Math.max(0, h.left / h.ms);
       h.now = h.power * (k * k * (3 - 2 * k)); h.L.intensity = h.F.intensity = h.now * h.cut; // (a fast flare, a soft fade)
     }
+    if (this.lean) { const on = this.hitLights.some((h) => h.left > 0); if (on !== this.hitOn) this.setHitLights(on); }
     for (let i = this.marks.length - 1; i >= 0; i--) {
       const mk = this.marks[i]; mk.left -= ms;
       (mk.m.material as THREE.MeshBasicMaterial).opacity = Math.min(1, mk.left / 900);
@@ -624,7 +696,9 @@ export class Arena3D {
 
   // ------------------------------------------------------------------ each frame: draw the room, place the world
 
+  private firstDrawn = false;
   private apply(): void {
+    if (this.lean && !this.firstDrawn) { this.firstDrawn = true; try { performance.mark('gol:first-3d'); } catch { /* (no marks) */ } }
     this.restore();
     this.shadeBodies();
     const cam = this.scene.cameras.main;
@@ -830,6 +904,7 @@ export class Arena3D {
     ImpactFx.drawnAt = null;
     this.room?.dispose();
     this.composer?.dispose();
+    if (this.lean) { window.removeEventListener('resize', this.onResize); if (this.resizeT) clearTimeout(this.resizeT); }
     this.renderer.dispose();
     this.renderer.forceContextLoss(); // (the WebGL context goes with the stage: a browser keeps ~16 — a world of map crossings, or a night of fights, would lose the game's own)
   }

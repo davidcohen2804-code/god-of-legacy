@@ -60,7 +60,7 @@ import { QuestState } from '../characters/CharacterTypes';
 import { PvpController } from '../pvp/PvpController';
 import { ARENA3D, ON_BODY } from '../arena3d/flag';
 import { HERO3D } from '../arena3d/hero3dFlag';
-import { SPIRITS, SPIRIT_BODY } from '../spirits/flag';
+import { SPIRITS, SPIRIT_BODY, SPIRIT_BODY_LITE } from '../spirits/flag';
 import { spiritName, spiritPortrait } from '../spirits/Hud';
 import { portrait3d } from '../arena3d/heroArt3d';
 import type { Hero3D } from '../arena3d/Hero3D';
@@ -137,6 +137,7 @@ import { CameraPitch } from '../world/CameraPitch';
 import { ArenaSound, type HeardFighter } from '../audio/ArenaSound';
 import { Sound, loadArenaSound } from '../audio/Sound';
 import { addMotes, preloadLife } from '../ui/PresentationLife';
+import { mark } from '../spirits/perf';
 /** The panels' keys (Key Settings) for the HUD's menu pills and gear menu. */
 const menuKeys = (b: Record<BindAction, string>) => ({ K: keyLabel(b.book), I: keyLabel(b.bag), O: keyLabel(b.shop), J: keyLabel(b.quests), P: keyLabel(b.party), U: keyLabel(b.stats) });
 
@@ -736,9 +737,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   get skills(): SkillRuntime | undefined { return this.rt; }
 
   preload(): void {
+    mark('scene-preload');
     const T = ATLAS.textures, CT = COMBAT_ASSETS.textures;
     // The world holds only your own class; the PvP arena can hold any class (other players, the sparring knight).
-    const sd = this.sys.settings.data as { pvpRoom?: string; fighter?: Character; botCls?: string; foe?: LoadSide; stage?: string; vs?: string } | undefined;
+    const sd = this.sys.settings.data as { pvpRoom?: string; fighter?: Character; botCls?: string; foe?: LoadSide; stage?: string; vs?: string; at?: { x: number; y: number } } | undefined;
     const pvp = !!sd?.pvpRoom, training = sd?.vs === 'training';
     const me = sd?.fighter ?? CharacterStore.getSelectedCharacter(); // (the PvP select's fighter)
     const cls = me ? playedClass(me) : undefined; // the class actually played (Beginner = warrior base)
@@ -754,7 +756,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       for (const e of this.stage.extras ?? []) if (!this.textures.exists(e.key)) this.load.image(e.key, e.file);
       loadArenaSound(this, this.stage.id, [cls, sd?.foe?.cls ?? sd?.botCls]); // (the two fighters' classes' own sounds; another class sends for its own when it shows up)
     }
-    else preloadOpenWorld(this); // the open world: the start area and its neighbours (the rest streams in)
+    else preloadOpenWorld(this, { pictures: !(SPIRITS.on && WORLD3D.has(areaAt((sd?.at ?? toWorld(START.area, [START.x, START.y])).x).id)) }); // the open world: the start area and its neighbours (the rest streams in); Legacy of Spirits starting in 3D: not the painted world's pictures (never drawn there)
     if (!this.textures.exists(CT.dummy.key)) this.load.image(CT.dummy.key, CT.dummy.file);
     preloadBodies(this, classes, masks, pvp && !!me?.hero && !!classes); // (the arena's fighters are ready heroes: their painted bodies only)
     preloadChibi(this, classes); // ?chibi: the new pixel-art body loads with the rest (no painted body first)
@@ -777,6 +779,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   }
 
   create(data?: { pvpRoom?: string; at?: { x: number; y: number }; fighter?: Character; botCls?: string; botLevel?: BotLevel; vs?: 'cpu' | 'player' | 'training' | 'test' }): void {
+    mark('scene-create');
     const at = !data?.pvpRoom && data?.at ? data.at : null; // a restart in place (a new job): you stay where you were
     const character = (data?.pvpRoom && data.fighter) || CharacterStore.getSelectedCharacter(); // the PvP select's fighter (a copy, never saved)
     this.vs = data?.pvpRoom ? data.vs ?? null : null;
@@ -897,7 +900,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         void import('../world3d/World3D').then(({ World3D }) => {
           if (gen !== this.sceneGen || !this.sys.isActive()) return;
           cam.stopFollow(); cam.removeBounds(); cam.setRoundPixels(false);
-          const w = this.w3d = new World3D(this, areaId); this.a3d = w.a3d;
+          mark('w3d-module'); const w = this.w3d = new World3D(this, areaId); this.a3d = w.a3d; mark('w3d-built');
           this.motes?.setVisible(false);
           this.wire3D(w.a3d); this.attachHero3D(w.a3d);
           this.arrive3D(w, this.kin.x < (w.floor.x0 + w.floor.x1) / 2 ? w.floor.x0 : w.floor.x1, 2400); // (the first map: from its near edge)
@@ -4400,18 +4403,20 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private async startHero3D(a3: Arena3D, gen: number): Promise<void> {
     const mod = await import('../arena3d/Hero3D');
     const spirit = SPIRITS.on && this.cls === 'samurai'; // (Legacy of Spirits: the Spectral Samurai's own body)
-    const h = await mod.Hero3D.load({ female: genderOf(this.character) === 'female', body: spirit ? SPIRIT_BODY : undefined });
+    mark('hero-load');
+    const h = await mod.Hero3D.load({ female: genderOf(this.character) === 'female', body: spirit ? (SPIRITS.lite && this.w3d ? SPIRIT_BODY_LITE : SPIRIT_BODY) : undefined }); // (&lite=1, the world: his gameplay body — GPT step 4P, to compare)
     if (gen !== this.sceneGen || !this.sys.isActive() || this.a3d !== a3) { h.dispose(); return; }
     const { img, sunDir } = a3.addLayer('arena3d-hero', h.scene);
     h.makeShadow(sunDir);
     h.setWeapon(mod.CLASS_WEAPON[this.cls] ?? 'sword');
     if (spirit) { const sp = await import('../spirits/SpiritBody'); sp.makeSpiritFinish(h); sp.frameSpirit(a3); } // (the spirit's finish, the camera nearer)
+    a3.prewarmLayer(h.scene); // (lean: his look compiled for both states of the blows' lights — no hitch at the first blow)
     if (SPIRITS.on) { // (a block in front of him hides him: the place's blocks drawn into depth before his picture)
       const oc = await import('../spirits/Occlusion'); this.spiritOcc?.();
       this.spiritOcc = oc.attachOcclusion(this, a3, this.w3d?.areaId ?? '', () => ({ x: this.kin.x, y: this.kin.y, z: this.kin.supportZ ?? 0 }), () => (this.view ? [this.view.ring, this.view.shadow] : []));
     }
     if (gen !== this.sceneGen || !this.sys.isActive() || this.a3d !== a3) { h.dispose(); return; }
-    this.hero3d = { h, img, a3, others: [], loading: 0, Dbl: mod.Doubles3D, kage: new Map() }; this.hero3dWait = false;
+    this.hero3d = { h, img, a3, others: [], loading: 0, Dbl: mod.Doubles3D, kage: new Map() }; this.hero3dWait = false; mark('hero-ready');
     if (!spirit) void h.equipAll(loadEquip3D(this.character?.id ?? 'guest')); // (what the character wore last — the Beginner's pieces, not on the spirit's own body)
     if (!SPIRITS.on) this.buildItemUi(mod.WEAPONS); // (not in the spirits' art preview: the 3D items' test panel)
   }

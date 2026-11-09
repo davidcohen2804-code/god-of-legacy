@@ -51,6 +51,14 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
 - **FYI — PvP / DFO arena dynamics:** the same measurement concerns every 3D room (`Arena3D`): with its 3D draw paused
   the screen runs at 105 fps. The 4P changes will be made behind `?spirits` first; whatever proves itself there can be
   proposed for the PvP rooms.
+- **4P in progress (behind `?spirits` only — `Arena3D` option `lean`, off for every other caller):** the blows' 8+ point
+  lights taken out of the scenes while none is lit (their lit look compiled in the background), the 3D picture never
+  larger than the window shows it, the quality step-down aimed at 60 fps (bloom off first, the level remembered),
+  the stair lanterns' light drawn as glow, entry marks (`performance` marks `gol:*`); starting in 3D, the painted
+  world's pictures (strip tiles, props, gate, backdrop — never drawn there) are not preloaded
+  (`preloadOpenWorld(scene, { pictures })`, default unchanged; Maps: the same would suit `?world3d=1`); his gameplay
+  body (15k triangles, `tools/spirits/lite.mjs`) behind `&lite=1` until GPT compares it. `&lean=0` gives the old
+  picture to compare.
 - **Request — to: Maps:** in `?world3d=1` the 3D cubes still collide only on the painted block's front strip (`base`), so
   the hero walks into the back three quarters of every cube. The `?spirits` fix (`asCube` in `src/world/Areas.ts`: an
   area block's footprint = its whole 3D foot) can be switched on for `?world3d=1` too if you agree.
