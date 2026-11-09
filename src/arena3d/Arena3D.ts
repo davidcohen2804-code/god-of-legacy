@@ -337,9 +337,10 @@ export class Arena3D {
   /** The picture's size at a quality level: its share of the game's size, and never more pixels than the window shows. */
   private sizeFor(lv: number): [number, number] {
     const W = this.scene.scale.width, H = this.scene.scale.height, res = lv === 0 ? RES : lv === 1 ? 0.7 : 0.58;
-    let k = 1;
+    let k = 1; // (lean: the share of the game's size the window really shows, in device pixels — the picture is never larger)
     if (this.lean) try { const r = this.scene.game.canvas.getBoundingClientRect(), d = (r.width * (window.devicePixelRatio || 1)) / W; if (d > 0.05) k = Math.min(1, d); } catch { k = 1; }
-    return [Math.max(64, Math.round(W * res * k)), Math.max(36, Math.round(H * res * k))];
+    const f = Math.min(res, k);
+    return [Math.max(64, Math.round(W * f)), Math.max(36, Math.round(H * f))];
   }
   private setHitLights(on: boolean): void {
     this.hitOn = on;
