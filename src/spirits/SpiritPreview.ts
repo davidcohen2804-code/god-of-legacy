@@ -32,6 +32,9 @@ export class SpiritPreview {
     const rim = new THREE.DirectionalLight(0x9a6bff, 2.4); rim.position.set(1.8, 2.2, -3.2); sc.add(rim);
     const rim2 = new THREE.DirectionalLight(0x9a6bff, 1.2); rim2.position.set(-2.2, 1.6, -2.6); sc.add(rim2);
     const warm = new THREE.DirectionalLight(0xffb070, 0.35); warm.position.set(3, 0.8, 1.5); sc.add(warm);
+    // a soft frontal fill at face height (GPT, 9 Nov: the face read too dark — keep its silhouette and the eyes' glow,
+    // never a human, lit face)
+    const face = new THREE.DirectionalLight(0xd6d0ff, 0.55); face.position.set(0.3, 1.6, 4); face.target.position.set(0, 1.4, 0); sc.add(face, face.target);
     this.cam.aspect = w / h; this.frameTo(this.frame);
     if (scene.textures.exists(key)) scene.textures.remove(key);
     scene.textures.addImage(key, this.renderer.domElement as unknown as HTMLImageElement);
