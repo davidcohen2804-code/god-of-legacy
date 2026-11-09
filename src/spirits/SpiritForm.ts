@@ -24,11 +24,11 @@ export function spiritTier(level: number): number { return level >= 100 ? 4 : le
 /** Each tier's light (GPT's ranges: the fill 0.22 → 0.60, the rim 0.75 → 1.00, the light inside 0.15 → 0.70; the hair,
  *  the eyes, the wisps and the blade's energy grow with them). */
 const TIERS = [
-  { fill: 0.22, rim: 0.75, glow: 0.15, hair: 0.45, wisps: 2, blade: 0.55, ripple: 0.55, aura: 0.16 },
-  { fill: 0.32, rim: 0.80, glow: 0.28, hair: 0.58, wisps: 3, blade: 0.66, ripple: 0.65, aura: 0.24 },
-  { fill: 0.42, rim: 0.86, glow: 0.42, hair: 0.70, wisps: 5, blade: 0.78, ripple: 0.75, aura: 0.32 },
-  { fill: 0.52, rim: 0.93, glow: 0.56, hair: 0.84, wisps: 6, blade: 0.9, ripple: 0.88, aura: 0.42 },
-  { fill: 0.60, rim: 1.00, glow: 0.70, hair: 1.0, wisps: 8, blade: 1.0, ripple: 1.0, aura: 0.52 },
+  { fill: 0.22, rim: 0.75, glow: 0.15, hair: 0.45, wisps: 2, blade: 0.55, ripple: 0.55, aura: 0.16, vein: 0.25, swirls: 0 },
+  { fill: 0.32, rim: 0.80, glow: 0.28, hair: 0.58, wisps: 3, blade: 0.66, ripple: 0.65, aura: 0.24, vein: 0.4, swirls: 1 },
+  { fill: 0.42, rim: 0.86, glow: 0.42, hair: 0.70, wisps: 5, blade: 0.78, ripple: 0.75, aura: 0.32, vein: 0.55, swirls: 2 },
+  { fill: 0.52, rim: 0.93, glow: 0.56, hair: 0.84, wisps: 6, blade: 0.9, ripple: 0.88, aura: 0.42, vein: 0.72, swirls: 3 },
+  { fill: 0.60, rim: 1.00, glow: 0.70, hair: 1.0, wisps: 8, blade: 1.0, ripple: 1.0, aura: 0.52, vein: 0.9, swirls: 4 },
 ];
 
 /** The presets (GPT): 0 High (everything), 1 Medium (the same spirit, half the wisps), 2 Low (the same silhouette and
@@ -63,11 +63,16 @@ function ghostMaterial(src: THREE.MeshStandardMaterial, U: Record<string, THREE.
   m.toneMapped = false;
   m.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, U);
-    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying float vSpY;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvSpY = position.y;');
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying float vSpY;\nvarying vec3 vSpP;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvSpY = position.y; vSpP = position;');
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
-      varying float vSpY;
-      uniform float uFill, uRim, uGlow, uHair, uTime, uHairY, uNeckY, uLit;
+      varying float vSpY; varying vec3 vSpP;
+      uniform float uFill, uRim, uGlow, uHair, uTime, uHairY, uNeckY, uLit, uVein;
+      uniform vec3 uVeinC;
+      float spH( vec3 p ) { return fract( sin( dot( p, vec3( 127.1, 311.7, 74.7 ) ) ) * 43758.5453 ); }
+      float spN( vec3 p ) { vec3 i = floor( p ), f = fract( p ); f = f * f * ( 3.0 - 2.0 * f );
+        return mix( mix( mix( spH( i ), spH( i + vec3( 1.0, 0.0, 0.0 ) ), f.x ), mix( spH( i + vec3( 0.0, 1.0, 0.0 ) ), spH( i + vec3( 1.0, 1.0, 0.0 ) ), f.x ), f.y ),
+                    mix( mix( spH( i + vec3( 0.0, 0.0, 1.0 ) ), spH( i + vec3( 1.0, 0.0, 1.0 ) ), f.x ), mix( spH( i + vec3( 0.0, 1.0, 1.0 ) ), spH( i + vec3( 1.0, 1.0, 1.0 ) ), f.x ), f.y ), f.z ); }
       uniform vec3 uDeep, uMid, uHi, uRimC, uGold, uRed, uWhite, uFlame;`)
       .replace('#include <map_fragment>', `#include <map_fragment>
       vec3 spT = diffuseColor.rgb;
@@ -84,6 +89,9 @@ function ghostMaterial(src: THREE.MeshStandardMaterial, U: Record<string, THREE.
       float mMask = ( 1.0 - smoothstep( 0.004, 0.03, spL ) ) * smoothstep( uNeckY, uNeckY + 0.02, vSpY ) * ( 1.0 - mWhite ); // (the face's dark mask)
       float spHead = smoothstep( uHairY - 0.03, uHairY, vSpY );
       float spPulse = 0.86 + 0.14 * sin( uTime * 1.7 );
+      // the currents: thin lines where a slow noise crosses its middle, rising through him
+      float spVn = spN( vSpP * 7.0 + vec3( 0.0, -uTime * 0.45, 0.0 ) ) * 0.65 + spN( vSpP * 16.0 + vec3( 0.0, -uTime * 0.9, 0.3 ) ) * 0.35;
+      float spVein = pow( 1.0 - abs( spVn * 2.0 - 1.0 ), 14.0 );
       // the rim: the silhouette's edge, strong at every level
       float spF = 1.0 - clamp( abs( dot( normalize( normal ), normalize( vViewPosition ) ) ), 0.0, 1.0 );
       float spRim = pow( spF, 2.2 ) * uRim;
@@ -97,6 +105,7 @@ function ghostMaterial(src: THREE.MeshStandardMaterial, U: Record<string, THREE.
       col = mix( col, uRed * ( 0.8 + 1.6 * spT.r ), mRed );
       col = mix( col, uWhite, mWhite );
       col = mix( col, uDeep * 0.3, mMask );
+      col += uVeinC * spVein * uVein * ( 1.0 - 0.75 * mAcc );
       col = mix( col, uRimC, clamp( spRim * 1.15, 0.0, 1.0 ) );
       float a = uFill * ( 0.6 + 0.6 * spV );
       a = max( a, mRed * ( 0.62 + 0.3 * uFill ) );                  // the scarf and the sash: semi-solid anchors
@@ -104,7 +113,7 @@ function ghostMaterial(src: THREE.MeshStandardMaterial, U: Record<string, THREE.
       a = max( a, mWhite * ( 0.4 + 0.5 * uHair ) );                 // the hair (and the eyes): brighter than the body
       a = max( a, mMask * ( 0.55 + 0.3 * uFill ) );                 // the mask: the face reads at every level
       a = max( a, mFlame * ( uFill + 0.2 * uGlow ) );
-      a += spRim * 0.9 + uGlow * 0.16 * spV;
+      a += spRim * 0.9 + uGlow * 0.16 * spV + spVein * uVein * 0.45 * ( 1.0 - 0.75 * mAcc );
       gl_FragColor = vec4( min( col, vec3( 1.0 ) ), clamp( a, 0.0, 1.0 ) );`);
   };
   m.customProgramCacheKey = () => 'spirit-form';
@@ -297,6 +306,24 @@ const WN = 14;
 /** A wisp's length in time (s): its points are where its root was up to this long ago, risen with their age. */
 const WAGE = 0.6;
 
+/** A trail flowing off him (the illustration's flowing hair and crimson tails): its root on a bone (offset in his frame,
+ *  model units), its colour, half-width, alpha, length in time (s), and how its points move with their age (per s:
+ *  up, back off him, sideways sway). */
+interface TrailDef { bone: string; at: [number, number, number]; ph: number; color: number; width: number; alpha: number; age: number; rise: number; back: number; side: number; sway: number; soft: number; fall: number }
+const TRAILS: TrailDef[] = [
+  // the ponytail's long strands, streaming back and up in the spirit's own wind
+  { bone: 'Head', at: [0, 0.3, -0.12], ph: 0.4, color: 0xeee6ff, width: 0.026, alpha: 0.72, age: 0.55, rise: 0.12, back: 0.62, side: 0.3, sway: 0.1, soft: 1.6, fall: 0.8 },
+  { bone: 'Head', at: [0.04, 0.27, -0.14], ph: 2.2, color: 0xe2d6ff, width: 0.02, alpha: 0.6, age: 0.5, rise: 0.02, back: 0.58, side: 0.34, sway: 0.13, soft: 1.6, fall: 0.8 },
+  { bone: 'Head', at: [-0.04, 0.28, -0.13], ph: 4.1, color: 0xf2ecff, width: 0.018, alpha: 0.55, age: 0.45, rise: 0.22, back: 0.55, side: 0.26, sway: 0.12, soft: 1.6, fall: 0.8 },
+  // the scarf's two tails from his neck, the sash's two from his waist: crimson, falling back and swaying
+  { bone: 'neck_01', at: [0.03, -0.02, 0.08], ph: 1.1, color: 0xc8102e, width: 0.034, alpha: 0.9, age: 0.5, rise: -0.28, back: 0.55, side: 0.36, sway: 0.08, soft: 0.9, fall: 0.5 },
+  { bone: 'neck_01', at: [0.06, -0.03, 0.06], ph: 2.7, color: 0xa50c26, width: 0.028, alpha: 0.85, age: 0.42, rise: -0.32, back: 0.5, side: 0.4, sway: 0.09, soft: 0.9, fall: 0.5 },
+  { bone: 'pelvis', at: [0.08, 0.04, 0.11], ph: 3.3, color: 0xc8102e, width: 0.04, alpha: 0.9, age: 0.55, rise: -0.4, back: 0.42, side: 0.3, sway: 0.07, soft: 0.9, fall: 0.5 },
+  { bone: 'pelvis', at: [0.11, 0.02, 0.09], ph: 5.0, color: 0xa50c26, width: 0.032, alpha: 0.85, age: 0.48, rise: -0.45, back: 0.38, side: 0.34, sway: 0.08, soft: 0.9, fall: 0.5 },
+];
+/** The energy ribbons swirling round him (the illustration's violet currents), as many as his tier gives. */
+const SWIRLS = 4, SN = 26;
+
 export class SpiritForm {
   private parts: Parts;
   private U: Record<string, THREE.IUniform>;
@@ -305,6 +332,8 @@ export class SpiritForm {
   private aura: THREE.Sprite | null = null;
   private blade: ReturnType<typeof spiritBlade> | null = null;
   private wisps: { def: (typeof WISPS)[number]; pts: THREE.Vector3[]; hist: { t: number; x: number; y: number; z: number }[]; r: ReturnType<typeof ribbon>; mat: THREE.ShaderMaterial; warm: boolean }[] = [];
+  private trails: { def: TrailDef; pts: THREE.Vector3[]; hist: { t: number; x: number; y: number; z: number }[]; r: ReturnType<typeof ribbon>; warm: boolean }[] = [];
+  private swirls: { pts: THREE.Vector3[]; r: ReturnType<typeof ribbon>; mat: THREE.ShaderMaterial; ph: number; dir: number }[] = [];
   private tassel: { pts: THREE.Vector3[]; old: THREE.Vector3[]; r: ReturnType<typeof ribbon>; bead: THREE.Mesh } | null = null;
   private floor: { shadow: THREE.Mesh; ripple: THREE.Mesh; rU: Record<string, THREE.IUniform> } | null = null;
   private own: { dispose(): void }[] = [];
@@ -316,7 +345,7 @@ export class SpiritForm {
   constructor(hero: Hero3D, private o: SpiritFormOptions) {
     const P = this.parts = hero as unknown as Parts;
     this.U = {
-      uFill: { value: 0 }, uRim: { value: 0 }, uGlow: { value: 0 }, uHair: { value: 0 }, uTime: { value: 0 }, uHairY: { value: 0 }, uNeckY: { value: 0 }, uLit: { value: o.lit ?? 0.14 },
+      uFill: { value: 0 }, uRim: { value: 0 }, uGlow: { value: 0 }, uHair: { value: 0 }, uTime: { value: 0 }, uHairY: { value: 0 }, uNeckY: { value: 0 }, uLit: { value: o.lit ?? 0.14 }, uVein: { value: 0 }, uVeinC: { value: C(0.8, 0.62, 1.0) },
       uDeep: { value: C(0.05, 0.016, 0.17) }, uMid: { value: C(0.3, 0.09, 0.95) }, uHi: { value: C(0.8, 0.7, 1.0) }, uRimC: { value: C(0.86, 0.72, 1.0) },
       uGold: { value: C(1.0, 0.66, 0.26) }, uRed: { value: C(0.62, 0.02, 0.06) }, uWhite: { value: C(0.92, 0.86, 1.0) }, uFlame: { value: C(0.55, 0.22, 1.0) },
     };
@@ -347,6 +376,17 @@ export class SpiritForm {
       r.mesh.renderOrder = 4; P.scene.add(r.mesh); this.own.push(r.mesh.geometry); // (shown at first: its shader compiled with the rest — each picture then shows the tier's own)
       this.wisps.push({ def: WISPS[i], pts: Array.from({ length: WN }, () => new THREE.Vector3()), hist: [], r, mat, warm: false });
     }
+    for (const def of TRAILS) {
+      const mat = ribbonMat(def.color, def.alpha, def.width, def.soft, def.fall); this.own.push(mat);
+      const r = ribbon(WN, mat, (t) => 1 - 0.55 * t); r.mesh.renderOrder = 4; P.scene.add(r.mesh); this.own.push(r.mesh.geometry);
+      this.trails.push({ def, pts: Array.from({ length: WN }, () => new THREE.Vector3()), hist: [], r, warm: false });
+    }
+    for (let i = 0; i < SWIRLS; i++) {
+      const mat = ribbonMat(i % 2 ? 0xc0a0ff : 0x9a6cff, 0.4, 0.024, 1.8, 1.0); this.own.push(mat);
+      const r = ribbon(SN, mat, (t) => Math.sin(Math.PI * Math.min(1, t * 1.05 + 0.02))); r.mesh.renderOrder = 4; P.scene.add(r.mesh); this.own.push(r.mesh.geometry);
+      this.swirls.push({ pts: Array.from({ length: SN }, () => new THREE.Vector3()), r, mat, ph: i * 1.7, dir: i % 2 ? -1 : 1 });
+    }
+    P.bones.get('Head')?.scale.setScalar(0.92); // (GPT's anime illustration: a smaller head, a more elegant figure)
     if (o.ground) this.floorMake();
     this.setLevel(o.level);
     const prev = P.scene.onBeforeRender;
@@ -357,7 +397,7 @@ export class SpiritForm {
   setLevel(level: number): void {
     this.tier = spiritTier(level);
     const T = TIERS[this.tier];
-    this.U.uFill.value = T.fill; this.U.uRim.value = T.rim; this.U.uGlow.value = T.glow; this.U.uHair.value = T.hair;
+    this.U.uFill.value = T.fill; this.U.uRim.value = T.rim; this.U.uGlow.value = T.glow; this.U.uHair.value = T.hair; this.U.uVein.value = T.vein;
     this.bladeU.uEnergy.value = T.blade;
     if (this.blade) this.blade.halo.uniforms.uAlpha.value = 0.3 + 0.35 * T.blade;
     if (this.floor) this.floor.rU.uStrength.value = T.ripple;
@@ -401,6 +441,21 @@ export class SpiritForm {
   }
 
   private V = new THREE.Vector3(); private W = new THREE.Vector3(); private Q = new THREE.Quaternion(); private F = new THREE.Vector3();
+  /** A trail's points this picture: each where its root was `age` ago (from the root's recorded path), moved by its age —
+   *  up, back off him, swaying — so the line is always smooth (no zigzag) and streams behind him when he moves. */
+  private L = new THREE.Vector3();
+  private trailStep(w: { pts: THREE.Vector3[]; hist: { t: number; x: number; y: number; z: number }[] }, head: THREE.Vector3, fwd: THREE.Vector3, life: number, rise: number, back: number, sway: number, ph: number, side = 0): void {
+    const lf = this.L; // (his left: the spirit's own wind carries the long trails a little to that side — seen from the front, they stream sideways)
+    const H = w.hist, n = w.pts.length;
+    H.push({ t: this.t, x: head.x, y: head.y, z: head.z }); while (H.length > 2 && H[1].t < this.t - life) H.shift();
+    for (let j = 0, h = H.length - 1; j < n; j++) {
+      const age = (j / (n - 1)) * life, at = this.t - age;
+      while (h > 0 && H[h].t > at) h--;
+      const a = H[h], c = H[Math.min(H.length - 1, h + 1)], f = c.t > a.t ? Math.max(0, Math.min(1, (at - a.t) / (c.t - a.t))) : 0;
+      const sw = Math.sin(this.t * 1.7 + ph - age * 5) * age * sway / life * 0.6;
+      w.pts[j].set(a.x + (c.x - a.x) * f + sw - fwd.x * age * back + lf.x * age * side, a.y + (c.y - a.y) * f + age * rise, a.z + (c.z - a.z) * f - fwd.z * age * back + lf.z * age * side);
+    }
+  }
   private camAt = new THREE.Vector3(); private cam: THREE.Vector3 | null = null;
   /** Each picture: his clock, his wisps, the tassel, the floor marks. */
   private step(): void {
@@ -419,7 +474,7 @@ export class SpiritForm {
         (au.material as THREE.SpriteMaterial).opacity = TIERS[this.tier].aura * (preset === 1 ? 0.6 : 1) * (0.9 + 0.1 * Math.sin(this.t * 2.1));
       }
     }
-    P.root.getWorldQuaternion(this.Q); const fwd = this.F.set(0, 0, 1).applyQuaternion(this.Q);
+    P.root.getWorldQuaternion(this.Q); const fwd = this.F.set(0, 0, 1).applyQuaternion(this.Q); this.L.set(1, 0, 0).applyQuaternion(this.Q);
     // the wisps: the tier's count (half on Medium, none on Low), each a chain rising and trailing from its root
     const n = preset === 2 ? 0 : preset === 1 ? Math.ceil(TIERS[this.tier].wisps / 2) : TIERS[this.tier].wisps;
     const k = P.model.scale.x;
@@ -428,18 +483,32 @@ export class SpiritForm {
       const b = P.bones.get(w.def.bone); if (!b) { w.r.mesh.visible = false; return; }
       const head = b.getWorldPosition(this.V).add(this.W.set(w.def.at[0] * k, w.def.at[1] * k, w.def.at[2] * k).applyQuaternion(this.Q));
       if (!w.warm) { w.hist.length = 0; w.warm = true; }
-      w.hist.push({ t: this.t, x: head.x, y: head.y, z: head.z }); while (w.hist.length > 2 && w.hist[1].t < this.t - WAGE) w.hist.shift();
-      const H = w.hist;
-      for (let j = 0, h = H.length - 1; j < WN; j++) {
-        const age = (j / (WN - 1)) * WAGE, at = this.t - age;
-        while (h > 0 && H[h].t > at) h--;
-        const a = H[h], c = H[Math.min(H.length - 1, h + 1)], f = c.t > a.t ? Math.max(0, Math.min(1, (at - a.t) / (c.t - a.t))) : 0;
-        const sway = Math.sin(this.t * 1.7 + w.def.ph - age * 5) * age * 0.07;
-        w.pts[j].set(a.x + (c.x - a.x) * f + sway - fwd.x * age * 0.06, a.y + (c.y - a.y) * f + age * 0.42, a.z + (c.z - a.z) * f - fwd.z * age * 0.06); // (risen, swaying, drifting back off him)
-      }
+      this.trailStep(w, head, fwd, WAGE, 0.42, 0.06, 0.07, w.def.ph); // (risen, swaying, drifting back off him)
       const pts = w.pts;
       w.mat.uniforms.uAlpha.value = (0.24 + 0.07 * this.tier) * (preset === 1 ? 0.8 : 1);
       w.r.set(pts);
+    });
+    // the flowing hair and the crimson tails: always (his core read), streaming back off him
+    const shown = !!P.body?.visible && P.model.visible;
+    for (const tr of this.trails) {
+      tr.r.mesh.visible = shown; if (!shown) { tr.warm = false; continue; }
+      const b = P.bones.get(tr.def.bone); if (!b) { tr.r.mesh.visible = false; continue; }
+      const d = tr.def, head = b.getWorldPosition(this.V).add(this.W.set(d.at[0] * k, d.at[1] * k, d.at[2] * k).applyQuaternion(this.Q));
+      if (!tr.warm) { tr.hist.length = 0; tr.warm = true; }
+      this.trailStep(tr, head, fwd, d.age, d.rise, d.back, d.sway, d.ph, d.side);
+      tr.r.set(tr.pts);
+    }
+    // the energy ribbons swirling round him (his tier's count; half on Medium, none on Low)
+    const ns = preset === 2 ? 0 : preset === 1 ? Math.ceil(TIERS[this.tier].swirls / 2) : TIERS[this.tier].swirls, R = P.root.position, sc = P.root.scale.y;
+    this.swirls.forEach((sw, i) => {
+      const on = shown && i < ns; sw.r.mesh.visible = on; if (!on) return;
+      const t = this.t * 0.9 * sw.dir + sw.ph, yb = 0.12 + (i % 2) * 0.12, yt = 1.05 - (i % 3) * 0.1;
+      for (let j = 0; j < SN; j++) {
+        const s = j / (SN - 1), th = t + s * 3.3 * sw.dir, rr = (0.34 + 0.06 * Math.sin(s * Math.PI + i)) * sc;
+        sw.pts[j].set(R.x + Math.cos(th) * rr, R.y + (yb + (yt - yb) * (0.5 + 0.5 * Math.sin(s * 2.6 + t * 0.7 + i))) * sc, R.z + Math.sin(th) * rr * 0.8);
+      }
+      sw.mat.uniforms.uAlpha.value = (0.22 + 0.06 * this.tier) * (preset === 1 ? 0.8 : 1);
+      sw.r.set(sw.pts);
     });
     // the tassel: a short cord hanging from the pommel, swinging (a chain with its own weight)
     const ts = this.tassel, bl = this.blade;
@@ -471,6 +540,8 @@ export class SpiritForm {
     if (this.dead) return; this.dead = true;
     this.pre?.removeFromParent(); this.aura?.removeFromParent(); this.blade?.dispose();
     for (const w of this.wisps) w.r.mesh.removeFromParent();
+    for (const w of this.trails) w.r.mesh.removeFromParent();
+    for (const w of this.swirls) w.r.mesh.removeFromParent();
     this.tassel?.r.mesh.removeFromParent(); this.tassel?.bead.removeFromParent();
     this.floor?.shadow.removeFromParent(); this.floor?.ripple.removeFromParent();
     for (const o of this.own) o.dispose();
