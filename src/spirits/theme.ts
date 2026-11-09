@@ -55,6 +55,44 @@ html .gol-sb .card .lv{background:rgba(27,18,48,.9)}
 html .gol-sb .job.lk .em::after{background:${BASE}}
 html .gol-cp .sl.worn{background:linear-gradient(180deg,#2a1d47,#181029);border-color:rgba(228,194,106,.38)}
 html .gol-keys .chip.none{background:${PANEL2}}
+/* ---- the gameplay HUD (GPT, step 4A): one cohesive frame language, larger at 1280×720, a clear centre ---- */
+/* the player card: his 3D portrait in a gold ring, Lv and name, the job title small under it, HP / MP / EXP */
+html .gol-hud .card{border-radius:16px}
+html .gol-hud .pf{box-shadow:0 0 0 2px ${GOLD},0 0 0 6px rgba(27,18,48,.95),0 0 18px rgba(115,61,152,.55),0 6px 16px rgba(0,0,0,.55);background:radial-gradient(circle at 50% 40%,#3a2563,#140c24)}
+html .gol-hud .pf .img{background-size:cover!important;background-position:center!important}
+html .gol-hud .nm{overflow:visible}
+html .gol-hud .lvl{height:28px;padding:0 11px;font:700 14px/26px var(--gl-body);background:rgba(228,194,106,.14);border-color:rgba(228,194,106,.55)}
+html .gol-hud .pname{font:700 23px/30px var(--gl-title);letter-spacing:1.6px;color:#f6e7c4;text-shadow:0 2px 6px rgba(0,0,0,.7)}
+html .gol-hud .pjob{position:absolute;left:2px;top:30px;font:600 12.5px/18px var(--gl-body);letter-spacing:.6px;color:#bfaedb}
+html .gol-hud .bar .val{font-size:13.5px}
+html .gol-hud .bar.xp .val{font-size:10px;letter-spacing:.4px}
+/* the skill dock: the main row dominant, the tray over it smaller and quieter, the potions beside */
+html .gol-hud .dock{border-radius:18px}
+html .gol-hud .aslot{border-radius:14px;box-shadow:inset 0 0 0 1px rgba(228,194,106,.22),inset 0 2px 8px rgba(0,0,0,.5)}
+html .gol-hud .aslot .cd{border-radius:14px;font-size:26px}
+html .gol-hud .aslot.tray{border-radius:10px;opacity:.9;box-shadow:inset 0 0 0 1px rgba(206,184,255,.14),inset 0 2px 6px rgba(0,0,0,.45)}
+html .gol-hud .aslot.tray .cd{border-radius:10px;font-size:17px}
+html .gol-hud .key{height:20px;min-width:22px;font:700 11.5px/18px var(--gl-body);border-radius:7px}
+html .gol-hud .aslot.pot .ic{left:6px;top:6px;width:44px;height:44px}
+/* the panels' buttons: one row of icons at the bottom right, each its key on a cap and its name under it */
+html .gol-hud .menu.sp{right:82px!important;bottom:10px!important;width:auto!important;flex-direction:row!important;gap:5px!important}
+html .gol-hud .menu.sp button.ico{position:relative;width:54px;height:62px;padding:8px 0 5px;flex-direction:column;justify-content:flex-start;align-items:center;gap:4px;border-radius:14px;
+  background:linear-gradient(180deg,rgba(40,27,68,.94),rgba(22,14,38,.94));border:1px solid rgba(228,194,106,.32);color:${GOLD};font-size:10.5px}
+html .gol-hud .menu.sp button.ico:hover:not(:disabled){border-color:rgba(228,194,106,.75);background:linear-gradient(180deg,rgba(58,38,96,.96),rgba(30,19,52,.96))}
+html .gol-hud .menu.sp .mi{width:26px;height:26px;flex:none;background:currentColor;-webkit-mask:var(--i) center/contain no-repeat;mask:var(--i) center/contain no-repeat}
+html .gol-hud .menu.sp b{font:600 10px/12px var(--gl-body);letter-spacing:.2px;color:#e9dcf6;white-space:nowrap}
+html .gol-hud .menu.sp .gl-key{position:absolute;right:-5px;top:-6px;min-width:18px;height:18px;padding:0 4px;font:700 10.5px/16px var(--gl-body);border-radius:6px;background:${BASE};border:1px solid rgba(228,194,106,.5);color:#f2d98f}
+/* the camera's buttons: one quiet row over the panels' buttons */
+html .gol-hud .camc{right:16px!important;left:auto!important;top:auto!important;bottom:88px!important;flex-direction:row;padding:5px 8px;border-radius:12px}
+html .gol-hud .camc .cl{display:none}
+html .gol-hud .camc .sep{width:1px;height:22px;margin:0 3px}
+html .gol-hud .camc button{width:30px;height:30px}
+/* the map: the place drawn from its data; its name under it */
+html .gol-hud .mm .view{background:#0e0919;border-radius:12px}
+html .gol-hud .region{font-size:15px;letter-spacing:1.6px;color:#f4dfab}
+/* the chat: quieter than the fight */
+html .gol-chat{background:linear-gradient(180deg,rgba(27,18,48,.62),rgba(18,11,33,.72))!important;border-color:rgba(228,194,106,.16)!important;box-shadow:none!important}
+html .gol-chat .tab{font-size:12.5px}
 `;
 
 /** Lay the spirits' colours over the interface (once; only behind ?spirits). */

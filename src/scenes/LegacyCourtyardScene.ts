@@ -61,6 +61,7 @@ import { PvpController } from '../pvp/PvpController';
 import { ARENA3D, ON_BODY } from '../arena3d/flag';
 import { HERO3D } from '../arena3d/hero3dFlag';
 import { SPIRITS, SPIRIT_BODY } from '../spirits/flag';
+import { spiritName, spiritPortrait } from '../spirits/Hud';
 import { portrait3d } from '../arena3d/heroArt3d';
 import type { Hero3D } from '../arena3d/Hero3D';
 import type { Doubles3D } from '../arena3d/Doubles3D';
@@ -5042,7 +5043,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     return { name: r?.meta.name ?? this.nameOf(id), cls: CLASS_NAMES[c] ?? c, ...(r?.meta.hero ? hero(c) : { portrait: this.face3d(c, r?.meta.gender === 'female') ?? portraitOf(c === 'warrior' ? `base/${r?.meta.gender ?? 'male'}` : `${c}/${c}_default`) }), you: false };
   }
   /** The 3D heroes: a fighter's face is the 3D Beginner's (man / woman) with the class's weapon (none: the painted one). */
-  private face3d(cls: string, female: boolean): PortraitRef | undefined { return HERO3D.on ? portrait3d(cls, female) : undefined; }
+  private face3d(cls: string, female: boolean): PortraitRef | undefined { const sp = cls === 'samurai' ? spiritPortrait(this.game) : undefined; return sp ?? (HERO3D.on ? portrait3d(cls, female) : undefined); } // (?spirits: the Samurai's head from his 3D model)
 
   private showResult(m: Match): void {
     const me = this.localId, left = m.sideOf(me) === 'l';
@@ -5423,7 +5424,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     return {
       mode: pvp ? 'pvp' : 'pve',
       player: {
-        id: pvp?.meta.playerId ?? ch.id, name: ch.name, level: ch.level, portrait: this.face3d(this.cls, genderOf(ch) === 'female') ?? (ch.hero ? heroPortrait(this.cls) : portraitOf(previewKeyOf(ch))),
+        id: pvp?.meta.playerId ?? ch.id, name: spiritName(this.cls, ch.name), level: ch.level, portrait: this.face3d(this.cls, genderOf(ch) === 'female') ?? (ch.hero ? heroPortrait(this.cls) : portraitOf(previewKeyOf(ch))),
         hp: this.playerHP, maxHp: this.maxHpNow(), resource: this.arena ? null : { kind: 'mp', value: Math.round(this.mp), max: this.maxMpNow() }, effects: [...this.buffEffects(), ...this.statusEffects(this.body, now)],
         exp: Number.isFinite(expToNext(ch.level)) ? { value: ch.exp ?? 0, max: expToNext(ch.level) } : undefined,
         job: pvp ? undefined : this.jobTitle(), gold: pvp ? undefined : this.gold,

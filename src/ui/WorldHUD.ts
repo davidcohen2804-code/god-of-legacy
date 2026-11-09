@@ -7,6 +7,8 @@ import { ensureCharacterUIStyles, syncOverlay } from './CharacterSelectUI';
 import { HudEffect, HudSlot, HudState, PortraitRef } from './hud/HudState';
 import { GameMenu } from './HudExtras';
 import { ICONS, ensureTheme } from './theme';
+import { SPIRITS } from '../spirits/flag';
+import { spiritMinimap } from '../spirits/Hud';
 
 const A = (f: string) => `${H.path}/${f}.png`;
 const P = H.palette;
@@ -16,7 +18,7 @@ const COMBO_RANKS = [{ at: 8, word: 'GREAT', color: '#7fd8ff' }, { at: 16, word:
 
 const K = (f: string) => `assets/final/ui/kit/${f}.png`;
 /** HUD geometry (1920x1080 design px). The player card (portrait, level, name, HP / resource) top-left, buffs under it. */
-const G = {
+const G0 = {
   card: { x: 18, y: 16, w: 436, h: 104 },
   portrait: { x: 14, y: 14, d: 76 },
   name: { x: 106, y: 13, w: 314, h: 30 },
@@ -36,6 +38,21 @@ const G = {
   gold: { right: 1834, y: 1015 },
   feed: { right: 1904, bottom: 706 },
 } as const;
+/** Legacy of Spirits (behind ?spirits; GPT, 9 Nov, step 4A): a larger player card (his portrait, name and level, HP, MP and
+ *  the EXP bar in it), a larger map, the panels' buttons as one row of icons at the bottom right. */
+const G: typeof G0 = SPIRITS.on ? ({
+  ...G0,
+  card: { x: 16, y: 14, w: 520, h: 140 },
+  portrait: { x: 14, y: 14, d: 112 },
+  name: { x: 142, y: 8, w: 362, h: 30 },
+  hp: { x: 142, y: 58, w: 362, h: 24 },
+  mp: { x: 142, y: 88, w: 362, h: 18 },
+  exp: { x: 142, y: 114, w: 362, h: 12 },
+  buffs: { x: 22, y: 166, size: 40, gap: 8 },
+  minimap: { x: 1650, y: 14, w: 256, h: 256, view: { x: 8, y: 8, w: 240, h: 240 } },
+  region: { x: 1650, y: 278, w: 256, h: 40 },
+  gold: { right: 1904, y: 890 },
+} as unknown as typeof G0) : G0;
 
 /** Skill dock (bottom centre): the 20 slots in two rows of 10 — Space, 1-7, Q R above, F G C V T H Z X B N below — each slot
  *  the skill's own icon with its key on a small cap in its corner; the passives (always on) in a small grid on its right
@@ -55,6 +72,17 @@ const PAS_H = DK.pas.head + DK.pas.rows * DK.pas.icon + (DK.pas.rows - 1) * DK.p
 const INNER_H = Math.max(GRID.h, PAS_H);
 const DOCK_H = DK.pad.t + INNER_H + DK.pad.b;
 const slotAt = (i: number) => ({ x: DK.pad.l + (i % DK.cols) * (DK.slot + DK.gapX), y: DK.pad.t + Math.round((INNER_H - GRID.h) / 2) + Math.floor(i / DK.cols) * ROW });
+/** Legacy of Spirits (behind ?spirits; GPT, 9 Nov, step 4A): one dominant row of the main skills (Space, 1-7, Q R F) and
+ *  over it a smaller tray of the rest (G C V T H Z X B N M) — every slot and key kept; the potions beside the main row;
+ *  the passives stay in the skill book (they competed with the actions). */
+const SD = { main: 70, mainGap: 8, mainN: 11, tray: 46, trayGap: 6, rowGap: 10, pad: 14, pot: 56, potGap: 8, sep: 16, bottom: 1064 } as const;
+const SD_MAIN_W = SD.mainN * SD.main + (SD.mainN - 1) * SD.mainGap;
+const SD_H = SD.pad + SD.tray + SD.rowGap + SD.main + SD.pad;
+const spiritSlot = (i: number): { x: number; y: number; s: number } => {
+  if (i < SD.mainN) return { x: SD.pad + i * (SD.main + SD.mainGap), y: SD.pad + SD.tray + SD.rowGap, s: SD.main };
+  const n = H.skills.hotkeys.length - SD.mainN, tw = n * SD.tray + (n - 1) * SD.trayGap;
+  return { x: SD.pad + Math.round((SD_MAIN_W - tw) / 2) + (i - SD.mainN) * (SD.tray + SD.trayGap), y: SD.pad, s: SD.tray };
+};
 
 const CSS = `
 .gol-hud{color:var(--gl-text);font-family:var(--gl-body)}
@@ -307,9 +335,9 @@ export class WorldHUD {
     this.res = this.bar(p, G.mp, 'mp', true);
     this.res.root.style.display = 'none';
     this.els.pFx = this.div('fx', this.root); this.at(this.els.pFx, G.buffs.x, G.buffs.y, 400, G.buffs.size);
-    // EXP bar under the skill dock (fills when the progression system supplies player.exp)
-    const ex = this.div('pn xpw', this.root); this.box(ex, { x: 0, y: 0, w: 1920, h: 1080 });
-    this.exp = this.bar(ex, G.exp, 'xp', true);
+    // EXP bar under the skill dock (fills when the progression system supplies player.exp); the spirits': in the card
+    if (SPIRITS.on) this.exp = this.bar(p, G.exp, 'xp', true);
+    else { const ex = this.div('pn xpw', this.root); this.box(ex, { x: 0, y: 0, w: 1920, h: 1080 }); this.exp = this.bar(ex, G.exp, 'xp', true); }
   }
 
   private buildTarget(): void {
@@ -352,13 +380,14 @@ export class WorldHUD {
   }
 
   private buildSkills(): void {
-    const dock = this.panel('dock gl-panel', { x: 0, y: DK.bottom - DOCK_H, w: 0, h: DOCK_H });
+    const dock = this.panel('dock gl-panel', SPIRITS.on ? { x: 0, y: SD.bottom - SD_H, w: 0, h: SD_H } : { x: 0, y: DK.bottom - DOCK_H, w: 0, h: DOCK_H });
     H.skills.hotkeys.forEach((key, i) => {
-      const { x, y } = slotAt(i);
+      const r = SPIRITS.on ? spiritSlot(i) : { ...slotAt(i), s: DK.slot as number };
+      const { x, y } = r;
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = 'aslot';
-      this.at(btn, x, y, DK.slot, DK.slot);
+      btn.className = SPIRITS.on && i >= SD.mainN ? 'aslot tray' : 'aslot';
+      this.at(btn, x, y, r.s, r.s);
       const icon = document.createElement('img'); icon.className = 'ic'; icon.alt = ''; icon.draggable = false;
       const cd = this.div('cd', btn);
       btn.insertBefore(icon, cd);
@@ -418,6 +447,23 @@ export class WorldHUD {
     this.placeDock(0);
   }
 
+  /** Legacy of Spirits: the main row, the tray over it, the potions beside it; centred, never under the chat. */
+  private placeSpiritDock(): void {
+    this.els.sep.style.display = this.els.passives.style.display = 'none';
+    const potOn = this.potsOn, y = SD.pad + SD.tray + SD.rowGap;
+    this.els.potSep.style.display = potOn ? '' : 'none';
+    const px0 = SD.pad + SD_MAIN_W + SD.sep * 2 + 1, py = y + (SD.main - SD.pot) / 2;
+    this.pots.forEach((p, i) => {
+      p.btn.style.display = p.key.style.display = potOn ? '' : 'none';
+      const x = px0 + i * (SD.pot + SD.potGap);
+      this.at(p.btn, x, py, SD.pot, SD.pot); this.at(p.key, x + 4, py + 4, 0, 18); p.key.style.width = '';
+    });
+    if (potOn) this.at(this.els.potSep, SD.pad + SD_MAIN_W + SD.sep, y + 8, 1, SD.main - 16);
+    const w = SD.pad + SD_MAIN_W + (potOn ? SD.sep * 2 + 1 + 2 * SD.pot + SD.potGap : 0) + SD.pad;
+    const dx = Math.max(Math.round(950 - w / 2), CHAT_RIGHT + 18); // (a hair left of the middle: the panels' buttons sit at its right)
+    this.box(this.els.dock, { x: dx, y: SD.bottom - SD_H, w, h: SD_H });
+  }
+
   /** The camera's angle on its arc (the camera buttons' readout); null: no such buttons here. */
   setPitch(deg: number | null): void {
     for (const e of this.pitchEls) e.style.display = deg === null ? 'none' : '';
@@ -426,6 +472,7 @@ export class WorldHUD {
   private pitchEls: HTMLElement[] = [];
 
   setPassives(list: { id: string; name: string; iconUrl: string; owned: boolean; info: string }[]): void {
+    if (SPIRITS.on) { this.passiveCount = list.length; this.placeDock(0); return; } // (the spirits: the passives in the skill book only)
     const box = this.els.passives, A = DK.pas;
     box.innerHTML = '';
     const cols = Math.max(A.cols, Math.ceil(list.length / A.rows));
@@ -441,6 +488,7 @@ export class WorldHUD {
 
   /** The dock's width follows its passives (none: the slots alone); it stays centred over the EXP bar. */
   private placeDock(passives: number): void {
+    if (SPIRITS.on) { this.placeSpiritDock(); return; }
     const A = DK.pas, dock = this.els.dock, sep = this.els.sep, box = this.els.passives;
     const potOn = this.potsOn;
     this.els.potSep.style.display = potOn ? '' : 'none';
@@ -478,10 +526,14 @@ export class WorldHUD {
     this.els.combat = combo; this.els.cN = n; this.els.cL = l; this.els.cR = r;
     const ban = this.div('banner', this.root); this.els.banner = ban;
     if (this.opts.onMenu) {
-      const m = this.div('menu', this.root);
+      const m = this.div(SPIRITS.on ? 'menu sp' : 'menu', this.root);
+      const ico: Record<string, string> = { I: ICONS.bag, K: ICONS.book, U: ICONS.stats, J: ICONS.scroll, P: ICONS.users, O: ICONS.sparkle };
       for (const [k, label] of [['I', 'Inventory'], ['K', 'Skill Book'], ['U', 'Stats'], ['J', 'Quests'], ['P', 'Party'], ['O', 'Cosmetic Shop']] as const) {
         const b = document.createElement('button'); b.type = 'button'; b.className = 'gl-btn';
-        b.innerHTML = `<span class="gl-key">${k}</span><b>${label}</b>`; this.menuKeys.set(k, b.firstChild as HTMLElement);
+        if (SPIRITS.on) { // (the spirits: one row of icon buttons, each its key on a cap and its name under it)
+          b.className = 'gl-btn ico'; b.title = label; b.style.setProperty('--i', ico[k]);
+          b.innerHTML = `<i class="mi"></i><span class="gl-key">${k}</span><b>${label === 'Cosmetic Shop' ? 'Shop' : label}</b>`; this.menuKeys.set(k, b.querySelector('.gl-key') as HTMLElement);
+        } else { b.innerHTML = `<span class="gl-key">${k}</span><b>${label}</b>`; this.menuKeys.set(k, b.firstChild as HTMLElement); }
         b.addEventListener('mousedown', (e) => e.preventDefault());
         b.addEventListener('click', () => this.opts.onMenu?.(k));
         m.appendChild(b);
@@ -622,7 +674,8 @@ export class WorldHUD {
   }
 
   private renderMinimap(s: HudState, markersDue: boolean): void {
-    const m = s.minimap, view = this.els.mmView;
+    const view = this.els.mmView;
+    const m = SPIRITS.on && s.minimap?.imageUrl?.includes('/world/minimap/') ? { ...s.minimap, ...spiritMinimap() } : s.minimap; // (the spirits: the map drawn from the places' data)
     this.text(this.els.mmLabel, m?.label ?? '', 'mmLabel');
     const vw = G.minimap.view.w, vh = G.minimap.view.h;
     if (!m || !(m.bounds.width > 0 && m.bounds.height > 0)) { this.mapUnavailable(); return; }
