@@ -329,6 +329,7 @@ export class Arena3D {
    *  surface, even dark), the picture never larger than the window shows it, and a slow computer going lighter sooner
    *  (a target of 60 fps instead of 45), bloom off first, then remembered for the next visit. The regular game: off. */
   private lean = false;
+  private settleMs = 0;
   private hitOn = true;
   private layerPts: THREE.PointLight[][] = [];
   private static readonly LEVEL_KEY = 'gol-a3d-lean-level';
@@ -375,6 +376,7 @@ export class Arena3D {
   private watchFrames(ms: number): void {
     const Q = this.quality;
     if (this.soft || Q.level >= 2 || ms <= 0 || ms > 250) return;
+    if (this.lean && (this.settleMs += ms) < 3500) return; // (lean: not the entry's first seconds — the shaders compiling, the arrival — or a fast computer would be stepped down for good)
     Q.ema += (ms - Q.ema) * 0.04; Q.t += ms;
     if (Q.t < 4000 || Q.ema <= (this.lean ? 18 : 21.5)) return;
     this.setLevel(Q.level + 1, true);
@@ -382,7 +384,7 @@ export class Arena3D {
   /** A quality level: the picture's size, its multisampling and bloom, the shadows (`lower`: a slower step down — lean
    *  remembers it for the next visit). */
   private setLevel(lv: number, lower: boolean): void {
-    const Q = this.quality; Q.level = lv; Q.t = 0; Q.ema = 16;
+    const Q = this.quality; Q.level = lv; Q.t = 0; Q.ema = 16; this.settleMs = 0; // (each level its own settling time: its programs compile first)
     const W = this.scene.scale.width, H = this.scene.scale.height, [w, h] = this.sizeFor(lv);
     this.renderer.setSize(w, h, false);
     if (this.lean && lv >= 1) { this.composer?.dispose(); this.composer = undefined; this.scaleBits(h); } // (lean: bloom off first)
