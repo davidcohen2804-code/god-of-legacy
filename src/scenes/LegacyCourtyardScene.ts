@@ -4401,11 +4401,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const { img, sunDir } = a3.addLayer('arena3d-hero', h.scene);
     h.makeShadow(sunDir);
     h.setWeapon(mod.CLASS_WEAPON[this.cls] ?? 'sword');
-    if (SPIRITS.on && this.cls === 'samurai') (await import('../spirits/SpiritBody')).makeSpirit(h, img); // (Legacy of Spirits: the Spectral Samurai)
+    if (SPIRITS.on && this.cls === 'samurai') { const sp = await import('../spirits/SpiritBody'); sp.makeSpirit(h, img); sp.frameSpirit(a3); } // (Legacy of Spirits: the Spectral Samurai, the camera nearer)
     if (gen !== this.sceneGen || !this.sys.isActive() || this.a3d !== a3) { h.dispose(); return; }
     this.hero3d = { h, img, a3, others: [], loading: 0, Dbl: mod.Doubles3D, kage: new Map() }; this.hero3dWait = false;
     void h.equipAll(loadEquip3D(this.character?.id ?? 'guest')); // (what the character wore last)
-    this.buildItemUi(mod.WEAPONS);
+    if (!SPIRITS.on) this.buildItemUi(mod.WEAPONS); // (not in the spirits' art preview: the 3D items' test panel)
   }
 
   /** Everyone else in the room as the 3D Beginner too — the sparring partner and the other players — each with its
