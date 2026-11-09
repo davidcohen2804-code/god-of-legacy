@@ -16,6 +16,18 @@ let n = P.length / 3;
   for (let i = 0; i < n; i++) { const k = `${P[3*i]},${P[3*i+1]},${P[3*i+2]}`; let j = key.get(k); if (j === undefined) { j = np.length / 3; key.set(k, j); np.push(P[3*i], P[3*i+1], P[3*i+2]); } remap[i] = j; }
   P = new Float32Array(np); I = I.map((v) => remap[v]); n = P.length / 3;
 }
+// the base plate the shape AI adds under the feet (a thin wide sheet a little above the soles): its faces outside the
+// boots' own footprint (taken from the boots just below and above it) are removed; the rest is inside the boots
+if (process.env.PLATE) {
+  const [pa, pb] = process.env.PLATE.split(',').map(Number);
+  let y0 = 1e9, y1 = -1e9; for (let i = 0; i < n; i++) { y0 = Math.min(y0, P[3*i+1]); y1 = Math.max(y1, P[3*i+1]); }
+  const Hh = y1 - y0, lo = y0 + Hh * pa, hi = y0 + Hh * pb, C = 0.012, occ = new Set();
+  const cell = (x, z) => `${Math.floor(x / C)},${Math.floor(z / C)}`;
+  for (let i = 0; i < n; i++) { const y = P[3*i+1]; if ((y < lo && y >= y0) || (y > hi && y < hi + Hh * 0.025)) { const cx = Math.floor(P[3*i] / C), cz = Math.floor(P[3*i+2] / C); for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) occ.add(`${cx + dx},${cz + dz}`); } }
+  const bad = (v) => { const y = P[3*v+1]; return y >= lo && y <= hi && !occ.has(cell(P[3*v], P[3*v+2])); };
+  const keep = []; let cut = 0; for (let t = 0; t < I.length; t += 3) { if (bad(I[t]) || bad(I[t+1]) || bad(I[t+2])) { cut++; continue; } keep.push(I[t], I[t+1], I[t+2]); }
+  I = new Uint32Array(keep); console.log('plate: faces cut', cut, 'footprint cells', occ.size);
+}
 // largest connected component
 {
   const par = new Int32Array(n).map((_, i) => i); const f = (x) => { while (par[x] !== x) { par[x] = par[par[x]]; x = par[x]; } return x; };

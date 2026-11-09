@@ -227,11 +227,12 @@ export class Hero3D {
 
   private constructor() { this.root.rotation.order = 'ZYX'; this.root.add(this.model); this.scene.add(this.root); } // (ZYX: turned to face first, then tipped in the picture's plane — a somersault, a lean)
 
-  static async load(o: { female?: boolean } = {}, onProgress?: (k: number) => void): Promise<Hero3D> {
+  static async load(o: { female?: boolean; body?: string } = {}, onProgress?: (k: number) => void): Promise<Hero3D> {
     const h = new Hero3D(); h.female = !!o.female;
     const loader = new GLTFLoader(); loader.setMeshoptDecoder(MeshoptDecoder);
     const ids = Object.keys(WEAPONS) as WeaponId[];
-    const files = [o.female ? MODEL.f : MODEL.m, ...MOVES, ...ids.map((w) => WEAPONS[w].file)];
+    // (body: another body on the same skeleton instead of the Beginner — Legacy of Spirits: the Spectral Samurai's)
+    const files = [o.body ?? (o.female ? MODEL.f : MODEL.m), ...MOVES, ...ids.map((w) => WEAPONS[w].file)];
     let done = 0;
     const got = await Promise.all(files.map((f) => loader.loadAsync(DIR + f).then((g) => { onProgress?.(++done / files.length); return g; })));
     const [model, ...rest2] = got, moves = rest2.slice(0, MOVES.length), arms = rest2.slice(MOVES.length);

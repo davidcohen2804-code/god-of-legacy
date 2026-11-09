@@ -13,7 +13,8 @@ import { MAPS } from '../world3d/maps';
 import { AREAS } from '../world/Areas';
 import { Hero3D } from '../arena3d/Hero3D';
 import type { Room } from '../arena3d/Room';
-import { makeSpirit } from './SpiritBody';
+import { makeSpirit, makeSpiritFinish } from './SpiritBody';
+import { SPIRIT_BODY } from './flag';
 
 const Q = new URLSearchParams(location.search);
 const U = 100, DK = 1.15;
@@ -42,14 +43,15 @@ export async function startSpiritLab(): Promise<void> {
   const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(W, H, { type: THREE.HalfFloatType, samples: soft ? 0 : 4 }));
   composer.addPass(new RenderPass(scene3, cam)); composer.addPass(new UnrealBloomPass(new THREE.Vector2(W / 2, H / 2), 0.5, 0.55, 0.86)); composer.addPass(new OutputPass());
   // the hero, on his own layer, lit as the world lights its hero
-  const h = await Hero3D.load({});
+  const h = await Hero3D.load({ body: Q.get('body') ?? SPIRIT_BODY });
   h.setWeapon('katana');
   const sc = h.scene;
   const sun = new THREE.DirectionalLight(), sunT = new THREE.Object3D(); sun.target = sunT; const hemi = new THREE.HemisphereLight();
   const fill = new THREE.DirectionalLight(0xffeedd, 1.1), fillT = new THREE.Object3D(); fill.target = fillT;
   sc.add(sun, sunT, hemi, fill, fillT); sc.environment = scene3.environment; (sc as THREE.Scene & { environmentIntensity: number }).environmentIntensity = 0.32;
   const sunDir = new THREE.Vector3(); h.makeShadow(sunDir);
-  const spirit = Q.has('plain') ? null : makeSpirit(h);
+  if (!Q.has('plain') && !Q.has('addons')) makeSpiritFinish(h);
+  const spirit = Q.has('addons') ? makeSpirit(h) : null; // (gate 1's dressed Beginner: &body=beginner_m.glb&addons)
   if (spirit && Q.has('bare')) for (const s of (spirit as unknown as { strands: { mesh: THREE.Mesh }[] }).strands) s.mesh.removeFromParent(); // (the body alone: its own painting)
   if (spirit && Q.has('noline')) (spirit as unknown as { outline: THREE.Object3D }).outline.removeFromParent();
   const face = Q.get('face') === 'l' ? -1 : 1, move = Q.get('move') ?? 'idle';

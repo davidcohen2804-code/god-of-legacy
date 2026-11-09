@@ -60,7 +60,7 @@ import { QuestState } from '../characters/CharacterTypes';
 import { PvpController } from '../pvp/PvpController';
 import { ARENA3D, ON_BODY } from '../arena3d/flag';
 import { HERO3D } from '../arena3d/hero3dFlag';
-import { SPIRITS } from '../spirits/flag';
+import { SPIRITS, SPIRIT_BODY } from '../spirits/flag';
 import { portrait3d } from '../arena3d/heroArt3d';
 import type { Hero3D } from '../arena3d/Hero3D';
 import type { Doubles3D } from '../arena3d/Doubles3D';
@@ -4396,15 +4396,16 @@ export class LegacyCourtyardScene extends Phaser.Scene {
    *  PVP 3D room. */
   private async startHero3D(a3: Arena3D, gen: number): Promise<void> {
     const mod = await import('../arena3d/Hero3D');
-    const h = await mod.Hero3D.load({ female: genderOf(this.character) === 'female' });
+    const spirit = SPIRITS.on && this.cls === 'samurai'; // (Legacy of Spirits: the Spectral Samurai's own body)
+    const h = await mod.Hero3D.load({ female: genderOf(this.character) === 'female', body: spirit ? SPIRIT_BODY : undefined });
     if (gen !== this.sceneGen || !this.sys.isActive() || this.a3d !== a3) { h.dispose(); return; }
     const { img, sunDir } = a3.addLayer('arena3d-hero', h.scene);
     h.makeShadow(sunDir);
     h.setWeapon(mod.CLASS_WEAPON[this.cls] ?? 'sword');
-    if (SPIRITS.on && this.cls === 'samurai') { const sp = await import('../spirits/SpiritBody'); sp.makeSpirit(h, img); sp.frameSpirit(a3); } // (Legacy of Spirits: the Spectral Samurai, the camera nearer)
+    if (spirit) { const sp = await import('../spirits/SpiritBody'); sp.makeSpiritFinish(h); sp.frameSpirit(a3); } // (the spirit's finish, the camera nearer)
     if (gen !== this.sceneGen || !this.sys.isActive() || this.a3d !== a3) { h.dispose(); return; }
     this.hero3d = { h, img, a3, others: [], loading: 0, Dbl: mod.Doubles3D, kage: new Map() }; this.hero3dWait = false;
-    void h.equipAll(loadEquip3D(this.character?.id ?? 'guest')); // (what the character wore last)
+    if (!spirit) void h.equipAll(loadEquip3D(this.character?.id ?? 'guest')); // (what the character wore last — the Beginner's pieces, not on the spirit's own body)
     if (!SPIRITS.on) this.buildItemUi(mod.WEAPONS); // (not in the spirits' art preview: the 3D items' test panel)
   }
 

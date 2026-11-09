@@ -433,6 +433,45 @@ export class SpiritBody {
   }
 }
 
+/** Gate 1b — the Spectral Samurai's own modelled body (spirit_samurai.glb: GPT's four drawings → shape → baked → the
+ *  65-bone skeleton): its drawing kept as it is; the spirit only as a finish — a narrow violet light at its edges, the
+ *  drawing's violet (the eyes, the coat's flames) lit from within, and the katana's violet-white blade. */
+export class SpiritFinish {
+  private time = { value: 0 };
+  private last = performance.now();
+  constructor(hero: Hero3D, L: SpiritLook = SPECTRAL_SAMURAI) {
+    const P = hero as unknown as Parts;
+    const body = P.body;
+    if (body) {
+      const old = body.material as THREE.MeshStandardMaterial;
+      const m = new THREE.MeshStandardMaterial({ map: old.map, normalMap: old.normalMap, roughness: 0.78, metalness: 0, emissive: 0x000000, envMapIntensity: 0.25 });
+      m.onBeforeCompile = (sh) => {
+        sh.uniforms.uRim = { value: new THREE.Color(L.rim) }; sh.uniforms.uTime = this.time;
+        sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 uRim; uniform float uTime;')
+          .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+            float spF = 1.0 - clamp(abs(dot(normal, normalize(vViewPosition))), 0.0, 1.0);
+            #ifdef USE_MAP
+              vec3 spC = texture2D( map, vMapUv ).rgb;
+            #else
+              vec3 spC = vec3( 0.0 );
+            #endif
+            // the drawing's own violet (bright, blue over green): lit from within, breathing slowly
+            float spV = smoothstep(0.18, 0.45, spC.b) * smoothstep(0.15, 0.35, spC.b - spC.g) * smoothstep(0.08, 0.25, spC.r);
+            float spPulse = 0.8 + 0.2 * sin(uTime * 1.6);
+            totalEmissiveRadiance += spC * spV * 1.6 * spPulse + uRim * pow(spF, 3.0) * 0.55;`);
+      };
+      m.customProgramCacheKey = () => 'spirit-finish';
+      body.material = m;
+    }
+    for (const [w, g] of P.weapons) if (w === 'katana') bladeGlow(g, L, this.time);
+    const prev = P.scene.onBeforeRender;
+    P.scene.onBeforeRender = (r, s, c, g2, m2, gr) => { const now = performance.now(); this.time.value += Math.min(0.05, (now - this.last) / 1000); this.last = now; prev?.call(P.scene, r, s, c, g2, m2, gr); };
+  }
+}
+
+/** The Spectral Samurai's modelled body finished as a spirit (gate 1b). */
+export function makeSpiritFinish(hero: Hero3D): SpiritFinish { return new SpiritFinish(hero); }
+
 /** The camera for the spirits (GPT, gate 1: the hero about 30 % of the screen's height as the first target — about 7 of
  *  the world's 9 units away; the pull-back for several foes and each place's own framing kept). */
 export function frameSpirit(a3: unknown): void {
