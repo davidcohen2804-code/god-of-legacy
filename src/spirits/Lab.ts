@@ -50,7 +50,10 @@ export async function startSpiritLab(): Promise<void> {
   const fill = new THREE.DirectionalLight(0xffeedd, 1.1), fillT = new THREE.Object3D(); fill.target = fillT;
   sc.add(sun, sunT, hemi, fill, fillT); sc.environment = scene3.environment; (sc as THREE.Scene & { environmentIntensity: number }).environmentIntensity = 0.32;
   const sunDir = new THREE.Vector3(); h.makeShadow(sunDir);
-  if (!Q.has('plain') && !Q.has('addons')) makeSpiritFinish(h);
+  if (Q.has('neutral')) { // (the body's shape alone: grey, no drawing, no light of its own — for the art review)
+    const body = (h as unknown as { body: THREE.SkinnedMesh | null }).body;
+    if (body) body.material = new THREE.MeshStandardMaterial({ color: 0xb4b0bc, roughness: 0.8, metalness: 0 });
+  } else if (!Q.has('plain') && !Q.has('addons')) makeSpiritFinish(h);
   const spirit = Q.has('addons') ? makeSpirit(h) : null; // (gate 1's dressed Beginner: &body=beginner_m.glb&addons)
   if (spirit && Q.has('bare')) for (const s of (spirit as unknown as { strands: { mesh: THREE.Mesh }[] }).strands) s.mesh.removeFromParent(); // (the body alone: its own painting)
   if (spirit && Q.has('noline')) (spirit as unknown as { outline: THREE.Object3D }).outline.removeFromParent();
@@ -75,7 +78,9 @@ export async function startSpiritLab(): Promise<void> {
     const run = move === 'run', walk = move === 'walk', slash = move === 'slash';
     const sp = run ? 300 : walk ? 120 : 0;
     const per = 650, el = t % per;
-    h.drive({ x: hx, y: hy, z: room.groundY(hx / U, (hy / U) * DK) * U, vx: sp * face, vy: 0, vz: 0, grounded: true, face, mode: slash ? 'skill' : run ? 'run' : walk ? 'walk' : 'idle',
+    // (any other body mode as it is: land, air, launched, down, hurt… — the air ones a little above the floor)
+    const air = move === 'air' || move === 'launched', mode = slash ? 'skill' : run ? 'run' : walk ? 'walk' : move === 'idle' ? 'idle' : move;
+    h.drive({ x: hx, y: hy, z: room.groundY(hx / U, (hy / U) * DK) * U + (air ? 70 : 0), vx: sp * face + (air ? 120 * face : 0), vy: 0, vz: air ? (move === 'launched' ? 260 : 60) : 0, grounded: !air, face, mode,
       cast: slash ? { id: 'quick_slash', stage: Math.floor(t / per) % 3, elapsed: el, startup: 120, active: 160, recovery: 300, dash: false, air: false } : null }, ms);
     place();
     if (wantFrac !== null) { for (let i = 0; i < 6; i++) { const f = frac(); dist *= f / wantFrac; place(); } }

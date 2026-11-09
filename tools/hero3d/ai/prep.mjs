@@ -25,7 +25,18 @@ if (process.env.PLATE) {
   const cell = (x, z) => `${Math.floor(x / C)},${Math.floor(z / C)}`;
   for (let i = 0; i < n; i++) { const y = P[3*i+1]; if ((y < lo && y >= y0) || (y > hi && y < hi + Hh * 0.025)) { const cx = Math.floor(P[3*i] / C), cz = Math.floor(P[3*i+2] / C); for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) occ.add(`${cx + dx},${cz + dz}`); } }
   const bad = (v) => { const y = P[3*v+1]; return y >= lo && y <= hi && !occ.has(cell(P[3*v], P[3*v+2])); };
-  const keep = []; let cut = 0; for (let t = 0; t < I.length; t += 3) { if (bad(I[t]) || bad(I[t+1]) || bad(I[t+2])) { cut++; continue; } keep.push(I[t], I[t+1], I[t+2]); }
+  // (and inside the footprint too: the plate's own flat faces — level, all three corners in its band — the boots'
+  // walls there stand upright and stay)
+  const inBand = (v) => P[3*v+1] >= lo - Hh * 0.002 && P[3*v+1] <= hi + Hh * 0.002;
+  const flat = (a, b, c) => { const ux = P[3*b] - P[3*a], uy = P[3*b+1] - P[3*a+1], uz = P[3*b+2] - P[3*a+2], vx = P[3*c] - P[3*a], vy = P[3*c+1] - P[3*a+1], vz = P[3*c+2] - P[3*a+2];
+    const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx; return Math.abs(ny) > 0.75 * Math.hypot(nx, ny, nz); };
+  const keep = []; let cut = 0, cutFlat = 0;
+  for (let t = 0; t < I.length; t += 3) {
+    if (bad(I[t]) || bad(I[t+1]) || bad(I[t+2])) { cut++; continue; }
+    if (inBand(I[t]) && inBand(I[t+1]) && inBand(I[t+2]) && flat(I[t], I[t+1], I[t+2])) { cutFlat++; continue; }
+    keep.push(I[t], I[t+1], I[t+2]);
+  }
+  console.log('plate: level faces cut inside the footprint', cutFlat);
   I = new Uint32Array(keep); console.log('plate: faces cut', cut, 'footprint cells', occ.size);
 }
 // largest connected component
