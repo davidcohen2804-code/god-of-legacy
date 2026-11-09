@@ -80,6 +80,7 @@ async function loadFonts(): Promise<void> {
 
 loadFonts().then(() => {
   if (STUDIO) { void import('./studio/main').then((m) => m.startStudio()); return; } // (its own page: the game is not started)
+  if (new URLSearchParams(location.search).has('spiritlab')) { void import('./spirits/Lab').then((m) => m.startSpiritLab()); return; } // (Legacy of Spirits: the Spectral Samurai's look bench, its own page)
   const game = new Phaser.Game({
     type: Phaser.WEBGL,
     parent: 'game',
