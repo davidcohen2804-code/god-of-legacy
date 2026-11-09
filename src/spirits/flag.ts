@@ -2,8 +2,8 @@
  *  opens the game's 3D world with the 3D heroes, the Samurai as the Spectral Samurai and the maps in the spirit night.
  *  The game without it is untouched. Kept apart so three.js loads only when a 3D place opens. */
 const Q = typeof location !== 'undefined' ? new URLSearchParams(location.search) : new URLSearchParams();
-/** `lean`: the 3D world's lighter picture (GPT step 4P; `&lean=0` the old one, to compare); `lite`: his gameplay body in
- *  the world (`&lite=1` — until GPT has compared it with the full one). */
+/** `lean`: the 3D world's lighter picture and lighter entry (GPT step 4P; `&lean=0` the old ones, to compare); `lite`:
+ *  his gameplay body in the world (`&lite=1` — until GPT has compared it with the full one). */
 export const SPIRITS = { on: Q.has('spirits'), lean: Q.get('lean') !== '0', lite: Q.get('lite') === '1' };
 
 /** The Spectral Samurai's own modelled body (gate 1b, in assets/hero3d): GPT's four drawings → the shape → the drawings
