@@ -1,0 +1,2 @@
+var e=e=>e/100,t=e=>e/100*1.15,n=e=>e/100;function r(n,r){let i=n.map(e=>e[0]+r),a=n.map(e=>e[1]),o=e(Math.min(...i)),s=e(Math.max(...i)),c=t(Math.min(...a)),l=t(Math.max(...a));return{x0:o,x1:s,z0:c,z1:l,cx:(o+s)/2,cz:(c+l)/2,w:s-o,d:l-c}}function i(e){let t=e>>>0;return()=>{t=t+1831565813>>>0;let e=t;return e=Math.imul(e^e>>>15,e|1),e^=e+Math.imul(e^e>>>7,e|61),((e^e>>>14)>>>0)/4294967296}}export{t as a,n as i,i as n,e as r,r as t};
+//# sourceMappingURL=units-CPCz0l5z.js.map
