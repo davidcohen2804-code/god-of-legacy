@@ -198,8 +198,19 @@ const asCube = <P extends { id: string; foot: Pt[]; base?: Pt[]; stand?: [number
   const ys = p.foot.map((q) => q[1]);
   return { ...p, base: p.foot, stand: [Math.min(...ys) + 2, Math.max(...ys) - 3] };
 };
+/** Round a cube, below its top: a collar of this many px the feet keep out of. The feet are a 10 px circle, but a 3D
+ *  body reaches further (the chest, an arm, the shoulders): without it his front half went into the cube's face. Not
+ *  standable (its top stays the cube's own), so nobody stands on air beside it; and lower than the cube by more than a
+ *  ledge's reach (Combat PHYS.mantle 16), so a jump still catches its lip. */
+const CUBE_COLLAR = 10;
+const withCollar = <P extends { id: string; foot: Pt[] }>(p: P, c: P): { id: string; foot: Pt[]; h?: number }[] => {
+  if (c === p) return [p];
+  const xs = c.foot.map((q) => q[0]), ys = c.foot.map((q) => q[1]), m = CUBE_COLLAR;
+  const x0 = Math.min(...xs) - m, x1 = Math.max(...xs) + m, y0 = Math.min(...ys) - m, y1 = Math.max(...ys) + m;
+  return [c, { id: `${c.id}-collar`, foot: [[x0, y0], [x1, y0], [x1, y1], [x0, y1]] as Pt[], h: Math.max(1, (c as unknown as { h: number }).h - 18) }];
+};
 export function worldObjects(): WorldObject[] {
-  return ([...(STRIP.props as unknown as { id: string; foot: Pt[]; base?: Pt[]; stand?: [number, number] }[]).map(asCube), ...GATE.props, ...towerProps(), ...heightProps(), ...cloudProps(), ...skyUnder()] as { id: string; foot: Pt[]; base?: Pt[]; h: number; top?: number; soft?: boolean; stand?: [number, number] }[]).map((p) => ({
+  return ([...(STRIP.props as unknown as { id: string; foot: Pt[]; base?: Pt[]; stand?: [number, number] }[]).flatMap((p) => withCollar(p, asCube(p))), ...GATE.props, ...towerProps(), ...heightProps(), ...cloudProps(), ...skyUnder()] as { id: string; foot: Pt[]; base?: Pt[]; h: number; top?: number; soft?: boolean; stand?: [number, number] }[]).map((p) => ({
     id: p.id, footprint: p.stand && p.base ? p.base : p.foot, height: p.h, ...(p.top !== undefined ? { topZ: p.top } : {}), ...(p.stand ? { stand: p.stand } : {}),
     ...(p.base ? { base: p.base } : {}), ...(p.soft ? { soft: true } : {}),
     cover: 'hard' as const, occluder: [], frontY: Math.max(...p.foot.map((q) => q[1])) + 1,
