@@ -119,7 +119,7 @@ function auraSprite(): THREE.Sprite {
   for (let i = 0; i <= 10; i++) { const t = i / 10; gr.addColorStop(t, `rgba(255,255,255,${(Math.exp(-t * t * 4.2) * (1 - t)).toFixed(3)})`); }
   g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
   const tex = new THREE.CanvasTexture(c);
-  const m = new THREE.SpriteMaterial({ map: tex, color: 0x9a62ff, transparent: true, premultipliedAlpha: true, depthWrite: false, opacity: 0.3 });
+  const m = new THREE.SpriteMaterial({ map: tex, color: 0x9a62ff, transparent: true, depthWrite: false, opacity: 0.3 }); // (straight alpha: the sprite's shader does not premultiply its colour)
   m.toneMapped = false;
   const s = new THREE.Sprite(m); s.renderOrder = -0.5; s.frustumCulled = false; s.userData.tex = tex;
   return s;
