@@ -13,14 +13,18 @@ export class MainMenuUI {
   private exitModal?: Phaser.GameObjects.Container;
   private readonly onEscExit = () => this.closeExit();
 
-  constructor(private scene: Phaser.Scene, handlers: MainMenuHandlers) {
+  /** buttons: false — the menu's buttons are drawn by another face of the menu (Legacy of Spirits: src/spirits/SpiritMenu),
+   *  which opens the settings and the exit through openSettings / openExit. */
+  constructor(private scene: Phaser.Scene, handlers: MainMenuHandlers, o: { buttons?: boolean } = {}) {
     this.settings = new SettingsModal(scene);
 
-    this.imageButton(ASSETS.start.key, MENU_BUTTONS.start, handlers.onStart);
-    this.imageButton(ASSETS.pvp.key, MENU_BUTTONS.pvp, handlers.onPvp);
-    this.imageButton(ASSETS.test.key, MENU_BUTTONS.test, handlers.onTest);
-    this.imageButton(ASSETS.settings.key, MENU_BUTTONS.settings, () => this.settings.open());
-    this.imageButton(ASSETS.exit.key, MENU_BUTTONS.exit, () => this.openExit());
+    if (o.buttons !== false) {
+      this.imageButton(ASSETS.start.key, MENU_BUTTONS.start, handlers.onStart);
+      this.imageButton(ASSETS.pvp.key, MENU_BUTTONS.pvp, handlers.onPvp);
+      this.imageButton(ASSETS.test.key, MENU_BUTTONS.test, handlers.onTest);
+      this.imageButton(ASSETS.settings.key, MENU_BUTTONS.settings, () => this.settings.open());
+      this.imageButton(ASSETS.exit.key, MENU_BUTTONS.exit, () => this.openExit());
+    }
 
     scene.add.text(DESIGN.width - VERSION.right, DESIGN.height - VERSION.bottom, VERSION.text, {
       fontFamily: FONT_FAMILY, fontSize: `${VERSION.size}px`, color: VERSION.color,
@@ -78,8 +82,10 @@ export class MainMenuUI {
     });
   }
 
+  openSettings(): void { this.settings.open(); }
+
   /** 'confirm' = Exit God Of Legacy? (EXIT / CANCEL); 'blocked' = web build could not close the tab. */
-  private openExit(mode: 'confirm' | 'blocked' = 'confirm'): void {
+  openExit(mode: 'confirm' | 'blocked' = 'confirm'): void {
     if (this.exitModal) return;
     const s = this.scene;
     const cx = DESIGN.width / 2, cy = DESIGN.height / 2;

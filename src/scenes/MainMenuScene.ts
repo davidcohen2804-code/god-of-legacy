@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
 import { ASSETS, DESIGN, LOGO } from '../config/layout';
 import { MainMenuUI } from '../ui/MainMenuUI';
+import { SPIRITS } from '../spirits/flag';
+import { buildSpiritMenu, preloadSpiritMenu } from '../spirits/SpiritMenu';
 import { clearPvpFromUrl } from '../pvp/Room';
 import { ARENA3D } from '../arena3d/flag';
 import { addCapeWind, addGemLife, addGemPulse, addMotes, addPaintedWater, addSkyAndMist, addSkyDrift, addSunLight, addWaterGlints, preloadLife, preloadMenuSky } from '../ui/PresentationLife';
@@ -19,11 +21,12 @@ export class MainMenuScene extends Phaser.Scene {
 
   constructor() { super('MainMenuScene'); }
 
-  preload(): void { preloadLife(this); preloadMenuSky(this); }
+  preload(): void { if (SPIRITS.on) { preloadSpiritMenu(this); return; } preloadLife(this); preloadMenuSky(this); }
 
   create(): void {
     clearPvpFromUrl(); // the menu is never a PvP link
     this.leaving = false;
+    if (SPIRITS.on) { this.createSpirits(); return; } // (Legacy of Spirits: the opening screen of GPT's reference)
     // Background: cover-style, aspect preserved. It stays put: the screen never slides with the pointer (no parallax);
     // the life is in the effects on it.
     const bg = this.add.image(DESIGN.width / 2, DESIGN.height / 2, ASSETS.background.key);
@@ -51,6 +54,20 @@ export class MainMenuScene extends Phaser.Scene {
       onPvp: () => { ARENA3D.on = true; this.leave(() => this.scene.start('PvpSelectScene', { mode: 'cpu' })); }, // the fighter select (Tekken style) → the arena, a real 3D room (PVP 3D)
       onTest: () => { ARENA3D.on = true; this.leave(() => this.scene.start('PvpSelectScene', { mode: 'test' })); }, // TEST: the same select, one fighter → alone in the room with every skill (David 7 Nov)
     });
+  }
+
+  /** Legacy of Spirits' opening screen (src/spirits/SpiritMenu): the same five ways out as the regular menu. */
+  private createSpirits(): void {
+    this.cameras.main.fadeIn(220, 0, 0, 0);
+    const ui = new MainMenuUI(this, { onStart: () => {}, onPvp: () => {}, onTest: () => {} }, { buttons: false }); // (its settings, exit and version)
+    const off = buildSpiritMenu(this, [
+      { label: 'Start Game', icon: 'swords', go: () => this.leave(() => this.scene.start('CharacterSelectScene')) },
+      { label: 'PvP Arena', icon: 'arena', go: () => { ARENA3D.on = true; this.leave(() => this.scene.start('PvpSelectScene', { mode: 'cpu' })); } },
+      { label: 'Training', icon: 'training', go: () => { ARENA3D.on = true; this.leave(() => this.scene.start('PvpSelectScene', { mode: 'test' })); } },
+      { label: 'Settings', icon: 'gear', go: () => ui.openSettings() },
+      { label: 'Exit', icon: 'exit', go: () => ui.openExit() },
+    ]);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, off);
   }
 
   /** 260 ms fade + slight zoom into the next scene (never an abrupt cut). */
