@@ -602,6 +602,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private floor3d: Floor | null = null;
   /** The open world on the 3D stage (?world3d=1, the maps that exist in 3D): drives `a3d` from the hero. */
   private w3d: World3D | null = null;
+  /** Legacy of Spirits: the blocks' occlusion of the 3D hero in this place (src/spirits/Occlusion); its teardown. */
+  private spiritOcc?: () => void;
   /** The world in 3D's story beats: whom the hero talks to, the maps entered this session (the chapter openings play once), the den stage last seen. */
   private talkAt: { x: number; y: number } | null = null; private visited3d = new Set<string>(); private denStageSeen = 0;
   /** A pose the battle holds (the intro before ROUND n, the winner's pose), until sim time. */
@@ -4403,6 +4405,10 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     h.makeShadow(sunDir);
     h.setWeapon(mod.CLASS_WEAPON[this.cls] ?? 'sword');
     if (spirit) { const sp = await import('../spirits/SpiritBody'); sp.makeSpiritFinish(h); sp.frameSpirit(a3); } // (the spirit's finish, the camera nearer)
+    if (SPIRITS.on) { // (a block in front of him hides him: the place's blocks drawn into depth before his picture)
+      const oc = await import('../spirits/Occlusion'); this.spiritOcc?.();
+      this.spiritOcc = oc.attachOcclusion(this, a3, this.w3d?.areaId ?? '', () => ({ x: this.kin.x, y: this.kin.y, z: this.kin.supportZ ?? 0 }), () => (this.view ? [this.view.ring, this.view.shadow] : []));
+    }
     if (gen !== this.sceneGen || !this.sys.isActive() || this.a3d !== a3) { h.dispose(); return; }
     this.hero3d = { h, img, a3, others: [], loading: 0, Dbl: mod.Doubles3D, kage: new Map() }; this.hero3dWait = false;
     if (!spirit) void h.equipAll(loadEquip3D(this.character?.id ?? 'guest')); // (what the character wore last — the Beginner's pieces, not on the spirit's own body)

@@ -147,6 +147,9 @@ export class Arena3D {
   /** 3D layers of their own (the 3D hero test, ?hero3d=1): each drawn alone into its own picture, which is sorted
    *  among the 2D bodies at its depth (as a painted fighter is), under the railing. */
   private extra: { scene: THREE.Scene; key: string; img: Phaser.GameObjects.Image; before?: () => void }[] = [];
+  /** The place's solid pieces a body can stand behind (the stone blocks), depth only (Legacy of Spirits: set by
+   *  src/spirits/Occlusion): drawn before each 3D layer, so a block in front of a body hides it. None by default. */
+  occluders: THREE.Scene | null = null;
   /** The skills in the room's 3D: pillars, cracks and chunks, waves, domes, crystals, lightning, trails, slash arcs. */
   fx!: Fx3D;
   /** The blow felt on the whole picture (set by the scene: its ImpactFx). */
@@ -649,7 +652,14 @@ export class Arena3D {
     const glow = this.glow3.children.some((o) => o.visible);
     if (glow) { this.renderer.render(this.glow3, this.camera); if (cut) this.drawErasers(); this.scene.textures.get('arena3d-fx').source[0].update(); }
     this.fxImg.setVisible(glow);
-    for (const l of this.extra) { l.before?.(); if (!l.img.visible) continue; this.renderer.setClearColor(0x000000, 0); this.renderer.render(l.scene, this.camera); this.scene.textures.get(l.key).source[0].update(); } // (a layer not shown is not drawn: a body waiting in the pool, the doubles gone)
+    for (const l of this.extra) {
+      l.before?.(); if (!l.img.visible) continue; this.renderer.setClearColor(0x000000, 0);
+      if (this.occluders) { // (the place's solid pieces as depth alone first: the parts of the body behind them stay out of its picture)
+        const ac = this.renderer.autoClear; this.renderer.autoClear = false; this.renderer.clear();
+        this.renderer.render(this.occluders, this.camera); this.renderer.render(l.scene, this.camera); this.renderer.autoClear = ac;
+      } else this.renderer.render(l.scene, this.camera);
+      this.scene.textures.get(l.key).source[0].update();
+    } // (a layer not shown is not drawn: a body waiting in the pool, the doubles gone)
     // every world object: placed where the 3D camera sees its floor point, scaled by its depth
     const sw = this.scene.scale.width, world = new Map<object, [number, number]>(); // (a body already placed: where it stood in the world)
     const visit = (o: Placed, top: boolean) => {
