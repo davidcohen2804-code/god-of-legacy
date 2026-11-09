@@ -152,7 +152,7 @@ export function buildSpiritSelect(scene: Phaser.Scene, h: SpiritSelectHandlers):
     scene.tweens.add({ targets: p.image, alpha: 1, duration: 420, ease: 'Sine.easeOut' });
     p.portrait('spirit-portrait', 136);
     portraits();
-  });
+  }).catch((e) => console.warn('spirit select: the 3D Samurai did not load', e)); // (the screen and Enter World work without him)
 
   // the heroes' list
   const faces: { img: Phaser.GameObjects.Image; dark: boolean; r: number }[] = [];
