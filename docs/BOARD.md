@@ -40,8 +40,17 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
   (the real 3D Samurai, the other heroes sealed for this phase), the stone cubes solid on their whole 3D footprint with a
   10 px collar, a block in front of a 3D body hides it (`Arena3D.occluders`, set only by `src/spirits/Occlusion.ts`), the
   interface in GPT's colours, a first twilight look for the courtyard (direction approved, polish next).
-- **Next (GPT's order):** the courtyard in moonlit twilight (then 17° vs 19° pitch), the HUD and windows, the Samurai's
-  combat polish (eyes, sword, basic attack, skills), then the first boss (the Broken Seal Warden).
+- **Done (GPT approved, 9 Nov, second push):** the courtyard's moonlit twilight, the exploration camera at 19°, a soft
+  face fill on the select's Samurai, the gameplay HUD (4A: player card with his 3D portrait, one dominant skill row with
+  a smaller tray, icon buttons, the map drawn from the places' data) and the windows (4B: the inventory's stage shows
+  the 3D Samurai — `src/spirits/SpiritStage.ts`, its own small renderer, only while open — the skill book restyled,
+  Master Aldric's name and role as one nameplate, no name badge under the player).
+- **Next (GPT's order):** 4P — performance and loading. Measured on David's PC (Intel UHD, integrated): the 3D world at
+  41–47 fps (p50 20.8 ms), GPU-bound; 20.6 s to enter the world. Then 4C (integration checks), the Samurai's combat
+  identity, the first boss (the Broken Seal Warden).
+- **FYI — PvP / DFO arena dynamics:** the same measurement concerns every 3D room (`Arena3D`): with its 3D draw paused
+  the screen runs at 105 fps. The 4P changes will be made behind `?spirits` first; whatever proves itself there can be
+  proposed for the PvP rooms.
 - **Request — to: Maps:** in `?world3d=1` the 3D cubes still collide only on the painted block's front strip (`base`), so
   the hero walks into the back three quarters of every cube. The `?spirits` fix (`asCube` in `src/world/Areas.ts`: an
   area block's footprint = its whole 3D foot) can be switched on for `?world3d=1` too if you agree.
@@ -49,6 +58,10 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
   Areas.ts (area blocks only — PvP rooms use the arena's own geometry), Arena3D (`occluders`, null by default),
   world3d/maps (looks.ts 'spirit', islandTerrace picks it for the courtyard), kit/sky.ts (`cloud` colour option, default
   unchanged), main.ts (the colours' sheet), Hero3D.load({ body }). Rollback: 16d808c1 (the last main before this push).
+  Second push, behind the flag only: WorldHUD.ts (spirits layout and classes; one `cool` class on a cooling slot, no
+  style for it outside ?spirits), CosmeticPanel.ts (the 3D stage only for the spirits' Samurai), OpenWorld.ts (NPC
+  nameplate grouped), LegacyCourtyardScene.ts (no ground name, the spirits' portrait / name in the HUD). Rollback:
+  dc2f7e51.
 
 ### DFO (7 Nov, David 16:43) — the new chibi characters: the Archer first, a prototype behind `?chibi`
 - David's new direction for the characters: anime pixel art, light chibi, two facings (right, mirrored for left) in a
