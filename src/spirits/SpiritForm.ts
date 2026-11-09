@@ -90,7 +90,7 @@ function ghostMaterial(src: THREE.MeshStandardMaterial, U: Record<string, THREE.
       // the spectral matter: the drawing's value on a deep violet ramp (violet glass, not milk)
       float mAcc = clamp( mGold + mRed + mWhite + mMask, 0.0, 1.0 );
       vec3 col = mix( uDeep, uMid, smoothstep( 0.05, 0.7, spV ) );
-      col += uMid * uGlow * 0.55 * ( 0.35 + 0.65 * spV ) * spPulse * ( 1.0 - mAcc );          // the light inside him
+      col += uMid * uGlow * 0.9 * ( 0.35 + 0.65 * spV ) * spPulse * ( 1.0 - mAcc );           // the light inside him
       col += uFlame * mFlame * ( 0.45 + 1.2 * uGlow ) * spPulse;                                // the drawing's own violet lit from within
       col += outgoingLight * uLit * ( 1.0 - mAcc );                                              // the scene's light on him
       col = mix( col, uGold * ( 0.85 + 0.9 * spL ), mGold );                                     // the gold trims: gold light
@@ -104,7 +104,7 @@ function ghostMaterial(src: THREE.MeshStandardMaterial, U: Record<string, THREE.
       a = max( a, mWhite * ( 0.4 + 0.5 * uHair ) );                 // the hair (and the eyes): brighter than the body
       a = max( a, mMask * ( 0.55 + 0.3 * uFill ) );                 // the mask: the face reads at every level
       a = max( a, mFlame * ( uFill + 0.2 * uGlow ) );
-      a += spRim * 0.9 + uGlow * 0.1 * spV;
+      a += spRim * 0.9 + uGlow * 0.16 * spV;
       gl_FragColor = vec4( min( col, vec3( 1.0 ) ), clamp( a, 0.0, 1.0 ) );`);
   };
   m.customProgramCacheKey = () => 'spirit-form';
@@ -188,16 +188,16 @@ const BLADE_FS = `
   float hash( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }
   void main() {
     float u = vUv.x, t = vUv.y;
-    float edgeL = smoothstep( 0.78, 0.97, u );                       // the cutting edge, white-hot
-    float spine = 1.0 - smoothstep( 0.0, 0.12, u );                  // the spine, fainter
-    float ridge = exp( -pow( ( u - 0.4 ) / 0.07, 2.0 ) ) * 0.35;     // the ridge line
-    float dens = mix( 0.9, 0.38, t );                                // denser at the guard, softer to the tip
+    float edgeL = smoothstep( 0.7, 0.95, u );                        // the cutting edge, white-hot
+    float spine = 1.0 - smoothstep( 0.0, 0.1, u );                   // the spine, fainter
+    float ridge = exp( -pow( ( u - 0.42 ) / 0.08, 2.0 ) ) * 0.55;    // the ridge line
+    float dens = mix( 0.95, 0.45, t );                               // denser at the guard, softer to the tip
     vec2 g = vec2( u * 5.0, t * 56.0 - uTime * 1.4 ), id = floor( g ), f = fract( g ) - 0.5;
     float h = hash( id ), star = step( 0.8, h ) * smoothstep( 0.2, 0.0, length( f ) ) * ( 0.55 + 0.45 * sin( uTime * 4.0 + h * 40.0 ) );
     float sw = 0.5 + 0.5 * sin( t * 20.0 - uTime * 2.0 + sin( u * 6.0 + uTime ) * 1.4 );  // a slow swirl inside
-    vec3 col = mix( uDeep, uCore, 0.35 + 0.4 * sw * uEnergy ) + uCore * star * 1.3 * uEnergy;
-    col = mix( col, uEdge, clamp( edgeL + spine * 0.45 + ridge, 0.0, 1.0 ) );
-    float a = dens * ( 0.46 + 0.26 * uEnergy ) + edgeL * 0.96 + spine * 0.5 + ridge * 0.35 + star * 0.4 * uEnergy;
+    vec3 col = mix( uDeep, uCore, 0.45 + 0.45 * sw * uEnergy ) + uCore * star * 2.0 * uEnergy;
+    col = mix( col, uEdge, clamp( edgeL * 1.1 + spine * 0.5 + ridge, 0.0, 1.0 ) );
+    float a = dens * ( 0.5 + 0.28 * uEnergy ) + edgeL + spine * 0.55 + ridge * 0.45 + star * 0.6 * uEnergy;
     a = clamp( a, 0.0, 1.0 );
     gl_FragColor = vec4( linearToOutputTexel( vec4( min( col, vec3( 1.0 ) ), 1.0 ) ).rgb * a, a );
   }`;
@@ -215,10 +215,10 @@ const RIBBON_VS = `
     gl_Position = projectionMatrix * viewMatrix * vec4( wp, 1.0 );
   }`;
 const RIBBON_FS = `
-  uniform vec3 uColor; uniform float uAlpha, uSoft;
+  uniform vec3 uColor; uniform float uAlpha, uSoft, uFall;
   varying float vS; varying float vT; varying float vFace;
   void main() {
-    float a = exp( -vS * vS * uSoft ) * uAlpha * pow( 1.0 - vT, 1.4 ) * smoothstep( 0.0, 0.06, vT + 0.02 ) * vFace;
+    float a = exp( -vS * vS * uSoft ) * uAlpha * pow( 1.0 - vT, uFall ) * smoothstep( 0.0, 0.06, vT + 0.02 ) * vFace;
     gl_FragColor = vec4( linearToOutputTexel( vec4( uColor, 1.0 ) ).rgb * a, a );
   }`;
 /** A ribbon along `n` points (filled each frame by its owner): positions, tangents, its sides, its share along. */
@@ -237,8 +237,8 @@ function ribbon(n: number, mat: THREE.ShaderMaterial, width: (t: number) => numb
     (g.attributes.position as THREE.BufferAttribute).needsUpdate = true; (g.attributes.aTan as THREE.BufferAttribute).needsUpdate = true;
   } };
 }
-const ribbonMat = (color: number, alpha: number, width: number, soft = 3): THREE.ShaderMaterial => new THREE.ShaderMaterial({
-  uniforms: { uColor: { value: new THREE.Color(color) }, uAlpha: { value: alpha }, uWidth: { value: width }, uSoft: { value: soft } },
+const ribbonMat = (color: number, alpha: number, width: number, soft = 3, fall = 1.4): THREE.ShaderMaterial => new THREE.ShaderMaterial({
+  uniforms: { uColor: { value: new THREE.Color(color) }, uAlpha: { value: alpha }, uWidth: { value: width }, uSoft: { value: soft }, uFall: { value: fall } },
   vertexShader: RIBBON_VS, fragmentShader: RIBBON_FS, transparent: true, premultipliedAlpha: true, depthWrite: false, side: THREE.DoubleSide,
 });
 
@@ -260,7 +260,7 @@ function spiritBlade(U: { uTime: THREE.IUniform; uEnergy: THREE.IUniform }): { r
     vertexShader: BLADE_VS, fragmentShader: BLADE_FS, transparent: true, premultipliedAlpha: true, depthWrite: false, side: THREE.DoubleSide });
   const blade = new THREE.Mesh(bg, bm); blade.renderOrder = 2; root.add(blade); own.push(bg, bm);
   // its aura: a soft violet glow round the blade's line, seen from any side (its share grows with his level)
-  const halo = ribbonMat(0x9a66ff, 0.5, 0.062, 2.0);
+  const halo = ribbonMat(0x9a66ff, 0.5, 0.062, 2.0, 0.6);
   const hr = ribbon(24, halo, (t) => (1 - 0.35 * t) * (t > 0.9 ? Math.max(0.15, (1 - t) / 0.1) : 1));
   hr.set(Array.from({ length: 24 }, (_, i) => { const b = bladeAt(i / 23); return new THREE.Vector3(b.x, b.y, 0); }));
   hr.mesh.renderOrder = 3; root.add(hr.mesh); own.push(hr.mesh.geometry, halo);
