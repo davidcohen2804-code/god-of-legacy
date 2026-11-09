@@ -20,8 +20,10 @@ import { startTestMode } from './qa/TestMode';
 import ASSET_HASH from 'virtual:asset-hashes';
 import WEBP_TWINS from 'virtual:webp-twins';
 import { KeyBlackPipeline } from './fx/keyBlack';
+import { ensureSpiritTheme } from './spirits/theme';
 
 ErrorCapture.installGlobal();
+ensureSpiritTheme(); // (Legacy of Spirits, behind ?spirits: the interface in the new colours)
 
 // Cache-bust every game asset by its content hash (computed at build time): same file names (e.g. run.png) never stay
 // stale after an update, and a deploy only re-downloads the files that really changed. Unknown files: per build.
