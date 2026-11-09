@@ -12,3 +12,5 @@ export const SPIRIT_BODY = 'spirit_samurai.glb';
 /** His gameplay body (GPT step 4P): the same body, skeleton, skin and texture with its 40k triangles simplified to 15k
  *  (tools/spirits/lite.mjs) — the full one stays for the select and the windows. */
 export const SPIRIT_BODY_LITE = 'spirit_samurai_lite.glb';
+/** His gameplay body's floor shadow: its triangles simplified again (5k), on the same vertices. */
+export const SPIRIT_SHADOW_LITE = 'spirit_samurai_lite.shadow.bin';

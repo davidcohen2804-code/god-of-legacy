@@ -227,18 +227,21 @@ export class Hero3D {
 
   private constructor() { this.root.rotation.order = 'ZYX'; this.root.add(this.model); this.scene.add(this.root); } // (ZYX: turned to face first, then tipped in the picture's plane — a somersault, a lean)
 
-  static async load(o: { female?: boolean; body?: string } = {}, onProgress?: (k: number) => void): Promise<Hero3D> {
+  static async load(o: { female?: boolean; body?: string; shadow?: string } = {}, onProgress?: (k: number) => void): Promise<Hero3D> {
     const h = new Hero3D(); h.female = !!o.female;
     const loader = new GLTFLoader(); loader.setMeshoptDecoder(MeshoptDecoder);
     const ids = Object.keys(WEAPONS) as WeaponId[];
     // (body: another body on the same skeleton instead of the Beginner — Legacy of Spirits: the Spectral Samurai's)
     const files = [o.body ?? (o.female ? MODEL.f : MODEL.m), ...MOVES, ...ids.map((w) => WEAPONS[w].file)];
     let done = 0;
+    // (shadow: his floor shadow's own lighter triangles — 16-bit indices into the body's vertices, tools/spirits/lite.mjs)
+    const shadowIx = o.shadow ? fetch(DIR + o.shadow).then((r) => (r.ok ? r.arrayBuffer() : null)).catch(() => null) : Promise.resolve(null);
     const got = await Promise.all(files.map((f) => loader.loadAsync(DIR + f).then((g) => { onProgress?.(++done / files.length); return g; })));
     const [model, ...rest2] = got, moves = rest2.slice(0, MOVES.length), arms = rest2.slice(MOVES.length);
     // the body and its own skeleton (fitted into it)
     h.model.add(model.scene);
     model.scene.traverse((o) => { if ((o as THREE.Bone).isBone) h.bones.set(o.name, o as THREE.Bone); if ((o as THREE.SkinnedMesh).isSkinnedMesh) h.body = o as THREE.SkinnedMesh; });
+    { const ix = await shadowIx; const n = h.body?.geometry.attributes.position?.count ?? 0; if (ix && h.body && ix.byteLength % 6 === 0 && new Uint16Array(ix).every((i) => i < n)) h.body.userData.shadowIndex = new Uint16Array(ix); }
     model.scene.updateMatrixWorld(true);
     // the moves: in place (the game moves the body), turning the bones only — the library's bone lengths are its own
     // body's; its hips' travel is laid onto this body's hips, scaled to its height
@@ -780,7 +783,11 @@ export class Hero3D {
     const mat = both ? this.shadowMat2 : this.shadowMat; if (!mat || !m.parent || this.shadows.some(([x]) => x === m)) return;
     const sk = m as THREE.SkinnedMesh;
     let t: THREE.Mesh;
-    if (sk.isSkinnedMesh) { const tw = new THREE.SkinnedMesh(sk.geometry, mat); tw.bind(sk.skeleton, sk.bindMatrix); t = tw; } else t = new THREE.Mesh(m.geometry, mat);
+    if (sk.isSkinnedMesh) {
+      let geo = sk.geometry; const ix = sk === this.body && !this.shared ? (sk.userData.shadowIndex as Uint16Array | undefined) : undefined;
+      if (ix) { geo = new THREE.BufferGeometry(); for (const [k, a] of Object.entries(sk.geometry.attributes)) geo.setAttribute(k, a); geo.setIndex(new THREE.BufferAttribute(ix, 1)); } // (his own lighter shadow: the same vertices, fewer triangles)
+      const tw = new THREE.SkinnedMesh(geo, mat); tw.bind(sk.skeleton, sk.bindMatrix); t = tw;
+    } else t = new THREE.Mesh(m.geometry, mat);
     t.frustumCulled = false; t.renderOrder = 5; t.userData.shadow = true;
     t.matrixAutoUpdate = m.matrixAutoUpdate; t.position.copy(m.position); t.quaternion.copy(m.quaternion); t.scale.copy(m.scale); if (!m.matrixAutoUpdate) t.matrix.copy(m.matrix);
     m.parent.add(t); this.shadows.push([m, t]);

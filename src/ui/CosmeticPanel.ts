@@ -471,7 +471,9 @@ export class CosmeticPanel {
         const s = this.el('div', `sl gl-slot${slot ? '' : ' later'}`, es);
         const it = slot ? wornItem(g, slot) : null;
         if (slot && it) {
-          s.classList.add('worn', 'it'); const im = this.el('img', '', s); im.src = gearIcon(it); im.alt = '';
+          s.classList.add('worn', 'it');
+          if (this.s3d) { const gi = this.el('i', 'gly', s); gi.style.setProperty('--i', ICONS[ic]); } // (Legacy of Spirits, GPT 4B: the piece as its slot's silhouette in the palette — the old painted icon does not match him; the piece itself, its name and stats unchanged)
+          else { const im = this.el('img', '', s); im.src = gearIcon(it); im.alt = ''; }
           this.gearTip(s, it, true); s.addEventListener('click', () => this.setGear(takeOff(this.gear, slot)));
         } else { const i = this.el('i', '', s); i.style.setProperty('--i', ICONS[ic]); s.title = slot ? `${label} — empty` : `${label} — coming later`; }
         this.el('small', '', es, label);
@@ -485,7 +487,10 @@ export class CosmeticPanel {
       for (let i = 0; i < 32; i++) {
         const cell = this.el('div', 'sl gl-slot', grid);
         const it = bag[i]; if (!it) continue;
-        cell.classList.add('it'); const im = this.el('img', '', cell); im.src = gearIcon(it); im.alt = '';
+        cell.classList.add('it');
+        const gl = this.s3d ? DOLL.find(([, , sl]) => sl === GEAR[it.id]?.slot)?.[1] : undefined;
+        if (gl) { const gi = this.el('i', 'gly', cell); gi.style.setProperty('--i', ICONS[gl]); } // (the spirits: as worn ones, a silhouette)
+        else { const im = this.el('img', '', cell); im.src = gearIcon(it); im.alt = ''; }
         this.gearTip(cell, it, false); cell.addEventListener('click', () => this.setGear(wear(this.gear, it.uid)));
       }
       this.invHint.textContent = 'Click a worn piece to take it off · click a piece in the bag to wear it';

@@ -111,6 +111,7 @@ html .gol-cp .sl{background:rgba(16,10,29,.85);border-color:rgba(206,184,255,.16
 html .gol-cp .sl > i{background:rgba(206,184,255,.26)}
 html .gol-cp .sl.later > i{background:rgba(206,184,255,.12)}
 html .gol-cp .sl.worn{background:linear-gradient(180deg,#33234f,#1c1232);border-color:rgba(228,194,106,.62);box-shadow:inset 0 -12px 18px -12px rgba(164,107,255,.6)}
+html .gol-cp .sl > i.gly{width:34px;height:34px;background:#e4c26a;filter:drop-shadow(0 0 6px rgba(164,107,255,.55))}
 html .gol-cp .es small{color:#a99cc2}
 html .gol-cp .sl.it{border-color:rgba(228,194,106,.34)}
 html .gol-cp .sl.it.sel{border-color:${GOLD};box-shadow:0 0 0 2px rgba(228,194,106,.35)}

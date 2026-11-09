@@ -59,7 +59,8 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
   (`preloadOpenWorld(scene, { pictures, mobs })`, default unchanged; Maps: the same would suit `?world3d=1`), and the
   monsters' frames come with their maps (`WorldHooks.lazyMobs`: a map's sets before its monsters spawn, the
   neighbours' next — the entry loaded all 1 150 frame files of every monster before); his gameplay
-  body (15k triangles, `tools/spirits/lite.mjs`) behind `&lite=1` until GPT compares it. `&lean=0` gives the old
+  body (15k triangles, `tools/spirits/lite.mjs`) and its lighter floor shadow (~4.7k, `Hero3D.load({ shadow })`, an
+  optional file) behind `&lite=1` until GPT compares it. `&lean=0` gives the old
   picture to compare.
 - **Request — to: Maps:** in `?world3d=1` the 3D cubes still collide only on the painted block's front strip (`base`), so
   the hero walks into the back three quarters of every cube. The `?spirits` fix (`asCube` in `src/world/Areas.ts`: an

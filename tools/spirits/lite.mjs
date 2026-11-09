@@ -2,11 +2,13 @@
 // Samurai … keep the full-quality model for character selection and close-up previews"). The same body, skeleton,
 // skin weights and texture: only its triangles simplified (meshoptimizer: edge collapses onto the body's own vertices,
 // the UV seams kept closed — LockBorder), the unused vertices dropped, the buffers written plain (still quantized).
-//   node tools/spirits/lite.mjs public/assets/hero3d/spirit_samurai.glb public/assets/hero3d/spirit_samurai_lite.glb 15000
+//   node tools/spirits/lite.mjs public/assets/hero3d/spirit_samurai.glb public/assets/hero3d/spirit_samurai_lite.glb 15000 0.02 5000
+// The last number: his floor shadow's own lighter triangles (GPT: "simplify shadow geometry independently") — written
+// beside it as <out>.shadow.bin, 16-bit indices into the gameplay body's own vertices (Hero3D.load({ shadow })).
 import fs from 'fs';
 import { MeshoptDecoder as D, MeshoptSimplifier as S } from 'meshoptimizer';
 
-const [src, out, TRIS = '15000', ERR = '0.02'] = process.argv.slice(2);
+const [src, out, TRIS = '15000', ERR = '0.02', SHADOW_TRIS = ''] = process.argv.slice(2);
 const f = fs.readFileSync(src);
 const jl = f.readUInt32LE(12), j = JSON.parse(f.slice(20, 20 + jl).toString());
 const bin = f.slice(20 + jl + 8);
@@ -75,3 +77,23 @@ o.writeUInt32LE(json.length + jpad, 12); o.writeUInt32LE(0x4e4f534a, 16); json.c
 const b0 = 20 + json.length + jpad; o.writeUInt32LE(binAll.length + bpad, b0); o.writeUInt32LE(0x004e4942, b0 + 4); binAll.copy(o, b0 + 8);
 fs.writeFileSync(out, o);
 console.log('wrote', out, (total / 1024).toFixed(0), 'KB');
+
+if (SHADOW_TRIS) { // his shadow: a flat dark silhouette on the floor — no seams, no shading, so the body's vertices are
+  // clustered on a grid (each cell's first vertex stands for the cell, its skin weights with it), the cell grown until
+  // the triangles left are at most SHADOW_TRIS; indices into the gameplay body's own vertices
+  const CP = new Float32Array(m * 3); for (let v = 0; v < n; v++) if (remap[v] >= 0) for (let k = 0; k < 3; k++) CP[remap[v] * 3 + k] = P[v * 3 + k];
+  const cluster = (cell) => {
+    const rep = new Map(), map = new Uint32Array(m), out = [], seen = new Set();
+    for (let v = 0; v < m; v++) { const key = `${Math.floor(CP[v * 3] / cell)},${Math.floor(CP[v * 3 + 1] / cell)},${Math.floor(CP[v * 3 + 2] / cell)}`; const r = rep.get(key); if (r === undefined) { rep.set(key, v); map[v] = v; } else map[v] = r; }
+    for (let i = 0; i < NI.length; i += 3) {
+      const a = map[NI[i]], b = map[NI[i + 1]], c = map[NI[i + 2]]; if (a === b || b === c || a === c) continue;
+      const k = [a, b, c].sort((x, y) => x - y).join(','); if (seen.has(k)) continue; seen.add(k); out.push(a, b, c);
+    }
+    return out;
+  };
+  let cell = 0.004, SI = cluster(cell);
+  while (SI.length / 3 > +SHADOW_TRIS && cell < 0.2) { cell *= 1.15; SI = cluster(cell); }
+  const SA = Uint16Array.from(SI), so = out.replace(/\.glb$/, '') + '.shadow.bin';
+  fs.writeFileSync(so, Buffer.from(SA.buffer));
+  console.log(`shadow: ${NI.length / 3} → ${SA.length / 3} triangles (grid ${(cell * 100).toFixed(2)}% of the body's ±1 box); wrote ${so} ${(SA.byteLength / 1024).toFixed(0)} KB`);
+}

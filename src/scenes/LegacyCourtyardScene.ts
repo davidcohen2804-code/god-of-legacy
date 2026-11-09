@@ -60,7 +60,7 @@ import { QuestState } from '../characters/CharacterTypes';
 import { PvpController } from '../pvp/PvpController';
 import { ARENA3D, ON_BODY } from '../arena3d/flag';
 import { HERO3D } from '../arena3d/hero3dFlag';
-import { SPIRITS, SPIRIT_BODY, SPIRIT_BODY_LITE } from '../spirits/flag';
+import { SPIRITS, SPIRIT_BODY, SPIRIT_BODY_LITE, SPIRIT_SHADOW_LITE } from '../spirits/flag';
 import { spiritName, spiritPortrait } from '../spirits/Hud';
 import { portrait3d } from '../arena3d/heroArt3d';
 import type { Hero3D } from '../arena3d/Hero3D';
@@ -4404,7 +4404,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const mod = await import('../arena3d/Hero3D');
     const spirit = SPIRITS.on && this.cls === 'samurai'; // (Legacy of Spirits: the Spectral Samurai's own body)
     mark('hero-load');
-    const h = await mod.Hero3D.load({ female: genderOf(this.character) === 'female', body: spirit ? (SPIRITS.lite && this.w3d ? SPIRIT_BODY_LITE : SPIRIT_BODY) : undefined }); // (&lite=1, the world: his gameplay body — GPT step 4P, to compare)
+    const h = await mod.Hero3D.load({ female: genderOf(this.character) === 'female', body: spirit ? (SPIRITS.lite && this.w3d ? SPIRIT_BODY_LITE : SPIRIT_BODY) : undefined, shadow: spirit && SPIRITS.lite && this.w3d ? SPIRIT_SHADOW_LITE : undefined }); // (&lite=1, the world: his gameplay body and its lighter shadow — GPT step 4P, to compare)
     if (gen !== this.sceneGen || !this.sys.isActive() || this.a3d !== a3) { h.dispose(); return; }
     const { img, sunDir } = a3.addLayer('arena3d-hero', h.scene);
     h.makeShadow(sunDir);
