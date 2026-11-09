@@ -24,11 +24,11 @@ export function spiritTier(level: number): number { return level >= 100 ? 4 : le
 /** Each tier's light (GPT's ranges: the fill 0.22 → 0.60, the rim 0.75 → 1.00, the light inside 0.15 → 0.70; the hair,
  *  the eyes, the wisps and the blade's energy grow with them). */
 const TIERS = [
-  { fill: 0.22, rim: 0.75, glow: 0.15, hair: 0.45, wisps: 2, blade: 0.55, ripple: 0.55 },
-  { fill: 0.32, rim: 0.80, glow: 0.28, hair: 0.58, wisps: 3, blade: 0.66, ripple: 0.65 },
-  { fill: 0.42, rim: 0.86, glow: 0.42, hair: 0.70, wisps: 5, blade: 0.78, ripple: 0.75 },
-  { fill: 0.52, rim: 0.93, glow: 0.56, hair: 0.84, wisps: 6, blade: 0.9, ripple: 0.88 },
-  { fill: 0.60, rim: 1.00, glow: 0.70, hair: 1.0, wisps: 8, blade: 1.0, ripple: 1.0 },
+  { fill: 0.22, rim: 0.75, glow: 0.15, hair: 0.45, wisps: 2, blade: 0.55, ripple: 0.55, aura: 0.16 },
+  { fill: 0.32, rim: 0.80, glow: 0.28, hair: 0.58, wisps: 3, blade: 0.66, ripple: 0.65, aura: 0.24 },
+  { fill: 0.42, rim: 0.86, glow: 0.42, hair: 0.70, wisps: 5, blade: 0.78, ripple: 0.75, aura: 0.32 },
+  { fill: 0.52, rim: 0.93, glow: 0.56, hair: 0.84, wisps: 6, blade: 0.9, ripple: 0.88, aura: 0.42 },
+  { fill: 0.60, rim: 1.00, glow: 0.70, hair: 1.0, wisps: 8, blade: 1.0, ripple: 1.0, aura: 0.52 },
 ];
 
 /** The presets (GPT): 0 High (everything), 1 Medium (the same spirit, half the wisps), 2 Low (the same silhouette and
@@ -42,7 +42,7 @@ export interface SpiritFormOptions {
   preset?: () => number;
   /** The floor's height under him (his scene's units): his ripple and contact shadow lie on it. None: no floor marks. */
   ground?: () => number;
-  /** How much of the scene's own light (the moon, a brazier near him) colours him (default 0.3). */
+  /** How much of the scene's own light (the moon, a brazier near him) colours him (default 0.14). */
   lit?: number;
 }
 
@@ -86,29 +86,43 @@ function ghostMaterial(src: THREE.MeshStandardMaterial, U: Record<string, THREE.
       float spPulse = 0.86 + 0.14 * sin( uTime * 1.7 );
       // the rim: the silhouette's edge, strong at every level
       float spF = 1.0 - clamp( abs( dot( normalize( normal ), normalize( vViewPosition ) ) ), 0.0, 1.0 );
-      float spRim = pow( spF, 2.3 ) * uRim;
-      // the spectral matter: the drawing's value on a violet ramp
-      vec3 col = mix( uDeep, uMid, smoothstep( 0.08, 0.55, spV ) );
-      col = mix( col, uHi, smoothstep( 0.55, 1.0, spV ) * 0.8 );
-      col = mix( col, uGold * ( 0.55 + 0.7 * spL ), mGold );
-      col = mix( col, uRed * ( 0.75 + 1.6 * spT.r ), mRed );
+      float spRim = pow( spF, 2.2 ) * uRim;
+      // the spectral matter: the drawing's value on a deep violet ramp (violet glass, not milk)
+      float mAcc = clamp( mGold + mRed + mWhite + mMask, 0.0, 1.0 );
+      vec3 col = mix( uDeep, uMid, smoothstep( 0.05, 0.7, spV ) );
+      col += uMid * uGlow * 0.55 * ( 0.35 + 0.65 * spV ) * spPulse * ( 1.0 - mAcc );          // the light inside him
+      col += uFlame * mFlame * ( 0.45 + 1.2 * uGlow ) * spPulse;                                // the drawing's own violet lit from within
+      col += outgoingLight * uLit * ( 1.0 - mAcc );                                              // the scene's light on him
+      col = mix( col, uGold * ( 0.85 + 0.9 * spL ), mGold );                                     // the gold trims: gold light
+      col = mix( col, uRed * ( 0.8 + 1.6 * spT.r ), mRed );
       col = mix( col, uWhite, mWhite );
-      col = mix( col, uDeep * 0.35, mMask );
-      col += uMid * uGlow * ( 0.3 + 0.7 * spV ) * spPulse * ( 1.0 - mRed ) * ( 1.0 - mMask );   // the light inside him
-      col += uFlame * mFlame * ( 0.5 + 1.3 * uGlow ) * spPulse;                                 // the drawing's own violet lit from within
-      col += outgoingLight * uLit;                                                                // the scene's light on him
-      col = mix( col, uRimC, clamp( spRim, 0.0, 1.0 ) * 0.85 );
-      float a = uFill * ( 0.75 + 0.5 * spV );
+      col = mix( col, uDeep * 0.3, mMask );
+      col = mix( col, uRimC, clamp( spRim * 1.15, 0.0, 1.0 ) );
+      float a = uFill * ( 0.6 + 0.6 * spV );
       a = max( a, mRed * ( 0.62 + 0.3 * uFill ) );                  // the scarf and the sash: semi-solid anchors
-      a = max( a, mGold * ( uFill + 0.24 ) );                       // the trims: readable
-      a = max( a, mWhite * ( 0.38 + 0.5 * uHair ) );                // the hair (and the eyes): brighter than the body
-      a = max( a, mMask * ( 0.5 + 0.3 * uFill ) );                  // the mask: the face reads at every level
+      a = max( a, mGold * ( 0.5 + 0.45 * uFill ) );                 // the trims: readable at every level
+      a = max( a, mWhite * ( 0.4 + 0.5 * uHair ) );                 // the hair (and the eyes): brighter than the body
+      a = max( a, mMask * ( 0.55 + 0.3 * uFill ) );                 // the mask: the face reads at every level
       a = max( a, mFlame * ( uFill + 0.2 * uGlow ) );
-      a += spRim * 0.85 + uGlow * 0.12 * spV;
+      a += spRim * 0.9 + uGlow * 0.1 * spV;
       gl_FragColor = vec4( min( col, vec3( 1.0 ) ), clamp( a, 0.0, 1.0 ) );`);
   };
   m.customProgramCacheKey = () => 'spirit-form';
   return m;
+}
+
+/** His aura (GPT's third layer, prestige — richer with his level): a soft violet glow behind him, its middle hidden by
+ *  his own depth, so it shows round his silhouette and faintly through him. */
+function auraSprite(): THREE.Sprite {
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const g = c.getContext('2d')!, gr = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  for (let i = 0; i <= 10; i++) { const t = i / 10; gr.addColorStop(t, `rgba(255,255,255,${(Math.exp(-t * t * 4.2) * (1 - t)).toFixed(3)})`); }
+  g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+  const tex = new THREE.CanvasTexture(c);
+  const m = new THREE.SpriteMaterial({ map: tex, color: 0x9a62ff, transparent: true, premultipliedAlpha: true, depthWrite: false, opacity: 0.3 });
+  m.toneMapped = false;
+  const s = new THREE.Sprite(m); s.renderOrder = -0.5; s.frustumCulled = false; s.userData.tex = tex;
+  return s;
 }
 
 // ------------------------------------------------------------------------------------------------ the spirit blade
@@ -183,7 +197,7 @@ const BLADE_FS = `
     float sw = 0.5 + 0.5 * sin( t * 20.0 - uTime * 2.0 + sin( u * 6.0 + uTime ) * 1.4 );  // a slow swirl inside
     vec3 col = mix( uDeep, uCore, 0.35 + 0.4 * sw * uEnergy ) + uCore * star * 1.3 * uEnergy;
     col = mix( col, uEdge, clamp( edgeL + spine * 0.45 + ridge, 0.0, 1.0 ) );
-    float a = dens * ( 0.4 + 0.22 * uEnergy ) + edgeL * 0.92 + spine * 0.45 + ridge * 0.35 + star * 0.4 * uEnergy;
+    float a = dens * ( 0.46 + 0.26 * uEnergy ) + edgeL * 0.96 + spine * 0.5 + ridge * 0.35 + star * 0.4 * uEnergy;
     a = clamp( a, 0.0, 1.0 );
     gl_FragColor = vec4( linearToOutputTexel( vec4( min( col, vec3( 1.0 ) ), 1.0 ) ).rgb * a, a );
   }`;
@@ -191,20 +205,20 @@ const BLADE_FS = `
 const RIBBON_VS = `
   attribute vec3 aTan; attribute float aSide; attribute float aT; attribute float aW;
   uniform float uWidth;
-  varying float vS; varying float vT;
+  varying float vS; varying float vT; varying float vFace;
   void main() {
     vec3 wp = ( modelMatrix * vec4( position, 1.0 ) ).xyz, wt = normalize( mat3( modelMatrix ) * aTan );
     vec3 vd = normalize( cameraPosition - wp ), sd = cross( wt, vd );
     float l = length( sd ); sd = l > 1e-4 ? sd / l : vec3( 0.0, 1.0, 0.0 );
     wp += sd * aSide * uWidth * aW;
-    vS = aSide; vT = aT;
+    vS = aSide; vT = aT; vFace = smoothstep( 0.1, 0.35, l );
     gl_Position = projectionMatrix * viewMatrix * vec4( wp, 1.0 );
   }`;
 const RIBBON_FS = `
   uniform vec3 uColor; uniform float uAlpha, uSoft;
-  varying float vS; varying float vT;
+  varying float vS; varying float vT; varying float vFace;
   void main() {
-    float a = exp( -vS * vS * uSoft ) * uAlpha * pow( 1.0 - vT, 1.4 ) * smoothstep( 0.0, 0.06, vT + 0.02 );
+    float a = exp( -vS * vS * uSoft ) * uAlpha * pow( 1.0 - vT, 1.4 ) * smoothstep( 0.0, 0.06, vT + 0.02 ) * vFace;
     gl_FragColor = vec4( linearToOutputTexel( vec4( uColor, 1.0 ) ).rgb * a, a );
   }`;
 /** A ribbon along `n` points (filled each frame by its owner): positions, tangents, its sides, its share along. */
@@ -242,11 +256,11 @@ function spiritBlade(U: { uTime: THREE.IUniform; uEnergy: THREE.IUniform }): { r
     if (i < N) for (let j = 0; j < 2; j++) { const a = i * 3 + j; I.push(a, a + 1, a + 3, a + 1, a + 4, a + 3); }
   }
   const bg = new THREE.BufferGeometry(); bg.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); bg.setAttribute('uv', new THREE.Float32BufferAttribute(UV, 2)); bg.setIndex(I); bg.computeVertexNormals();
-  const bm = new THREE.ShaderMaterial({ uniforms: { uTime: U.uTime, uEnergy: U.uEnergy, uDeep: { value: new THREE.Color(0x2a0a6a) }, uCore: { value: new THREE.Color(0xa070ff) }, uEdge: { value: new THREE.Color(0xf6eeff) } },
+  const bm = new THREE.ShaderMaterial({ uniforms: { uTime: U.uTime, uEnergy: U.uEnergy, uDeep: { value: new THREE.Color(0x4512b0) }, uCore: { value: new THREE.Color(0xa87cff) }, uEdge: { value: new THREE.Color(0xfbf6ff) } },
     vertexShader: BLADE_VS, fragmentShader: BLADE_FS, transparent: true, premultipliedAlpha: true, depthWrite: false, side: THREE.DoubleSide });
   const blade = new THREE.Mesh(bg, bm); blade.renderOrder = 2; root.add(blade); own.push(bg, bm);
   // its aura: a soft violet glow round the blade's line, seen from any side (its share grows with his level)
-  const halo = ribbonMat(0x8f5cff, 0.4, 0.05, 2.2);
+  const halo = ribbonMat(0x9a66ff, 0.5, 0.062, 2.0);
   const hr = ribbon(24, halo, (t) => (1 - 0.35 * t) * (t > 0.9 ? Math.max(0.15, (1 - t) / 0.1) : 1));
   hr.set(Array.from({ length: 24 }, (_, i) => { const b = bladeAt(i / 23); return new THREE.Vector3(b.x, b.y, 0); }));
   hr.mesh.renderOrder = 3; root.add(hr.mesh); own.push(hr.mesh.geometry, halo);
@@ -280,14 +294,17 @@ const WISPS: { bone: string; at: [number, number, number]; ph: number }[] = [
   { bone: 'spine_03', at: [0, 0.05, -0.12], ph: 2.8 },
 ];
 const WN = 14;
+/** A wisp's length in time (s): its points are where its root was up to this long ago, risen with their age. */
+const WAGE = 0.6;
 
 export class SpiritForm {
   private parts: Parts;
   private U: Record<string, THREE.IUniform>;
   private bladeU = { uTime: { value: 0 }, uEnergy: { value: 1 } };
   private pre: THREE.SkinnedMesh | null = null;
+  private aura: THREE.Sprite | null = null;
   private blade: ReturnType<typeof spiritBlade> | null = null;
-  private wisps: { def: (typeof WISPS)[number]; pts: THREE.Vector3[]; r: ReturnType<typeof ribbon>; mat: THREE.ShaderMaterial; warm: boolean }[] = [];
+  private wisps: { def: (typeof WISPS)[number]; pts: THREE.Vector3[]; hist: { t: number; x: number; y: number; z: number }[]; r: ReturnType<typeof ribbon>; mat: THREE.ShaderMaterial; warm: boolean }[] = [];
   private tassel: { pts: THREE.Vector3[]; old: THREE.Vector3[]; r: ReturnType<typeof ribbon>; bead: THREE.Mesh } | null = null;
   private floor: { shadow: THREE.Mesh; ripple: THREE.Mesh; rU: Record<string, THREE.IUniform> } | null = null;
   private own: { dispose(): void }[] = [];
@@ -299,9 +316,9 @@ export class SpiritForm {
   constructor(hero: Hero3D, private o: SpiritFormOptions) {
     const P = this.parts = hero as unknown as Parts;
     this.U = {
-      uFill: { value: 0 }, uRim: { value: 0 }, uGlow: { value: 0 }, uHair: { value: 0 }, uTime: { value: 0 }, uHairY: { value: 0 }, uNeckY: { value: 0 }, uLit: { value: o.lit ?? 0.3 },
-      uDeep: { value: C(0.035, 0.014, 0.1) }, uMid: { value: C(0.3, 0.13, 0.85) }, uHi: { value: C(0.8, 0.7, 1.0) }, uRimC: { value: C(0.8, 0.62, 1.0) },
-      uGold: { value: C(1.0, 0.64, 0.24) }, uRed: { value: C(0.62, 0.02, 0.06) }, uWhite: { value: C(0.95, 0.92, 1.0) }, uFlame: { value: C(0.55, 0.25, 1.0) },
+      uFill: { value: 0 }, uRim: { value: 0 }, uGlow: { value: 0 }, uHair: { value: 0 }, uTime: { value: 0 }, uHairY: { value: 0 }, uNeckY: { value: 0 }, uLit: { value: o.lit ?? 0.14 },
+      uDeep: { value: C(0.05, 0.016, 0.17) }, uMid: { value: C(0.3, 0.09, 0.95) }, uHi: { value: C(0.8, 0.7, 1.0) }, uRimC: { value: C(0.86, 0.72, 1.0) },
+      uGold: { value: C(1.0, 0.66, 0.26) }, uRed: { value: C(0.62, 0.02, 0.06) }, uWhite: { value: C(0.92, 0.86, 1.0) }, uFlame: { value: C(0.55, 0.22, 1.0) },
     };
     const body = P.body;
     if (body) {
@@ -313,6 +330,8 @@ export class SpiritForm {
       const pre = new THREE.SkinnedMesh(body.geometry, pm); pre.bind(body.skeleton, body.bindMatrix);
       pre.frustumCulled = false; pre.renderOrder = -1; pre.userData.worn = true; pre.userData.shadow = true;
       body.parent?.add(pre); this.pre = pre;
+      // his aura round him
+      const aura = this.aura = auraSprite(); P.scene.add(aura); this.own.push(aura.material, aura.userData.tex as THREE.Texture);
     }
     // his cast shadow (a physical body's) is no longer his: a small soft one and the ripple instead
     for (const m of [P.shadowMat, P.shadowMat2]) if (m) m.visible = false;
@@ -323,15 +342,15 @@ export class SpiritForm {
       this.tasselMake();
     }
     for (let i = 0; i < WISPS.length; i++) {
-      const mat = ribbonMat(i % 3 === 2 ? 0xb07cff : 0x9a6cff, 0.32, 0.05, 2.6); this.own.push(mat);
+      const mat = ribbonMat(i % 3 === 2 ? 0xc8a4ff : 0xb08cff, 0.32, 0.034, 2.2); this.own.push(mat);
       const r = ribbon(WN, mat, (t) => 0.45 + 0.55 * Math.sin(Math.PI * Math.min(1, t * 1.2 + 0.1)));
-      r.mesh.visible = false; r.mesh.renderOrder = 4; P.scene.add(r.mesh); this.own.push(r.mesh.geometry);
-      this.wisps.push({ def: WISPS[i], pts: Array.from({ length: WN }, () => new THREE.Vector3()), r, mat, warm: false });
+      r.mesh.renderOrder = 4; P.scene.add(r.mesh); this.own.push(r.mesh.geometry); // (shown at first: its shader compiled with the rest — each picture then shows the tier's own)
+      this.wisps.push({ def: WISPS[i], pts: Array.from({ length: WN }, () => new THREE.Vector3()), hist: [], r, mat, warm: false });
     }
     if (o.ground) this.floorMake();
     this.setLevel(o.level);
     const prev = P.scene.onBeforeRender;
-    P.scene.onBeforeRender = (r, s, c, g, m, gr) => { this.step(); prev?.call(P.scene, r, s, c, g, m, gr); };
+    P.scene.onBeforeRender = (r, s, c, g, m, gr) => { this.cam = (c as THREE.Camera).getWorldPosition(this.camAt); this.step(); prev?.call(P.scene, r, s, c, g, m, gr); };
   }
 
   /** His level now (a level up: the next tier's light at once). */
@@ -340,7 +359,7 @@ export class SpiritForm {
     const T = TIERS[this.tier];
     this.U.uFill.value = T.fill; this.U.uRim.value = T.rim; this.U.uGlow.value = T.glow; this.U.uHair.value = T.hair;
     this.bladeU.uEnergy.value = T.blade;
-    if (this.blade) this.blade.halo.uniforms.uAlpha.value = 0.22 + 0.28 * T.blade;
+    if (this.blade) this.blade.halo.uniforms.uAlpha.value = 0.3 + 0.35 * T.blade;
     if (this.floor) this.floor.rU.uStrength.value = T.ripple;
   }
 
@@ -369,7 +388,7 @@ export class SpiritForm {
           float d = length( vUv - 0.5 ) * 2.0, a = 0.0;
           for ( int i = 0; i < 3; i++ ) { float r = fract( uTime * 0.28 + float( i ) / 3.0 ); a += exp( -pow( ( d - r ) / 0.035, 2.0 ) ) * ( 1.0 - r ) * 0.55; } // (rings rising out from his feet)
           a += exp( -pow( ( d - 0.22 ) / 0.05, 2.0 ) ) * 0.35;  // (a still ring close round him)
-          a *= uStrength * smoothstep( 1.0, 0.85, d ) * 0.5;
+          a *= uStrength * smoothstep( 1.0, 0.85, d ) * 0.8;
           gl_FragColor = vec4( linearToOutputTexel( vec4( 0.62, 0.42, 1.0, 1.0 ) ).rgb * a, a );
         }`,
       blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor });
@@ -381,7 +400,8 @@ export class SpiritForm {
     this.floor = { shadow, ripple, rU };
   }
 
-  private V = new THREE.Vector3(); private Q = new THREE.Quaternion(); private F = new THREE.Vector3();
+  private V = new THREE.Vector3(); private W = new THREE.Vector3(); private Q = new THREE.Quaternion(); private F = new THREE.Vector3();
+  private camAt = new THREE.Vector3(); private cam: THREE.Vector3 | null = null;
   /** Each picture: his clock, his wisps, the tassel, the floor marks. */
   private step(): void {
     if (this.dead) return;
@@ -389,6 +409,16 @@ export class SpiritForm {
     this.t += dt; this.U.uTime.value = this.t; this.bladeU.uTime.value = this.t;
     const P = this.parts, preset = Math.max(0, Math.min(2, Math.round(this.o.preset?.() ?? 0)));
     if (this.pre && P.body) this.pre.visible = P.body.visible; // (his depth only where he is drawn)
+    const au = this.aura, chest = P.bones.get('spine_03');
+    if (au && P.body && chest) { // (behind his chest, a little away from the eye; Low: no aura — the extras go first)
+      au.visible = P.body.visible && P.model.visible && preset < 2;
+      if (au.visible) {
+        chest.getWorldPosition(au.position); const cam = this.cam;
+        if (cam) au.position.addScaledVector(this.V.copy(au.position).sub(cam).normalize(), 0.3);
+        const h = 1.3 * P.root.scale.y; au.scale.set(h * 1.05, h * 1.55, 1); // (his standing height is the 3D hero's, 1.3)
+        (au.material as THREE.SpriteMaterial).opacity = TIERS[this.tier].aura * (preset === 1 ? 0.6 : 1) * (0.9 + 0.1 * Math.sin(this.t * 2.1));
+      }
+    }
     P.root.getWorldQuaternion(this.Q); const fwd = this.F.set(0, 0, 1).applyQuaternion(this.Q);
     // the wisps: the tier's count (half on Medium, none on Low), each a chain rising and trailing from its root
     const n = preset === 2 ? 0 : preset === 1 ? Math.ceil(TIERS[this.tier].wisps / 2) : TIERS[this.tier].wisps;
@@ -396,15 +426,19 @@ export class SpiritForm {
     this.wisps.forEach((w, i) => {
       const on = i < n && !!P.body?.visible && P.model.visible; w.r.mesh.visible = on; if (!on) { w.warm = false; return; }
       const b = P.bones.get(w.def.bone); if (!b) { w.r.mesh.visible = false; return; }
-      const head = b.getWorldPosition(this.V).add(new THREE.Vector3(w.def.at[0] * k, w.def.at[1] * k, w.def.at[2] * k).applyQuaternion(this.Q));
-      const pts = w.pts;
-      if (!w.warm) { pts.forEach((p, j) => p.copy(head).addScaledVector(fwd, -0.02 * j).add(new THREE.Vector3(0, 0.015 * j, 0))); w.warm = true; }
-      pts[0].copy(head);
-      for (let j = 1; j < WN; j++) {
-        const want = pts[j - 1].clone().add(new THREE.Vector3(Math.sin(this.t * 1.6 + w.def.ph + j * 0.55) * 0.006 * j, 0.011, 0)).addScaledVector(fwd, -0.012);
-        pts[j].lerp(want, 1 - Math.exp(-dt * (16 - j * 0.7)));
+      const head = b.getWorldPosition(this.V).add(this.W.set(w.def.at[0] * k, w.def.at[1] * k, w.def.at[2] * k).applyQuaternion(this.Q));
+      if (!w.warm) { w.hist.length = 0; w.warm = true; }
+      w.hist.push({ t: this.t, x: head.x, y: head.y, z: head.z }); while (w.hist.length > 2 && w.hist[1].t < this.t - WAGE) w.hist.shift();
+      const H = w.hist;
+      for (let j = 0, h = H.length - 1; j < WN; j++) {
+        const age = (j / (WN - 1)) * WAGE, at = this.t - age;
+        while (h > 0 && H[h].t > at) h--;
+        const a = H[h], c = H[Math.min(H.length - 1, h + 1)], f = c.t > a.t ? Math.max(0, Math.min(1, (at - a.t) / (c.t - a.t))) : 0;
+        const sway = Math.sin(this.t * 1.7 + w.def.ph - age * 5) * age * 0.07;
+        w.pts[j].set(a.x + (c.x - a.x) * f + sway - fwd.x * age * 0.06, a.y + (c.y - a.y) * f + age * 0.42, a.z + (c.z - a.z) * f - fwd.z * age * 0.06); // (risen, swaying, drifting back off him)
       }
-      w.mat.uniforms.uAlpha.value = (0.16 + 0.05 * this.tier) * (preset === 1 ? 0.8 : 1);
+      const pts = w.pts;
+      w.mat.uniforms.uAlpha.value = (0.24 + 0.07 * this.tier) * (preset === 1 ? 0.8 : 1);
       w.r.set(pts);
     });
     // the tassel: a short cord hanging from the pommel, swinging (a chain with its own weight)
@@ -435,7 +469,7 @@ export class SpiritForm {
 
   dispose(): void {
     if (this.dead) return; this.dead = true;
-    this.pre?.removeFromParent(); this.blade?.dispose();
+    this.pre?.removeFromParent(); this.aura?.removeFromParent(); this.blade?.dispose();
     for (const w of this.wisps) w.r.mesh.removeFromParent();
     this.tassel?.r.mesh.removeFromParent(); this.tassel?.bead.removeFromParent();
     this.floor?.shadow.removeFromParent(); this.floor?.ripple.removeFromParent();

@@ -50,7 +50,7 @@ export class SpiritPreview {
   /** The Spectral Samurai, the spirit blade in hand, `w`×`h` design px, his light at `level`'s tier. */
   static async create(scene: Phaser.Scene, o: { w?: number; h?: number; key?: string; level?: number } = {}): Promise<SpiritPreview> {
     const hero = await Hero3D.load({ female: false, body: SPIRIT_BODY });
-    if (SPIRITS.ghost) makeSpiritForm(hero, { level: SPIRITS.lv ?? o.level ?? 1, lit: 0.22, ground: () => 0 }); else makeSpiritFinish(hero);
+    if (SPIRITS.ghost) makeSpiritForm(hero, { level: SPIRITS.lv ?? o.level ?? 1, lit: 0.1, ground: () => 0 }); else makeSpiritFinish(hero);
     hero.flatToView = true; // (the blade's flat to the viewer, not its edge)
     hero.setWeapon('katana');
     return new SpiritPreview(scene, hero, o.key ?? 'spirit-preview', o.w ?? 520, o.h ?? 760);

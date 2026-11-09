@@ -3,7 +3,7 @@
 // look point and the lead ahead of him), the spirit body standing in it drawn over the place as the world draws its
 // hero (its own layer, the place's sun and sky light mirrored, a soft fill from the camera's side). URL: area (a map
 // id), frac (the hero's share of the screen's height) or dist (units), face (r / l), move (idle, walk, run, slash),
-// x (px along the map), noglow. The game itself is untouched.
+// x (px along the map), noglow, pitch (degrees); form&lv=…&preset=… (the spirit form). The game itself is untouched.
 import * as THREE from 'three';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
@@ -65,7 +65,7 @@ export async function startSpiritLab(): Promise<void> {
   const wantFrac = Q.has('frac') ? Number(Q.get('frac')) : null;
   const lead = 90 * face;
   const place = () => {
-    const look = new THREE.Vector3((hx + lead) / U, 1.0, (hy / U) * DK), p = THREE.MathUtils.degToRad(17);
+    const look = new THREE.Vector3((hx + lead) / U, 1.0, (hy / U) * DK), p = THREE.MathUtils.degToRad(Number(Q.get('pitch') ?? 17)); // (&pitch: the camera's tilt, for the map pass)
     cam.position.set(look.x, look.y + Math.sin(p) * dist, look.z + Math.cos(p) * dist); cam.lookAt(look); cam.updateMatrixWorld(); cam.updateProjectionMatrix();
   };
   const frac = (): number => { // the hero's share of the picture's height: his feet to the top of his head and hair

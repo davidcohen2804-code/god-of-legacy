@@ -609,8 +609,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private spiritOcc?: () => void;
   /** The Spectral Samurai's spirit form on the 3D hero (its light follows his level). */
   private spiritForm?: import('../spirits/SpiritForm').SpiritForm;
-  /** Legacy of Spirits' way into the world (up until the Samurai is there). */
+  /** Legacy of Spirits' way into the world (up until the Samurai is there), and what waits for it to lift. */
   private spiritCurtain?: SpiritCurtain;
+  private afterCurtain?: () => void;
   /** The world in 3D's story beats: whom the hero talks to, the maps entered this session (the chapter openings play once), the den stage last seen. */
   private talkAt: { x: number; y: number } | null = null; private visited3d = new Set<string>(); private denStageSeen = 0;
   /** A pose the battle holds (the intro before ROUND n, the winner's pose), until sim time. */
@@ -780,7 +781,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     // the arena from the fighter select: the two fighters face to face while it loads (else the plain loading screen)
     const foe = sd?.foe ?? (sd?.botCls ? { cls: sd.botCls, name: BOT_NAMES[sd.botCls] ?? BOT_NAME } : null);
     if (pvp && !training && me && cls && foe && showArenaLoading(this, { name: me.name, cls, you: true }, foe, this.stage)) Sound.vsIntro(cls, foe.cls); // (the slam, both fighters' lines, GET READY)
-    else if (SPIRITS.on && SPIRITS.ghost && !pvp) this.spiritCurtain = showSpiritLoading(this, areaAt((sd?.at ?? toWorld(START.area, [START.x, START.y])).x).name); // (Legacy of Spirits: its own way in, up until the Samurai is there)
+    else if (SPIRITS.on && SPIRITS.ghost && !pvp) { // (Legacy of Spirits: its own way in, up until the Samurai is there; the place's arrival plays as it lifts)
+      this.spiritCurtain = showSpiritLoading(this, areaAt((sd?.at ?? toWorld(START.area, [START.x, START.y])).x).name, () => { this.spiritCurtain = undefined; const f = this.afterCurtain; this.afterCurtain = undefined; if (this.sys.isActive()) f?.(); }); // (a scene shut down meanwhile: its way in is gone with it, nothing lifts)
+    }
     else showLoading(this, training ? 'TRAINING' : pvp ? 'PVP ARENA' : 'GOD OF LEGACY'); // (training: no match, no VS)
   }
 
@@ -909,10 +912,11 @@ export class LegacyCourtyardScene extends Phaser.Scene {
           mark('w3d-module'); const w = this.w3d = new World3D(this, areaId); this.a3d = w.a3d; mark('w3d-built'); this.spiritCurtain?.progress(0.72);
           this.motes?.setVisible(false);
           this.wire3D(w.a3d); this.attachHero3D(w.a3d);
-          this.arrive3D(w, this.kin.x < (w.floor.x0 + w.floor.x1) / 2 ? w.floor.x0 : w.floor.x1, 2400); // (the first map: from its near edge)
+          const arrive = () => this.arrive3D(w, this.kin.x < (w.floor.x0 + w.floor.x1) / 2 ? w.floor.x0 : w.floor.x1, 2400); // (the first map: from its near edge)
+          if (this.spiritCurtain) this.afterCurtain = arrive; else arrive(); // (behind the spirits' way in: once it lifts)
         });
       }
-      if (!in3d) { this.spiritCurtain?.lift(); this.spiritCurtain = undefined; } // (a painted map: nothing more to wait for)
+      if (!in3d) this.spiritCurtain?.lift(); // (a painted map: nothing more to wait for)
       this.world.onNpcClick = (n) => this.talkTo(n);
       this.input.keyboard?.on('keydown', () => this.w3d?.skip()); // (a chapter opening on the 3D stage: any key skips it)
       this.den = new Den(this, !in3d, {
@@ -4431,7 +4435,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     }
     if (gen !== this.sceneGen || !this.sys.isActive() || this.a3d !== a3) { h.dispose(); return; }
     this.hero3d = { h, img, a3, others: [], loading: 0, Dbl: mod.Doubles3D, kage: new Map() }; this.hero3dWait = false; mark('hero-ready');
-    this.spiritCurtain?.lift(); this.spiritCurtain = undefined; // (he is there: the way in lifts)
+    this.spiritCurtain?.lift(); // (he is there: the way in lifts)
     if (!spirit) void h.equipAll(loadEquip3D(this.character?.id ?? 'guest')); // (what the character wore last — the Beginner's pieces, not on the spirit's own body)
     if (!SPIRITS.on) this.buildItemUi(mod.WEAPONS); // (not in the spirits' art preview: the 3D items' test panel)
   }
