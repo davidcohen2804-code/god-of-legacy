@@ -31,6 +31,25 @@ The DFO PvP arena dynamics chat is the PvP director: it sets the bar per class, 
 Take the whole PvP up a level in everything — dynamics, skills, effects, hit frames, movement, camera, feel: every hit felt, every class unique and amazing, big moments that look like a cinematic, and reasons to keep playing.
 
 ## Open items
+### LEGACY OF SPIRITS (David and GPT, 9 Nov) — the new art direction, only behind `?spirits` (the Spirits chat)
+- David: the whole game in the new language, the Spectral Samurai first; GPT (David's planning chat) directs every visual
+  step and reviews it before David sees it. Live: https://davidcohen2804-code.github.io/god-of-legacy/?spirits — the game
+  without `?spirits` is untouched.
+- **Done (GPT approved, 9 Nov):** the Spectral Samurai's 3D body on the 65-bone skeleton (gate 1b, 98d7652e), the camera
+  at ~30 % of the screen's height (17°, FOV 34, ~7 units; dce943d0), the opening screen (16d808c), the character select
+  (the real 3D Samurai, the other heroes sealed for this phase), the stone cubes solid on their whole 3D footprint with a
+  10 px collar, a block in front of a 3D body hides it (`Arena3D.occluders`, set only by `src/spirits/Occlusion.ts`), the
+  interface in GPT's colours, a first twilight look for the courtyard (direction approved, polish next).
+- **Next (GPT's order):** the courtyard in moonlit twilight (then 17° vs 19° pitch), the HUD and windows, the Samurai's
+  combat polish (eyes, sword, basic attack, skills), then the first boss (the Broken Seal Warden).
+- **Request — to: Maps:** in `?world3d=1` the 3D cubes still collide only on the painted block's front strip (`base`), so
+  the hero walks into the back three quarters of every cube. The `?spirits` fix (`asCube` in `src/world/Areas.ts`: an
+  area block's footprint = its whole 3D foot) can be switched on for `?world3d=1` too if you agree.
+- Shared files touched, behind the flag only: MainMenuScene, CharacterSelectScene, LegacyCourtyardScene (startHero3D),
+  Areas.ts (area blocks only — PvP rooms use the arena's own geometry), Arena3D (`occluders`, null by default),
+  world3d/maps (looks.ts 'spirit', islandTerrace picks it for the courtyard), kit/sky.ts (`cloud` colour option, default
+  unchanged), main.ts (the colours' sheet), Hero3D.load({ body }). Rollback: 16d808c1 (the last main before this push).
+
 ### DFO (7 Nov, David 16:43) — the new chibi characters: the Archer first, a prototype behind `?chibi`
 - David's new direction for the characters: anime pixel art, light chibi, two facings (right, mirrored for left) in a
   three-quarter view; the Archer first, behind a flag. The world, combat, skills, balance and camera stay as they are.
