@@ -202,7 +202,7 @@ export class Spectral {
       // (facing left his sword arm is the far one: where his own see-through body stands in front of the blade and its
       // streak, a dimmer copy of each is drawn — the cut still reads through the spirit; only while the blade is behind him)
       const xm = (b.blade.material as THREE.ShaderMaterial).clone();
-      Object.assign(xm.uniforms, { uTime: this.bladeU.uTime, uEnergy: this.bladeU.uEnergy, uFlash: this.bladeU.uFlash, uSeen: { value: 0.5 } });
+      Object.assign(xm.uniforms, { uTime: this.bladeU.uTime, uEnergy: this.bladeU.uEnergy, uFlash: this.bladeU.uFlash, uSeen: { value: 0.78 } });
       xm.depthFunc = THREE.GreaterDepth; this.own.push(xm);
       const bx = this.bladeX = new THREE.Mesh(b.blade.geometry, xm); bx.renderOrder = 2.5; bx.visible = false; b.blade.add(bx);
       if (this.streak) {
@@ -361,7 +361,7 @@ export class Spectral {
         for (let j = 0; j < sk.pts.length; j++) { const f = (j / (sk.pts.length - 1)) * (H.length - 1), i = Math.floor(f), w = f - i, a = H[H.length - 1 - i].p, b = H[Math.max(0, H.length - 2 - i)].p; sk.pts[j].copy(a).lerp(b, w); }
         const far = this.U.uFar.value as number; // (small on the screen: wider and brighter, so the cut reads at the game's camera)
         sk.mat.uniforms.uAlpha.value = (0.55 + 0.25 * far) * fl; sk.mat.uniforms.uWidth.value = (0.016 * (1 + 1.4 * far) * k) / 0.72;
-        if (this.streakX) { this.streakX.mat.uniforms.uAlpha.value = sk.mat.uniforms.uAlpha.value * 0.55; this.streakX.mat.uniforms.uWidth.value = sk.mat.uniforms.uWidth.value; }
+        if (this.streakX) { this.streakX.mat.uniforms.uAlpha.value = sk.mat.uniforms.uAlpha.value * 0.8; this.streakX.mat.uniforms.uWidth.value = sk.mat.uniforms.uWidth.value; }
         sk.r.set(sk.pts);
       }
     }
