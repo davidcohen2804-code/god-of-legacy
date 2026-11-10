@@ -34,12 +34,19 @@ const colAt = (u, v) => { const x = Math.min(info.width - 1, Math.max(0, Math.fl
 const LEG = { l: [[0.10, 0.90, -0.055], [0.135, 0.435, -0.07]], r: [[-0.10, 0.90, -0.055], [-0.135, 0.435, -0.07]] };
 const legD = (c, s) => { const [a, b] = LEG[s]; const t = Math.min(1.3, Math.max(0, (a[1] - c[1]) / (a[1] - b[1]))); const ax = a.map((v, k) => v + t * (b[k] - v)); return Math.hypot(c[0] - ax[0], c[2] - ax[2]); };
 const pantsR = (y) => { const X = [0.30, 0.40, 0.46, 0.55, 0.70, 0.90], Y = [0.075, 0.105, 0.118, 0.112, 0.100, 0.100]; if (y <= X[0]) return Y[0]; for (let k = 1; k < X.length; k++) if (y <= X[k]) return Y[k - 1] + (Y[k] - Y[k - 1]) * (y - X[k - 1]) / (X[k] - X[k - 1]); return Y[Y.length - 1]; };
-const G = { base: 0, panel_l: 1, panel_r: 2, panel_b: 3, front_l: 4, front_r: 5, sash_l: 6, sash_r: 7 };
+const G = { base: 0, panel_l: 1, panel_r: 2, panel_b: 3, front_l: 4, front_r: 5, sash_l: 6, sash_r: 7, tasset_l: 8, tasset_r: 9, tasset_b: 10 };
 const nF = I.length / 3, fg = new Int8Array(nF);
 const pv = (i) => [P[3 * i], P[3 * i + 1], P[3 * i + 2]];
 let nSash = 0;
 for (let f = 0; f < nF; f++) {
   const a = pv(I[3 * f]), b = pv(I[3 * f + 1]), c3 = pv(I[3 * f + 2]); const c = [0, 1, 2].map((k) => (a[k] + b[k] + c3[k]) / 3);
+  if (c[1] >= 0.84 && c[1] < 0.985 && Math.abs(c[0]) < 0.30 && c[2] < 0.05) {
+    // the hip plates over the waist (GPT, 10 Nov: armour on moving clothing, not stuck to the pelvis): what stands out
+    // of the waist's own surface between the belt and the long panels' tops
+    const rN = Math.hypot(c[0] / 0.175, (c[2] + 0.035) / 0.13);
+    if (rN > 1.10) fg[f] = Math.abs(c[0]) <= 0.08 ? G.tasset_b : c[0] > 0 ? G.tasset_l : G.tasset_r;
+    continue;
+  }
   if (c[1] >= 0.84 || c[1] <= 0.30) continue;
   const dl = legD(c, 'l'), dr = legD(c, 'r');
   if (Math.min(dl, dr) < pantsR(c[1]) + 0.012) continue;      // the legs (the hakama, the greaves)
@@ -60,7 +67,7 @@ const owner = new Int8Array(nV0).fill(-1), dup = new Map();
 const copyV = (i) => { const j = P.length / 3; P.push(P[3 * i], P[3 * i + 1], P[3 * i + 2]); UV.push(UV[2 * i], UV[2 * i + 1]); if (NRM) NRM.push(NRM[3 * i], NRM[3 * i + 1], NRM[3 * i + 2]); for (let q = 0; q < 4; q++) { JJ.push(JJ[4 * i + q]); WW.push(WW[4 * i + q]); } return j; };
 for (let f = 0; f < nF; f++) for (let k = 0; k < 3; k++) {
   const i = I[3 * f + k]; if (i >= nV0) continue;
-  const g = P[3 * i + 1] < CUT_Y ? fg[f] : 0;
+  const g = fg[f] >= G.tasset_l ? (P[3 * i + 1] < 0.96 ? fg[f] : 0) : P[3 * i + 1] < CUT_Y ? fg[f] : 0;
   if (owner[i] < 0) { owner[i] = g; continue; }
   if (owner[i] === g) continue;
   const key = i * 8 + g; let j = dup.get(key); if (j === undefined) { j = copyV(i); dup.set(key, j); }
@@ -87,7 +94,9 @@ const CH = {
   front_l: ['skirt_fl', [0.07, 0.86, 0.075], [0.09, 0.66, 0.105]], front_r: ['skirt_fr', [-0.07, 0.86, 0.075], [-0.09, 0.66, 0.105]],
   sash_l: ['sash_l', [0.055, 0.88, 0.13], [0.09, 0.62, 0.14]], sash_r: ['sash_r', [-0.06, 0.88, 0.13], [-0.09, 0.70, 0.14]],
 };
+const TS = { tasset_l: ['tasset_l', [0.17, 0.975, -0.04]], tasset_r: ['tasset_r', [-0.17, 0.975, -0.04]], tasset_b: ['tasset_b', [0, 0.975, -0.13]] };
 for (const [, [nm, a, b]] of Object.entries(CH)) { newJ.push({ name: `${nm}_01`, parent: 'pelvis', pos: new THREE.Vector3(...a) }); newJ.push({ name: `${nm}_02`, parent: `${nm}_01`, pos: new THREE.Vector3(...b) }); }
+for (const [, [nm, a]] of Object.entries(TS)) newJ.push({ name: nm, parent: 'pelvis', pos: new THREE.Vector3(...a) });
 const allNames = [...names];
 const allWorld = [...world];
 const nodes = [...joints];
@@ -134,6 +143,10 @@ const gname = Object.fromEntries(Object.entries(G).map(([k, v]) => [v, k]));
 let nSk = 0;
 for (let i = 0; i < nV; i++) {
   const g = vg[i]; if (g <= 0) continue;
+  if (g >= G.tasset_l) {   // (a plate: from the belt, where it is the body's own, down to its edge on its bone)
+    const [nm] = TS[gname[g]]; const y = P[3 * i + 1]; const w = 1 - smooth(0.875, 0.975, y);
+    setW(i, [...orig(i).map(([j, ww]) => [j, ww * (1 - w)]), [J(nm), w]]); nSk++; continue;
+  }
   const [nm, a, b] = CH[gname[g]]; const y = P[3 * i + 1];
   const keepOrig = smooth(0.80, 0.85, y);                    // (at the waist: the body's own)
   const uu = 1 - smooth(b[1] - 0.02, a[1], y);
@@ -153,5 +166,5 @@ prim.setAttribute('JOINTS_0', doc.createAccessor().setType('VEC4').setArray(new 
 prim.setAttribute('WEIGHTS_0', doc.createAccessor().setType('VEC4').setArray(new WT(WW)).setBuffer(buf));
 prim.setIndices(doc.createAccessor().setType('SCALAR').setArray(new Uint32Array(I)).setBuffer(buf));
 await io.write(outF, doc);
-fs.writeFileSync(outF.replace(/\.glb$/, '.bones.json'), JSON.stringify({ hair: HT.map((t, k) => `hair_0${k + 1}`), chains: Object.fromEntries(Object.entries(CH).map(([k, [nm]]) => [k, [`${nm}_01`, `${nm}_02`]])) }));
+fs.writeFileSync(outF.replace(/\.glb$/, '.bones.json'), JSON.stringify({ hair: HT.map((t, k) => `hair_0${k + 1}`), chains: Object.fromEntries(Object.entries(CH).map(([k, [nm]]) => [k, [`${nm}_01`, `${nm}_02`]])), plates: Object.keys(TS) }));
 console.log('wrote', outF, 'verts', nV, 'joints', allNames.length);

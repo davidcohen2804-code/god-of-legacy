@@ -38,8 +38,8 @@ LOCKS = [
     dict(a=+0.45, b=-0.70, rr=0.40, t_end=0.96, drift=-0.03, flick=0.040, ph=0.7, tile=1),
     dict(a=-0.42, b=+0.74, rr=0.37, t_end=0.74, drift=0.04, flick=0.040, ph=2.8, tile=0),
     dict(a=-0.42, b=-0.74, rr=0.37, t_end=0.82, drift=-0.04, flick=0.040, ph=1.9, tile=2),
-    dict(a=+0.10, b=-1.00, rr=0.36, t_end=0.86, drift=-0.19, flick=0.045, ph=0.4, tile=3),
-    dict(a=-0.25, b=-1.05, rr=0.30, t_end=0.70, drift=-0.14, flick=0.040, ph=2.4, tile=1),
+    dict(a=+0.62, b=-0.95, rr=0.36, t_end=0.86, drift=-0.11, flick=0.045, ph=0.4, tile=3),
+    dict(a=+0.40, b=-1.00, rr=0.30, t_end=0.70, drift=-0.08, flick=0.040, ph=2.4, tile=1),
     dict(a=+0.20, b=+1.00, rr=0.30, t_end=0.60, drift=+0.06, flick=0.040, ph=1.1, tile=0),
 ]
 # the fountain at the tie: short locks that leave the tie up and fall over it (front, sides, back), seen above the head

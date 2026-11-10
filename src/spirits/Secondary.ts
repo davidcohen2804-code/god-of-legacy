@@ -22,11 +22,13 @@ function setWorld(b: THREE.Bone, q: THREE.Quaternion): void {
 }
 
 interface Chain { bones: THREE.Bone[]; rest: THREE.Quaternion[]; len: number[]; tipLen: number; p: THREE.Vector3[]; pp: THREE.Vector3[] }
+interface Plate { bone: THREE.Bone; rest: THREE.Quaternion; side: 'l' | 'r' | 'b'; ang: THREE.Vector2; vel: THREE.Vector2 }
 interface Panel { a: THREE.Bone; b: THREE.Bone; rest: [THREE.Quaternion, THREE.Quaternion]; thigh: 'l' | 'r' | 'both'; kind: 'side' | 'rear' | 'front' | 'sash'; ang: THREE.Vector2; vel: THREE.Vector2; bend: number; bendV: number }
 
 export class Secondary {
   private hair: Chain | null = null;
   private panels: Panel[] = [];
+  private plates: Plate[] = [];   // (the hip plates — tassets — on their own bones at the belt)
   private last = performance.now();
   private thighRest = new Map<string, THREE.Vector3>();   // each thigh's direction in the pelvis' frame, at rest
   private ok = false;
@@ -43,8 +45,9 @@ export class Secondary {
       const a = B(`${nm}_01`), b = B(`${nm}_02`); if (!a || !b) return;
       this.panels.push({ a, b, rest: [a.quaternion.clone(), b.quaternion.clone()], thigh, kind, ang: new THREE.Vector2(), vel: new THREE.Vector2(), bend: 0, bendV: 0 });
     };
+    for (const sd of ['l', 'r', 'b'] as const) { const b = B(`tasset_${sd}`); if (b) this.plates.push({ bone: b, rest: b.quaternion.clone(), side: sd, ang: new THREE.Vector2(), vel: new THREE.Vector2() }); }
     mk('skirt_l', 'l', 'side'); mk('skirt_r', 'r', 'side'); mk('skirt_b', 'both', 'rear'); mk('skirt_fl', 'l', 'front'); mk('skirt_fr', 'r', 'front'); mk('sash_l', 'l', 'sash'); mk('sash_r', 'r', 'sash');
-    this.ok = !!this.hair || this.panels.length > 0;
+    this.ok = !!this.hair || this.panels.length > 0 || this.plates.length > 0;
     // the thighs at rest: the bind pose (the skeleton's own inverse binds — the body may already stand in a move)
     if (skeleton) {
       const bind = (n: string) => { const i = skeleton.bones.findIndex((b) => b.name === n); return i < 0 ? null : new THREE.Vector3().setFromMatrixPosition(skeleton.boneInverses[i].clone().invert()); };
@@ -110,6 +113,20 @@ export class Secondary {
     const [side, up, fwd] = F;
     // how far the hips lean forward (+) from upright: cloth hangs toward the floor, so each panel takes back part of it
     const lean = Math.atan2(-fwd.y, up.y);
+    // the hip plates: hung from the belt, they take back part of the hips' lean (a restrained swing back in a running
+    // lean), nudged by their thigh; never far (kept off the legs and the sash)
+    for (const T of this.plates) {
+      const s = T.side === 'l' ? sl : T.side === 'r' ? sr : null;
+      let tp = lean * 0.5, tr = 0;
+      if (s) { tp += s.x * (s.x > 0 ? 0.22 : 0.15); tr = Math.max(0, s.y) * 0.3; }
+      else tp += Math.min(0, sl.x, sr.x) * 0.3 - Math.max(0, (sl.x + sr.x) / 2) * 0.15;
+      tp = THREE.MathUtils.clamp(tp, -0.35, 0.55); tr = THREE.MathUtils.clamp(tr, 0, 0.3);
+      T.vel.x += ((tp - T.ang.x) * 130 - T.vel.x * 20) * dt; T.vel.y += ((tr - T.ang.y) * 130 - T.vel.y * 20) * dt;
+      T.ang.x += T.vel.x * dt; T.ang.y += T.vel.y * dt;
+      const sgn = T.side === 'r' ? -1 : 1;
+      T.bone.quaternion.copy(T.rest); T.bone.updateMatrixWorld(true);
+      setWorld(T.bone, new THREE.Quaternion().setFromAxisAngle(side, -T.ang.x).multiply(new THREE.Quaternion().setFromAxisAngle(fwd, T.ang.y * sgn)).multiply(wq(T.bone)));
+    }
     for (const P of this.panels) {
       // the target turn: forward (+) / back (−) about the body's side axis, outward about its forward axis
       let tp = 0, tr = 0;
