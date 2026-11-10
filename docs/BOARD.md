@@ -96,6 +96,18 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
   with his level (`src/spirits/SpiritForm.ts`: the spirit material, the spirit blade with a one-hand hilt, wisps, a
   ripple and a soft contact shadow) and its own way into the world (`src/spirits/SpiritLoading.ts`, up until he is
   there). Without `&ghost` nothing of it runs.
+- **The new Spectral Samurai under GPT's review, behind `?spirits&ns` only (10 Nov):** his body from David's approved
+  illustration, rigged (`tools/spirits/ns`; the ponytail, the skirt's panels, the hip plates and the sash's tails moved
+  by `src/spirits/Secondary.ts`), as a spirit with controlled transparency (`src/spirits/Spectral.ts`: his drawing kept,
+  a dark interior and luminous edges, fading toward his feet, the eyes' glow, energy veins, the spirit katana whose edge
+  burns with the cast's own timing; a small region mask `spirit_samurai_ns_mask.png`). The world takes his gameplay body
+  (18k of his 49k triangles, `spirit_samurai_ns_lite.glb`, `tools/spirits/lite.mjs`), the select and the windows the full
+  one. Without `&ns` nothing of it runs.
+- **FYI Maps (4P, the coplanar check on the last 19 maps, `tools/spirits/zfight.cjs`):** after `FLUSH` the dens and
+  ironhold_1 are clean and most places keep only a few m² of wall × moulding caps; three floors still fight a top at the
+  floor's own height, seen from the camera: **dusk_bridge** the deck (#d8ccdc) × a wall's top, 48.8 m²; **sakura_3** the
+  floor (#e8e0d8) × the balustrade's foot, 6.8 m²; **ironhold_3** the floor (#e4d4c4) × a wall's top, 5.9 m² (all at
+  y = 0). Your builders; the same 2 cm drop as `FLUSH` would do it.
 - **Request — to: Maps:** in `?world3d=1` the 3D cubes still collide only on the painted block's front strip (`base`), so
   the hero walks into the back three quarters of every cube. The `?spirits` fix (`asCube` in `src/world/Areas.ts`: an
   area block's footprint = its whole 3D foot) can be switched on for `?world3d=1` too if you agree.

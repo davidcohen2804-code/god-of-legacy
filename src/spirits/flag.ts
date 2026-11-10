@@ -9,6 +9,9 @@ export const SPIRITS = { on: Q.has('spirits'), lean: Q.get('lean') !== '0', lite
   lv: Q.has('lv') ? Math.max(1, Math.min(100, Number(Q.get('lv')) || 1)) : null,
   /** `&ghost`: the spirit form and its way into the world (GPT's stage 2, under review — SpiritForm, SpiritLoading). */
   ghost: Q.has('ghost'),
+  /** `&ns`: the new Spectral Samurai (his body from David's illustration, rigged) as a spirit with controlled
+   *  transparency, and the same way into the world (GPT, 10 Nov: the first actual integration, under review — Spectral). */
+  ns: Q.has('ns'),
   /** The world's exploration camera, its pitch in degrees (GPT, 10 Nov, after the 19 / 24 / 30 / 36 comparison: 24° at
    *  9 units for the next playable test; `&cam=30` the wider 30° / 10.5 to compare, `&cam=19` the earlier 19° / 7). */
   cam: Q.has('cam') ? Number(Q.get('cam')) || 24 : 24 };
@@ -21,3 +24,9 @@ export const SPIRIT_BODY = 'spirit_samurai.glb';
 export const SPIRIT_BODY_LITE = 'spirit_samurai_lite.glb';
 /** His gameplay body's floor shadow: its triangles simplified again (5k), on the same vertices. */
 export const SPIRIT_SHADOW_LITE = 'spirit_samurai_lite.shadow.bin';
+/** The new Spectral Samurai's body (`&ns`: his body from David's illustration, rigged — tools/spirits/ns), his gameplay
+ *  body (its 49k triangles simplified to 18k: the bangs, the ponytail's silhouette, the shoulder armour and the long
+ *  panels kept — tools/spirits/lite.mjs) and that one's floor shadow. */
+export const SPIRIT_BODY_NS = 'spirit_samurai_ns.glb';
+export const SPIRIT_BODY_NS_LITE = 'spirit_samurai_ns_lite.glb';
+export const SPIRIT_SHADOW_NS_LITE = 'spirit_samurai_ns_lite.shadow.bin';

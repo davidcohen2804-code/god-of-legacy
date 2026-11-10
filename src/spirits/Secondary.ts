@@ -177,11 +177,17 @@ export class Secondary {
     const g = -9.8 * 0.6 * this.scale();
     const stiff = [1, 0.55, 0.22, 0.075, 0.05, 0.04];   // (the rise out of the tie held as it is set; lower down it hangs and lags: restrained)
     C.p[0].copy(target[0]); C.pp[0].copy(target[0]);
+    let along = 0;
     for (let i = 1; i < C.p.length; i++) {
       const p = C.p[i], v = p.clone().sub(C.pp[i]).multiplyScalar(0.90);  // (damped)
       C.pp[i].copy(p);
       p.add(v); p.y += g * h * h;
       p.lerp(target[i], stiff[i]);
+      // (restrained: in a sudden lunge it lags, but never flies out — at most about a third of a right angle off its
+      // hanging place, measured from the tie)
+      along += target[i].distanceTo(target[i - 1]);
+      const off = p.clone().sub(target[i]), ol = off.length(), md = 0.55 * along;
+      if (ol > md) { p.copy(target[i]).addScaledVector(off, md / ol); C.pp[i].lerp(p, 0.5); }
     }
     // keep the joint lengths, and keep it off the body (the back, the shoulders, the scarf)
     const lens = [...C.len.map((l) => l * this.scale()), C.tipLen * this.scale()];

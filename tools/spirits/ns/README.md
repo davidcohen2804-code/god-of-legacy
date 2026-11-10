@@ -17,9 +17,17 @@ GPT's art direction, 10 Nov; David: "it must look and feel exactly like this cha
    `handsns.mjs` (the drawn one-piece hands replaced by the base body's hands with finger bones, all glove);
    `tools/hero3d/ai/normals.mjs`; **`addbones.mjs`**: 19 supplementary bones — hair_01…05 (the ponytail, its vertices
    found by `ponyidx.py`), the skirt shell cut into left / rear / right panels (vertices doubled along the cuts), the
-   front panels and the sash tails, each a 2-bone chain on the pelvis.
+   front panels and the sash tails, each a 2-bone chain on the pelvis, and the hip plates (tassets) on their own bones;
+   the arms' and hands' faces stay on their own bones (a fingertip on a panel's bone stretched into a claw).
 6. **Pack**: `tools/hero3d/ai/pack1.mjs` → `public/assets/hero3d/spirit_samurai_ns.glb`.
-7. **In the game**: `src/spirits/Secondary.ts` moves the extra bones each frame after the move (the ponytail hangs and
-   lags, kept off the back and the scarf; the panels pushed by their thighs and draping back; the sash tails swinging).
+7. **Gameplay body**: `node tools/spirits/lite.mjs public/assets/hero3d/spirit_samurai_ns.glb
+   public/assets/hero3d/spirit_samurai_ns_lite.glb 18000 0.02 5000` (49k → 18k triangles, the UV seams locked; its floor
+   shadow 4.7k) — the world's; the select and the windows keep the full one.
+8. **Region mask**: `python3 nsmask.py ns_bones.glb ATLAS.png public/assets/hero3d/spirit_samurai_ns_mask.png 1024` —
+   in the atlas's own layout: R the hair (the ponytail by its bones, the head's by its zone), G the eyes, B the face
+   under the hair (the dark mask, the skin round the eyes); the spirit material reads it (`src/spirits/Spectral.ts`).
+9. **In the game**: `src/spirits/Secondary.ts` moves the extra bones each frame after the move (the ponytail hangs and
+   lags, restrained, kept off the back and the scarf; the panels pushed by their thighs and draping back; the sash tails
+   swinging); `src/spirits/Spectral.ts` draws him as a spirit (behind `?spirits&ns`).
 
 `build_ns.sh` runs 3–6 end to end (its paths are the working folders it was made in).

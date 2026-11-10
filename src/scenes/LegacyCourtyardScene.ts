@@ -61,7 +61,7 @@ import { QuestState } from '../characters/CharacterTypes';
 import { PvpController } from '../pvp/PvpController';
 import { ARENA3D, ON_BODY } from '../arena3d/flag';
 import { HERO3D } from '../arena3d/hero3dFlag';
-import { SPIRITS, SPIRIT_BODY, SPIRIT_BODY_LITE, SPIRIT_SHADOW_LITE } from '../spirits/flag';
+import { SPIRITS, SPIRIT_BODY, SPIRIT_BODY_LITE, SPIRIT_SHADOW_LITE, SPIRIT_BODY_NS, SPIRIT_BODY_NS_LITE, SPIRIT_SHADOW_NS_LITE } from '../spirits/flag';
 import { spiritName, spiritPortrait } from '../spirits/Hud';
 import { portrait3d } from '../arena3d/heroArt3d';
 import type { Hero3D } from '../arena3d/Hero3D';
@@ -608,7 +608,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   /** Legacy of Spirits: the blocks' occlusion of the 3D hero in this place (src/spirits/Occlusion); its teardown. */
   private spiritOcc?: () => void;
   /** The Spectral Samurai's spirit form on the 3D hero (its light follows his level). */
-  private spiritForm?: import('../spirits/SpiritForm').SpiritForm;
+  private spiritForm?: { setLevel(level: number): void; dispose(): void }; // (SpiritForm, or the new Samurai's Spectral)
   /** Legacy of Spirits' way into the world (up until the Samurai is there), and what waits for it to lift. */
   private spiritCurtain?: SpiritCurtain;
   private afterCurtain?: () => void;
@@ -781,7 +781,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     // the arena from the fighter select: the two fighters face to face while it loads (else the plain loading screen)
     const foe = sd?.foe ?? (sd?.botCls ? { cls: sd.botCls, name: BOT_NAMES[sd.botCls] ?? BOT_NAME } : null);
     if (pvp && !training && me && cls && foe && showArenaLoading(this, { name: me.name, cls, you: true }, foe, this.stage)) Sound.vsIntro(cls, foe.cls); // (the slam, both fighters' lines, GET READY)
-    else if (SPIRITS.on && SPIRITS.ghost && !pvp) { // (Legacy of Spirits: its own way in, up until the Samurai is there; the place's arrival plays as it lifts)
+    else if (SPIRITS.on && (SPIRITS.ghost || SPIRITS.ns) && !pvp) { // (Legacy of Spirits: its own way in, up until the Samurai is there; the place's arrival plays as it lifts)
       this.spiritCurtain = showSpiritLoading(this, areaAt((sd?.at ?? toWorld(START.area, [START.x, START.y])).x).name, () => { this.spiritCurtain = undefined; const f = this.afterCurtain; this.afterCurtain = undefined; if (this.sys.isActive()) f?.(); }); // (a scene shut down meanwhile: its way in is gone with it, nothing lifts)
     }
     else showLoading(this, training ? 'TRAINING' : pvp ? 'PVP ARENA' : 'GOD OF LEGACY'); // (training: no match, no VS)
@@ -4416,7 +4416,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const mod = await import('../arena3d/Hero3D');
     const spirit = SPIRITS.on && this.cls === 'samurai'; // (Legacy of Spirits: the Spectral Samurai's own body)
     mark('hero-load'); this.spiritCurtain?.progress(0.8);
-    const h = await mod.Hero3D.load({ female: genderOf(this.character) === 'female', body: spirit ? (SPIRITS.lite && this.w3d ? SPIRIT_BODY_LITE : SPIRIT_BODY) : undefined, shadow: spirit && SPIRITS.lite && this.w3d ? SPIRIT_SHADOW_LITE : undefined }); // (the world: his gameplay body and its lighter shadow — GPT step 4P; &lite=0 the full one)
+    const lite = spirit && SPIRITS.lite && !!this.w3d; // (the world: his gameplay body and its lighter shadow — GPT step 4P; &lite=0 the full one; &ns: the new Samurai's)
+    const h = await mod.Hero3D.load({ female: genderOf(this.character) === 'female', body: spirit ? (SPIRITS.ns ? (lite ? SPIRIT_BODY_NS_LITE : SPIRIT_BODY_NS) : (lite ? SPIRIT_BODY_LITE : SPIRIT_BODY)) : undefined, shadow: lite ? (SPIRITS.ns ? SPIRIT_SHADOW_NS_LITE : SPIRIT_SHADOW_LITE) : undefined });
     if (gen !== this.sceneGen || !this.sys.isActive() || this.a3d !== a3) { h.dispose(); return; }
     const { img, sunDir } = a3.addLayer('arena3d-hero', h.scene, () => h.root.position); // (where he stands: the room's warm lights near him reach him — lean)
     h.makeShadow(sunDir);
@@ -4424,7 +4425,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (spirit) { // (the spirit's finish, the camera nearer; &ghost: the spirit form — David and GPT, 9 Nov evening: a see-through spirit whose light grows with his level)
       const sp = await import('../spirits/SpiritBody');
       this.spiritForm?.dispose(); this.spiritForm = undefined;
-      if (SPIRITS.ghost) this.spiritForm = (await import('../spirits/SpiritForm')).makeSpiritForm(h, { level: SPIRITS.lv ?? this.character?.level ?? 1, preset: () => a3.qualityLevel, ground: () => (this.kin.supportZ ?? 0) / 100 });
+      if (SPIRITS.ns) this.spiritForm = await (await import('../spirits/Spectral')).makeSpectral(h, { level: SPIRITS.lv ?? this.character?.level ?? 1, preset: () => a3.qualityLevel, ground: () => (this.kin.supportZ ?? 0) / 100 }); // (&ns: the new Spectral Samurai — GPT 10 Nov)
+      else if (SPIRITS.ghost) this.spiritForm = (await import('../spirits/SpiritForm')).makeSpiritForm(h, { level: SPIRITS.lv ?? this.character?.level ?? 1, preset: () => a3.qualityLevel, ground: () => (this.kin.supportZ ?? 0) / 100 });
       else sp.makeSpiritFinish(h);
       sp.frameSpirit(a3);
     }

@@ -7,7 +7,7 @@
 import Phaser from 'phaser';
 import * as THREE from 'three';
 import { Hero3D } from '../arena3d/Hero3D';
-import { SPIRIT_BODY, SPIRITS } from './flag';
+import { SPIRIT_BODY, SPIRIT_BODY_NS, SPIRITS } from './flag';
 import { makeSpiritFinish } from './SpiritBody';
 import { makeSpiritForm } from './SpiritForm';
 
@@ -34,7 +34,7 @@ export class SpiritPreview {
   private frame = Hero3D.HEIGHT * 1.08;
 
   private constructor(private scene: Phaser.Scene, private hero: Hero3D, private key: string, private w: number, private h: number) {
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, premultipliedAlpha: SPIRITS.ghost, preserveDrawingBuffer: true, powerPreference: 'high-performance' }); // (&ghost, premultiplied: the spirit's see-through body composites right)
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, premultipliedAlpha: SPIRITS.ghost || SPIRITS.ns, preserveDrawingBuffer: true, powerPreference: 'high-performance' }); // (&ghost, premultiplied: the spirit's see-through body composites right)
     this.renderer.setPixelRatio(1); this.renderer.setSize(w * SpiritPreview.RES, h * SpiritPreview.RES, false);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace; this.renderer.toneMapping = THREE.ACESFilmicToneMapping; this.renderer.toneMappingExposure = 1.0;
     this.renderer.setClearColor(0x000000, 0);
@@ -49,8 +49,9 @@ export class SpiritPreview {
 
   /** The Spectral Samurai, the spirit blade in hand, `w`×`h` design px, his light at `level`'s tier. */
   static async create(scene: Phaser.Scene, o: { w?: number; h?: number; key?: string; level?: number } = {}): Promise<SpiritPreview> {
-    const hero = await Hero3D.load({ female: false, body: SPIRIT_BODY });
-    if (SPIRITS.ghost) makeSpiritForm(hero, { level: SPIRITS.lv ?? o.level ?? 1, lit: 0.1, ground: () => 0 }); else makeSpiritFinish(hero);
+    const hero = await Hero3D.load({ female: false, body: SPIRITS.ns ? SPIRIT_BODY_NS : SPIRIT_BODY });
+    if (SPIRITS.ns) await (await import('./Spectral')).makeSpectral(hero, { level: SPIRITS.lv ?? o.level ?? 1, lit: 0.3, ground: () => 0 }); // (&ns: the new Spectral Samurai)
+    else if (SPIRITS.ghost) makeSpiritForm(hero, { level: SPIRITS.lv ?? o.level ?? 1, lit: 0.1, ground: () => 0 }); else makeSpiritFinish(hero);
     hero.flatToView = true; // (the blade's flat to the viewer, not its edge)
     hero.setWeapon('katana');
     return new SpiritPreview(scene, hero, o.key ?? 'spirit-preview', o.w ?? 520, o.h ?? 760);

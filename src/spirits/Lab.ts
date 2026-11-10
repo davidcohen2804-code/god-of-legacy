@@ -18,6 +18,7 @@ import { Hero3D } from '../arena3d/Hero3D';
 import type { Room } from '../arena3d/Room';
 import { makeSpirit, makeSpiritFinish } from './SpiritBody';
 import { makeSpiritForm } from './SpiritForm';
+import { makeSpectral } from './Spectral';
 import { SPIRIT_BODY } from './flag';
 
 const Q = new URLSearchParams(location.search);
@@ -58,7 +59,9 @@ export async function startSpiritLab(): Promise<void> {
     const body = (h as unknown as { body: THREE.SkinnedMesh | null }).body;
     if (body) body.material = new THREE.MeshStandardMaterial({ color: 0xb4b0bc, roughness: 0.8, metalness: 0 });
   } else if (Q.has('form')) makeSpiritForm(h, { level: Number(Q.get('lv') ?? 100), preset: () => Number(Q.get('preset') ?? 0), ground: () => room.groundY(h.root.position.x, h.root.position.z) }); // (the spirit form: &form&lv=1…100&preset=0…2)
-  const finish = !Q.has('neutral') && !Q.has('form') && !Q.has('plain') && !Q.has('addons') ? makeSpiritFinish(h) : null;
+  // (&spec: the new Spectral Samurai — &body=spirit_samurai_ns.glb or its _lite — &lv=1…100&preset=0…2)
+  const spec = Q.has('spec') ? await makeSpectral(h, { level: Number(Q.get('lv') ?? 100), preset: () => Number(Q.get('preset') ?? 0), lit: Q.has('lit') ? Number(Q.get('lit')) : undefined, ground: () => room.groundY(h.root.position.x, h.root.position.z) }) : null;
+  const finish = !Q.has('neutral') && !Q.has('form') && !Q.has('spec') && !Q.has('plain') && !Q.has('addons') ? makeSpiritFinish(h) : spec;
   const spirit = Q.has('addons') ? makeSpirit(h) : null; // (gate 1's dressed Beginner: &body=beginner_m.glb&addons)
   if (spirit && Q.has('bare')) for (const s of (spirit as unknown as { strands: { mesh: THREE.Mesh }[] }).strands) s.mesh.removeFromParent(); // (the body alone: its own painting)
   if (spirit && Q.has('noline')) (spirit as unknown as { outline: THREE.Object3D }).outline.removeFromParent();
@@ -87,18 +90,19 @@ export async function startSpiritLab(): Promise<void> {
   };
   const step = (ms: number) => {
     // what he does
-    const run = move === 'run', walk = move === 'walk', slash = move === 'slash';
+    const pre = Number(Q.get('pre') ?? 0), settling = t < pre; // (&pre: ms of idle before the blow — a settled stance)
+    const run = move === 'run', walk = move === 'walk', slash = move === 'slash' && !settling;
     const sp = run ? 300 : walk ? 120 : 0;
     const per = 650, el = t % per;
     // (any other body mode as it is: land, air, launched, down, hurt… — the air ones a little above the floor)
-    const air = move === 'air' || move === 'launched', mode = slash ? 'skill' : run ? 'run' : walk ? 'walk' : move === 'idle' ? 'idle' : move;
+    const air = move === 'air' || move === 'launched', mode = slash ? 'skill' : run ? 'run' : walk ? 'walk' : move === 'idle' || settling ? 'idle' : move;
     const vz = Q.has('vz') ? Number(Q.get('vz')) : air ? (move === 'launched' ? 260 : 60) : 0;
     const stage = Q.has('stage') ? Number(Q.get('stage')) : Math.floor(t / per) % 3;
     h.drive({ x: hx, y: hy, z: room.groundY(hx / U, (hy / U) * DK) * U + (air ? 70 : 0), vx: sp * face + (air ? 120 * face : 0), vy: 0, vz, grounded: !air, face, mode,
       ...(Q.has('hy') ? { yaw: THREE.MathUtils.degToRad(Number(Q.get('hy'))) * face } : {}),
-      cast: slash ? { id: Q.get('skill') ?? 'quick_slash', stage, elapsed: at !== null ? t : el, startup: 120, active: 160, recovery: 300, dash: false, air: false } : null }, ms);
+      cast: slash ? { id: Q.get('skill') ?? 'quick_slash', stage, elapsed: at !== null ? t - pre : el, startup: 120, active: 160, recovery: 300, dash: false, air: false } : null }, ms);
     if (Q.has('clip')) { h.play(Q.get('clip')!, { fade: 0 }); }
-    if (finish?.manual && ms > 0) finish.secondary?.update(ms / 1000);
+    if (finish?.manual && ms > 0) { if ('tick' in finish) finish.tick(ms / 1000); else finish.secondary?.update(ms / 1000); }
   };
   const frame = () => {
     const now = performance.now(); let ms = Math.min(50, now - last); last = now;

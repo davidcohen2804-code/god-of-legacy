@@ -38,7 +38,13 @@ const G = { base: 0, panel_l: 1, panel_r: 2, panel_b: 3, front_l: 4, front_r: 5,
 const nF = I.length / 3, fg = new Int8Array(nF);
 const pv = (i) => [P[3 * i], P[3 * i + 1], P[3 * i + 2]];
 let nSash = 0;
+// (the arms and the hands hang beside the skirt: theirs stay on their own bones — a fingertip on a panel's bone stretched
+// into a claw when the fist closed)
+const ARM = /^(?:upperarm|lowerarm|hand|thumb|index|middle|ring|pinky)/;
+const armShare = (i) => { let s = 0; for (let q = 0; q < 4; q++) if (ARM.test(names[JJ[4 * i + q]] ?? '')) s += WW[4 * i + q] / wScale; return s; };
+let nArm = 0;
 for (let f = 0; f < nF; f++) {
+  if (armShare(I[3 * f]) > 0.3 || armShare(I[3 * f + 1]) > 0.3 || armShare(I[3 * f + 2]) > 0.3) { nArm++; continue; }
   const a = pv(I[3 * f]), b = pv(I[3 * f + 1]), c3 = pv(I[3 * f + 2]); const c = [0, 1, 2].map((k) => (a[k] + b[k] + c3[k]) / 3);
   if (c[1] >= 0.84 && c[1] < 0.985 && Math.abs(c[0]) < 0.30 && c[2] < 0.05) {
     // the hip plates over the waist (GPT, 10 Nov: armour on moving clothing, not stuck to the pelvis): what stands out
@@ -59,6 +65,7 @@ for (let f = 0; f < nF; f++) {
   const ang = Math.atan2(c[0], -(c[2] + 0.05)) * 180 / Math.PI;
   fg[f] = Math.abs(ang) <= 32 ? G.panel_b : ang > 0 ? G.panel_l : G.panel_r;
 }
+console.log('arm faces kept on their own bones', nArm);
 { const cnt = {}; for (const g of fg) cnt[g] = (cnt[g] || 0) + 1; console.log('skirt faces by piece', JSON.stringify(Object.fromEntries(Object.entries(G).map(([k, v]) => [k, cnt[v] || 0])))); }
 
 // ---------------- the cuts: below the waist a vertex shared by two pieces is doubled, each piece its own

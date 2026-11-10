@@ -192,12 +192,12 @@ const BLADE_VS = `
   varying vec2 vUv;
   void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 ); }`;
 const BLADE_FS = `
-  uniform float uTime, uEnergy; uniform vec3 uDeep, uCore, uEdge;
+  uniform float uTime, uEnergy, uFlash; uniform vec3 uDeep, uCore, uEdge;
   varying vec2 vUv;
   float hash( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }
   void main() {
     float u = vUv.x, t = vUv.y;
-    float edgeL = smoothstep( 0.7, 0.95, u );                        // the cutting edge, white-hot
+    float edgeL = smoothstep( 0.7 - 0.22 * uFlash, 0.95, u ) * ( 1.0 + 0.6 * uFlash ); // the cutting edge, white-hot (wider and brighter as it strikes)
     float spine = 1.0 - smoothstep( 0.0, 0.1, u );                   // the spine, fainter
     float ridge = exp( -pow( ( u - 0.42 ) / 0.08, 2.0 ) ) * 0.55;    // the ridge line
     float dens = mix( 0.95, 0.45, t );                               // denser at the guard, softer to the tip
@@ -231,7 +231,7 @@ const RIBBON_FS = `
     gl_FragColor = vec4( linearToOutputTexel( vec4( uColor, 1.0 ) ).rgb * a, a );
   }`;
 /** A ribbon along `n` points (filled each frame by its owner): positions, tangents, its sides, its share along. */
-function ribbon(n: number, mat: THREE.ShaderMaterial, width: (t: number) => number): { mesh: THREE.Mesh; pos: Float32Array; tan: Float32Array; set(pts: THREE.Vector3[]): void } {
+export function ribbon(n: number, mat: THREE.ShaderMaterial, width: (t: number) => number): { mesh: THREE.Mesh; pos: Float32Array; tan: Float32Array; set(pts: THREE.Vector3[]): void } {
   const g = new THREE.BufferGeometry(), pos = new Float32Array(n * 2 * 3), tan = new Float32Array(n * 2 * 3), side = new Float32Array(n * 2), at = new Float32Array(n * 2), w = new Float32Array(n * 2), ix: number[] = [];
   for (let i = 0; i < n; i++) { const t = i / (n - 1); side[i * 2] = -1; side[i * 2 + 1] = 1; at[i * 2] = at[i * 2 + 1] = t; w[i * 2] = w[i * 2 + 1] = width(t); if (i < n - 1) ix.push(i * 2, i * 2 + 1, i * 2 + 2, i * 2 + 1, i * 2 + 3, i * 2 + 2); }
   g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('aTan', new THREE.BufferAttribute(tan, 3));
@@ -246,7 +246,7 @@ function ribbon(n: number, mat: THREE.ShaderMaterial, width: (t: number) => numb
     (g.attributes.position as THREE.BufferAttribute).needsUpdate = true; (g.attributes.aTan as THREE.BufferAttribute).needsUpdate = true;
   } };
 }
-const ribbonMat = (color: number, alpha: number, width: number, soft = 3, fall = 1.4): THREE.ShaderMaterial => new THREE.ShaderMaterial({
+export const ribbonMat = (color: number, alpha: number, width: number, soft = 3, fall = 1.4): THREE.ShaderMaterial => new THREE.ShaderMaterial({
   uniforms: { uColor: { value: new THREE.Color(color) }, uAlpha: { value: alpha }, uWidth: { value: width }, uSoft: { value: soft }, uFall: { value: fall } },
   vertexShader: RIBBON_VS, fragmentShader: RIBBON_FS, transparent: true, premultipliedAlpha: true, depthWrite: false, side: THREE.DoubleSide,
 });
@@ -254,7 +254,7 @@ const ribbonMat = (color: number, alpha: number, width: number, soft = 3, fall =
 /** The spirit katana, in the game's katana frame (the grip at 0, the guard just above, the pommel just below the fist).
  *  Its hilt is a one-hand length: the fist covers it, the pommel shows just past the little finger (GPT: fix the grip —
  *  the long hilt ran up the forearm). */
-function spiritBlade(U: { uTime: THREE.IUniform; uEnergy: THREE.IUniform }): { root: THREE.Group; halo: THREE.ShaderMaterial; pommel: THREE.Object3D; dispose(): void } {
+export function spiritBlade(U: { uTime: THREE.IUniform; uEnergy: THREE.IUniform; uFlash?: THREE.IUniform }): { root: THREE.Group; halo: THREE.ShaderMaterial; pommel: THREE.Object3D; dispose(): void } {
   const root = new THREE.Group(); root.name = 'spirit-blade';
   const own: { dispose(): void }[] = [];
   // the blade: rows of three (spine, ridge, edge) up to the tip
@@ -265,7 +265,7 @@ function spiritBlade(U: { uTime: THREE.IUniform; uEnergy: THREE.IUniform }): { r
     if (i < N) for (let j = 0; j < 2; j++) { const a = i * 3 + j; I.push(a, a + 1, a + 3, a + 1, a + 4, a + 3); }
   }
   const bg = new THREE.BufferGeometry(); bg.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); bg.setAttribute('uv', new THREE.Float32BufferAttribute(UV, 2)); bg.setIndex(I); bg.computeVertexNormals();
-  const bm = new THREE.ShaderMaterial({ uniforms: { uTime: U.uTime, uEnergy: U.uEnergy, uDeep: { value: new THREE.Color(0x4512b0) }, uCore: { value: new THREE.Color(0xa87cff) }, uEdge: { value: new THREE.Color(0xfbf6ff) } },
+  const bm = new THREE.ShaderMaterial({ uniforms: { uTime: U.uTime, uEnergy: U.uEnergy, uFlash: U.uFlash ?? { value: 0 }, uDeep: { value: new THREE.Color(0x4512b0) }, uCore: { value: new THREE.Color(0xa87cff) }, uEdge: { value: new THREE.Color(0xfbf6ff) } },
     vertexShader: BLADE_VS, fragmentShader: BLADE_FS, transparent: true, premultipliedAlpha: true, depthWrite: false, side: THREE.DoubleSide });
   const blade = new THREE.Mesh(bg, bm); blade.renderOrder = 2; root.add(blade); own.push(bg, bm);
   // its aura: a soft violet glow round the blade's line, seen from any side (its share grows with his level)
@@ -292,10 +292,39 @@ function spiritBlade(U: { uTime: THREE.IUniform; uEnergy: THREE.IUniform }): { r
   return { root, halo, pommel, dispose: () => own.forEach((o) => o.dispose()) };
 }
 
+/** The floor marks under a spirit (GPT: both — a ripple alone floats, a shadow alone is physical again): a small soft
+ *  contact shadow and a faint spectral ripple, laid on the floor by their owner each picture. (Drawn among his opaque
+ *  things, first: the blocks in front still hide them, his own body does not — he is seen over them; blended all the
+ *  same.) */
+export function floorMarks(scene: THREE.Scene, uTime: THREE.IUniform): { shadow: THREE.Mesh; ripple: THREE.Mesh; rU: Record<string, THREE.IUniform>; dispose(): void } {
+  const sm = new THREE.ShaderMaterial({ uniforms: { uA: { value: 0.3 } }, transparent: false, depthWrite: false,
+    vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 ); }',
+    fragmentShader: 'uniform float uA; varying vec2 vUv; void main() { float d = length( vUv - 0.5 ) * 2.0; float a = uA * pow( max( 0.0, 1.0 - d ), 1.8 ); gl_FragColor = vec4( vec3( 0.02, 0.0, 0.05 ) * a, a ); }',
+    blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor });
+  const rU = { uTime, uStrength: { value: 1 } };
+  const rm = new THREE.ShaderMaterial({ uniforms: rU, transparent: false, depthWrite: false,
+    vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 ); }',
+    fragmentShader: `uniform float uTime, uStrength; varying vec2 vUv;
+      void main() {
+        float d = length( vUv - 0.5 ) * 2.0, a = 0.0;
+        for ( int i = 0; i < 3; i++ ) { float r = fract( uTime * 0.28 + float( i ) / 3.0 ); a += exp( -pow( ( d - r ) / 0.035, 2.0 ) ) * ( 1.0 - r ) * 0.55; } // (rings rising out from his feet)
+        a += exp( -pow( ( d - 0.22 ) / 0.05, 2.0 ) ) * 0.35;  // (a still ring close round him)
+        a *= uStrength * smoothstep( 1.0, 0.85, d ) * 0.8;
+        gl_FragColor = vec4( linearToOutputTexel( vec4( 0.62, 0.42, 1.0, 1.0 ) ).rgb * a, a );
+      }`,
+    blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor });
+  const g1 = new THREE.PlaneGeometry(0.7, 0.42), g2 = new THREE.PlaneGeometry(1.25, 0.85);
+  g1.rotateX(-Math.PI / 2); g2.rotateX(-Math.PI / 2);
+  const shadow = new THREE.Mesh(g1, sm), ripple = new THREE.Mesh(g2, rm);
+  shadow.renderOrder = -3; ripple.renderOrder = -3; shadow.frustumCulled = ripple.frustumCulled = false;
+  scene.add(shadow, ripple);
+  return { shadow, ripple, rU, dispose: () => { shadow.removeFromParent(); ripple.removeFromParent(); for (const o of [g1, g2, sm, rm]) o.dispose(); } };
+}
+
 // ------------------------------------------------------------------------------------------------ the form
 /** The wisps' roots, in the order they come with his level: the shoulders, the sash, the coat's tails, the sleeves, the
  *  back (bone, offset in his own frame: x his left, y up, z ahead; the drift's turn). */
-const WISPS: { bone: string; at: [number, number, number]; ph: number }[] = [
+export const WISPS: { bone: string; at: [number, number, number]; ph: number }[] = [
   { bone: 'upperarm_l', at: [0.05, 0.06, -0.04], ph: 0 }, { bone: 'upperarm_r', at: [-0.05, 0.06, -0.04], ph: 1.3 },
   { bone: 'pelvis', at: [0.03, -0.02, 0.1], ph: 2.1 },
   { bone: 'calf_l', at: [0.05, 0.12, -0.08], ph: 3.4 }, { bone: 'calf_r', at: [-0.05, 0.12, -0.08], ph: 4.2 },
@@ -335,7 +364,7 @@ export class SpiritForm {
   private trails: { def: TrailDef; pts: THREE.Vector3[]; hist: { t: number; x: number; y: number; z: number }[]; r: ReturnType<typeof ribbon>; warm: boolean }[] = [];
   private swirls: { pts: THREE.Vector3[]; r: ReturnType<typeof ribbon>; mat: THREE.ShaderMaterial; ph: number; dir: number }[] = [];
   private tassel: { pts: THREE.Vector3[]; old: THREE.Vector3[]; r: ReturnType<typeof ribbon>; bead: THREE.Mesh } | null = null;
-  private floor: { shadow: THREE.Mesh; ripple: THREE.Mesh; rU: Record<string, THREE.IUniform> } | null = null;
+  private floor: ReturnType<typeof floorMarks> | null = null;
   private own: { dispose(): void }[] = [];
   private tier = 0;
   private last = performance.now();
@@ -414,30 +443,8 @@ export class SpiritForm {
   private tasselNew = false;
 
   private floorMake(): void {
-    // (drawn among his opaque things, first: the blocks in front still hide them, his own body does not — he is seen
-    // over them; blended all the same)
-    const sm = new THREE.ShaderMaterial({ uniforms: { uA: { value: 0.3 } }, transparent: false, depthWrite: false,
-      vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 ); }',
-      fragmentShader: 'uniform float uA; varying vec2 vUv; void main() { float d = length( vUv - 0.5 ) * 2.0; float a = uA * pow( max( 0.0, 1.0 - d ), 1.8 ); gl_FragColor = vec4( vec3( 0.02, 0.0, 0.05 ) * a, a ); }',
-      blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor });
-    const rU = { uTime: this.U.uTime, uStrength: { value: 1 } };
-    const rm = new THREE.ShaderMaterial({ uniforms: rU, transparent: false, depthWrite: false,
-      vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 ); }',
-      fragmentShader: `uniform float uTime, uStrength; varying vec2 vUv;
-        void main() {
-          float d = length( vUv - 0.5 ) * 2.0, a = 0.0;
-          for ( int i = 0; i < 3; i++ ) { float r = fract( uTime * 0.28 + float( i ) / 3.0 ); a += exp( -pow( ( d - r ) / 0.035, 2.0 ) ) * ( 1.0 - r ) * 0.55; } // (rings rising out from his feet)
-          a += exp( -pow( ( d - 0.22 ) / 0.05, 2.0 ) ) * 0.35;  // (a still ring close round him)
-          a *= uStrength * smoothstep( 1.0, 0.85, d ) * 0.8;
-          gl_FragColor = vec4( linearToOutputTexel( vec4( 0.62, 0.42, 1.0, 1.0 ) ).rgb * a, a );
-        }`,
-      blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor });
-    const g1 = new THREE.PlaneGeometry(0.7, 0.42), g2 = new THREE.PlaneGeometry(1.25, 0.85);
-    g1.rotateX(-Math.PI / 2); g2.rotateX(-Math.PI / 2);
-    const shadow = new THREE.Mesh(g1, sm), ripple = new THREE.Mesh(g2, rm);
-    shadow.renderOrder = -3; ripple.renderOrder = -3; shadow.frustumCulled = ripple.frustumCulled = false;
-    this.parts.scene.add(shadow, ripple); this.own.push(g1, g2, sm, rm);
-    this.floor = { shadow, ripple, rU };
+    const f = floorMarks(this.parts.scene, this.U.uTime); this.own.push(f);
+    this.floor = f;
   }
 
   private V = new THREE.Vector3(); private W = new THREE.Vector3(); private Q = new THREE.Quaternion(); private F = new THREE.Vector3();
@@ -543,7 +550,6 @@ export class SpiritForm {
     for (const w of this.trails) w.r.mesh.removeFromParent();
     for (const w of this.swirls) w.r.mesh.removeFromParent();
     this.tassel?.r.mesh.removeFromParent(); this.tassel?.bead.removeFromParent();
-    this.floor?.shadow.removeFromParent(); this.floor?.ripple.removeFromParent();
     for (const o of this.own) o.dispose();
   }
 }

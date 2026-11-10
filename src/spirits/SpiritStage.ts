@@ -4,7 +4,7 @@
 // it); the window's own controls (the animation, the turn, rotate) move him as they moved the old 2D preview.
 import * as THREE from 'three';
 import { Hero3D } from '../arena3d/Hero3D';
-import { SPIRIT_BODY, SPIRITS } from './flag';
+import { SPIRIT_BODY, SPIRIT_BODY_NS, SPIRITS } from './flag';
 import { makeSpiritFinish } from './SpiritBody';
 import { makeSpiritForm } from './SpiritForm';
 import { spiritLights } from './SpiritPreview';
@@ -41,8 +41,9 @@ export class SpiritStage {
 
   /** The Spectral Samurai, the spirit blade in hand, for a `w`×`h` (design px) stage, his light at `level`'s tier. */
   static async create(w: number, h: number, level = 1): Promise<SpiritStage> {
-    const hero = await Hero3D.load({ female: false, body: SPIRIT_BODY });
-    if (SPIRITS.ghost) makeSpiritForm(hero, { level: SPIRITS.lv ?? level, lit: 0.1, ground: () => 0 }); else makeSpiritFinish(hero);
+    const hero = await Hero3D.load({ female: false, body: SPIRITS.ns ? SPIRIT_BODY_NS : SPIRIT_BODY });
+    if (SPIRITS.ns) await (await import('./Spectral')).makeSpectral(hero, { level: SPIRITS.lv ?? level, lit: 0.3, ground: () => 0 }); // (&ns: the new Spectral Samurai)
+    else if (SPIRITS.ghost) makeSpiritForm(hero, { level: SPIRITS.lv ?? level, lit: 0.1, ground: () => 0 }); else makeSpiritFinish(hero);
     hero.flatToView = true; // (the blade's flat to the viewer, not its edge)
     hero.setWeapon('katana');
     return new SpiritStage(hero, w, h);

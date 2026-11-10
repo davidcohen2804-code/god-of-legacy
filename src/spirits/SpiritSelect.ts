@@ -8,6 +8,7 @@ import Phaser from 'phaser';
 import { DESIGN, FONT_FAMILY } from '../config/layout';
 import { C, SPIRIT_MENU, drawRule, glowTex, leafTex } from './SpiritMenu';
 import type { SpiritPreview } from './SpiritPreview';
+import { SPIRITS } from './flag';
 
 export const SPIRIT_SELECT = { bg: { key: 'spirit-select-bg', file: 'assets/spirits/select_bg.jpg' } } as const;
 const BODY = 'Inter, "Segoe UI", Arial, sans-serif';
@@ -199,7 +200,7 @@ export function buildSpiritSelect(scene: Phaser.Scene, h: SpiritSelectHandlers):
   txt(scene, P.x0 + 36, P.y0 + 166, BLURB, 23, '#e8def2', { body: true, bold: false, wrap: P.x1 - P.x0 - 72, line: 9 }).setDepth(7);
   rule(P.y0 + 300);
   txt(scene, P.x0 + 36, P.y0 + 344, 'LEVEL', 22, '#d9b86e', { spacing: 2 }).setOrigin(0, 0.5).setDepth(7);
-  txt(scene, P.x1 - 36, P.y0 + 344, String(h.level), 30, '#fff3dc', { spacing: 1 }).setOrigin(1, 0.5).setDepth(7);
+  txt(scene, P.x1 - 36, P.y0 + 344, String(SPIRITS.lv ?? h.level), 30, '#fff3dc', { spacing: 1 }).setOrigin(1, 0.5).setDepth(7); // (&lv: the level the art review shows)
 
   // BACK and ENTER WORLD
   const button = (b: { x: number; y: number; w: number; h: number }, main: boolean, label: string, ico: Ico, go: () => void) => {
