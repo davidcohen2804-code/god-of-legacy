@@ -192,7 +192,7 @@ const BLADE_VS = `
   varying vec2 vUv;
   void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 ); }`;
 const BLADE_FS = `
-  uniform float uTime, uEnergy, uFlash; uniform vec3 uDeep, uCore, uEdge;
+  uniform float uTime, uEnergy, uFlash, uSeen; uniform vec3 uDeep, uCore, uEdge;
   varying vec2 vUv;
   float hash( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }
   void main() {
@@ -207,7 +207,7 @@ const BLADE_FS = `
     vec3 col = mix( uDeep, uCore, 0.45 + 0.45 * sw * uEnergy ) + uCore * star * 2.0 * uEnergy;
     col = mix( col, uEdge, clamp( edgeL * 1.1 + spine * 0.5 + ridge, 0.0, 1.0 ) );
     float a = dens * ( 0.5 + 0.28 * uEnergy ) + edgeL + spine * 0.55 + ridge * 0.45 + star * 0.6 * uEnergy;
-    a = clamp( a, 0.0, 1.0 );
+    a = clamp( a, 0.0, 1.0 ) * uSeen; // (uSeen: a dimmer copy — the blade seen through a spirit's own body)
     gl_FragColor = vec4( linearToOutputTexel( vec4( min( col, vec3( 1.0 ) ), 1.0 ) ).rgb * a, a );
   }`;
 /** A soft glow round a line, turned to the eye wherever it is seen from (the blade's aura, the wisps, the tassel). */
@@ -254,7 +254,7 @@ export const ribbonMat = (color: number, alpha: number, width: number, soft = 3,
 /** The spirit katana, in the game's katana frame (the grip at 0, the guard just above, the pommel just below the fist).
  *  Its hilt is a one-hand length: the fist covers it, the pommel shows just past the little finger (GPT: fix the grip —
  *  the long hilt ran up the forearm). */
-export function spiritBlade(U: { uTime: THREE.IUniform; uEnergy: THREE.IUniform; uFlash?: THREE.IUniform }): { root: THREE.Group; halo: THREE.ShaderMaterial; pommel: THREE.Object3D; dispose(): void } {
+export function spiritBlade(U: { uTime: THREE.IUniform; uEnergy: THREE.IUniform; uFlash?: THREE.IUniform }): { root: THREE.Group; blade: THREE.Mesh; halo: THREE.ShaderMaterial; pommel: THREE.Object3D; dispose(): void } {
   const root = new THREE.Group(); root.name = 'spirit-blade';
   const own: { dispose(): void }[] = [];
   // the blade: rows of three (spine, ridge, edge) up to the tip
@@ -265,7 +265,7 @@ export function spiritBlade(U: { uTime: THREE.IUniform; uEnergy: THREE.IUniform;
     if (i < N) for (let j = 0; j < 2; j++) { const a = i * 3 + j; I.push(a, a + 1, a + 3, a + 1, a + 4, a + 3); }
   }
   const bg = new THREE.BufferGeometry(); bg.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); bg.setAttribute('uv', new THREE.Float32BufferAttribute(UV, 2)); bg.setIndex(I); bg.computeVertexNormals();
-  const bm = new THREE.ShaderMaterial({ uniforms: { uTime: U.uTime, uEnergy: U.uEnergy, uFlash: U.uFlash ?? { value: 0 }, uDeep: { value: new THREE.Color(0x4512b0) }, uCore: { value: new THREE.Color(0xa87cff) }, uEdge: { value: new THREE.Color(0xfbf6ff) } },
+  const bm = new THREE.ShaderMaterial({ uniforms: { uTime: U.uTime, uEnergy: U.uEnergy, uFlash: U.uFlash ?? { value: 0 }, uSeen: { value: 1 }, uDeep: { value: new THREE.Color(0x4512b0) }, uCore: { value: new THREE.Color(0xa87cff) }, uEdge: { value: new THREE.Color(0xfbf6ff) } },
     vertexShader: BLADE_VS, fragmentShader: BLADE_FS, transparent: true, premultipliedAlpha: true, depthWrite: false, side: THREE.DoubleSide });
   const blade = new THREE.Mesh(bg, bm); blade.renderOrder = 2; root.add(blade); own.push(bg, bm);
   // its aura: a soft violet glow round the blade's line, seen from any side (its share grows with his level)
@@ -289,7 +289,7 @@ export function spiritBlade(U: { uTime: THREE.IUniform; uEnergy: THREE.IUniform;
   const pommel = new THREE.Mesh(pc, pm); root.add(pommel);
   for (const m of [tsuba, ...root.children.filter((o) => o !== blade && o !== hr.mesh)]) (m as THREE.Mesh).renderOrder = -2; // (drawn before his body: seen through his fingers)
   own.push(ts, hb, fu, tk, ka, pc, gold, faceM, face, wrap, wm, pf, pm);
-  return { root, halo, pommel, dispose: () => own.forEach((o) => o.dispose()) };
+  return { root, blade, halo, pommel, dispose: () => own.forEach((o) => o.dispose()) };
 }
 
 /** The floor marks under a spirit (GPT: both — a ripple alone floats, a shadow alone is physical again): a small soft

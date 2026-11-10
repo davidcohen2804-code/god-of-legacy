@@ -199,6 +199,17 @@ export class Spectral {
       const b = this.blade = spiritBlade(this.bladeU);
       P.swapArm('katana', b.root, 'spirit-blade', 1);
       this.tasselMake(); this.streakMake();
+      // (facing left his sword arm is the far one: where his own see-through body stands in front of the blade and its
+      // streak, a dimmer copy of each is drawn — the cut still reads through the spirit; only while the blade is behind him)
+      const xm = (b.blade.material as THREE.ShaderMaterial).clone();
+      Object.assign(xm.uniforms, { uTime: this.bladeU.uTime, uEnergy: this.bladeU.uEnergy, uFlash: this.bladeU.uFlash, uSeen: { value: 0.5 } });
+      xm.depthFunc = THREE.GreaterDepth; this.own.push(xm);
+      const bx = this.bladeX = new THREE.Mesh(b.blade.geometry, xm); bx.renderOrder = 2.5; bx.visible = false; b.blade.add(bx);
+      if (this.streak) {
+        const sm = ribbonMat(0xe6d8ff, 0.0, 0.016, 1.6, 0.9); sm.depthFunc = THREE.GreaterDepth; this.own.push(sm);
+        const sx = new THREE.Mesh(this.streak.r.mesh.geometry, sm); sx.renderOrder = 3.5; sx.frustumCulled = false; sx.visible = false; P.scene.add(sx);
+        this.streakX = { mesh: sx, mat: sm };
+      }
     }
     if (o.ground) { this.floor = floorMarks(P.scene, this.U.uTime); this.own.push(this.floor); }
     this.eyesMake(mask);
@@ -269,6 +280,9 @@ export class Spectral {
     const a = this.aura = new THREE.Sprite(m); a.renderOrder = -0.5; a.frustumCulled = false; a.visible = false; this.parts.scene.add(a);
   }
   private aura: THREE.Sprite | null = null;
+  private bladeX: THREE.Mesh | null = null;
+  private streakX: { mesh: THREE.Mesh; mat: THREE.ShaderMaterial } | null = null;
+  private behind = false;
 
   private tasselMake(): void {
     const mat = ribbonMat(0xc8102e, 0.95, 0.007, 1.2); this.own.push(mat);
@@ -294,6 +308,13 @@ export class Spectral {
     const h = r.getDrawingBufferSize(this.S2).y, px = ((1.3 * this.parts.root.scale.y) / (2 * d * Math.tan((cam.fov * Math.PI) / 360))) * h * cam.zoom;
     const t = Math.max(0, Math.min(1, (FAR_PX[1] - px) / (FAR_PX[1] - FAR_PX[0]))), far = this.U.uFar.value = t * t * (3 - 2 * t);
     for (const e of this.eyes) e.scale.setScalar(this.eyeS * (1 + 0.9 * far)); // (both eyes still read beneath the bangs at the game's camera)
+    // the blade behind his body (seen from this camera): its dimmer copies on
+    const pel = this.parts.bones.get('pelvis'), bl = this.blade;
+    if (pel && bl) {
+      const dB = bl.root.getWorldPosition(this.W2).distanceTo(this.V), dP = pel.getWorldPosition(this.W2).distanceTo(this.V);
+      this.behind = dB > dP + 0.01;
+      if (this.bladeX) this.bladeX.visible = this.behind;
+    }
     // the aura: behind his chest, a little away from the eye (Low: none — the extras go first)
     const au = this.aura, chest = this.parts.bones.get('spine_03'), preset = Math.round(this.o.preset?.() ?? 0), P = this.parts;
     if (au && chest) {
@@ -335,10 +356,12 @@ export class Spectral {
       H.push({ t: this.t, p: tip.clone() }); while (H.length > 2 && H[1].t < this.t - life) H.shift();
       const on = shown && fl > 0.05 && H.length > 2;
       sk.r.mesh.visible = on;
+      if (this.streakX) this.streakX.mesh.visible = on && this.behind;
       if (on) {
         for (let j = 0; j < sk.pts.length; j++) { const f = (j / (sk.pts.length - 1)) * (H.length - 1), i = Math.floor(f), w = f - i, a = H[H.length - 1 - i].p, b = H[Math.max(0, H.length - 2 - i)].p; sk.pts[j].copy(a).lerp(b, w); }
         const far = this.U.uFar.value as number; // (small on the screen: wider and brighter, so the cut reads at the game's camera)
         sk.mat.uniforms.uAlpha.value = (0.55 + 0.25 * far) * fl; sk.mat.uniforms.uWidth.value = (0.016 * (1 + 1.4 * far) * k) / 0.72;
+        if (this.streakX) { this.streakX.mat.uniforms.uAlpha.value = sk.mat.uniforms.uAlpha.value * 0.55; this.streakX.mat.uniforms.uWidth.value = sk.mat.uniforms.uWidth.value; }
         sk.r.set(sk.pts);
       }
     }
@@ -373,7 +396,7 @@ export class Spectral {
     this.pre?.removeFromParent(); this.blade?.dispose();
     this.tassel?.r.mesh.removeFromParent(); this.tassel?.bead.removeFromParent(); this.streak?.r.mesh.removeFromParent();
     for (const e of this.eyes) e.removeFromParent();
-    this.aura?.removeFromParent();
+    this.aura?.removeFromParent(); this.streakX?.mesh.removeFromParent();
     for (const o of this.own) o.dispose();
   }
 }
