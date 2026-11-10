@@ -3,7 +3,10 @@
 // look point and the lead ahead of him), the spirit body standing in it drawn over the place as the world draws its
 // hero (its own layer, the place's sun and sky light mirrored, a soft fill from the camera's side). URL: area (a map
 // id), frac (the hero's share of the screen's height) or dist (units), face (r / l), move (idle, walk, run, slash),
-// x (px along the map), noglow, pitch (degrees); form&lv=…&preset=… (the spirit form). The game itself is untouched.
+// x (px along the map), noglow, pitch (degrees); form&lv=…&preset=… (the spirit form); for frame-exact pictures (the
+// rig's proof sheet): at (ms: the moves stepped to that moment, then held), hy (his turn, degrees: 90 his side to the
+// camera), skill / stage (the cast in move=slash), vz (the rise in move=air), clip / clipt (any move of the library at
+// that time), yaw (the camera turned round him, degrees). The game itself is untouched.
 import * as THREE from 'three';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
@@ -55,18 +58,26 @@ export async function startSpiritLab(): Promise<void> {
     const body = (h as unknown as { body: THREE.SkinnedMesh | null }).body;
     if (body) body.material = new THREE.MeshStandardMaterial({ color: 0xb4b0bc, roughness: 0.8, metalness: 0 });
   } else if (Q.has('form')) makeSpiritForm(h, { level: Number(Q.get('lv') ?? 100), preset: () => Number(Q.get('preset') ?? 0), ground: () => room.groundY(h.root.position.x, h.root.position.z) }); // (the spirit form: &form&lv=1…100&preset=0…2)
-  else if (!Q.has('plain') && !Q.has('addons')) makeSpiritFinish(h);
+  const finish = !Q.has('neutral') && !Q.has('form') && !Q.has('plain') && !Q.has('addons') ? makeSpiritFinish(h) : null;
   const spirit = Q.has('addons') ? makeSpirit(h) : null; // (gate 1's dressed Beginner: &body=beginner_m.glb&addons)
   if (spirit && Q.has('bare')) for (const s of (spirit as unknown as { strands: { mesh: THREE.Mesh }[] }).strands) s.mesh.removeFromParent(); // (the body alone: its own painting)
   if (spirit && Q.has('noline')) (spirit as unknown as { outline: THREE.Object3D }).outline.removeFromParent();
   const face = Q.get('face') === 'l' ? -1 : 1, move = Q.get('move') ?? 'idle';
   const hx = x, hy = y;
   let t = 0, last = performance.now(), dist = Number(Q.get('dist') ?? 9);
+  const at = Q.has('at') ? Number(Q.get('at')) : null; // (frame-exact: stepped to `at` ms, then held)
+  if (at !== null && finish) finish.manual = true;
+  (window as unknown as { __finish: unknown }).__finish = finish; // (for the checks)
+  if (Q.has('nosec') && finish) { finish.manual = true; (finish as unknown as { secondary: null }).secondary = null; } // (the extra bones left at rest: the body alone)
+  let held = false;
   const wantFrac = Q.has('frac') ? Number(Q.get('frac')) : null;
-  const lead = 90 * face;
+  const lead = Q.has('lead') ? Number(Q.get('lead')) : 90 * face; // (&lead: the look point ahead of him, px)
   const place = () => {
-    const look = new THREE.Vector3((hx + lead) / U, 1.0, (hy / U) * DK), p = THREE.MathUtils.degToRad(Number(Q.get('pitch') ?? 17)); // (&pitch: the camera's tilt, for the map pass)
-    cam.position.set(look.x, look.y + Math.sin(p) * dist, look.z + Math.cos(p) * dist); cam.lookAt(look); cam.updateMatrixWorld(); cam.updateProjectionMatrix();
+    const look = new THREE.Vector3((hx + lead) / U, Number(Q.get('ly') ?? 1.0), (hy / U) * DK), p = THREE.MathUtils.degToRad(Number(Q.get('pitch') ?? 17)); // (&pitch: the camera's tilt, for the map pass; &ly: the look point's height)
+    const aimB = Q.get('aim') ? (h as unknown as { bones: Map<string, THREE.Bone> }).bones.get(Q.get('aim')!) : undefined; // (&aim: a bone looked at — a close look at a hand)
+    if (aimB) { aimB.updateWorldMatrix(true, false); aimB.getWorldPosition(look); }
+    const yw = THREE.MathUtils.degToRad(Number(Q.get('yaw') ?? 0)); // (&yaw: the camera turned round him)
+    cam.position.set(look.x + Math.sin(yw) * Math.cos(p) * dist, look.y + Math.sin(p) * dist, look.z + Math.cos(yw) * Math.cos(p) * dist); cam.lookAt(look); cam.updateMatrixWorld(); cam.updateProjectionMatrix();
   };
   const frac = (): number => { // the hero's share of the picture's height: his feet to the top of his head and hair
     const hd = (h as unknown as { bones: Map<string, THREE.Bone> }).bones.get('Head')!; hd.updateWorldMatrix(true, false);
@@ -74,16 +85,28 @@ export async function startSpiritLab(): Promise<void> {
     const feet = h.root.getWorldPosition(new THREE.Vector3());
     return (top.project(cam).y - feet.project(cam).y) / 2;
   };
-  const frame = () => {
-    const now = performance.now(), ms = Math.min(50, now - last); last = now; t += ms;
+  const step = (ms: number) => {
     // what he does
     const run = move === 'run', walk = move === 'walk', slash = move === 'slash';
     const sp = run ? 300 : walk ? 120 : 0;
     const per = 650, el = t % per;
     // (any other body mode as it is: land, air, launched, down, hurt… — the air ones a little above the floor)
     const air = move === 'air' || move === 'launched', mode = slash ? 'skill' : run ? 'run' : walk ? 'walk' : move === 'idle' ? 'idle' : move;
-    h.drive({ x: hx, y: hy, z: room.groundY(hx / U, (hy / U) * DK) * U + (air ? 70 : 0), vx: sp * face + (air ? 120 * face : 0), vy: 0, vz: air ? (move === 'launched' ? 260 : 60) : 0, grounded: !air, face, mode,
-      cast: slash ? { id: 'quick_slash', stage: Math.floor(t / per) % 3, elapsed: el, startup: 120, active: 160, recovery: 300, dash: false, air: false } : null }, ms);
+    const vz = Q.has('vz') ? Number(Q.get('vz')) : air ? (move === 'launched' ? 260 : 60) : 0;
+    const stage = Q.has('stage') ? Number(Q.get('stage')) : Math.floor(t / per) % 3;
+    h.drive({ x: hx, y: hy, z: room.groundY(hx / U, (hy / U) * DK) * U + (air ? 70 : 0), vx: sp * face + (air ? 120 * face : 0), vy: 0, vz, grounded: !air, face, mode,
+      ...(Q.has('hy') ? { yaw: THREE.MathUtils.degToRad(Number(Q.get('hy'))) * face } : {}),
+      cast: slash ? { id: Q.get('skill') ?? 'quick_slash', stage, elapsed: at !== null ? t : el, startup: 120, active: 160, recovery: 300, dash: false, air: false } : null }, ms);
+    if (Q.has('clip')) { h.play(Q.get('clip')!, { fade: 0 }); }
+    if (finish?.manual && ms > 0) finish.secondary?.update(ms / 1000);
+  };
+  const frame = () => {
+    const now = performance.now(); let ms = Math.min(50, now - last); last = now;
+    if (at !== null) {
+      // (frame-exact: the moves stepped in 60ths of a second up to `at`, then held there)
+      if (!held) { while (t < at) { const d = Math.min(1000 / 60, at - t); t += d; step(d); } held = true; }
+      ms = 0;
+    } else { t += ms; step(ms); }
     place();
     if (wantFrac !== null) { for (let i = 0; i < 6; i++) { const f = frac(); dist *= f / wantFrac; place(); } }
     room.update(ms, t / 1000, 0);
@@ -95,7 +118,7 @@ export async function startSpiritLab(): Promise<void> {
     renderer.autoClear = true; composer.render();
     renderer.autoClear = false; renderer.clearDepth(); renderer.render(sc, cam);
     renderer.clearDepth(); renderer.render(front3, cam);
-    (window as unknown as { __lab: unknown }).__lab = { frac: frac(), dist, t, scene3, front3 }; // (the place's scenes: the map checks — tools/spirits/zfight.cjs)
+    (window as unknown as { __lab: unknown }).__lab = { frac: frac(), dist, t, scene3, front3, held }; // (the place's scenes: the map checks — tools/spirits/zfight.cjs; held: a frame-exact picture is ready)
   };
   renderer.setAnimationLoop(frame);
 }

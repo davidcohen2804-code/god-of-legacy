@@ -7,6 +7,7 @@
 // shoulder guards and the waist and neck bands fixed to their bones; the katana's blade lit from the guard. Every move
 // and skill stays the game's own. Hero3D is untouched (its parts are reached as they are).
 import * as THREE from 'three';
+import { makeSecondary, type Secondary } from './Secondary';
 import type { Hero3D } from '../arena3d/Hero3D';
 import { SPIRITS } from './flag';
 
@@ -440,8 +441,13 @@ export class SpiritBody {
 export class SpiritFinish {
   private time = { value: 0 };
   private last = performance.now();
+  /** The new Samurai's secondary motion (his ponytail, his skirt's panels, his sash's tails: Secondary.ts) — on a body
+   *  that has their bones; `manual`: stepped by its owner (the bench's frame-exact pictures) instead of each picture. */
+  readonly secondary: Secondary | null;
+  manual = false;
   constructor(hero: Hero3D, L: SpiritLook = SPECTRAL_SAMURAI) {
     const P = hero as unknown as Parts;
+    this.secondary = makeSecondary(P.bones, P.body?.skeleton);
     const body = P.body;
     if (body) {
       const old = body.material as THREE.MeshStandardMaterial;
@@ -466,7 +472,7 @@ export class SpiritFinish {
     }
     for (const [w, g] of P.weapons) if (w === 'katana') bladeGlow(g, L, this.time);
     const prev = P.scene.onBeforeRender;
-    P.scene.onBeforeRender = (r, s, c, g2, m2, gr) => { const now = performance.now(); this.time.value += Math.min(0.05, (now - this.last) / 1000); this.last = now; prev?.call(P.scene, r, s, c, g2, m2, gr); };
+    P.scene.onBeforeRender = (r, s, c, g2, m2, gr) => { const now = performance.now(); this.time.value += Math.min(0.05, (now - this.last) / 1000); this.last = now; if (!this.manual) this.secondary?.update(); prev?.call(P.scene, r, s, c, g2, m2, gr); };
   }
 }
 
