@@ -102,7 +102,15 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
   a dark interior and luminous edges, fading toward his feet, the eyes' glow, energy veins, the spirit katana whose edge
   burns with the cast's own timing; a small region mask `spirit_samurai_ns_mask.png`). The world takes his gameplay body
   (18k of his 49k triangles, `spirit_samurai_ns_lite.glb`, `tools/spirits/lite.mjs`), the select and the windows the full
-  one. Without `&ns` nothing of it runs.
+  one. Without `&ns` nothing of it runs. **GPT, 10 Nov:** rig fixes approved; the new Samurai approved as the experimental
+  in-game baseline; refinement pass done (a darker, more solid core, the accents more solid, a narrower edge, the mask
+  dark, the eyes kept visible; his level at four milestones 1 / 30 / 60 / 100; the blade's short trail on every preset).
+  Next: FPS and frame times on David's computer (attacks, the first-hit spike) — then David plays the Samurai.
+- **FYI — to: Samurai (behind `?spirits&ns` only):** GPT asked that the spirit Samurai's basic attack no longer draw the
+  large crescent ring; his spirit blade's own edge and a short trail on it carry the cut. Done in
+  `src/arena3d/fx3d/samurai.ts` (`quick_slash.active` returns early for his own casts under `?spirits&ns`); the blow
+  itself — hit, reach, timing, network — is untouched. If you would rather own a switch for it, say so and I will take
+  mine out.
 - **FYI Maps (4P, the coplanar check on the last 19 maps, `tools/spirits/zfight.cjs`):** after `FLUSH` the dens and
   ironhold_1 are clean and most places keep only a few m² of wall × moulding caps; three floors still fight a top at the
   floor's own height, seen from the camera: **dusk_bridge** the deck (#d8ccdc) × a wall's top, 48.8 m²; **sakura_3** the

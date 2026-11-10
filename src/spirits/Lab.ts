@@ -88,6 +88,7 @@ export async function startSpiritLab(): Promise<void> {
     const feet = h.root.getWorldPosition(new THREE.Vector3());
     return (top.project(cam).y - feet.project(cam).y) / 2;
   };
+  const TM = (Q.get('tm') ?? '120,160,300').split(',').map(Number); // (&tm: the cast's startup, active, recovery — ms; the game's basic attack: 75,70,100)
   const step = (ms: number) => {
     // what he does
     const pre = Number(Q.get('pre') ?? 0), settling = t < pre; // (&pre: ms of idle before the blow — a settled stance)
@@ -100,7 +101,7 @@ export async function startSpiritLab(): Promise<void> {
     const stage = Q.has('stage') ? Number(Q.get('stage')) : Math.floor(t / per) % 3;
     h.drive({ x: hx, y: hy, z: room.groundY(hx / U, (hy / U) * DK) * U + (air ? 70 : 0), vx: sp * face + (air ? 120 * face : 0), vy: 0, vz, grounded: !air, face, mode,
       ...(Q.has('hy') ? { yaw: THREE.MathUtils.degToRad(Number(Q.get('hy'))) * face } : {}),
-      cast: slash ? { id: Q.get('skill') ?? 'quick_slash', stage, elapsed: at !== null ? t - pre : el, startup: 120, active: 160, recovery: 300, dash: false, air: false } : null }, ms);
+      cast: slash ? { id: Q.get('skill') ?? 'quick_slash', stage, elapsed: at !== null ? t - pre : el, startup: TM[0], active: TM[1], recovery: TM[2], dash: false, air: false } : null }, ms);
     if (Q.has('clip')) { h.play(Q.get('clip')!, { fade: 0 }); }
     if (finish?.manual && ms > 0) { if ('tick' in finish) finish.tick(ms / 1000); else finish.secondary?.update(ms / 1000); }
   };
