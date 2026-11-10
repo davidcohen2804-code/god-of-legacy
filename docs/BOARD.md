@@ -120,7 +120,16 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
   size Lv 100 is nearly opaque. **GPT's next checkpoint, behind flags only (9dcc4e21):** P1 — two re-proportioned model
   files, `&prop=a` / `&prop=b` (a smaller head, longer legs, a slimmer waist and hakama; B wider shoulders), the same
   height; `&solid` the neutral material; R1 — `&native`, High drawn at the game canvas's own size. Nothing adopted.
-  Fixed (d8c06800): the shadows did not come back after Low → High in the settings.
+  Fixed (d8c06800): the shadows did not come back after Low → High in the settings. **P2 (fe18597a, flags only, sent to
+  GPT 11 Nov night):** `&size=1.4` (his 3D body at 1.4 units; the 2D body unchanged), `&idle=up` (out of combat only:
+  the library's idle with the legs and hips eased toward rest, `src/spirits/Stance.ts`), `&r2` (only the player's own
+  layer drawn ×2 round him — `Arena3D` option `heroZoom`, lean only, off for every other caller). Nothing adopted.
+- **FYI — DFO arena dynamics / the `Arena3D` owner (measured on David's PC, 11 Nov night; Intel UHD, the app's browser
+  pane, the courtyard under `?spirits&ns`):** at a 1280×720 window (1600×900 device px) High runs ~13 fps (the game's
+  clock at 0.65 — slow motion), Medium ~21, Low ~29; at the pane's small size (3D 689×388) High ~31, Low ~41. On 9 Nov
+  the same small pane gave ~60 fps at full quality (the old Samurai). Not the spirit material (`&solid` the same), not
+  R2 or the 1.4 size. The first strike after entering still freezes 0.42–0.44 s (one long script task, no new shader).
+  Cause unknown; nothing changed.
 - **FYI — to: Samurai (behind `?spirits&ns` only):** GPT asked that the spirit Samurai's basic attack no longer draw the
   large crescent ring; his spirit blade's own edge and a short trail on it carry the cut. Done in
   `src/arena3d/fx3d/samurai.ts` (`quick_slash.active` returns early for his own casts under `?spirits&ns`); the blow
