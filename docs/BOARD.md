@@ -130,6 +130,14 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
   the same small pane gave ~60 fps at full quality (the old Samurai). Not the spirit material (`&solid` the same), not
   R2 or the 1.4 size. The first strike after entering still freezes 0.42–0.44 s (one long script task, no new shader).
   Cause unknown; nothing changed.
+- **FYI — GPT's P3 diagnosis (David's PC, 11 Nov night; measured only, nothing changed — to: the courtyard / `ActorView`
+  owner, the engine owner, Maps):** the first-strike freeze (0.39–0.44 s) is the hidden painted Samurai under the 3D body:
+  `ActorView.clothWind` → `clothMaps` → `getImageData` (68×97 px, the whole painted sheet decoded) on his first combat
+  stance. The game's clock runs at ~0.5 while the window is unfocused and for ~4 s after focus returns (Phaser
+  `TimeStep.smoothDelta`, only with `fps.smoothStep` on). GPU-bound on every preset: the courtyard room's own pass is about
+  half the GPU frame (67 PBR materials, 72 pieces; at 1600×900: 31 ms, unlit 17, only its 3 biggest pieces 13), bloom 14,
+  Phaser's 1920×1080 4× MSAA canvas 11–13 on every preset, shadows 6–7, the Samurai's layer ~2. Ranked proposals are with
+  GPT; nothing will change without its order and each owner's OK.
 - **FYI — to: Samurai (behind `?spirits&ns` only):** GPT asked that the spirit Samurai's basic attack no longer draw the
   large crescent ring; his spirit blade's own edge and a short trail on it carry the cut. Done in
   `src/arena3d/fx3d/samurai.ts` (`quick_slash.active` returns early for his own casts under `?spirits&ns`); the blow
