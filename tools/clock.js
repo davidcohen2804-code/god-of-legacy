@@ -30,8 +30,8 @@
           r.unfocused = await seg(s, 3000, W.__run);
           window.dispatchEvent(new Event('focus'));
           r.focus0to2s = await seg(s, 2000, W.__run); r.focus2to5s = await seg(s, 3000, W.__run);
-          // a 5 s pause (the loop paused, as when the tab is hidden), then the first second back
-          const simP = s.simMs; L.pause(); await wait(5000); L.resume(); await new Promise((q) => requestAnimationFrame(q)); await new Promise((q) => requestAnimationFrame(q));
+          // a 5 s pause as a hidden tab (the game told it is hidden, its frames stopped), then back
+          const simP = s.simMs; G.events.emit('hidden'); L.sleep(); await wait(5000); L.wake(); G.events.emit('visible'); await new Promise((q) => requestAnimationFrame(q)); await new Promise((q) => requestAnimationFrame(q));
           r.pauseJumpMs = Math.round(s.simMs - simP);
           r.after0to2s = await seg(s, 2000, W.__run); r.after2to5s = await seg(s, 3000, W.__run);
         }
