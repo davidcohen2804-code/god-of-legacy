@@ -235,8 +235,9 @@ export class Arena3D {
     this.soft = soft;
     if (this.lean && lv0 >= 1) this.scaleBits(h); // (lean, a slow computer known from before: no bloom from the start)
     else this.makeComposer(w, h, soft || lv0 >= 1 ? 0 : 4); // (multisampled: the room's edges stay smooth)
+    this.shadowsOn = this.renderer.shadowMap.enabled;
     if (lv0 >= 2) this.renderer.shadowMap.enabled = false;
-    this.focus = { x: (floor.x0 + floor.x1) / 2, y: (floor.back + floor.front) / 2, z: 0, span: 0 };
+    this.focus ={ x: (floor.x0 + floor.x1) / 2, y: (floor.back + floor.front) / 2, z: 0, span: 0 };
     this.place(true);
     // the two layers: the room behind everything, the railing (front3) over the fighters
     for (const k of ['arena3d-bg', 'arena3d-fg']) if (scene.textures.exists(k)) scene.textures.remove(k);
@@ -345,6 +346,8 @@ export class Arena3D {
   private lastWatchFrame = -1;
   private settleMs = 0;
   private hitOn = true;
+  /** The place's own shadows (its builder's choice): Low turns them off, a higher level chosen after it on again (lean). */
+  private shadowsOn = true;
   private layerPts: THREE.PointLight[][] = [];
   private static readonly LEVEL_KEY = 'gol-a3d-lean-level';
   private static savedLevel(): number { try { const v = Number(localStorage.getItem(Arena3D.LEVEL_KEY)); return Number.isFinite(v) ? Math.max(0, Math.min(2, Math.round(v))) : 0; } catch { return 0; } }
@@ -419,6 +422,7 @@ export class Arena3D {
     if (this.lean && lv >= 1) { this.composer?.dispose(); this.composer = undefined; this.scaleBits(h); } // (lean: bloom off first)
     else this.makeComposer(w, h, lv === 0 && !this.soft ? 4 : 0);
     if (lv >= 2) this.renderer.shadowMap.enabled = false;
+    else if (this.lean && this.shadowsOn && !this.renderer.shadowMap.enabled) { this.renderer.shadowMap.enabled = true; this.renderer.shadowMap.needsUpdate = true; } // (lean: the settings' Graphics can go back up from Low — its shadows with it, drawn again; their programs made below)
     for (const [k, img] of [['arena3d-bg', this.bg], ['arena3d-fg', this.fg], ['arena3d-fx', this.fxImg], ...this.extra.map((l) => [l.key, l.img] as const)] as const) {
       this.scene.textures.remove(k); this.scene.textures.addImage(k, this.bgCanvas as unknown as HTMLImageElement); img.setTexture(k).setDisplaySize(W, H);
     }
