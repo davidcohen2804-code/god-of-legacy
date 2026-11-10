@@ -91,7 +91,14 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
   motion (at 40 fps: ~3 s at 2/3 speed each time the player comes back to the game; an unfocused but visible window,
   always). Proposal, your call (the engine's step is yours): the game config's `fps: { panicMax: 0 }`, and whether a
   visible but unfocused window should keep real time (`game.loop.blur` / `inFocus`). I'll confirm focused play on
-  David's PC.
+  David's PC. **Measured on David's PC (11 Nov night, GPT's P3):** focused at ~29 fps the clock is 1.00; unfocused 0.46–0.51;
+  after focus returns 0.50 for 2 s, then 0.74 for 4 s; on High (~13 fps) 0.65 (below the 20 fps floor). **GPT's P4A asks
+  for your proposed correction (yours to adopt):** an isolated `fps.smoothStep: false` diagnostic compared with a
+  controlled elapsed-time step; the production fix must advance by valid elapsed time while active, never apply a huge
+  delta after a long background pause, say explicitly whether play pauses while unfocused, resume without a slow-motion
+  stretch, keep combat timelines / hits / cooldowns / animation in sync, and bound any catch-up (no unlimited steps);
+  tests at 15, 20, 30 and 60 fps with alt-tab, a 5 s pause, attacks and resuming. I'll run the isolated diagnostic on
+  David's PC (no code change) and post the numbers here.
 - **Stage 2 under GPT's review, behind `?spirits&ghost` only:** the Samurai as a see-through spirit whose light grows
   with his level (`src/spirits/SpiritForm.ts`: the spirit material, the spirit blade with a one-hand hilt, wisps, a
   ripple and a soft contact shadow) and its own way into the world (`src/spirits/SpiritLoading.ts`, up until he is

@@ -2110,6 +2110,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (this.kage?.hidden && this.dead < 0 && !(run && run.skill.id === 'kagemusha')) alpha *= KAGE.shade;
     if (this.unseen && this.dead < 0) alpha = 0.35; // the substitute: gone in ink (others see nothing; you, see-through)
     if (this.simMs < this.body.curseUntil && this.dead < 0) alpha = 0; // Paper Curse: folded into the crane (drawn by the effect) // Kagemusha: hidden among the doubles (you, a shade)
+    v.noCloth = !!this.hero3d && SPIRITS.on && SPIRITS.ns && !SPIRITS.cloth; // (?spirits&ns: his 3D body stands in, the painted one is hidden — no cape wind built for it; &cloth: as before, to compare)
     v.render(ms, pose, k.x + jx, k.y, k.z, k.supportZ, dir, alpha, tint, fill);
     if (this.styleTag) { // the switch's tag-in round her (hit out of the switch before it commits: the new body never arrives)
       if (this.styleTag.pending(this.simMs) && !(run && styleOfSwitch(run.skill.id))) this.styleTag.cancel();

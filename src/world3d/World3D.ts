@@ -9,6 +9,7 @@ import { WORLD3D } from './flag';
 import { MAPS, VIEW } from './maps';
 import { SKY_FLOOR } from './maps/sky';
 import { SPIRITS } from '../spirits/flag';
+import { roomLite } from '../spirits/RoomLite';
 
 /** The world camera: a little higher and further than the arena's (one player walking far), a gentle turn. */
 export const WORLD_CAM: Partial<Cam3D> = { pitch: 17, fov: 34, dist: 9.0, distPerSpan: 0.3, distMax: 13, yawMax: 5, follow: 0.1, aim: 1.0, liftK: 0.4, liftMax: 160 };
@@ -76,7 +77,8 @@ export class World3D {
   constructor(scene: Phaser.Scene, readonly areaId: string) {
     this.floor = areaId === 'sky' ? { ...SKY_FLOOR } : World3D.floorOf(areaId);
     this.focus3 = { x: (this.floor.x0 + this.floor.x1) / 200, z: ((this.floor.back + this.floor.front) / 200) * 1.15 };
-    this.a3d = new Arena3D(scene, this.floor, { build: MAPS[areaId](this.focus3), cam: camOf(areaId), lean: SPIRITS.on && SPIRITS.lean, stencil: SPIRITS.on && SPIRITS.ns, native: SPIRITS.on && SPIRITS.native, heroZoom: SPIRITS.on && SPIRITS.r2 ? 2 : 1 }); // (Legacy of Spirits: the lean picture — GPT step 4P)
+    this.a3d = new Arena3D(scene, this.floor, { build: MAPS[areaId](this.focus3), cam: camOf(areaId), lean: SPIRITS.on && SPIRITS.lean, stencil: SPIRITS.on && SPIRITS.ns, native: SPIRITS.on && SPIRITS.native, heroZoom: SPIRITS.on && SPIRITS.r2 ? 2 : 1,
+      noBloom: SPIRITS.on && SPIRITS.nobloom, autoFast: SPIRITS.on && SPIRITS.autofast, afterBuild: SPIRITS.on && SPIRITS.m1 ? (room, front) => { const r = roomLite(room, front); (window as unknown as { __m1: unknown }).__m1 = r; console.info(`[M1] ${r.swapped} of ${r.pbr} PBR materials lit as Lambert`); } : undefined }); // (Legacy of Spirits: the lean picture — GPT step 4P)
   }
 
   /** The arrival beat: `fromX` where the camera starts (the edge the hero came in by), `ms` how long the glide takes,

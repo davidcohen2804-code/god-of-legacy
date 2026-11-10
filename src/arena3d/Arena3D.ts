@@ -214,10 +214,11 @@ export class Arena3D {
   /** `opts.build`: the place to build (default: the arena's temple courtyard); `opts.cam`: camera settings over the arena's.
    *  The rest — the picture (bloom, shadows, the glow layer), placing the 2D world where this camera sees it, the fighters'
    *  sun shadows and light, the skills' 3D pieces, the blows' answers — is the same for any 3D place. */
-  constructor(private scene: Phaser.Scene, private floor: Floor, opts: { build?: BuildPlace; cam?: Partial<Cam3D>; lean?: boolean; /** a stencil buffer on the canvas (?spirits&ns: the spirit Samurai's blade seen through his own body only) */ stencil?: boolean; /** lean: High drawn at the game canvas's own size (?spirits&native — GPT's sharpness test R1) */ native?: boolean; /** lean: the hero's own layer drawn zoomed onto his part of the picture, the world as it is (?spirits&r2 — GPT's R2) */ heroZoom?: number } = {}) {
+  constructor(private scene: Phaser.Scene, private floor: Floor, opts: { build?: BuildPlace; cam?: Partial<Cam3D>; lean?: boolean; /** a stencil buffer on the canvas (?spirits&ns: the spirit Samurai's blade seen through his own body only) */ stencil?: boolean; /** lean: High drawn at the game canvas's own size (?spirits&native — GPT's sharpness test R1) */ native?: boolean; /** lean: the hero's own layer drawn zoomed onto his part of the picture, the world as it is (?spirits&r2 — GPT's R2) */ heroZoom?: number; /** lean: no bloom on High either (?spirits&nobloom — GPT's P4A) */ noBloom?: boolean; /** lean: Auto steps down after ~1.5 s of slow pictures instead of 5 s (?spirits&autofast — P4A) */ autoFast?: boolean; /** lean: called once the room is built (?spirits&m1: its materials lit more cheaply — P4A) */ afterBuild?: (room: THREE.Scene, front: THREE.Scene) => void } = {}) {
     this.CAM = { ...CAM_ARENA, ...opts.cam }; this.dist = this.CAM.dist; this.buildPlace = opts.build ?? buildRoom;
     const soft = !!(navigator as { webdriver?: boolean }).webdriver; // (test browsers render on the CPU: half size, no shadows)
     this.lean = !!opts.lean && !soft; this.native = this.lean && !!opts.native; this.heroZoom = this.lean ? Math.max(1, opts.heroZoom ?? 1) : 1;
+    this.noBloom = this.lean && !!opts.noBloom; this.autoFast = this.lean && !!opts.autoFast;
     const man = this.lean ? Arena3D.manualLevel() : null; this.manual = man !== null; // (lean: the player's own choice in the settings, else automatic)
     const lv0 = this.lean ? man ?? Arena3D.savedLevel() : 0; this.quality.level = lv0;
     const [w, h] = soft ? [Math.round(scene.scale.width * 0.4), Math.round(scene.scale.height * 0.4)] : this.sizeFor(lv0);
@@ -231,9 +232,10 @@ export class Arena3D {
     this.camera = new THREE.PerspectiveCamera(this.CAM.fov, w / h, 0.5, 400);
     if (this.lean) try { performance.mark('gol:room-build'); } catch { /* (no marks) */ }
     this.build(soft);
+    if (this.lean && opts.afterBuild) opts.afterBuild(this.scene3, this.front3);
     if (this.lean) try { performance.mark('gol:room-built'); } catch { /* (no marks) */ }
     this.soft = soft;
-    if (this.lean && lv0 >= 1) this.scaleBits(h); // (lean, a slow computer known from before: no bloom from the start)
+    if (this.lean && (lv0 >= 1 || this.noBloom)) this.scaleBits(h); // (lean, a slow computer known from before: no bloom from the start)
     else this.makeComposer(w, h, soft || lv0 >= 1 ? 0 : 4); // (multisampled: the room's edges stay smooth)
     this.shadowsOn = this.renderer.shadowMap.enabled;
     if (lv0 >= 2) this.renderer.shadowMap.enabled = false;
@@ -348,6 +350,8 @@ export class Arena3D {
    *  him (the camera's view offset: the same canvas, his pixels denser), then shown back at that part's place and size;
    *  the room and every other layer as they are. 1: off. */
   private heroZoom = 1;
+  /** Lean, GPT's P4A switches: no bloom on High either (`noBloom`); Auto stepping down after ~1.5 s of slow pictures. */
+  private noBloom = false; private autoFast = false;
   /** Lean: the quality the player chose in the settings (no automatic step-down). */
   private manual = false;
   private lastWatchFrame = -1;
@@ -415,9 +419,9 @@ export class Arena3D {
       ms = L.rawDelta;
     }
     if (this.soft || Q.level >= 2 || ms <= 0 || ms > 250) return;
-    if (this.lean && (this.settleMs += ms) < 3500) return; // (lean: not the entry's first seconds — the shaders compiling, the arrival — or a fast computer would be stepped down for good)
+    if (this.lean && (this.settleMs += ms) < (this.autoFast ? 1500 : 3500)) return; // (lean: not the entry's first seconds — the shaders compiling, the arrival — or a fast computer would be stepped down for good)
     Q.ema += (ms - Q.ema) * 0.04; Q.t += ms;
-    if (Q.t < (this.lean ? 5000 : 4000) || Q.ema <= (this.lean ? 18.5 : 21.5)) return; // (lean: only ever down within a visit, after 5 s of slow pictures — no switching back and forth)
+    if (Q.t < (this.lean ? (this.autoFast ? 1500 : 5000) : 4000) || Q.ema <= (this.lean ? 18.5 : 21.5)) return; // (lean: only ever down within a visit, after 5 s of slow pictures — no switching back and forth)
     this.setLevel(Q.level + 1, true);
   }
   /** A quality level: the picture's size, its multisampling and bloom, the shadows (`lower`: a slower step down — lean
@@ -426,7 +430,7 @@ export class Arena3D {
     const Q = this.quality; Q.level = lv; Q.t = 0; Q.ema = 16; this.settleMs = 0; // (each level its own settling time: its programs compile first)
     const W = this.scene.scale.width, H = this.scene.scale.height, [w, h] = this.sizeFor(lv);
     this.renderer.setSize(w, h, false);
-    if (this.lean && lv >= 1) { this.composer?.dispose(); this.composer = undefined; this.scaleBits(h); } // (lean: bloom off first)
+    if (this.lean && (lv >= 1 || this.noBloom)) { this.composer?.dispose(); this.composer = undefined; this.scaleBits(h); } // (lean: bloom off first)
     else this.makeComposer(w, h, lv === 0 && !this.soft ? 4 : 0);
     if (lv >= 2) this.renderer.shadowMap.enabled = false;
     else if (this.lean && this.shadowsOn && !this.renderer.shadowMap.enabled) { this.renderer.shadowMap.enabled = true; this.renderer.shadowMap.needsUpdate = true; } // (lean: the settings' Graphics can go back up from Low — its shadows with it, drawn again; their programs made below)

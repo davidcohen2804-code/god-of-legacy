@@ -342,6 +342,9 @@ export class ActorView {
   // ---- ready heroes standing still: the cape / robe behind the body sways (a displacement map built from the drawing:
   // zero on the body and the head, growing toward the back edge and the hem), the body itself never moves.
   private cloth?: { a: Phaser.FX.Displacement; b: Phaser.FX.Displacement; key: string; t: number; amt: number };
+  /** Set by the scene while a 3D body stands in for this hidden painted one (?spirits&ns): its cape's wind is not built
+   *  (the first combat stance's wind maps cost a 0.4 s freeze on a weak PC — GPT's P4A). Off: the painted path as always. */
+  noCloth = false;
   private clothWind(ms: number, pose: PoseFrame): void {
     const p = this.sprite;
     const want = !!pose.cloth && !!p.preFX && typeof pose.frame === 'string';
@@ -416,7 +419,7 @@ export class ActorView {
     this.lastAct = act;
     if (ActorView.depthScale) pose = { ...pose, scale: pose.scale * ActorView.depthScale(y) };
     applyPose(p, pose, this.weapon);
-    this.clothWind(ms, pose);
+    if (!this.noCloth) this.clothWind(ms, pose);
     const depth = actorDepth(x, y, z);
     p.setPosition(x, y - z).setDepth(depth).setAlpha(alpha).setVisible(this.visible);
     if (this.blendGhost?.visible) { // the outgoing pose follows the body and fades within ~0.12 s

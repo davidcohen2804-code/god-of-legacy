@@ -21,6 +21,7 @@ import ASSET_HASH from 'virtual:asset-hashes';
 import WEBP_TWINS from 'virtual:webp-twins';
 import { KeyBlackPipeline } from './fx/keyBlack';
 import { ensureSpiritTheme } from './spirits/theme';
+import { SPIRITS } from './spirits/flag';
 
 ErrorCapture.installGlobal();
 ensureSpiritTheme(); // (Legacy of Spirits, behind ?spirits: the interface in the new colours)
@@ -92,6 +93,7 @@ loadFonts().then(() => {
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
     scene: [BootScene, MainMenuScene, CharacterSelectScene, CharacterCreateScene, PvpSelectScene, LegacyCourtyardScene, ChibiCreateScene], // (ChibiCreateScene: ?chibi only)
     pipeline: { KeyBlack: KeyBlackPipeline } as unknown as Phaser.Types.Core.PipelineConfig, // (painted-on-black effects that keep their colours: src/fx/keyBlack.ts)
+    ...(SPIRITS.on && SPIRITS.nomsaa ? { render: { antialiasGL: false } } : {}), // (?spirits&nomsaa, GPT's P4A: the 2D canvas without multisampling, measured against it)
   });
 
   // the letterbox around the game: a tiny copy of the frame (4 times a second), blurred and dimmed by its CSS (index.html)

@@ -36,7 +36,19 @@ export const SPIRITS = { on: Q.has('spirits'), lean: Q.get('lean') !== '0', lite
   size: Q.has('size') ? Math.max(1, Math.min(2, Number(Q.get('size')) || 1.3)) : null,
   /** `&idle=up`: GPT's P2 — out of combat he stands upright: the library's own idle with its legs and hips eased toward
    *  his rest pose (Stance.ts); the sword stance is kept for the fight (its guard, its skills). */
-  idle: Q.get('idle') === 'up' ? 'up' as const : null };
+  idle: Q.get('idle') === 'up' ? 'up' as const : null,
+  // GPT's P4A (11 Nov), the performance recovery — each its own switch, measured before and after:
+  /** `&cloth`: the hidden painted body's cape wind built again under the 3D one (as before the fix: its first combat
+   *  stance froze the game 0.4 s on a weak PC) — to compare. */
+  cloth: Q.has('cloth'),
+  /** `&nomsaa`: the game's 2D canvas without multisampling (its 1920×1080 picture, whatever the window). */
+  nomsaa: Q.has('nomsaa'),
+  /** `&nobloom`: the lean 3D picture without its bloom on High too (Medium and Low have none). */
+  nobloom: Q.has('nobloom'),
+  /** `&autofast`: Auto graphics steps down after ~1.5 s of slow pictures (and 1.5 s of settling) instead of 5 s (+3.5 s). */
+  autofast: Q.has('autofast'),
+  /** `&m1`: experiment M1 — the room's rough, non-metal pieces lit as Lambert instead of PBR (RoomLite.ts). */
+  m1: Q.has('m1') };
 
 /** The Spectral Samurai's own modelled body (gate 1b, in assets/hero3d): GPT's four drawings → the shape → the drawings
  *  baked on → the Beginner's 65-bone skeleton fitted in (tools/hero3d, src/spirit_samurai). */
