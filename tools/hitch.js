@@ -20,10 +20,13 @@
         const p0 = progs().length, tx0 = R.info.memory.textures, g0 = R.info.memory.geometries, t = performance.now();
         try { return r0.call(this, s, c); } finally {
           const d = performance.now() - t;
-          if (d > (o.slowMs ?? 25)) { const ps = progs(); out.slowDraws.push({ at: Math.round(performance.now() - out.t0), ms: Math.round(d), pass: lab(s), newPrograms: ps.slice(p0).map((p) => `${p.name} ${String(p.cacheKey || '').slice(0, 60)}`), newTextures: R.info.memory.textures - tx0, newGeometries: R.info.memory.geometries - g0 }); }
+          if (d > (o.slowMs ?? 25)) { const ps = progs(); out.slowDraws.push({ at: Math.round(performance.now() - out.t0), ms: Math.round(d), pass: lab(s), newPrograms: ps.slice(p0).map((p) => `${p.name} ${String(p.cacheKey || '').slice(0, 60)}`), newTextures: R.info.memory.textures - tx0, newGeometries: R.info.memory.geometries - g0, newObjects: fresh(s) }); }
         }
       };
       out.programs0 = progs().length;
+      const seen = new Set(), scenes = [a.scene3, a.front3, a.glow3, ...(a.extra || []).map((l) => l.scene)].filter(Boolean);
+      for (const sc3 of scenes) sc3.traverse((x) => { if (x.isMesh || x.isLine || x.isPoints || x.isSprite) seen.add(x.uuid); });
+      const fresh = (s) => { const r = []; s.traverse((x) => { if ((x.isMesh || x.isLine || x.isPoints || x.isSprite) && x.visible && !seen.has(x.uuid) && r.length < 8) { const m = Array.isArray(x.material) ? x.material[0] : x.material; r.push(`${x.name || x.type} | ${m && m.type}${m && m.name ? ' ' + m.name : ''} | ${x.geometry && x.geometry.type} ${x.geometry && x.geometry.attributes && x.geometry.attributes.position ? x.geometry.attributes.position.count : ''} | parent ${x.parent && (x.parent.name || x.parent.type)}${m && m.defines ? ' | defines ' + Object.keys(m.defines).join(',') : ''}${m && (m.vertexColors || m.alphaMap || m.map) ? ' | ' + [m.vertexColors && 'vertexColors', m.map && 'map', m.alphaMap && 'alphaMap'].filter(Boolean).join(',') : ''}`); } }); return r; };
       // the first strike, then repeated basic attacks
       const n0 = W.__loaf.length; out.t0 = performance.now(); on = true; W.__T.frames = []; W.__T.on = true;
       await W.__tap('Space', 90); await wait(2200);
