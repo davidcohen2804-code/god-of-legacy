@@ -214,10 +214,10 @@ export class Arena3D {
   /** `opts.build`: the place to build (default: the arena's temple courtyard); `opts.cam`: camera settings over the arena's.
    *  The rest — the picture (bloom, shadows, the glow layer), placing the 2D world where this camera sees it, the fighters'
    *  sun shadows and light, the skills' 3D pieces, the blows' answers — is the same for any 3D place. */
-  constructor(private scene: Phaser.Scene, private floor: Floor, opts: { build?: BuildPlace; cam?: Partial<Cam3D>; lean?: boolean; /** a stencil buffer on the canvas (?spirits&ns: the spirit Samurai's blade seen through his own body only) */ stencil?: boolean } = {}) {
+  constructor(private scene: Phaser.Scene, private floor: Floor, opts: { build?: BuildPlace; cam?: Partial<Cam3D>; lean?: boolean; /** a stencil buffer on the canvas (?spirits&ns: the spirit Samurai's blade seen through his own body only) */ stencil?: boolean; /** lean: High drawn at the game canvas's own size (?spirits&native — GPT's sharpness test R1) */ native?: boolean } = {}) {
     this.CAM = { ...CAM_ARENA, ...opts.cam }; this.dist = this.CAM.dist; this.buildPlace = opts.build ?? buildRoom;
     const soft = !!(navigator as { webdriver?: boolean }).webdriver; // (test browsers render on the CPU: half size, no shadows)
-    this.lean = !!opts.lean && !soft;
+    this.lean = !!opts.lean && !soft; this.native = this.lean && !!opts.native;
     const man = this.lean ? Arena3D.manualLevel() : null; this.manual = man !== null; // (lean: the player's own choice in the settings, else automatic)
     const lv0 = this.lean ? man ?? Arena3D.savedLevel() : 0; this.quality.level = lv0;
     const [w, h] = soft ? [Math.round(scene.scale.width * 0.4), Math.round(scene.scale.height * 0.4)] : this.sizeFor(lv0);
@@ -341,6 +341,9 @@ export class Arena3D {
    *  surface, even dark), the picture never larger than the window shows it, and a slow computer going lighter sooner
    *  (a target of 60 fps instead of 45), bloom off first, then remembered for the next visit. The regular game: off. */
   private lean = false;
+  /** Lean, `native`: High's picture at the game canvas's own size (the game copies it 1:1; the browser's own fit of the
+   *  whole canvas is then the only resize) — GPT's R1 test, against the usual 85 % or the window's pixels. */
+  private native = false;
   /** Lean: the quality the player chose in the settings (no automatic step-down). */
   private manual = false;
   private lastWatchFrame = -1;
@@ -359,7 +362,7 @@ export class Arena3D {
     const W = this.scene.scale.width, H = this.scene.scale.height, res = lv === 0 ? RES : lv === 1 ? 0.7 : 0.58;
     let k = 1; // (lean: the share of the game's size the window really shows, in device pixels — the picture is never larger)
     if (this.lean) try { const r = this.scene.game.canvas.getBoundingClientRect(), d = (r.width * (window.devicePixelRatio || 1)) / W; if (d > 0.05) k = Math.min(1, d); } catch { k = 1; }
-    const f = Math.min(res, k);
+    const f = this.native && lv === 0 ? 1 : Math.min(res, k);
     return [Math.max(64, Math.round(W * f)), Math.max(36, Math.round(H * f))];
   }
   private setHitLights(on: boolean): void {

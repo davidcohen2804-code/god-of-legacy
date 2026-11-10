@@ -50,7 +50,7 @@ export class SpiritPreview {
   /** The Spectral Samurai, the spirit blade in hand, `w`×`h` design px, his light at `level`'s tier. */
   static async create(scene: Phaser.Scene, o: { w?: number; h?: number; key?: string; level?: number } = {}): Promise<SpiritPreview> {
     const hero = await Hero3D.load({ female: false, body: SPIRITS.ns ? SPIRIT_BODY_NS : SPIRIT_BODY });
-    if (SPIRITS.ns) await (await import('./Spectral')).makeSpectral(hero, { level: SPIRITS.lv ?? o.level ?? 1, lit: 0.3, ground: () => 0 }); // (&ns: the new Spectral Samurai)
+    if (SPIRITS.ns && !SPIRITS.solid) await (await import('./Spectral')).makeSpectral(hero, { level: SPIRITS.lv ?? o.level ?? 1, lit: 0.3, ground: () => 0 }); // (&ns: the new Spectral Samurai)
     else if (SPIRITS.ghost) makeSpiritForm(hero, { level: SPIRITS.lv ?? o.level ?? 1, lit: 0.1, ground: () => 0 }); else makeSpiritFinish(hero);
     hero.flatToView = true; // (the blade's flat to the viewer, not its edge)
     hero.setWeapon('katana');

@@ -30,4 +30,10 @@ GPT's art direction, 10 Nov; David: "it must look and feel exactly like this cha
    lags, restrained, kept off the back and the scarf; the panels pushed by their thighs and draping back; the sash tails
    swinging); `src/spirits/Spectral.ts` draws him as a spirit (behind `?spirits&ns`).
 
+10. **Proportion variants** (GPT's experiment P1, behind `?spirits&ns&prop=a|b`): `node reprop.mjs IN.glb OUT_raw.glb
+    '{"head":0.8,"legs":0.09,"shoulders":0.04,"waist":0.06,"hakama":0.08}'` (his rest pose re-set: the legs longer from
+    the soles up, the head smaller about its joint with the ponytail moved and shrunk less, the arms out, the waist and
+    the hakama slimmed; every vertex carried by its own bones, the binds made again) → `node pack.mjs OUT_raw.glb
+    OUT.glb` (quantized and compressed as the game reads it, the texture untouched) → `lite.mjs` as in step 7.
+
 `build_ns.sh` runs 3–6 end to end (its paths are the working folders it was made in).

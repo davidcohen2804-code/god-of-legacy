@@ -4425,7 +4425,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (spirit) { // (the spirit's finish, the camera nearer; &ghost: the spirit form — David and GPT, 9 Nov evening: a see-through spirit whose light grows with his level)
       const sp = await import('../spirits/SpiritBody');
       this.spiritForm?.dispose(); this.spiritForm = undefined;
-      if (SPIRITS.ns) this.spiritForm = await (await import('../spirits/Spectral')).makeSpectral(h, { level: SPIRITS.lv ?? this.character?.level ?? 1, preset: () => a3.qualityLevel, ground: () => (this.kin.supportZ ?? 0) / 100 }); // (&ns: the new Spectral Samurai — GPT 10 Nov)
+      if (SPIRITS.ns && SPIRITS.solid) { /* (&solid: his body as drawn — GPT's neutral comparison, P1) */ }
+      else if (SPIRITS.ns) this.spiritForm = await (await import('../spirits/Spectral')).makeSpectral(h, { level: SPIRITS.lv ?? this.character?.level ?? 1, preset: () => a3.qualityLevel, ground: () => (this.kin.supportZ ?? 0) / 100 }); // (&ns: the new Spectral Samurai — GPT 10 Nov)
       else if (SPIRITS.ghost) this.spiritForm = (await import('../spirits/SpiritForm')).makeSpiritForm(h, { level: SPIRITS.lv ?? this.character?.level ?? 1, preset: () => a3.qualityLevel, ground: () => (this.kin.supportZ ?? 0) / 100 });
       else sp.makeSpiritFinish(h);
       sp.frameSpirit(a3);
