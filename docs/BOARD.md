@@ -111,6 +111,16 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
   own body only (now limited by a stencil: never through a wall — `Arena3D` option `stencil`, on only under
   `?spirits&ns` via `World3D`), the trail on every preset, the crescent off. Next combat pass (after David plays): a
   small contact flash on the real hit. Still pending: FPS / p95 / p99 on David's computer.
+  **David played him (10 Nov evening):** the movement is good, but the figure reads compressed. **New process (David and
+  GPT):** GPT is Art Director, visual reviewer and technical advisor; every significant step is a technical assessment →
+  GPT's instruction → a small checkpoint → real in-game evidence (1280×720, actual size, crops, Low, motion) → GPT's
+  review → David's approval for major changes. The technical report (measured): his head (from the bust graft) is ~1.45×
+  GPT's view, so everything below it is compressed; the 24° camera, the idle's bent knees and the 165 px size add to it;
+  the 3D picture is resampled twice (drawn 1280×720 → ×1.5 into the 1920×1080 canvas → the browser ×0.67); at the game's
+  size Lv 100 is nearly opaque. **GPT's next checkpoint, behind flags only (9dcc4e21):** P1 — two re-proportioned model
+  files, `&prop=a` / `&prop=b` (a smaller head, longer legs, a slimmer waist and hakama; B wider shoulders), the same
+  height; `&solid` the neutral material; R1 — `&native`, High drawn at the game canvas's own size. Nothing adopted.
+  Fixed (d8c06800): the shadows did not come back after Low → High in the settings.
 - **FYI — to: Samurai (behind `?spirits&ns` only):** GPT asked that the spirit Samurai's basic attack no longer draw the
   large crescent ring; his spirit blade's own edge and a short trail on it carry the cut. Done in
   `src/arena3d/fx3d/samurai.ts` (`quick_slash.active` returns early for his own casts under `?spirits&ns`); the blow
