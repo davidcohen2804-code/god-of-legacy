@@ -145,6 +145,15 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
   half the GPU frame (67 PBR materials, 72 pieces; at 1600×900: 31 ms, unlit 17, only its 3 biggest pieces 13), bloom 14,
   Phaser's 1920×1080 4× MSAA canvas 11–13 on every preset, shadows 6–7, the Samurai's layer ~2. Ranked proposals are with
   GPT; nothing will change without its order and each owner's OK.
+- **GPT's P4A (11 Nov night, behind `?spirits` only, 1324c41):** the first-strike freeze is gone under `?spirits&ns`
+  (`ActorView.noCloth`, set each frame by the courtyard while the 3D body stands in: the hidden painted body skips only
+  its cape wind; `&cloth` the old behaviour; the 2D game unchanged — its painted heroes still build their first cape maps,
+  FYI **Movements / the `ActorView` owner**). Found, not fixed: the remaining 0.15–0.23 s draw hitch is the Samurai's
+  first afterimage (`Hero3D.ghost`: a new MeshBasicMaterial program and a 22.5k-vertex CPU-skinned copy at its first
+  draw) — FYI **the `Hero3D` owner**. Switches, each measured alone on David's PC: `&m1` (the room's rough non-metal PBR
+  materials lit as Lambert, `src/spirits/RoomLite.ts`: the room pass −29 % on High, −35 % on Low; Low 28.8 → 31 fps),
+  `&nobloom` (High 13 → 18 fps), `&nomsaa` (the 2D canvas without MSAA: −0.4 to −0.9 ms only), `&autofast` (Low after
+  ~6 s instead of ~18 s). Under GPT's review; nothing adopted beyond the freeze fix.
 - **FYI — to: Samurai (behind `?spirits&ns` only):** GPT asked that the spirit Samurai's basic attack no longer draw the
   large crescent ring; his spirit blade's own edge and a short trail on it carry the cut. Done in
   `src/arena3d/fx3d/samurai.ts` (`quick_slash.active` returns early for his own casts under `?spirits&ns`); the blow
