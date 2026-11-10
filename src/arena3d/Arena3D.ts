@@ -146,7 +146,7 @@ export class Arena3D {
   private fxImg: Phaser.GameObjects.Image;
   /** 3D layers of their own (the 3D hero test, ?hero3d=1): each drawn alone into its own picture, which is sorted
    *  among the 2D bodies at its depth (as a painted fighter is), under the railing. */
-  private extra: { scene: THREE.Scene; key: string; img: Phaser.GameObjects.Image; before?: () => void }[] = [];
+  private extra: { scene: THREE.Scene; key: string; img: Phaser.GameObjects.Image; before?: () => void; at?: () => THREE.Vector3 }[] = [];
   /** The place's solid pieces a body can stand behind (the stone blocks), depth only (Legacy of Spirits: set by
    *  src/spirits/Occlusion): drawn before each 3D layer, so a block in front of a body hides it. None by default. */
   occluders: THREE.Scene | null = null;
@@ -214,10 +214,10 @@ export class Arena3D {
   /** `opts.build`: the place to build (default: the arena's temple courtyard); `opts.cam`: camera settings over the arena's.
    *  The rest — the picture (bloom, shadows, the glow layer), placing the 2D world where this camera sees it, the fighters'
    *  sun shadows and light, the skills' 3D pieces, the blows' answers — is the same for any 3D place. */
-  constructor(private scene: Phaser.Scene, private floor: Floor, opts: { build?: BuildPlace; cam?: Partial<Cam3D>; lean?: boolean; /** a stencil buffer on the canvas (?spirits&ns: the spirit Samurai's blade seen through his own body only) */ stencil?: boolean; /** lean: High drawn at the game canvas's own size (?spirits&native — GPT's sharpness test R1) */ native?: boolean } = {}) {
+  constructor(private scene: Phaser.Scene, private floor: Floor, opts: { build?: BuildPlace; cam?: Partial<Cam3D>; lean?: boolean; /** a stencil buffer on the canvas (?spirits&ns: the spirit Samurai's blade seen through his own body only) */ stencil?: boolean; /** lean: High drawn at the game canvas's own size (?spirits&native — GPT's sharpness test R1) */ native?: boolean; /** lean: the hero's own layer drawn zoomed onto his part of the picture, the world as it is (?spirits&r2 — GPT's R2) */ heroZoom?: number } = {}) {
     this.CAM = { ...CAM_ARENA, ...opts.cam }; this.dist = this.CAM.dist; this.buildPlace = opts.build ?? buildRoom;
     const soft = !!(navigator as { webdriver?: boolean }).webdriver; // (test browsers render on the CPU: half size, no shadows)
-    this.lean = !!opts.lean && !soft; this.native = this.lean && !!opts.native;
+    this.lean = !!opts.lean && !soft; this.native = this.lean && !!opts.native; this.heroZoom = this.lean ? Math.max(1, opts.heroZoom ?? 1) : 1;
     const man = this.lean ? Arena3D.manualLevel() : null; this.manual = man !== null; // (lean: the player's own choice in the settings, else automatic)
     const lv0 = this.lean ? man ?? Arena3D.savedLevel() : 0; this.quality.level = lv0;
     const [w, h] = soft ? [Math.round(scene.scale.width * 0.4), Math.round(scene.scale.height * 0.4)] : this.sizeFor(lv0);
@@ -287,7 +287,7 @@ export class Arena3D {
     const lit = (L: THREE.PointLight, p: THREE.Vector3): number => { const d = L.position.distanceTo(p); if (L.distance > 0 && d >= L.distance) return 0; const c = L.distance > 0 ? Math.max(0, 1 - (d / L.distance) ** 4) ** 2 : 1; return (L.intensity * c) / Math.max(d ** L.decay, 0.01); };
     sc.environment = this.scene3.environment; (sc as THREE.Scene & { environmentIntensity: number }).environmentIntensity = 0.32;
     const sunDir = new THREE.Vector3(0, 1, 0);
-    this.extra.push({ scene: sc, key, img, before: () => {
+    this.extra.push({ scene: sc, key, img, at, before: () => {
       const R = this.room;
       sun.color.copy(R.sun.color); sun.intensity = R.sun.intensity; sun.position.copy(R.sun.position); sunT.position.copy(R.sun.target.position); sunT.updateMatrixWorld();
       sunDir.copy(R.sun.position).sub(R.sun.target.position).normalize();
@@ -344,6 +344,10 @@ export class Arena3D {
   /** Lean, `native`: High's picture at the game canvas's own size (the game copies it 1:1; the browser's own fit of the
    *  whole canvas is then the only resize) — GPT's R1 test, against the usual 85 % or the window's pixels. */
   private native = false;
+  /** Lean, R2: the hero's own layer ('arena3d-hero') drawn this many times larger onto the part of the picture round
+   *  him (the camera's view offset: the same canvas, his pixels denser), then shown back at that part's place and size;
+   *  the room and every other layer as they are. 1: off. */
+  private heroZoom = 1;
   /** Lean: the quality the player chose in the settings (no automatic step-down). */
   private manual = false;
   private lastWatchFrame = -1;
@@ -722,6 +726,15 @@ export class Arena3D {
     this.camera.lookAt(this.look.x + nx, this.look.y, this.look.z + nz); this.camera.updateMatrixWorld(); this.camera.updateProjectionMatrix();
   }
 
+  /** R2: the part of the picture round the hero (game px, the picture's own shape, 1 / heroZoom of it), centred a little
+   *  above his feet and kept inside the picture — his blade, a jump and his floor shadow stay well within it. */
+  private heroCrop(p: THREE.Vector3): { x: number; y: number; w: number; h: number } {
+    const W = this.scene.scale.width, H = this.scene.scale.height, w = W / this.heroZoom, h = H / this.heroZoom;
+    this.v.copy(p).project(this.camera); this.v2.copy(p).setY(p.y + 0.65).project(this.camera); // (his feet and his middle)
+    const cx = (this.v2.x + 1) / 2 * W, cy = (1 - this.v2.y) / 2 * H;
+    return { x: Math.max(0, Math.min(W - w, cx - w / 2)), y: Math.max(0, Math.min(H - h, cy - h / 2)), w, h };
+  }
+
   /** Screen point (Phaser px) of a world point (x, depth y, height z px) and the px per world px there. */
   private v = new THREE.Vector3(); private v2 = new THREE.Vector3();
   project(x: number, y: number, z: number): { sx: number; sy: number; k: number } {
@@ -766,10 +779,13 @@ export class Arena3D {
     this.fxImg.setVisible(glow);
     for (const l of this.extra) {
       l.before?.(); if (!l.img.visible) continue; this.renderer.setClearColor(0x000000, 0);
+      const crop = this.heroZoom > 1 && l.key === 'arena3d-hero' && l.at ? this.heroCrop(l.at()) : null; // (R2: his part of the picture, his pixels denser)
+      if (crop) this.camera.setViewOffset(this.scene.scale.width, this.scene.scale.height, crop.x, crop.y, crop.w, crop.h);
       if (this.occluders) { // (the place's solid pieces as depth alone first: the parts of the body behind them stay out of its picture)
         const ac = this.renderer.autoClear; this.renderer.autoClear = false; this.renderer.clear();
         this.renderer.render(this.occluders, this.camera); this.renderer.render(l.scene, this.camera); this.renderer.autoClear = ac;
       } else this.renderer.render(l.scene, this.camera);
+      if (crop) { this.camera.clearViewOffset(); l.img.setPosition(crop.x, crop.y).setDisplaySize(crop.w, crop.h); }
       this.scene.textures.get(l.key).source[0].update();
     } // (a layer not shown is not drawn: a body waiting in the pool, the doubles gone)
     // every world object: placed where the 3D camera sees its floor point, scaled by its depth

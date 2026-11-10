@@ -4419,12 +4419,14 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const lite = spirit && SPIRITS.lite && !!this.w3d; // (the world: his gameplay body and its lighter shadow — GPT step 4P; &lite=0 the full one; &ns: the new Samurai's)
     const h = await mod.Hero3D.load({ female: genderOf(this.character) === 'female', body: spirit ? (SPIRITS.ns ? (lite ? SPIRIT_BODY_NS_LITE : SPIRIT_BODY_NS) : (lite ? SPIRIT_BODY_LITE : SPIRIT_BODY)) : undefined, shadow: lite ? (SPIRITS.ns ? SPIRIT_SHADOW_NS_LITE : SPIRIT_SHADOW_LITE) : undefined });
     if (gen !== this.sceneGen || !this.sys.isActive() || this.a3d !== a3) { h.dispose(); return; }
+    if (spirit && SPIRITS.size) (h as unknown as { model: { scale: { multiplyScalar(k: number): void } } }).model.scale.multiplyScalar(SPIRITS.size / mod.Hero3D.HEIGHT); // (&size: GPT's P2 — his 3D body only; his 2D body, the camera unchanged)
     const { img, sunDir } = a3.addLayer('arena3d-hero', h.scene, () => h.root.position); // (where he stands: the room's warm lights near him reach him — lean)
     h.makeShadow(sunDir);
     h.setWeapon(mod.CLASS_WEAPON[this.cls] ?? 'sword');
     if (spirit) { // (the spirit's finish, the camera nearer; &ghost: the spirit form — David and GPT, 9 Nov evening: a see-through spirit whose light grows with his level)
       const sp = await import('../spirits/SpiritBody');
       this.spiritForm?.dispose(); this.spiritForm = undefined;
+      if (SPIRITS.idle === 'up') (await import('../spirits/Stance')).uprightIdle(h); // (&idle=up: GPT's P2 — upright out of combat)
       if (SPIRITS.ns && SPIRITS.solid) { /* (&solid: his body as drawn — GPT's neutral comparison, P1) */ }
       else if (SPIRITS.ns) this.spiritForm = await (await import('../spirits/Spectral')).makeSpectral(h, { level: SPIRITS.lv ?? this.character?.level ?? 1, preset: () => a3.qualityLevel, ground: () => (this.kin.supportZ ?? 0) / 100 }); // (&ns: the new Spectral Samurai — GPT 10 Nov)
       else if (SPIRITS.ghost) this.spiritForm = (await import('../spirits/SpiritForm')).makeSpiritForm(h, { level: SPIRITS.lv ?? this.character?.level ?? 1, preset: () => a3.qualityLevel, ground: () => (this.kin.supportZ ?? 0) / 100 });

@@ -27,7 +27,16 @@ export const SPIRITS = { on: Q.has('spirits'), lean: Q.get('lean') !== '0', lite
   /** `&native`: GPT's experiment R1 (10 Nov) — the 3D picture drawn at the game canvas's own size on High, so the game
    *  copies it 1:1 (today: drawn at up to 85 % or at the window's pixels, then scaled into the canvas, which the browser
    *  scales again). */
-  native: Q.has('native') };
+  native: Q.has('native'),
+  /** `&r2`: GPT's R2 (10 Nov) — only his own layer drawn sharper: zoomed ×2 onto the part of the picture round him, then
+   *  shown back at its place (the world and its cost as they are). */
+  r2: Q.has('r2'),
+  /** `&size=1.4`: GPT's P2 (10 Nov) — the Samurai's height in the world, in units (the game's own is 1.3 for every hero):
+   *  only his 3D body is drawn larger; his 2D body (the hitbox), the camera and the rest of the world are unchanged. */
+  size: Q.has('size') ? Math.max(1, Math.min(2, Number(Q.get('size')) || 1.3)) : null,
+  /** `&idle=up`: GPT's P2 — out of combat he stands upright: the library's own idle with its legs and hips eased toward
+   *  his rest pose (Stance.ts); the sword stance is kept for the fight (its guard, its skills). */
+  idle: Q.get('idle') === 'up' ? 'up' as const : null };
 
 /** The Spectral Samurai's own modelled body (gate 1b, in assets/hero3d): GPT's four drawings → the shape → the drawings
  *  baked on → the Beginner's 65-bone skeleton fitted in (tools/hero3d, src/spirit_samurai). */
