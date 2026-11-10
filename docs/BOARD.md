@@ -106,6 +106,11 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
   in-game baseline; refinement pass done (a darker, more solid core, the accents more solid, a narrower edge, the mask
   dark, the eyes kept visible; his level at four milestones 1 / 30 / 60 / 100; the blade's short trail on every preset).
   Next: FPS and frame times on David's computer (attacks, the first-hit spike) — then David plays the Samurai.
+  **GPT, 10 Nov (second review):** approved for David's first playable visual test (no more major shader or model
+  changes before his reaction); keep the material balance, true 3D facing (no mirroring) with the blade seen through his
+  own body only (now limited by a stencil: never through a wall — `Arena3D` option `stencil`, on only under
+  `?spirits&ns` via `World3D`), the trail on every preset, the crescent off. Next combat pass (after David plays): a
+  small contact flash on the real hit. Still pending: FPS / p95 / p99 on David's computer.
 - **FYI — to: Samurai (behind `?spirits&ns` only):** GPT asked that the spirit Samurai's basic attack no longer draw the
   large crescent ring; his spirit blade's own edge and a short trail on it carry the cut. Done in
   `src/arena3d/fx3d/samurai.ts` (`quick_slash.active` returns early for his own casts under `?spirits&ns`); the blow

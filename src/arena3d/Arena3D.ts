@@ -214,7 +214,7 @@ export class Arena3D {
   /** `opts.build`: the place to build (default: the arena's temple courtyard); `opts.cam`: camera settings over the arena's.
    *  The rest — the picture (bloom, shadows, the glow layer), placing the 2D world where this camera sees it, the fighters'
    *  sun shadows and light, the skills' 3D pieces, the blows' answers — is the same for any 3D place. */
-  constructor(private scene: Phaser.Scene, private floor: Floor, opts: { build?: BuildPlace; cam?: Partial<Cam3D>; lean?: boolean } = {}) {
+  constructor(private scene: Phaser.Scene, private floor: Floor, opts: { build?: BuildPlace; cam?: Partial<Cam3D>; lean?: boolean; /** a stencil buffer on the canvas (?spirits&ns: the spirit Samurai's blade seen through his own body only) */ stencil?: boolean } = {}) {
     this.CAM = { ...CAM_ARENA, ...opts.cam }; this.dist = this.CAM.dist; this.buildPlace = opts.build ?? buildRoom;
     const soft = !!(navigator as { webdriver?: boolean }).webdriver; // (test browsers render on the CPU: half size, no shadows)
     this.lean = !!opts.lean && !soft;
@@ -224,7 +224,7 @@ export class Arena3D {
     // one three.js canvas: the room is drawn into it, handed to Phaser (a GPU copy), then the railing, handed over too
     this.bgCanvas = document.createElement('canvas');
     this.fgCanvas = this.bgCanvas;
-    this.renderer = new THREE.WebGLRenderer({ canvas: this.bgCanvas, antialias: true, alpha: true, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
+    this.renderer = new THREE.WebGLRenderer({ canvas: this.bgCanvas, antialias: true, alpha: true, preserveDrawingBuffer: true, powerPreference: 'high-performance', stencil: !!opts.stencil });
     this.renderer.setPixelRatio(1); this.renderer.setSize(w, h, false);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.localClippingEnabled = true; // (the skills' pieces split round the fighters: behind them in the room, in front over them)

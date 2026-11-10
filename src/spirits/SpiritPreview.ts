@@ -34,7 +34,7 @@ export class SpiritPreview {
   private frame = Hero3D.HEIGHT * 1.08;
 
   private constructor(private scene: Phaser.Scene, private hero: Hero3D, private key: string, private w: number, private h: number) {
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, premultipliedAlpha: SPIRITS.ghost || SPIRITS.ns, preserveDrawingBuffer: true, powerPreference: 'high-performance' }); // (&ghost, premultiplied: the spirit's see-through body composites right)
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, premultipliedAlpha: SPIRITS.ghost || SPIRITS.ns, stencil: SPIRITS.ns, preserveDrawingBuffer: true, powerPreference: 'high-performance' }); // (&ghost, premultiplied: the spirit's see-through body composites right)
     this.renderer.setPixelRatio(1); this.renderer.setSize(w * SpiritPreview.RES, h * SpiritPreview.RES, false);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace; this.renderer.toneMapping = THREE.ACESFilmicToneMapping; this.renderer.toneMappingExposure = 1.0;
     this.renderer.setClearColor(0x000000, 0);

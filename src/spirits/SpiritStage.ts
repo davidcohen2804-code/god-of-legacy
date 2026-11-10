@@ -26,7 +26,7 @@ export class SpiritStage {
   private dead = false;
 
   private constructor(private hero: Hero3D, w: number, h: number) {
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, stencil: SPIRITS.ns, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(1); this.renderer.setSize(Math.round(w * SpiritStage.RES), Math.round(h * SpiritStage.RES), false);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace; this.renderer.toneMapping = THREE.ACESFilmicToneMapping; this.renderer.toneMappingExposure = 1.0;
     this.renderer.setClearColor(0x000000, 0);

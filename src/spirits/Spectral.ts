@@ -130,6 +130,11 @@ function spectralMaterial(src: THREE.MeshStandardMaterial, mask: THREE.Texture, 
   return m;
 }
 
+/** A see-through copy: drawn only where his own body (its pre-pass) marked the stencil. */
+function seenThrough(m: THREE.Material): void {
+  Object.assign(m, { stencilWrite: true, stencilWriteMask: 0, stencilRef: 1, stencilFunc: THREE.EqualStencilFunc, stencilFail: THREE.KeepStencilOp, stencilZFail: THREE.KeepStencilOp, stencilZPass: THREE.KeepStencilOp });
+}
+
 /** A soft round light (the eyes' glow). */
 function glowTex(): THREE.CanvasTexture {
   const c = document.createElement('canvas'); c.width = c.height = 64;
@@ -188,6 +193,9 @@ export class Spectral {
       body.material = spectralMaterial(old, mask, this.U); this.own.push(body.material as THREE.Material, mask);
       // only his nearest surface: his depth first, drawn before everything of his (his fittings excepted)
       const pm = new THREE.MeshBasicMaterial({ colorWrite: false }); this.own.push(pm);
+      // (and marks it in the stencil: the blade's see-through copies draw only where his own body is in front of it —
+      // never through a wall or a block)
+      Object.assign(pm, { stencilWrite: true, stencilRef: 1, stencilFunc: THREE.AlwaysStencilFunc, stencilZPass: THREE.ReplaceStencilOp });
       const pre = new THREE.SkinnedMesh(body.geometry, pm); pre.bind(body.skeleton, body.bindMatrix);
       pre.frustumCulled = false; pre.renderOrder = -1; pre.userData.worn = true; pre.userData.shadow = true;
       body.parent?.add(pre); this.pre = pre;
@@ -203,10 +211,10 @@ export class Spectral {
       // streak, a dimmer copy of each is drawn — the cut still reads through the spirit; only while the blade is behind him)
       const xm = (b.blade.material as THREE.ShaderMaterial).clone();
       Object.assign(xm.uniforms, { uTime: this.bladeU.uTime, uEnergy: this.bladeU.uEnergy, uFlash: this.bladeU.uFlash, uSeen: { value: 0.78 } });
-      xm.depthFunc = THREE.GreaterDepth; this.own.push(xm);
+      xm.depthFunc = THREE.GreaterDepth; seenThrough(xm); this.own.push(xm);
       const bx = this.bladeX = new THREE.Mesh(b.blade.geometry, xm); bx.renderOrder = 2.5; bx.visible = false; b.blade.add(bx);
       if (this.streak) {
-        const sm = ribbonMat(0xe6d8ff, 0.0, 0.016, 1.6, 0.9); sm.depthFunc = THREE.GreaterDepth; this.own.push(sm);
+        const sm = ribbonMat(0xe6d8ff, 0.0, 0.016, 1.6, 0.9); sm.depthFunc = THREE.GreaterDepth; seenThrough(sm); this.own.push(sm);
         const sx = new THREE.Mesh(this.streak.r.mesh.geometry, sm); sx.renderOrder = 3.5; sx.frustumCulled = false; sx.visible = false; P.scene.add(sx);
         this.streakX = { mesh: sx, mat: sm };
       }
@@ -283,6 +291,9 @@ export class Spectral {
   private bladeX: THREE.Mesh | null = null;
   private streakX: { mesh: THREE.Mesh; mat: THREE.ShaderMaterial } | null = null;
   private behind = false;
+  /** The first pictures: the parts shown only now and then (the streak, the see-through copies, the aura) drawn once,
+   *  unseen — their shaders made with the rest, so the first blow (or level 60) brings no hitch. */
+  private warm = 2;
 
   private tasselMake(): void {
     const mat = ribbonMat(0xc8102e, 0.95, 0.007, 1.2); this.own.push(mat);
@@ -312,8 +323,16 @@ export class Spectral {
     const pel = this.parts.bones.get('pelvis'), bl = this.blade;
     if (pel && bl) {
       const dB = bl.root.getWorldPosition(this.W2).distanceTo(this.V), dP = pel.getWorldPosition(this.W2).distanceTo(this.V);
-      this.behind = dB > dP + 0.01;
+      this.behind = dB > dP + 0.01 && r.getContextAttributes()?.stencil === true; // (no stencil buffer: no see-through copies)
       if (this.bladeX) this.bladeX.visible = this.behind;
+    }
+    if (this.warm > 0) {
+      this.warm--;
+      const sk = this.streak, bx = this.bladeX, sx = this.streakX, au2 = this.aura;
+      if (sk) { sk.r.mesh.visible = true; sk.mat.uniforms.uAlpha.value = 0; }
+      if (sx) { sx.mesh.visible = true; sx.mat.uniforms.uAlpha.value = 0; }
+      if (bx) { bx.visible = true; (bx.material as THREE.ShaderMaterial).uniforms.uSeen.value = this.warm > 0 ? 0 : 0.78; }
+      if (au2) { au2.visible = true; (au2.material as THREE.SpriteMaterial).opacity = 0; }
     }
     // the aura: behind his chest, a little away from the eye (Low: none — the extras go first)
     const au = this.aura, chest = this.parts.bones.get('spine_03'), preset = Math.round(this.o.preset?.() ?? 0), P = this.parts;

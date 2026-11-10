@@ -35,7 +35,7 @@ export async function startSpiritLab(): Promise<void> {
   document.getElementById('ambient')?.remove();
   const soft = !!(navigator as { webdriver?: boolean }).webdriver && !Q.has('hq');
   const W = window.innerWidth, H = window.innerHeight;
-  const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+  const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, stencil: true }); // (stencil: the spirit blade seen through his own body only)
   renderer.setPixelRatio(1); renderer.setSize(W, H); renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.localClippingEnabled = true;
   renderer.domElement.style.cssText = 'position:fixed;inset:0;width:100vw;height:100vh;display:block';
   parent.appendChild(renderer.domElement);
