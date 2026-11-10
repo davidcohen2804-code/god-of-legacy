@@ -11,6 +11,7 @@ import { C, me, side, T } from './kit';
 import { ring, flurry, slit, bladeBall, inkBurst, sparks, SAM, run, soon, star, glintRun, floorLine, petalBurst, petalStream, paintTex, paintFly, paintTrail, paintArc } from './blade3d';
 import type { Projectile } from '../../skills/HitGeometry';
 import type { CastRun } from '../../skills/SkillRuntime';
+import { SPIRITS } from '../../spirits/flag';
 
 const flip = () => (Math.random() < 0.5 ? 1 : -1);
 /** The samurai's painted art for the room (GPT on black: `flip`). */
@@ -243,6 +244,7 @@ export const SAMURAI: Record<string, Recipe> = {
   // 150–220 ms; the rising cut that launches: a white-hot line up through the foe)
   quick_slash: { own: true, tone: SAM.rose, // (the room's main hit takes this colour: in the pale light its burst stood as a white bubble over the foe)
     active: (f, r) => {
+      if (SPIRITS.on && SPIRITS.ns && r.own) return; // (Legacy of Spirits, the new Spectral Samurai — GPT 10 Nov: no large detached ring; his spirit blade's own edge and its short trail carry the cut. Only the picture: the blow — its hit, reach, timing — is the game's, untouched; behind ?spirits&ns only)
       const st = r.stage % 4, big = st === 3, d = side(r), on = () => f.host.casterPos(r.attackerId), c = me(f, r);
       const P = [
         { tilt: 62, yaw: 34, roll: 0, a0: -35, a1: 165, r: 120, w: 52, y0: 94, fwd: 20 },

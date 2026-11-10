@@ -12,6 +12,8 @@ export const SPIRITS = { on: Q.has('spirits'), lean: Q.get('lean') !== '0', lite
   /** `&ns`: the new Spectral Samurai (his body from David's illustration, rigged) as a spirit with controlled
    *  transparency, and the same way into the world (GPT, 10 Nov: the first actual integration, under review — Spectral). */
   ns: Q.has('ns'),
+  /** `&hold=ms`: the art review's still — the select's preview held at that moment (the same pose for every level). */
+  hold: Q.has('hold') ? Math.max(0, Number(Q.get('hold')) || 0) : null,
   /** The world's exploration camera, its pitch in degrees (GPT, 10 Nov, after the 19 / 24 / 30 / 36 comparison: 24° at
    *  9 units for the next playable test; `&cam=30` the wider 30° / 10.5 to compare, `&cam=19` the earlier 19° / 7). */
   cam: Q.has('cam') ? Number(Q.get('cam')) || 24 : 24 };

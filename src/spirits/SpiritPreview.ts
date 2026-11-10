@@ -69,6 +69,7 @@ export class SpiritPreview {
 
   private step(_t: number, ms: number): void {
     if (this.dead) return;
+    if (SPIRITS.hold !== null) ms = Math.max(0, Math.min(ms, SPIRITS.hold - this.t)); // (&hold: his pose held at that moment — the art review)
     this.t += ms;
     this.pose(ms);
     const want = Math.max(Hero3D.HEIGHT * 1.08, this.hero.topY() * 1.04);
