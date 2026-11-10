@@ -55,7 +55,14 @@
       // the 2D frame without the 3D pictures composited (Phaser's own drawing alone)
       const imgs = ['arena3d-bg', 'arena3d-fg', 'arena3d-fx', 'arena3d-hero'].map((k) => sc.children.list.find((c) => c.texture && c.texture.key === k)).filter(Boolean);
       const vis = imgs.map((i) => i.visible); imgs.forEach((i) => i.setVisible(false)); await measure(`2D without the 3D pictures (${imgs.length})`); imgs.forEach((i, j) => i.setVisible(vis[j]));
-      // all lit materials as plain Lambert-cost? (not done: changes the look) — the meshes' fill instead: the room hidden but the floor
+      if (o.unlit) { // the room's PBR materials swapped for unlit ones (the same maps and colours) for 3 s: the lighting's share
+        let Basic = null; a.scene3.traverse((x) => { if (!Basic && x.isMesh && x.material && !Array.isArray(x.material) && x.material.isMeshBasicMaterial) Basic = x.material.constructor; });
+        const swaps = []; a.scene3.traverse((x) => { if (x.isMesh && x.material && !Array.isArray(x.material) && x.material.isMeshStandardMaterial) swaps.push([x, x.material]); });
+        if (Basic) { for (const [x, m] of swaps) x.material = new Basic({ map: m.map, color: m.color, transparent: m.transparent, opacity: m.opacity, alphaTest: m.alphaTest, side: m.side }); await measure(`unlit instead of PBR (${swaps.length})`); for (const [x, m] of swaps) x.material = m; }
+        else out.unlitErr = 'no unlit material class found';
+      }
+      // only the floor-level pieces drawn (each mesh but the biggest 3 hidden) for 3 s: how much the rest of the room costs
+      if (o.overdraw) { const ms = []; a.scene3.traverse((x) => { if (x.isMesh && x.visible) ms.push(x); }); const big = ms.map((x) => { x.geometry.computeBoundingSphere(); return [x, x.geometry.boundingSphere.radius * Math.max(x.scale.x, x.scale.y, x.scale.z)]; }).sort((p, q) => q[1] - p[1]); const keep = new Set(big.slice(0, 3).map((p) => p[0])); for (const x of ms) if (!keep.has(x)) x.visible = false; await measure(`only the 3 biggest pieces (of ${ms.length})`); for (const x of ms) x.visible = true; }
       out.state = 'done';
     } catch (e) { out.err = String((e && e.message) || e); out.state = 'error'; }
     finally { try { G.loop.sleep(); } catch (e) { /* (reloaded next) */ } try { out.restored = W.__restore(); out.keys = Object.keys(localStorage).length; } catch (e) { out.restoreErr = String(e); } }
