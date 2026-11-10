@@ -48,7 +48,10 @@ export const SPIRITS = { on: Q.has('spirits'), lean: Q.get('lean') !== '0', lite
   /** `&autofast`: Auto graphics steps down after ~1.5 s of slow pictures (and 1.5 s of settling) instead of 5 s (+3.5 s). */
   autofast: Q.has('autofast'),
   /** `&m1`: experiment M1 — the room's rough, non-metal pieces lit as Lambert instead of PBR (RoomLite.ts). */
-  m1: Q.has('m1') };
+  m1: Q.has('m1'),
+  /** `&m1b`: M1 with the room's environment light given back to those pieces as an even fill (Lambert ignores the
+   *  scene's environment map, so plain M1 darkens them) — measured from the same environment (RoomLite.ts). */
+  m1b: Q.has('m1b') };
 
 /** The Spectral Samurai's own modelled body (gate 1b, in assets/hero3d): GPT's four drawings → the shape → the drawings
  *  baked on → the Beginner's 65-bone skeleton fitted in (tools/hero3d, src/spirit_samurai). */

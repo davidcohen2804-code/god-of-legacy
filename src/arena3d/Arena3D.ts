@@ -214,7 +214,7 @@ export class Arena3D {
   /** `opts.build`: the place to build (default: the arena's temple courtyard); `opts.cam`: camera settings over the arena's.
    *  The rest — the picture (bloom, shadows, the glow layer), placing the 2D world where this camera sees it, the fighters'
    *  sun shadows and light, the skills' 3D pieces, the blows' answers — is the same for any 3D place. */
-  constructor(private scene: Phaser.Scene, private floor: Floor, opts: { build?: BuildPlace; cam?: Partial<Cam3D>; lean?: boolean; /** a stencil buffer on the canvas (?spirits&ns: the spirit Samurai's blade seen through his own body only) */ stencil?: boolean; /** lean: High drawn at the game canvas's own size (?spirits&native — GPT's sharpness test R1) */ native?: boolean; /** lean: the hero's own layer drawn zoomed onto his part of the picture, the world as it is (?spirits&r2 — GPT's R2) */ heroZoom?: number; /** lean: no bloom on High either (?spirits&nobloom — GPT's P4A) */ noBloom?: boolean; /** lean: Auto steps down after ~1.5 s of slow pictures instead of 5 s (?spirits&autofast — P4A) */ autoFast?: boolean; /** lean: called once the room is built (?spirits&m1: its materials lit more cheaply — P4A) */ afterBuild?: (room: THREE.Scene, front: THREE.Scene) => void } = {}) {
+  constructor(private scene: Phaser.Scene, private floor: Floor, opts: { build?: BuildPlace; cam?: Partial<Cam3D>; lean?: boolean; /** a stencil buffer on the canvas (?spirits&ns: the spirit Samurai's blade seen through his own body only) */ stencil?: boolean; /** lean: High drawn at the game canvas's own size (?spirits&native — GPT's sharpness test R1) */ native?: boolean; /** lean: the hero's own layer drawn zoomed onto his part of the picture, the world as it is (?spirits&r2 — GPT's R2) */ heroZoom?: number; /** lean: no bloom on High either (?spirits&nobloom — GPT's P4A) */ noBloom?: boolean; /** lean: Auto steps down after ~1.5 s of slow pictures instead of 5 s (?spirits&autofast — P4A) */ autoFast?: boolean; /** lean: called once the room is built (?spirits&m1: its materials lit more cheaply — P4A) */ afterBuild?: (room: THREE.Scene, front: THREE.Scene, renderer: THREE.WebGLRenderer) => void } = {}) {
     this.CAM = { ...CAM_ARENA, ...opts.cam }; this.dist = this.CAM.dist; this.buildPlace = opts.build ?? buildRoom;
     const soft = !!(navigator as { webdriver?: boolean }).webdriver; // (test browsers render on the CPU: half size, no shadows)
     this.lean = !!opts.lean && !soft; this.native = this.lean && !!opts.native; this.heroZoom = this.lean ? Math.max(1, opts.heroZoom ?? 1) : 1;
@@ -232,7 +232,7 @@ export class Arena3D {
     this.camera = new THREE.PerspectiveCamera(this.CAM.fov, w / h, 0.5, 400);
     if (this.lean) try { performance.mark('gol:room-build'); } catch { /* (no marks) */ }
     this.build(soft);
-    if (this.lean && opts.afterBuild) opts.afterBuild(this.scene3, this.front3);
+    if (this.lean && opts.afterBuild) opts.afterBuild(this.scene3, this.front3, this.renderer);
     if (this.lean) try { performance.mark('gol:room-built'); } catch { /* (no marks) */ }
     this.soft = soft;
     if (this.lean && (lv0 >= 1 || this.noBloom)) this.scaleBits(h); // (lean, a slow computer known from before: no bloom from the start)
