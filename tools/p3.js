@@ -25,17 +25,40 @@
     };
     g.__w = 1; o[name] = g; return true;
   };
+  // GPU time per frame by timer queries (WebGL2 or WebGL1's extension), read back a few frames later
+  const tq = (gl) => {
+    const e2 = gl.getExtension('EXT_disjoint_timer_query_webgl2'), e1 = e2 ? null : gl.getExtension('EXT_disjoint_timer_query');
+    if (!e2 && !e1) return null;
+    const pend = [], res = []; let cur = null;
+    const mk = () => (e2 ? gl.createQuery() : e1.createQueryEXT()), del = (q) => (e2 ? gl.deleteQuery(q) : e1.deleteQueryEXT(q));
+    const avail = (q) => (e2 ? gl.getQueryParameter(q, gl.QUERY_RESULT_AVAILABLE) : e1.getQueryObjectEXT(q, e1.QUERY_RESULT_AVAILABLE_EXT));
+    const val = (q) => (e2 ? gl.getQueryParameter(q, gl.QUERY_RESULT) : e1.getQueryObjectEXT(q, e1.QUERY_RESULT_EXT));
+    const E = e2 || e1;
+    return {
+      res,
+      begin() { if (!T.on || cur) return; cur = mk(); if (e2) gl.beginQuery(E.TIME_ELAPSED_EXT, cur); else e1.beginQueryEXT(E.TIME_ELAPSED_EXT, cur); },
+      end() { if (!cur) return; if (e2) gl.endQuery(E.TIME_ELAPSED_EXT); else e1.endQueryEXT(E.TIME_ELAPSED_EXT); pend.push(cur); cur = null; },
+      poll() { while (pend.length && avail(pend[0])) { const q = pend.shift(), dis = gl.getParameter(E.GPU_DISJOINT_EXT), ns = val(q); del(q); if (!dis) res.push(ns / 1e6); } },
+    };
+  };
   W.__p3install = () => {
     const G = W.__game, sc = G.scene.getScene('LegacyCourtyardScene'), a = sc.a3d, R = a.renderer, ok = {};
     const gl3 = () => R.getContext(), glP = () => G.renderer.gl;
-    const step = G.step; let lastT = 0;
-    G.step = function (time, delta) {
+    T.q3 = tq(gl3()); T.qP = tq(glP()); ok.gpuTimer3d = !!T.q3; ok.gpuTimerPhaser = !!T.qP;
+    const pre = G.renderer.preRender, postR = G.renderer.postRender;
+    G.renderer.preRender = function (...x) { if (T.on && T.qP) T.qP.begin(); return pre.apply(this, x); };
+    G.renderer.postRender = function (...x) { const r = postR.apply(this, x); if (T.qP) T.qP.end(); return r; };
+    for (const m of ['hit', 'flare', 'setHitLights', 'embers', 'ring', 'mark', 'land']) ok['a3.' + m] = wrap(a, m, 'a3.' + m);
+    const L = G.loop, step = L.callback; let lastT = 0; // (the loop holds the game's step bound at start: wrapped there)
+    L.callback = function (time, delta) {
       if (!T.on) { lastT = 0; return step.call(this, time, delta); }
       for (const k in acc) delete acc[k];
+      try { T.q3 && T.q3.poll(); T.qP && T.qP.poll(); } catch (e) { T.qErr = String(e); }
       const t0 = performance.now(); step.call(this, time, delta); const t1 = performance.now();
       acc.step = t1 - t0; acc.frame = lastT ? t0 - lastT : 0; acc.delta = delta; lastT = t0;
       T.frames.push({ ...acc });
     };
+    ok.step = typeof step === 'function';
     ok.update = wrap(G.scene, 'update', 'update');
     ok.render = wrap(G.scene, 'render', 'render');
     ok.post = wrap(G.renderer, 'postRender', 'post', false, glP);
@@ -45,7 +68,7 @@
     const ap = Object.getPrototypeOf(a).apply;
     if (typeof ap === 'function') {
       sc.events.off('prerender', ap, a);
-      sc.events.on('prerender', function () { if (!T.on) return ap.call(a); const t = performance.now(); try { ap.call(a); } finally { add('apply', performance.now() - t); } }, a);
+      sc.events.on('prerender', function () { if (!T.on) return ap.call(a); const t = performance.now(); if (T.q3) T.q3.begin(); try { ap.call(a); } finally { if (T.q3) T.q3.end(); add('apply', performance.now() - t); } }, a);
       ok.apply = true;
     }
     ok.a3step = wrap(a, 'step', 'a3step');
@@ -63,11 +86,12 @@
   // a phase: every frame's time split into its parts; the game's clock against the wall clock
   W.__p3phase = async (ms, during, sync) => {
     const sc = W.__game.scene.getScene('LegacyCourtyardScene'), sim0 = sc.simMs, w0 = performance.now();
-    T.frames = []; T.sync = !!sync; T.on = true;
+    T.frames = []; T.sync = !!sync; if (T.q3) T.q3.res.length = 0; if (T.qP) T.qP.res.length = 0; T.on = true;
     const stop = during ? during() : null;
     await wait(ms);
     T.on = false; T.sync = false;
     if (stop) await stop();
+    await wait(300); try { T.q3 && T.q3.poll(); T.qP && T.qP.poll(); } catch (e) { T.qErr = String(e); }
     const wall = performance.now() - w0, fr = T.frames.slice(1), keys = new Set();
     for (const f of fr) for (const k in f) keys.add(k);
     const out = { n: fr.length, fps: +(fr.length / (wall / 1000)).toFixed(1), simRate: +((sc.simMs - sim0) / wall).toFixed(3), over50: fr.filter((f) => f.frame > 50).length, over100: fr.filter((f) => f.frame > 100).length, b: {} };
@@ -76,6 +100,9 @@
     out.b.gap = st(fr.map((f) => Math.max(0, f.frame - f.step)));
     out.b.phaser = st(fr.map((f) => Math.max(0, (f.render || 0) - (f.apply || 0))));
     out.b.a3other = st(fr.map((f) => Math.max(0, (f.apply || 0) - sum(f, 'three', 'bloom', 'upload', 'a3shade', 'a3erasers'))));
+    if (T.q3 && T.q3.res.length) out.gpu3d = { ...st(T.q3.res), n: T.q3.res.length };
+    if (T.qP && T.qP.res.length) out.gpuPhaser = { ...st(T.qP.res), n: T.qP.res.length };
+    if (T.qErr) out.qErr = T.qErr;
     return out;
   };
   // the game's clock through focus changes (the window's blur/focus events, as when another window is clicked)
@@ -113,7 +140,7 @@
       R.install = W.__p3install();
       const n0 = W.__loaf.length, tHit = performance.now(); R.state = 'firstHit';
       T.frames = []; T.on = true; await W.__tap('Space', 90); await wait(2200); T.on = false;
-      R.firstHit = { pressAt: Math.round(tHit), slow: T.frames.filter((f) => f.frame > 60 || f.step > 60).map(rnd), loaf: W.__loaf.slice(n0).filter((e) => e.d > 120) };
+      R.firstHit = { pressAt: Math.round(tHit), slow: T.frames.filter((f) => f.frame > 150 || f.step > 150).map(rnd), loaf: W.__loaf.slice(n0).filter((e) => e.d > 120) };
       await wait(800);
       for (const lv of o.levels ?? [0, 2]) {
         const P = (R['lv' + lv] = {});
