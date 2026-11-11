@@ -4434,6 +4434,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       else sp.makeSpiritFinish(h);
       sp.frameSpirit(a3);
     }
+    if (spirit && SPIRITS.ghostlite) mod.Hero3D.ghostLite = true; // (&ghostlite, GPT's P4B: his afterimages from his lighter shadow body)
+    if (spirit && SPIRITS.ghostwarm) h.warmGhost(); // (&ghostwarm, P4B: the first afterimage drawn once unseen now — not at the first dash)
     a3.prewarmLayer(h.scene); // (lean: his look compiled for both states of the blows' lights — no hitch at the first blow)
     if (SPIRITS.on) { // (a block in front of him hides him: the place's blocks drawn into depth before his picture)
       const oc = await import('../spirits/Occlusion'); this.spiritOcc?.();

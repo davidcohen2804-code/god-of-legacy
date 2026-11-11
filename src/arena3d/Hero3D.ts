@@ -815,20 +815,16 @@ export class Hero3D {
   ghost(now: number, on: boolean, tint: number, every = 45): void {
     if (!on || !this.body || now - this.lastGhost < every) return;
     this.lastGhost = now;
-    const src = this.body, P = src.geometry.attributes.position, n = P.count;
+    const src = this.body, P = src.geometry.attributes.position, vs = this.ghostLayout().verts;
     let g = this.ghosts.find((x) => x.t >= 1);
     if (!g) {
       if (this.ghosts.length >= 8) g = this.ghosts.reduce((a, b) => (a.t > b.t ? a : b));
-      else {
-        const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 3), 3));
-        if (src.geometry.index) geo.setIndex(new THREE.BufferAttribute((src.geometry.index.array as Uint32Array).slice(), 1));
-        const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
-        m.frustumCulled = false; m.renderOrder = 4; (this.root.parent ?? this.scene).add(m); g = { m, t: 1 }; this.ghosts.push(g); this.own.push(geo, m.material as THREE.Material); // (in the scene the body is drawn in)
-      }
+      else g = this.newGhost();
     }
     const out = (g.m.geometry.attributes.position as THREE.BufferAttribute), v = Hero3D.tv;
     this.root.updateMatrixWorld(true); // (the bones where the move has them now)
-    for (let i = 0; i < n; i++) { v.fromBufferAttribute(P, i); src.applyBoneTransform(i, v); v.applyMatrix4(src.matrixWorld); out.setXYZ(i, v.x, v.y, v.z); }
+    if (vs) for (let i = 0; i < vs.length; i++) { const j = vs[i]; v.fromBufferAttribute(P, j); src.applyBoneTransform(j, v); v.applyMatrix4(src.matrixWorld); out.setXYZ(i, v.x, v.y, v.z); } // (ghostLite: only the lighter body's vertices)
+    else for (let i = 0, n = P.count; i < n; i++) { v.fromBufferAttribute(P, i); src.applyBoneTransform(i, v); v.applyMatrix4(src.matrixWorld); out.setXYZ(i, v.x, v.y, v.z); }
     out.needsUpdate = true;
     (g.m.material as THREE.MeshBasicMaterial).color.setHex(tint);
     g.t = 0; g.m.visible = true;
@@ -894,6 +890,35 @@ export class Hero3D {
     return [(p.x - r.x) * 100, -(p.y - r.y) * 100];
   }
 
+  /** One afterimage mesh for the pool (its buffers made once, in the scene the body is drawn in). */
+  private newGhost(): { m: THREE.Mesh; t: number } {
+    const src = this.body!, lay = this.ghostLayout();
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(lay.n * 3), 3));
+    if (lay.index) geo.setIndex(new THREE.BufferAttribute(lay.index, 1));
+    else if (src.geometry.index) geo.setIndex(new THREE.BufferAttribute((src.geometry.index.array as Uint32Array).slice(), 1));
+    const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+    m.frustumCulled = false; m.renderOrder = 4; (this.root.parent ?? this.scene).add(m);
+    const g = { m, t: 1 }; this.ghosts.push(g); this.own.push(geo, m.material as THREE.Material);
+    return g;
+  }
+  /** GPT's P4B, `?spirits&ghostlite` (set by the scene): the afterimages drawn from his lighter shadow body — its own
+   *  index on the same vertices, so only the vertices it uses are skinned for each image. Off: the whole body, as always. */
+  static ghostLite = false;
+  private layout?: { verts: Uint32Array | null; index: Uint32Array | null; n: number };
+  private ghostLayout(): { verts: Uint32Array | null; index: Uint32Array | null; n: number } {
+    if (this.layout) return this.layout;
+    const src = this.body!, n = src.geometry.attributes.position.count, ix = Hero3D.ghostLite ? (src.userData.shadowIndex as ArrayLike<number> | undefined) : undefined;
+    if (!ix) return (this.layout = { verts: null, index: null, n });
+    const map = new Int32Array(n).fill(-1), verts: number[] = [], index = new Uint32Array(ix.length);
+    for (let k = 0; k < ix.length; k++) { const j = ix[k]; let q = map[j]; if (q < 0) { q = map[j] = verts.length; verts.push(j); } index[k] = q; }
+    return (this.layout = { verts: Uint32Array.from(verts), index, n: verts.length });
+  }
+  /** GPT's P4B, `?spirits&ghostwarm`: the first afterimage made now and drawn once, unseen, in its own pass — its program
+   *  compiled and its buffers set up before the first dash instead of during it (it then waits in the pool). */
+  warmGhost(): void {
+    if (!this.body || this.ghosts.length) return;
+    const g = this.newGhost(); g.t = 0.99; g.m.visible = true; (g.m.material as THREE.MeshBasicMaterial).opacity = 0;
+  }
   /** No afterimages left (the body goes away for a while: the next time it shows, none of the last ones linger). */
   clearGhosts(): void { for (const g of this.ghosts) { g.t = 1; g.m.visible = false; } }
   private fadeGhosts(ms: number): void {
