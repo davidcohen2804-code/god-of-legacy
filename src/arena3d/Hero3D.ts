@@ -913,11 +913,14 @@ export class Hero3D {
     for (let k = 0; k < ix.length; k++) { const j = ix[k]; let q = map[j]; if (q < 0) { q = map[j] = verts.length; verts.push(j); } index[k] = q; }
     return (this.layout = { verts: Uint32Array.from(verts), index, n: verts.length });
   }
-  /** GPT's P4B, `?spirits&ghostwarm`: the first afterimage made now and drawn once, unseen, in its own pass — its program
-   *  compiled and its buffers set up before the first dash instead of during it (it then waits in the pool). */
-  warmGhost(): void {
+  /** GPT's P4B, `?spirits&ghostwarm`: the first afterimage made now, waiting hidden in the pool — its programs compiled by
+   *  the layer's warm-up (Arena3D.prewarmLayer with `both`) before the first dash instead of during it. `draw`
+   *  (`&ghostwarm=draw`, as first built): also drawn once, unseen, at the next picture — its buffers set up then, but its
+   *  program for the lights as they are compiled in that picture (measured in the test browser: P4B). */
+  warmGhost(draw = false): void {
     if (!this.body || this.ghosts.length) return;
-    const g = this.newGhost(); g.t = 0.99; g.m.visible = true; (g.m.material as THREE.MeshBasicMaterial).opacity = 0;
+    const g = this.newGhost();
+    if (draw) { g.t = 0.99; g.m.visible = true; (g.m.material as THREE.MeshBasicMaterial).opacity = 0; }
   }
   /** No afterimages left (the body goes away for a while: the next time it shows, none of the last ones linger). */
   clearGhosts(): void { for (const g of this.ghosts) { g.t = 1; g.m.visible = false; } }

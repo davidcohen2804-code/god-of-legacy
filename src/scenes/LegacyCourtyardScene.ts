@@ -4435,8 +4435,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       sp.frameSpirit(a3);
     }
     if (spirit && SPIRITS.ghostlite) mod.Hero3D.ghostLite = true; // (&ghostlite, GPT's P4B: his afterimages from his lighter shadow body)
-    if (spirit && SPIRITS.ghostwarm) h.warmGhost(); // (&ghostwarm, P4B: the first afterimage drawn once unseen now — not at the first dash)
-    a3.prewarmLayer(h.scene); // (lean: his look compiled for both states of the blows' lights — no hitch at the first blow)
+    if (spirit && SPIRITS.ghostwarm) h.warmGhost(SPIRITS.ghostwarmDraw); // (&ghostwarm, P4B: the first afterimage made now — its programs compiled just below, not at the first dash; =draw: also drawn once unseen)
+    a3.prewarmLayer(h.scene, spirit && SPIRITS.ghostwarm && !SPIRITS.ghostwarmDraw); // (lean: his look compiled for both states of the blows' lights — no hitch at the first blow; &ghostwarm: the lights-out state too)
     if (SPIRITS.on) { // (a block in front of him hides him: the place's blocks drawn into depth before his picture)
       const oc = await import('../spirits/Occlusion'); this.spiritOcc?.();
       this.spiritOcc = oc.attachOcclusion(this, a3, this.w3d?.areaId ?? '', () => ({ x: this.kin.x, y: this.kin.y, z: this.kin.supportZ ?? 0 }), () => (this.view ? [this.view.ring, this.view.shadow] : []));

@@ -52,9 +52,11 @@ export const SPIRITS = { on: Q.has('spirits'), lean: Q.get('lean') !== '0', lite
   /** `&m1b`: M1 with the room's environment light given back to those pieces as an even fill (Lambert ignores the
    *  scene's environment map, so plain M1 darkens them) — measured from the same environment (RoomLite.ts). */
   m1b: Q.has('m1b'),
-  /** `&ghostwarm` (GPT's P4B): his first afterimage made and drawn once, unseen, while he arrives — its shader compiled
-   *  before the first dash instead of during it (Hero3D.warmGhost). */
+  /** `&ghostwarm` (GPT's P4B): his first afterimage made while he arrives and its programs compiled in his layer's
+   *  warm-up, for both states of the blows' lights — before the first dash instead of during it (Hero3D.warmGhost);
+   *  `&ghostwarm=draw`: as first built — also drawn once, unseen, at the next picture (to compare). */
   ghostwarm: Q.has('ghostwarm'),
+  ghostwarmDraw: Q.get('ghostwarm') === 'draw',
   /** `&ghostlite` (P4B): his afterimages drawn from his lighter shadow body (only its vertices skinned per image). */
   ghostlite: Q.has('ghostlite'),
   /** `&m1c` (P4B): M1b on the floor-like pieces only (the paving and terraces); the warm stone walls, blocks and railings

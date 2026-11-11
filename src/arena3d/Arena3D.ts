@@ -399,7 +399,14 @@ export class Arena3D {
     this.setHitLights(false); r.setRenderTarget(prev);
   }
   /** A 3D layer's scene (a body with its finish on): its look with the blows' lights lit compiled in the background. */
-  prewarmLayer(sc: THREE.Scene): void { if (this.lean) this.prewarmLit(sc, null); }
+  prewarmLayer(sc: THREE.Scene, both = false): void {
+    if (!this.lean) return;
+    this.prewarmLit(sc, null);
+    // (`both`, ?spirits&ghostwarm — GPT's P4B: the look with the blows' lights out compiled too. Three keys every program by
+    // the lights' count, so a piece first drawn without them — an afterimage in a dash — would compile again then; compile()
+    // reaches hidden pieces, and the GPU process links in the background: nothing waits here)
+    if (both) { const r = this.renderer, prev = r.getRenderTarget(); r.setRenderTarget(null); try { r.compile(sc, this.camera); } catch { /* (made at its first use instead) */ } r.setRenderTarget(prev); }
+  }
   private resizeT: ReturnType<typeof setTimeout> | null = null;
   private onResize = (): void => {
     if (this.resizeT) clearTimeout(this.resizeT);
