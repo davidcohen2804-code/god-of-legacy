@@ -2,6 +2,9 @@
  *  opens the game's 3D world with the 3D heroes, the Samurai as the Spectral Samurai and the maps in the spirit night.
  *  The game without it is untouched. Kept apart so three.js loads only when a 3D place opens. */
 const Q = typeof location !== 'undefined' ? new URLSearchParams(location.search) : new URLSearchParams();
+/** GPT's P4B verdict (11 Nov): the four approved performance switches are on by default inside `?spirits&ns`, each rolled
+ *  back by `&<switch>=0`; outside `&ns` they stay opt-in (`&<switch>`), as before. */
+const onNs = (k: string): boolean => (Q.has(k) ? Q.get(k) !== '0' : Q.has('ns'));
 /** `lean`: the 3D world's lighter picture and lighter entry (GPT step 4P; `&lean=0` the old ones, to compare); `lite`:
  *  his gameplay body in the world (approved by GPT in 4P; `&lite=0` the full one, to compare). */
 export const SPIRITS = { on: Q.has('spirits'), lean: Q.get('lean') !== '0', lite: Q.get('lite') !== '0',
@@ -43,8 +46,9 @@ export const SPIRITS = { on: Q.has('spirits'), lean: Q.get('lean') !== '0', lite
   cloth: Q.has('cloth'),
   /** `&nomsaa`: the game's 2D canvas without multisampling (its 1920×1080 picture, whatever the window). */
   nomsaa: Q.has('nomsaa'),
-  /** `&nobloom`: the lean 3D picture without its bloom on High too (Medium and Low have none). */
-  nobloom: Q.has('nobloom'),
+  /** `&nobloom`: the lean 3D picture without its bloom on High too (Medium and Low have none) — on by default with
+   *  `&ns` (GPT, P4B), `&nobloom=0` brings the bloom back. */
+  nobloom: onNs('nobloom'),
   /** `&autofast`: Auto graphics steps down after ~1.5 s of slow pictures (and 1.5 s of settling) instead of 5 s (+3.5 s). */
   autofast: Q.has('autofast'),
   /** `&m1`: experiment M1 — the room's rough, non-metal pieces lit as Lambert instead of PBR (RoomLite.ts). */
@@ -54,18 +58,22 @@ export const SPIRITS = { on: Q.has('spirits'), lean: Q.get('lean') !== '0', lite
   m1b: Q.has('m1b'),
   /** `&ghostwarm` (GPT's P4B): his first afterimage made while he arrives and its programs compiled in his layer's
    *  warm-up, for both states of the blows' lights — before the first dash instead of during it (Hero3D.warmGhost);
-   *  `&ghostwarm=draw`: as first built — also drawn once, unseen, at the next picture (to compare). */
-  ghostwarm: Q.has('ghostwarm'),
+   *  `&ghostwarm=draw`: as first built — also drawn once, unseen, at the next picture (to compare). On by default with
+   *  `&ns` (GPT, P4B); `&ghostwarm=0`: made at the first dash, as before. */
+  ghostwarm: onNs('ghostwarm'),
   ghostwarmDraw: Q.get('ghostwarm') === 'draw',
-  /** `&ghostlite` (P4B): his afterimages drawn from his lighter shadow body (only its vertices skinned per image). */
-  ghostlite: Q.has('ghostlite'),
-  /** `&m1c` (P4B): M1b on the floor-like pieces only (the paving and terraces); the warm stone walls, blocks and railings
-   *  keep their PBR material. */
-  m1c: Q.has('m1c'),
-  /** `&glow` (P4B): a small additive halo at the room's warm lights — the brazier's glow without the bloom (GlowLite.ts). */
-  glow: Q.has('glow'),
-  /** `&autolow` (P4B): Auto starts an integrated Intel GPU on Low when no level is set or remembered (manual kept). */
-  autolow: Q.has('autolow') };
+  /** `&ghostlite` (P4B): his afterimages drawn from his lighter shadow body (only its vertices skinned per image) — on by
+   *  default with `&ns` (GPT, P4B); `&ghostlite=0`: the whole body, as before. */
+  ghostlite: onNs('ghostlite'),
+  /** `&m1d` (GPT's P4B, M1d — selective lighting): M1b on every piece but the ones whose light reads (the stone blocks
+   *  and railings, the urns and planters, the brazier's bowl and the dark trims — RoomLite `keep`). Under review. */
+  m1d: Q.has('m1d'),
+  /** `&glow` (P4B): a small additive halo at the room's warm lights — the brazier's glow without the bloom (GlowLite.ts);
+   *  on by default with `&ns` while the bloom is off (GPT, P4B), `&glow=0` without it. */
+  glow: Q.has('glow') ? Q.get('glow') !== '0' : Q.has('ns') && onNs('nobloom'),
+  /** `&autolow` (P4B): Auto starts an integrated Intel GPU on Low when no level is set or remembered (manual kept) — on by
+   *  default with `&ns` (GPT, P4B), `&autolow=0` without it. */
+  autolow: onNs('autolow') };
 
 /** The Spectral Samurai's own modelled body (gate 1b, in assets/hero3d): GPT's four drawings → the shape → the drawings
  *  baked on → the Beginner's 65-bone skeleton fitted in (tools/hero3d, src/spirit_samurai). */

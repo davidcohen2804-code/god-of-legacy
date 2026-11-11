@@ -9,7 +9,7 @@ import { WORLD3D } from './flag';
 import { MAPS, VIEW } from './maps';
 import { SKY_FLOOR } from './maps/sky';
 import { SPIRITS } from '../spirits/flag';
-import { roomLite } from '../spirits/RoomLite';
+import { M1D_KEEP, roomLite } from '../spirits/RoomLite';
 import { brazierGlow } from '../spirits/GlowLite';
 
 /** The world camera: a little higher and further than the arena's (one player walking far), a gentle turn. */
@@ -79,7 +79,7 @@ export class World3D {
     this.floor = areaId === 'sky' ? { ...SKY_FLOOR } : World3D.floorOf(areaId);
     this.focus3 = { x: (this.floor.x0 + this.floor.x1) / 200, z: ((this.floor.back + this.floor.front) / 200) * 1.15 };
     this.a3d = new Arena3D(scene, this.floor, { build: MAPS[areaId](this.focus3), cam: camOf(areaId), lean: SPIRITS.on && SPIRITS.lean, stencil: SPIRITS.on && SPIRITS.ns, native: SPIRITS.on && SPIRITS.native, heroZoom: SPIRITS.on && SPIRITS.r2 ? 2 : 1,
-      noBloom: SPIRITS.on && SPIRITS.nobloom, autoFast: SPIRITS.on && SPIRITS.autofast, autoLow: SPIRITS.on && SPIRITS.autolow, afterBuild: SPIRITS.on && (SPIRITS.m1 || SPIRITS.m1b || SPIRITS.m1c || SPIRITS.glow) ? (room, front, renderer, warm) => { if (SPIRITS.glow) brazierGlow(room, warm); if (!(SPIRITS.m1 || SPIRITS.m1b || SPIRITS.m1c)) return; const r = roomLite(SPIRITS.m1b || SPIRITS.m1c ? renderer : null, { floorOnly: SPIRITS.m1c }, room, front); (window as unknown as { __m1: unknown }).__m1 = r; console.info(`[M1] ${r.swapped} of ${r.pbr} PBR materials (${r.meshes} meshes) lit as Lambert${r.fill ? `, environment fill ${r.fill}` : ''}`); } : undefined }); // (Legacy of Spirits: the lean picture — GPT step 4P)
+      noBloom: SPIRITS.on && SPIRITS.nobloom, autoFast: SPIRITS.on && SPIRITS.autofast, autoLow: SPIRITS.on && SPIRITS.autolow, afterBuild: SPIRITS.on && (SPIRITS.m1 || SPIRITS.m1b || SPIRITS.m1d || SPIRITS.glow) ? (room, front, renderer, warm) => { if (SPIRITS.glow) brazierGlow(room, warm); if (!(SPIRITS.m1 || SPIRITS.m1b || SPIRITS.m1d)) return; const r = roomLite(SPIRITS.m1b || SPIRITS.m1d ? renderer : null, { keep: SPIRITS.m1d ? M1D_KEEP : undefined }, room, front); (window as unknown as { __m1: unknown }).__m1 = r; console.info(`[M1] ${r.swapped} of ${r.pbr} PBR materials (${r.meshes} meshes) lit as Lambert${r.fill ? `, environment fill ${r.fill}` : ''}`); } : undefined }); // (Legacy of Spirits: the lean picture — GPT step 4P)
   }
 
   /** The arrival beat: `fromX` where the camera starts (the edge the hero came in by), `ms` how long the glide takes,

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-/** GPT's P4A experiment M1 (`?spirits&m1` / `&m1b` only): the room's rough, non-metal pieces lit by a cheaper model.
+/** GPT's P4A experiment M1 (`?spirits&m1` / `&m1b` / `&m1d` only): the room's rough, non-metal pieces lit by a cheaper model.
  *  Their PBR material (MeshStandardMaterial: the room pass was half the GPU frame on David's Intel UHD) is swapped for a
  *  Lambert one with the same maps, colours, glow and transparency. Kept as they are: shiny or metal surfaces (roughness
  *  < 0.6 or metalness > 0.3), whose highlights need the PBR model, and any material with its own shader hook (terrain,
@@ -8,9 +8,9 @@ import * as THREE from 'three';
  *  Lambert ignores the scene's environment map, which lights the room's PBR pieces evenly (the RoomEnvironment fill), so
  *  plain M1 darkens them. With a renderer (`&m1b`), that fill is given back as an even light map: its strength measured
  *  once from the same environment (a white rough sphere drawn by it alone, averaged), times the scene's own strength.
- *  `floorOnly` (`&m1c`): only the floor-like pieces (the paving and terraces), the walls, blocks and railings left as
- *  they are. Returns how many materials were swapped, of how many PBR ones, on how many meshes, and the fill. */
-export function roomLite(renderer: THREE.WebGLRenderer | null, o: { floorOnly?: boolean }, ...scenes: THREE.Scene[]): { swapped: number; pbr: number; fill: number; meshes: number } {
+ *  `keep` (`&m1d`, GPT's P4B — selective lighting): the pieces whose light reads kept in PBR (M1D_KEEP). Returns how
+ *  many materials were swapped, of how many PBR ones, on how many meshes, and the fill. */
+export function roomLite(renderer: THREE.WebGLRenderer | null, o: { keep?: (mesh: THREE.Mesh) => boolean }, ...scenes: THREE.Scene[]): { swapped: number; pbr: number; fill: number; meshes: number } {
   const made = new Map<THREE.Material, THREE.Material>(); let pbr = 0;
   const env = scenes.find((s) => s.environment)?.environment ?? null;
   const envI = (scenes.find((s) => s.environment) as (THREE.Scene & { environmentIntensity?: number }) | undefined)?.environmentIntensity ?? 1;
@@ -39,7 +39,7 @@ export function roomLite(renderer: THREE.WebGLRenderer | null, o: { floorOnly?: 
   for (const sc of scenes) sc.traverse((ob) => {
     const mesh = ob as THREE.Mesh;
     if (!mesh.isMesh || !mesh.material || (mesh as unknown as THREE.SkinnedMesh).isSkinnedMesh) return;
-    if (o.floorOnly && !floorLike(mesh)) return; // (M1c: only the large, flat, level pieces — the paving and the terraces)
+    if (o.keep?.(mesh)) return; // (M1d: kept in PBR)
     const before = mesh.material;
     mesh.material = Array.isArray(mesh.material) ? mesh.material.map(swap) : swap(mesh.material);
     if (mesh.material !== before) meshes++;
@@ -62,13 +62,11 @@ export function roomLite(renderer: THREE.WebGLRenderer | null, o: { floorOnly?: 
   return { swapped, pbr, fill, meshes };
 }
 
-/** M1c (GPT's P4B): a floor-like piece — flat and level (its height under 0.2 units) and large (over 4 square units). */
-function floorLike(m: THREE.Mesh): boolean {
-  const g = m.geometry; if (!g.boundingBox) g.computeBoundingBox();
-  m.updateWorldMatrix(true, false); const b = g.boundingBox!.clone().applyMatrix4(m.matrixWorld);
-  const sx = b.max.x - b.min.x, sy = b.max.y - b.min.y, sz = b.max.z - b.min.z;
-  return sy < 0.2 && sx * sz > 4;
-}
+/** M1d (GPT's P4B): the island's pieces kept in PBR — its builders merge each material's parts into one mesh named after
+ *  it: 'balustrade' (the stone blocks you jump on, the railings and their pedestals), 'terracotta' (the urns and the
+ *  planters), 'dark' (the brazier's bowl, the iron bands, the blocks' insets). Every other rough piece is lit as M1b. */
+const M1D_NAMES = new Set(['balustrade', 'terracotta', 'dark']);
+export const M1D_KEEP = (m: THREE.Mesh): boolean => M1D_NAMES.has(m.name);
 
 /** The light a white, fully rough PBR surface gets from an environment map alone (strength 1), averaged over a sphere
  *  (every direction it faces toward the viewer): drawn once into a small target and read back. */
