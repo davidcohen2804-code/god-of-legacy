@@ -12,6 +12,7 @@
       await until(() => G.scene.isActive('CharacterSelectScene')); await wait(o.selectWait ?? 2500); await W.__tap('Enter');
       const tW = performance.now();
       await until(() => { const s = S(); return s && s.sys.isActive() && s.hero3d && s.a3d; }); out.worldMs = Math.round(performance.now() - tW); out.state = 'world'; await wait(o.settle ?? 6000);
+      if (o.goto) { const w0 = S().w3d; S().devApi().goto(o.goto); await until(() => { const s = S(); return s.w3d !== w0 && s.a3d && s.a3d.room; }); out.place = S().w3d && S().w3d.areaId; await wait(o.settle ?? 6000); } // (P4B: a place with several warm lights)
       const sc = S(), a = sc.a3d, R = a.renderer, gl = R.getContext(), E = gl.getExtension('EXT_disjoint_timer_query_webgl2');
       const glP = G.renderer.gl, EP2 = glP.getExtension('EXT_disjoint_timer_query_webgl2'), EP1 = EP2 ? null : glP.getExtension('EXT_disjoint_timer_query');
       let on = false; const pend = [], tot = {}, n = {};
@@ -44,7 +45,7 @@
         while (performance.now() - t1 < ms) { const t = await new Promise((r) => requestAnimationFrame(r)); ts.push(t - last); last = t; fr++; poll(); }
         on = false; whole = false; await wait(400); poll(); ts.shift();
         const s = [...ts].sort((x, y) => x - y);
-        return { fps: +((fr / (performance.now() - 400 - t1)) * 1000).toFixed(1), p50: +s[Math.floor(s.length / 2)].toFixed(1), p95: +s[Math.floor(s.length * 0.95)].toFixed(1), gpu: Object.fromEntries(Object.entries(tot).map(([k, v]) => [k, +(v / Math.max(1, n[k] / (k === '2D frame (all)' ? 1 : 1))).toFixed(2)])), callsPerFrame: Object.fromEntries(Object.entries(n).map(([k, v]) => [k, +(v / fr).toFixed(1)])), gpuPerFrame: Object.fromEntries(Object.entries(tot).map(([k, v]) => [k, +(v / fr).toFixed(2)])) };
+        return { fps: +((fr / (performance.now() - 400 - t1)) * 1000).toFixed(1), p50: +s[Math.floor(s.length / 2)].toFixed(1), p95: +s[Math.floor(s.length * 0.95)].toFixed(1), p99: +s[Math.min(s.length - 1, Math.floor(s.length * 0.99))].toFixed(1), gpu: Object.fromEntries(Object.entries(tot).map(([k, v]) => [k, +(v / Math.max(1, n[k] / (k === '2D frame (all)' ? 1 : 1))).toFixed(2)])), callsPerFrame: Object.fromEntries(Object.entries(n).map(([k, v]) => [k, +(v / fr).toFixed(1)])), gpuPerFrame: Object.fromEntries(Object.entries(tot).map(([k, v]) => [k, +(v / fr).toFixed(2)])) };
       };
       for (const lv of o.levels ?? [0, 2]) {
         if (a.qualityLevel !== lv) { await W.__switch(lv); await wait(1500); }
