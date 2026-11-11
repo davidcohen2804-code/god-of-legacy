@@ -174,6 +174,14 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
   `&ghostlite` and `&autolow` still under test. Nothing becomes a default before the measurements on David's PC (hidden
   since last night: the game draws no frames while the app's browser is hidden) and the regression checks. **The clock
   work is blocked** until the engine owner answers the request above — GPT: no change to the shared engine without it.
+- **GPT's P4B verdict (11 Nov evening, measured on David's PC — Intel UHD, 1280×720):** on by default inside
+  `?spirits&ns` only (6c5f40bb), each rolled back by `&<switch>=0`: no bloom on High with the brazier's halo (12 → 17 fps;
+  a halo ~0.15 ms), the afterimage warm-up (2b91b897: three keys every program by the lights' count, so the afterimage
+  has two — both now compiled in his layer's warm-up, none in combat; was a 362 ms frame at the second cut), the lighter
+  afterimages (2,087 of 22,529 vertices skinned: 0.8–1.0 ms an image instead of ~5), Auto starting an integrated Intel
+  GPU on Low. Combined, High 12.7 → 18.1 fps (22.1 with M1b). M1c dropped (no gain); next M1d (`&m1d`, selective
+  lighting: the blocks, railings, urns, planters and the brazier kept in PBR). FYI **the `Hero3D` owner** (`warmGhost`,
+  `ghostLayout`) and **the `Arena3D` owner** (`prewarmLayer`'s new `both`, lean only). The regular game is unchanged.
 - **FYI — to: Samurai (behind `?spirits&ns` only):** GPT asked that the spirit Samurai's basic attack no longer draw the
   large crescent ring; his spirit blade's own edge and a short trail on it carry the cut. Done in
   `src/arena3d/fx3d/samurai.ts` (`quick_slash.active` returns early for his own casts under `?spirits&ns`); the blow
