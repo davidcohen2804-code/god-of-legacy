@@ -167,6 +167,13 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
     each cloth pose shows (`clothMaps` → `getImageData`, ~0.4 s on David's PC); GPT suggests pre-decoding the sheets and
     preparing the maps before play (not disabling them, the 2D body needs them).
   - **to: DFO PvP arena dynamics (engine)** — the clock request above (GPT waits for your proposal before any change).
+- **GPT's P4B interim verdict (11 Nov, 11:30; on looks only — performance approval waits for David's PC):** the P4A
+  pictures of M1 / M1b were wrong — my experiment kept the room's placeholder textures (they arrive after it is built);
+  fixed in 3052098c. With the real textures: `&m1c` and `&nobloom&glow` approved on looks, provisionally; `&m1b` back
+  in consideration (a selective variant, the sensitive pieces kept in PBR, if it saves enough); `&ghostwarm`,
+  `&ghostlite` and `&autolow` still under test. Nothing becomes a default before the measurements on David's PC (hidden
+  since last night: the game draws no frames while the app's browser is hidden) and the regression checks. **The clock
+  work is blocked** until the engine owner answers the request above — GPT: no change to the shared engine without it.
 - **FYI — to: Samurai (behind `?spirits&ns` only):** GPT asked that the spirit Samurai's basic attack no longer draw the
   large crescent ring; his spirit blade's own edge and a short trail on it carry the cut. Done in
   `src/arena3d/fx3d/samurai.ts` (`quick_slash.active` returns early for his own casts under `?spirits&ns`); the blow
@@ -1197,6 +1204,7 @@ DFO changed it (BALANCE_LOG): every hit reaches only as high as its own attack (
 - **The 3D heroes (DFO, 24 Oct):** ~~(1) the woman Beginner's head~~ — done (00c840e8, David 00:39 / 00:42): both heads made anew (a modelled face, her ponytail as she is drawn). (2) still painted: the class fan on the creation screen (one designed picture with the logo) and the painted world (2D maps) — redraw / move to 3D now, or later? (Housekeeping: the merged side branch `dfo-wip-3d-heroes` can be deleted on GitHub — the session's proxy refuses branch deletion.) (3) **the class clothing sets (DFO, 25 Oct 00:30)** — the 3D Beginner (his own face and hair) dressed per class after the painted roster, a man's and a woman's set each (warrior steel and crimson, samurai black lacquer, archer forest green, book mage royal blue, gambler black and purple; no hat; coats and tabards end at the knee so they move with the legs), front views sent in the chat: approve or change them, then each becomes its own 3D body (the Beginner's way: four views → shape → bake → the skeleton) worn by its class. — **approved (David 00:38: "note there are also basic weapons")**; the items' sets wear its colours now (87e71af3); the full 3D bodies wait for the 3D tool's quota.
 - **The class bodies' 3D shape (DFO, 25 Oct):** each class body (the sets David approved) is shaped by the Hunyuan3D Space on Hugging Face, which gives a visitor without an account 2 GPU minutes a day — one body a day (10 bodies: 10 days); a free account 5 minutes (3 a day), PRO 40 (all in a day). Asked David (25 Oct ~09:00). Meanwhile the warrior man's four views are drawn (`tools/hero3d/src/warrior_m`); his shape runs when the day's minutes come back (~15:15).
 - PvP (Maps' Thief's Den request): play together in the open world — see each other in the maps, party up, run the Thief's Den as a party. A big new system: build it now, or keep the world single-player for now?
+- **The game's clock (Legacy of Spirits, 11 Nov):** below 60 fps the world runs in slow motion while the window is unfocused and for ~4 s after focus returns (measured on David's PC). The fix is in the engine (DFO PvP arena dynamics), which has not answered the request on this board yet — blocked. Wait for that chat, or let the Spirits chat make it (behind `?spirits` first, GPT reviewing)?
 
 ## Done
 - Book Mage: every 3D recipe's `tone` set — the room answers each spell in its element (arcane violet / frost cyan / storm / paper white), checked in PVP 3D — 1729ae21
