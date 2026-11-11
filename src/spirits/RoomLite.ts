@@ -45,6 +45,20 @@ export function roomLite(renderer: THREE.WebGLRenderer | null, o: { floorOnly?: 
     if (mesh.material !== before) meshes++;
   });
   let swapped = 0; for (const [a, b] of made) if (a !== b) swapped++;
+  // the room's textures arrive after it is built (a placeholder first, the real picture later, set on the original
+  // material): the Lambert twins follow their originals' textures and colours for the first 60 s
+  const pairs = [...made].filter(([a, b]) => a !== b) as [THREE.MeshStandardMaterial, THREE.MeshLambertMaterial][];
+  const KEYS = ['map', 'normalMap', 'aoMap', 'emissiveMap', 'alphaMap'] as const;
+  const sync = (): void => {
+    for (const [p, l] of pairs) {
+      let rebuild = false;
+      for (const k of KEYS) { const t = p[k] ?? null; if (l[k] !== t) { if (!l[k] !== !t) rebuild = true; (l as unknown as Record<string, unknown>)[k] = t; } }
+      if (!l.color.equals(p.color)) l.color.copy(p.color);
+      if (!l.emissive.equals(p.emissive)) l.emissive.copy(p.emissive);
+      if (rebuild) l.needsUpdate = true;
+    }
+  };
+  if (pairs.length) { sync(); const iv = setInterval(sync, 250); setTimeout(() => clearInterval(iv), 60000); }
   return { swapped, pbr, fill, meshes };
 }
 
