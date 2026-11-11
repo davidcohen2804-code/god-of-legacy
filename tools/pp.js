@@ -13,6 +13,7 @@
       const tW = performance.now();
       await until(() => { const s = S(); return s && s.sys.isActive() && s.hero3d && s.a3d; }); out.worldMs = Math.round(performance.now() - tW); out.state = 'world'; await wait(o.settle ?? 6000);
       if (o.goto) { const w0 = S().w3d; S().devApi().goto(o.goto); await until(() => { const s = S(); return s.w3d !== w0 && s.a3d && s.a3d.room; }); out.place = S().w3d && S().w3d.areaId; await wait(o.settle ?? 6000); } // (P4B: a place with several warm lights)
+      if (o.before) out.before = await o.before(S()); // (P4B: a test-only change before measuring — e.g. more halos in view)
       const sc = S(), a = sc.a3d, R = a.renderer, gl = R.getContext(), E = gl.getExtension('EXT_disjoint_timer_query_webgl2');
       const glP = G.renderer.gl, EP2 = glP.getExtension('EXT_disjoint_timer_query_webgl2'), EP1 = EP2 ? null : glP.getExtension('EXT_disjoint_timer_query');
       let on = false; const pend = [], tot = {}, n = {};
