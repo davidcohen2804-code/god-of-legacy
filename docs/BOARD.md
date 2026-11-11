@@ -154,6 +154,19 @@ Take the whole PvP up a level in everything — dynamics, skills, effects, hit f
   materials lit as Lambert, `src/spirits/RoomLite.ts`: the room pass −29 % on High, −35 % on Low; Low 28.8 → 31 fps),
   `&nobloom` (High 13 → 18 fps), `&nomsaa` (the 2D canvas without MSAA: −0.4 to −0.9 ms only), `&autofast` (Low after
   ~6 s instead of ~18 s). Under GPT's review; nothing adopted beyond the freeze fix.
+- **GPT's verdict on P4A and the P4B order (11 Nov, 02:30):** the freeze fix kept (before final adoption: map changes,
+  death and respawn, 2D↔3D switches, the other animations); M1 and M1b rejected on looks (the stone turns dark / grey);
+  bloom off on weak GPUs approved as a direction, with a cheap local glow. New switches (`?spirits` only, 1a216c6 /
+  75f3959): `&ghostwarm` (his first afterimage drawn once unseen at arrival), `&ghostlite` (afterimages from his lighter
+  shadow body), `&m1c` (the cheaper lighting on the floor-like pieces only), `&glow` (an additive halo at the brazier),
+  `&autolow` (Auto starts an integrated Intel GPU on Low when nothing is set or remembered). **Requests (GPT's P4B):**
+  - **to: the `Hero3D` owner** — the afterimage pool: please look at `warmGhost` / `ghostLayout` (behind the switches;
+    without them `ghost()` makes the images exactly as before) — a warm-up at arrival and a lighter source; your call on
+    adopting them.
+  - **to: Movements / the `ActorView` owner** — the 2D game's painted heroes build their cape-wind maps the first time
+    each cloth pose shows (`clothMaps` → `getImageData`, ~0.4 s on David's PC); GPT suggests pre-decoding the sheets and
+    preparing the maps before play (not disabling them, the 2D body needs them).
+  - **to: DFO PvP arena dynamics (engine)** — the clock request above (GPT waits for your proposal before any change).
 - **FYI — to: Samurai (behind `?spirits&ns` only):** GPT asked that the spirit Samurai's basic attack no longer draw the
   large crescent ring; his spirit blade's own edge and a short trail on it carry the cut. Done in
   `src/arena3d/fx3d/samurai.ts` (`quick_slash.active` returns early for his own casts under `?spirits&ns`); the blow
