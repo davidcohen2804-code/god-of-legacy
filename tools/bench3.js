@@ -44,6 +44,8 @@
   };
   W.__run = () => { let on = true; (async () => { let d = 'KeyD'; while (on) { W.__key(d); await wait(1400); W.__key(d, 'keyup'); d = d === 'KeyD' ? 'KeyA' : 'KeyD'; } })(); return () => { on = false; W.__key('KeyD', 'keyup'); W.__key('KeyA', 'keyup'); }; };
   W.__hits = () => { let on = true; (async () => { while (on) { await W.__tap('Space', 70); await wait(160); } })(); return () => { on = false; }; };
+  // (GPT's P4B: a high-motion skill — its key tapped again and again, MP refilled — e.g. Shadow Step 'Digit1')
+  W.__skill = (code, every = 380) => { let on = true; (async () => { let n = 0; while (on) { await W.__tap(code, 70); await wait(every); if (++n % 4 === 0) { try { S().devApi().heal(); } catch (e) { /* (no dev API) */ } } } })(); return () => { on = false; }; };
   W.__res = W.__res || { state: 'ready' };
   W.__plan = async (o = {}) => {
     const R = (W.__res = { state: 'start' }), G = W.__game;
@@ -66,6 +68,7 @@
       R.marks = W.__marks().filter(([, t]) => t >= tWorld - 100).map(([k, t]) => [k, Math.round(t - tWorld)]);
       R.entryLong = W.__lt.filter(([st]) => st >= tWorld).map(([st, d]) => d).sort((a, b) => b - a).slice(0, 6);
       await wait(o.settle ?? 5000); // (the arrival and the first pictures' compiling)
+      if (o.skill) try { const d = S().devApi(); d.allSkills(true); d.flags.god = true; d.flags.peace = true; d.heal(); } catch (e) { R.skillErr = String(e); } // (the skill phase: every skill open, MP refilled)
       R.a3 = W.__a3();
       R.firstHit = await W.__firstHit(); R.state = 'firstHit';
       await wait(800);
@@ -76,6 +79,7 @@
         P.idle = await W.__phase(o.ms ?? 6000);
         P.run = await W.__phase(o.ms ?? 6000, W.__run); await wait(300);
         P.hits = await W.__phase(o.ms ?? 6000, W.__hits); await wait(500);
+        if (o.skill) { P.skill = await W.__phase(o.ms ?? 6000, () => W.__skill(o.skill)); await wait(800); }
         if (lv === 0 && !G.loop.inFocus) { // (the pane shown but not focused: Phaser holds each step to 1/60 s while its window is unfocused — the focused game's step, as David plays it, measured too)
           G.loop.focus(); await wait(4000); // (its 120 frames' cool-down after a focus first)
           P.runFocused = await W.__phase(o.ms ?? 6000, W.__run); await wait(300);
