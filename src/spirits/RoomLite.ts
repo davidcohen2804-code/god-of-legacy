@@ -8,8 +8,9 @@ import * as THREE from 'three';
  *  Lambert ignores the scene's environment map, which lights the room's PBR pieces evenly (the RoomEnvironment fill), so
  *  plain M1 darkens them. With a renderer (`&m1b`), that fill is given back as an even light map: its strength measured
  *  once from the same environment (a white rough sphere drawn by it alone, averaged), times the scene's own strength.
- *  Returns how many materials were swapped, of how many PBR ones, and the fill. */
-export function roomLite(renderer: THREE.WebGLRenderer | null, ...scenes: THREE.Scene[]): { swapped: number; pbr: number; fill: number } {
+ *  `floorOnly` (`&m1c`): only the floor-like pieces (the paving and terraces), the walls, blocks and railings left as
+ *  they are. Returns how many materials were swapped, of how many PBR ones, on how many meshes, and the fill. */
+export function roomLite(renderer: THREE.WebGLRenderer | null, o: { floorOnly?: boolean }, ...scenes: THREE.Scene[]): { swapped: number; pbr: number; fill: number; meshes: number } {
   const made = new Map<THREE.Material, THREE.Material>(); let pbr = 0;
   const env = scenes.find((s) => s.environment)?.environment ?? null;
   const envI = (scenes.find((s) => s.environment) as (THREE.Scene & { environmentIntensity?: number }) | undefined)?.environmentIntensity ?? 1;
@@ -34,13 +35,25 @@ export function roomLite(renderer: THREE.WebGLRenderer | null, ...scenes: THREE.
     l.name = p.name; l.userData = { ...p.userData, m1: true }; l.clippingPlanes = p.clippingPlanes; l.stencilWrite = p.stencilWrite;
     made.set(m, l); return l;
   };
-  for (const sc of scenes) sc.traverse((o) => {
-    const mesh = o as THREE.Mesh;
+  let meshes = 0;
+  for (const sc of scenes) sc.traverse((ob) => {
+    const mesh = ob as THREE.Mesh;
     if (!mesh.isMesh || !mesh.material || (mesh as unknown as THREE.SkinnedMesh).isSkinnedMesh) return;
+    if (o.floorOnly && !floorLike(mesh)) return; // (M1c: only the large, flat, level pieces — the paving and the terraces)
+    const before = mesh.material;
     mesh.material = Array.isArray(mesh.material) ? mesh.material.map(swap) : swap(mesh.material);
+    if (mesh.material !== before) meshes++;
   });
   let swapped = 0; for (const [a, b] of made) if (a !== b) swapped++;
-  return { swapped, pbr, fill };
+  return { swapped, pbr, fill, meshes };
+}
+
+/** M1c (GPT's P4B): a floor-like piece — flat and level (its height under 0.2 units) and large (over 4 square units). */
+function floorLike(m: THREE.Mesh): boolean {
+  const g = m.geometry; if (!g.boundingBox) g.computeBoundingBox();
+  m.updateWorldMatrix(true, false); const b = g.boundingBox!.clone().applyMatrix4(m.matrixWorld);
+  const sx = b.max.x - b.min.x, sy = b.max.y - b.min.y, sz = b.max.z - b.min.z;
+  return sy < 0.2 && sx * sz > 4;
 }
 
 /** The light a white, fully rough PBR surface gets from an environment map alone (strength 1), averaged over a sphere

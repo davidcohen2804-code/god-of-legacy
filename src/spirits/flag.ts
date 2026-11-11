@@ -56,7 +56,14 @@ export const SPIRITS = { on: Q.has('spirits'), lean: Q.get('lean') !== '0', lite
    *  before the first dash instead of during it (Hero3D.warmGhost). */
   ghostwarm: Q.has('ghostwarm'),
   /** `&ghostlite` (P4B): his afterimages drawn from his lighter shadow body (only its vertices skinned per image). */
-  ghostlite: Q.has('ghostlite') };
+  ghostlite: Q.has('ghostlite'),
+  /** `&m1c` (P4B): M1b on the floor-like pieces only (the paving and terraces); the warm stone walls, blocks and railings
+   *  keep their PBR material. */
+  m1c: Q.has('m1c'),
+  /** `&glow` (P4B): a small additive halo at the room's warm lights — the brazier's glow without the bloom (GlowLite.ts). */
+  glow: Q.has('glow'),
+  /** `&autolow` (P4B): Auto starts an integrated Intel GPU on Low when no level is set or remembered (manual kept). */
+  autolow: Q.has('autolow') };
 
 /** The Spectral Samurai's own modelled body (gate 1b, in assets/hero3d): GPT's four drawings → the shape → the drawings
  *  baked on → the Beginner's 65-bone skeleton fitted in (tools/hero3d, src/spirit_samurai). */

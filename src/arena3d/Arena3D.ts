@@ -214,13 +214,13 @@ export class Arena3D {
   /** `opts.build`: the place to build (default: the arena's temple courtyard); `opts.cam`: camera settings over the arena's.
    *  The rest — the picture (bloom, shadows, the glow layer), placing the 2D world where this camera sees it, the fighters'
    *  sun shadows and light, the skills' 3D pieces, the blows' answers — is the same for any 3D place. */
-  constructor(private scene: Phaser.Scene, private floor: Floor, opts: { build?: BuildPlace; cam?: Partial<Cam3D>; lean?: boolean; /** a stencil buffer on the canvas (?spirits&ns: the spirit Samurai's blade seen through his own body only) */ stencil?: boolean; /** lean: High drawn at the game canvas's own size (?spirits&native — GPT's sharpness test R1) */ native?: boolean; /** lean: the hero's own layer drawn zoomed onto his part of the picture, the world as it is (?spirits&r2 — GPT's R2) */ heroZoom?: number; /** lean: no bloom on High either (?spirits&nobloom — GPT's P4A) */ noBloom?: boolean; /** lean: Auto steps down after ~1.5 s of slow pictures instead of 5 s (?spirits&autofast — P4A) */ autoFast?: boolean; /** lean: called once the room is built (?spirits&m1: its materials lit more cheaply — P4A) */ afterBuild?: (room: THREE.Scene, front: THREE.Scene, renderer: THREE.WebGLRenderer) => void } = {}) {
+  constructor(private scene: Phaser.Scene, private floor: Floor, opts: { build?: BuildPlace; cam?: Partial<Cam3D>; lean?: boolean; /** a stencil buffer on the canvas (?spirits&ns: the spirit Samurai's blade seen through his own body only) */ stencil?: boolean; /** lean: High drawn at the game canvas's own size (?spirits&native — GPT's sharpness test R1) */ native?: boolean; /** lean: the hero's own layer drawn zoomed onto his part of the picture, the world as it is (?spirits&r2 — GPT's R2) */ heroZoom?: number; /** lean: no bloom on High either (?spirits&nobloom — GPT's P4A) */ noBloom?: boolean; /** lean: Auto steps down after ~1.5 s of slow pictures instead of 5 s (?spirits&autofast — P4A) */ autoFast?: boolean; /** lean: called once the room is built (?spirits&m1: its materials lit more cheaply — P4A) */ afterBuild?: (room: THREE.Scene, front: THREE.Scene, renderer: THREE.WebGLRenderer, warm: THREE.PointLight[]) => void; /** lean, Auto: an integrated Intel GPU starts on Low when nothing is set or remembered (?spirits&autolow — P4B) */ autoLow?: boolean } = {}) {
     this.CAM = { ...CAM_ARENA, ...opts.cam }; this.dist = this.CAM.dist; this.buildPlace = opts.build ?? buildRoom;
     const soft = !!(navigator as { webdriver?: boolean }).webdriver; // (test browsers render on the CPU: half size, no shadows)
     this.lean = !!opts.lean && !soft; this.native = this.lean && !!opts.native; this.heroZoom = this.lean ? Math.max(1, opts.heroZoom ?? 1) : 1;
     this.noBloom = this.lean && !!opts.noBloom; this.autoFast = this.lean && !!opts.autoFast;
     const man = this.lean ? Arena3D.manualLevel() : null; this.manual = man !== null; // (lean: the player's own choice in the settings, else automatic)
-    const lv0 = this.lean ? man ?? Arena3D.savedLevel() : 0; this.quality.level = lv0;
+    const lv0 = this.lean ? man ?? (opts.autoLow && Arena3D.noSavedLevel() && Arena3D.integratedGpu() ? 2 : Arena3D.savedLevel()) : 0; this.quality.level = lv0;
     const [w, h] = soft ? [Math.round(scene.scale.width * 0.4), Math.round(scene.scale.height * 0.4)] : this.sizeFor(lv0);
     // one three.js canvas: the room is drawn into it, handed to Phaser (a GPU copy), then the railing, handed over too
     this.bgCanvas = document.createElement('canvas');
@@ -232,7 +232,7 @@ export class Arena3D {
     this.camera = new THREE.PerspectiveCamera(this.CAM.fov, w / h, 0.5, 400);
     if (this.lean) try { performance.mark('gol:room-build'); } catch { /* (no marks) */ }
     this.build(soft);
-    if (this.lean && opts.afterBuild) opts.afterBuild(this.scene3, this.front3, this.renderer);
+    if (this.lean && opts.afterBuild) opts.afterBuild(this.scene3, this.front3, this.renderer, this.room.warm);
     if (this.lean) try { performance.mark('gol:room-built'); } catch { /* (no marks) */ }
     this.soft = soft;
     if (this.lean && (lv0 >= 1 || this.noBloom)) this.scaleBits(h); // (lean, a slow computer known from before: no bloom from the start)
@@ -364,6 +364,17 @@ export class Arena3D {
   private static savedLevel(): number { try { const v = Number(localStorage.getItem(Arena3D.LEVEL_KEY)); return Number.isFinite(v) ? Math.max(0, Math.min(2, Math.round(v))) : 0; } catch { return 0; } }
   /** The 3D picture's quality the player chose (the settings' Graphics: High 0, Medium 1, Low 2), or null for automatic. */
   static readonly QUALITY_KEY = 'gol-a3d-quality';
+  /** P4B, `autoLow`: no level remembered from an earlier visit. */
+  private static noSavedLevel(): boolean { try { return localStorage.getItem(Arena3D.LEVEL_KEY) === null; } catch { return false; } }
+  /** P4B, `autoLow`: the browser reports an integrated Intel GPU (UHD / HD / Iris — not Arc). */
+  private static integratedGpu(): boolean {
+    try {
+      const c = document.createElement('canvas'), gl = (c.getContext('webgl2') ?? c.getContext('webgl')) as WebGLRenderingContext | null; if (!gl) return false;
+      const ext = gl.getExtension('WEBGL_debug_renderer_info'), r = String(ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER));
+      gl.getExtension('WEBGL_lose_context')?.loseContext();
+      return /Intel/i.test(r) && !/\bArc\b/i.test(r);
+    } catch { return false; }
+  }
   static manualLevel(): number | null { try { const v = localStorage.getItem(Arena3D.QUALITY_KEY); return v === '0' || v === '1' || v === '2' ? Number(v) : null; } catch { return null; } }
   /** The picture's size at a quality level: its share of the game's size, and never more pixels than the window shows. */
   private sizeFor(lv: number): [number, number] {
