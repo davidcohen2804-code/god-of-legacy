@@ -3,6 +3,7 @@
 // platform → combat state (hit-stun / launch / knockdown / getup / hard CC with DR) → final 4-class kits on the shared
 // SkillRuntime with hit-confirm cancels, combo scaling and juggle budget → confirmed-hit feedback (damage numbers, combo
 // counter, hit-stop / shake hierarchy) → HUD, Skill Book (K), Inventory (I) and Cosmetic Shop (O).
+import { trioAt, TRIO } from '../skills/MageTornado';
 import { FloorLift } from '../world/FloorLift';
 import { POLE } from '../skills/SamuraiPole';
 import { sunGateX, SUN_GATE } from '../world/SunGate';
@@ -213,9 +214,10 @@ const BASTION = { taken: 0.5, perBlow: 6, maxBlows: 8 };
 const SUBSTITUTE = { unseenMs: 1500 };
 /** The Book Mage's Rift Gates (David 18 Oct 01:26): a gate lasts `ms`; two at most; standing within `near` px of one (with the
  *  other alive) a press crosses — under `sinkMs` (untouchable), out of the other, then the gates rest `restMs`. */
-const RIFT = { ms: 10000, max: 2, near: 40, sinkMs: 200, riseMs: 200, restMs: 4000 };
+const RIFT = { ms: 10000, max: 2, near: 40, sinkMs: 120, riseMs: 160, restMs: 0, /** after coming out of one, both wait until she has stepped this far from it */ clear: 70 };
+/** The Book Mage's Cloud Ascent (slot Q, `blink`; David 18 Nov): she hovers this high for this long. */
+const HOVER = { ms: 8000, z: 130 };
 /** The Book Mage's Tempest Ride: she rides this high (px) while it lasts. */
-const TEMPEST = { ride: 60 };
 /** The Gambler's Long Guard: after a catch the guard lasts only this long (ms of active). */
 const LONG_GUARD = { afterCatchMs: 320 };
 /** Judgment Blade pacing: earliest throw after the leap starts, auto-throw of a follow-up blade, earliest follow-up throw. */
@@ -245,7 +247,7 @@ const ENEMY_SKILL: FinalSkill = {
 const ALERT_MS = 5000;
 /** Tree of Life heal aura radius (px around the tree). */
 /** Floor zones that draw their own ground (the generic crack + dust of a zone's turn steps aside): the quake's one rotating ring, the tornado, the charged floor, the Verdict, the leaves; Thunder Circle and Lion's Maw (the Warrior chat, 18 Oct); Sakura Bind's trap (the Samurai chat, 18 Oct: its 100 turns laid the Warrior's gold crack under the ring every 60 ms — David's "something green on the floor"). */
-const NO_ZONE_CRACK = new Set(['ground_breaker', 'tornado_blade', 'rain_of_arrows', 'titans_verdict', 'leaping_arrow', 'thunder_circle', 'lions_maw', 'sakura_bind']);
+const NO_ZONE_CRACK = new Set(['ground_breaker', 'tornado_blade', 'rain_of_arrows', 'titans_verdict', 'leaping_arrow', 'thunder_circle', 'lions_maw', 'sakura_bind', 'elemental_ascension', 'astral_burst', 'glacial_spikes']); // (the mage's Tempest Trio, Astral Wheel and Frost Field are their own pictures)
 const TREE_RADIUS = 260; // = the drawn circle around the tree
 
 /** Skills whose aim the held direction keeps turning while they run (sent to the other players). */
@@ -392,6 +394,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
   private jbWant = 0;
   /** Rift Gates: her gates (own), the other fighters' (by id, for their looks), and a crossing under way. */
   private rifts: { x: number; y: number; until: number }[] = [];
+  /** Cloud Ascent: she hovers until then (sim ms); the gate she came out of, untouchable until she steps clear of it. */
+  private hoverUntil = -1; private riftOut: { x: number; y: number } | null = null;
   readonly riftsOf = new Map<string, { x: number; y: number; until: number }[]>();
   private riftCross: { x: number; y: number; at: number; castId: string } | null = null;
   /** This fighter's live rift gates (the local player: `localId`). */
@@ -1272,6 +1276,17 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.tryBackstep(now);
     this.stepPole(now); this.stepUnseen(now);
     if (this.riftCross && now >= this.riftCross.at) { const c = this.riftCross, k = this.kin; this.riftCross = null; k.x = c.x; k.y = c.y; k.vx = 0; k.vy = 0; this.rt?.holdCooldown('rift_gates', now + RIFT.restMs); this.pvp?.sendRelease({ castId: c.castId || 'rift', at: -10, ax: Math.round(c.x), ay: Math.round(c.y) }); } // out of the other gate
+    if (!this.riftCross && this.rifts.length) { // Rift Gates (David 18 Nov): walking into one of her two portals carries her out of the other at once
+      const live = this.rifts.filter((g) => now < g.until);
+      if (this.riftOut && Math.hypot(k.x - this.riftOut.x, k.y - this.riftOut.y) > RIFT.clear) this.riftOut = null;
+      const on = live.length === 2 && !this.riftOut && this.body.state === 'free' && !this.rt?.ownRun ? live.find((g) => Math.hypot(g.x - k.x, g.y - k.y) <= RIFT.near) : undefined;
+      const to = on && live.find((g) => g !== on);
+      if (on && to) {
+        this.riftCross = { x: to.x, y: to.y, at: now + RIFT.sinkMs, castId: '' }; this.riftOut = { x: to.x, y: to.y };
+        this.body.ghostUntil = Math.max(this.body.ghostUntil, now + RIFT.sinkMs + RIFT.riseMs);
+        this.fx?.mageRiftCross(this.localId, { x: on.x, y: on.y }, { x: to.x, y: to.y });
+      }
+    }
     const run = this.rt!.ownRun;
     const reacting = b.state !== 'free';
     const ccLocked = b.hard.active(now) && b.hard.kind !== 'root';
@@ -1301,7 +1316,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     // the book mage hangs in the air while he casts there (no fall), then floats down a moment: his combos go on in the air
     const floating = now < this.mage.floatUntil && !k.grounded && b.state === 'free'; // Levitate: a slow float
     if (floating) k.vz = Math.max(k.vz, -40);
-    const r = stepKin(k, ms, floating ? LEVITATE.gravity : b.gravityScale(now), (x, y, z) => this.blockedByActors(x, y, z, !!this.rt!.ownRun), b.state === 'free' && !b.push && !this.rt!.ownRun);
+    const hovering = now < this.hoverUntil && b.state === 'free'; // Cloud Ascent: held up in the clouds, a slow bob
+    if (hovering) { const top = k.supportZ + HOVER.z + Math.sin(now / 420) * 6; k.grounded = false; k.vz = Math.max(-160, Math.min(300, (top - k.z) * 6)); }
+    const r = stepKin(k, ms, hovering ? 0 : floating ? LEVITATE.gravity : b.gravityScale(now), (x, y, z) => this.blockedByActors(x, y, z, !!this.rt!.ownRun), b.state === 'free' && !b.push && !this.rt!.ownRun);
     // the Sky Path is one lane: near Ivy Summit's right end and out over the clouds you are drawn into it (as in a side view:
     // run right, jump — and you land on the cloud whatever depth of the summit you came from)
     if (k.x > SKY.lane[0] && k.x < SKY.lane[1] && Math.max(k.z, k.supportZ) >= SKY_DROP && (k.supportId?.startsWith('sky-') || !k.grounded)) {
@@ -1374,7 +1391,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     else if (this.passives.airLeap && !this.leapUsed && !rooted && !(this.mode === 'takeoff' && this.modeT <= PHYS.takeoffMs) && jumpKey) this.warLeap(now);
     else if (this.passives.mage.levitate && !this.leapUsed && !rooted && !(this.mode === 'takeoff' && this.modeT <= PHYS.takeoffMs) && jumpKey) this.levitate(now);
     const sp = Math.hypot(k.vx, k.vy);
-    if (!k.grounded) { if (this.mode === 'backstep' && now < this.backstepUntil) return; if (this.mode !== 'takeoff' || this.modeT > PHYS.takeoffMs) this.setMode('air'); return; }
+    if (!k.grounded && !(now < this.hoverUntil)) { if (this.mode === 'backstep' && now < this.backstepUntil) return; if (this.mode !== 'takeoff' || this.modeT > PHYS.takeoffMs) this.setMode('air'); return; } // (Cloud Ascent: on her cloud she stands and walks as on the floor)
     if (this.mode === 'land' && this.modeT < LAND_MS && !mx && !my) return;
     if (this.mode === 'recover' && this.modeT < RECOVER_MS && !mx && !my) return;
     if (sp > 12) {
@@ -1405,7 +1422,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     this.dir = dirOf(run.aim.x, run.aim.y, this.dir);
     const phase = run.phase === 'startup' ? 'startup' : run.phase === 'active' ? 'active' : 'recovery';
     this.commitSwitch(); // (the switch commits: hit before it, no change)
-    if (s.id === 'tempest_ride' && run.phase === 'active') { const top = k.supportZ + TEMPEST.ride; k.grounded = false; k.vz = Math.max(-90, Math.min(280, (top - k.z) * 7)); } // she rides the tornado, lifted
+    if (s.id === 'tempest_ride' && run.phase === 'active' && !this.ci?.slotHeld(this.kit.indexOf(s))) { // Thunder Ring (David 18 Nov): let go = the ring ends
+      this.rt!.cancelForFollowUp(run); this.endRun(run, false); this.pvp?.sendRelease({ castId: run.castId, at: -11, ax: 0, ay: 0 }); return;
+    }
     if (s.id === 'quick_shot_stream' && run.phase !== 'recovery' && !this.ci?.attackHeld) { // the stream: let go = the circle snaps shut
       this.rt!.cancelForFollowUp(run); this.endRun(run, false); this.pvp?.sendRelease({ castId: run.castId, at: -9, ax: 0, ay: 0 }); return;
     }
@@ -2026,6 +2045,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         if (L.at === 'caster') { const c = this.casterPos(l.run.attackerId); if (c) { l.x = c.x; l.y = c.y; } } // the quake travels with you
         if (l.run.skill.id === 'spirit_hawk') { this.hawkDive(l, L); continue; }
         if (l.run.skill.id === 'god_of_blades') { if (l.run.own && this.dead >= 0) { l.left = 0; break; } this.bladeStrikes(l, L); continue; }
+        const tq = l as { trio?: number; cx?: number; cy?: number }; if (tq.trio !== undefined) { const q = trioAt({ x: tq.cx!, y: tq.cy! }, tq.trio, L.startMs + (L.count - 1 - l.left) * L.everyMs); l.x = q.x; l.y = q.y; } // (the mage's three tornadoes wander)
         if (l.run.skill.id === 'tornado_blade') { const path = (l as { path?: { x: number; y: number }[] }).path ??= tornadoPath(l.run.origin, l.run.aim), q = path[Math.min(path.length - 1, TORNADO.count - 1 - l.left)]; l.x = q.x; l.y = q.y; } // rolls forward one step per strike (the picture takes the same path)
         this.a3d?.fx.tick(l.run, { x: l.x, y: l.y, z: 40 }, Math.max(0, L.count - 1 - l.left), l.left === 0); // (a zone's turn in the room too, not only a hold's: Thunder Rain's charged floor crackles, the lion's roars — the Archer and Warrior chats' asks)
         if (l.run.skill.id === 'blade_storm') { // swords erupt all around the caster + lightning crackles
@@ -2621,17 +2641,9 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       case 'arcane_bolt': case 'arcane_bolt_frost': case 'arcane_bolt_storm': case 'arcane_bolt_arcane':
         if (run.stage === 2) this.time.delayedCall(up, () => { this.momentum = { x: -run.aim.x * 46, y: -run.aim.y * 20, left: 180 }; }); // the lance's recoil: a slide back
         break;
-      case 'blink': {
-        this.body.invulnUntil = Math.max(this.body.invulnUntil, now + up + s.active); if (this.passives.mage.blinkRune) this.frostRune(k.x, k.y);
-        // the air chase: a foe thrown into the air ahead of him (toward the aim) — Blink carries him up to it, to go on with the combo there
-        const air = this.targetsFor(run).filter((t) => t.alive && t.id !== this.localId && t.z > 40 && (t.x - k.x) * run.aim.x + (t.y - k.y) * run.aim.y > 0 && Math.hypot(t.x - k.x, t.y - k.y) < 300)
-          .sort((a, b) => Math.hypot(a.x - k.x, a.y - k.y) - Math.hypot(b.x - k.x, b.y - k.y))[0];
-        if (air) { const dx = air.x - k.x, dy = air.y - k.y, l = Math.hypot(dx, dy) || 1; run.aim = { x: dx / l, y: dy / l }; run.lock = air.id; this.blinkChase = { castId: run.castId, id: air.id }; }
-        break;
-      }
+      case 'blink': this.hoverUntil = now + up + HOVER.ms; break; // Cloud Ascent (David 18 Nov): up into the clouds, 8 s
       case 'chrono_haste': M.hasteUntil = now + up + 120000; this.shares.push({ at: now + up, id: s.id, ms: 120000 }); say('CHRONO HASTE', '#c9b6ff'); break;
       case 'arcane_ward': M.wardHp = Math.round(this.maxHpNow() * 0.2); M.wardUntil = now + up + 8000; this.shares.push({ at: now + up, id: s.id, ms: 8000 }); say('ARCANE WARD', '#9fdcff'); break;
-      case 'elemental_ascension': M.ascUntil = now + up + 20000; say('ELEMENTAL ASCENSION', '#cff6ff'); break;
       case 'chrono_sigil': this.sigil = { x: k.x, y: k.y, z: k.z, hp: this.playerHP, until: now + up + 5000 }; break;
     }
   }
@@ -3150,8 +3162,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     const k = this.kin;
     if (s.id === 'rift_gates') { // Rift Gates (David 18 Oct 01:26): on a gate with the other alive — cross (stage 1); else lay one (stage 0)
       const live = this.rifts.filter((g) => this.simMs < g.until), on = live.find((g) => Math.hypot(g.x - k.x, g.y - k.y) <= RIFT.near), to = on && live.find((g) => g !== on);
-      if (to) { stage = 1; this.riftCross = { x: to.x, y: to.y, at: this.simMs + RIFT.sinkMs, castId: '' }; this.body.ghostUntil = Math.max(this.body.ghostUntil, this.simMs + RIFT.sinkMs + RIFT.riseMs); }
-      else { stage = 0; this.rifts = [...live, { x: k.x, y: k.y, until: this.simMs + s.startup + RIFT.ms }].slice(-RIFT.max); }
+      void on; void to; stage = 0; this.rifts = [...live, { x: k.x, y: k.y, until: this.simMs + s.startup + RIFT.ms }].slice(-RIFT.max); this.riftOut = { x: k.x, y: k.y }; // (David 18 Nov: a press always opens one where she stands — walking into one carries her: stepRift)
     }
     const prime = this.rt!.primeOf(this.localId, s.id), ct0 = this.castTimes(s, stage, followUp); // (the arena's warrior: his base pace, as the runtime plays it)
     const ct = prime ? { ...ct0, startup: prime.cut !== undefined ? Math.max(0, ct0.startup - prime.cut) : 0 } : ct0; // (primed by Sheathe: it leaves the sheath at once; by Steady Chamber: a little sooner)
@@ -3417,7 +3428,8 @@ export class LegacyCourtyardScene extends Phaser.Scene {
     if (phase === 'active' && L && L.at !== 'target') { // every caster's lingering zone (yours, other players', the sparring knight's; a hold under a foe starts on its hit: startHold)
       const off = L.at === 'aim' ? (L.offset ?? 0) : 0, pl = L.at === 'place' ? run.place : null; // ('place': where the cast was opened on the floor)
       const k = lingerPace(run); // (the skill's own ticks — Blade Storm's storm — run at its pace; a zone that outlasts it keeps its own)
-      this.lingers.push({ run, x: pl ? pl.x : run.origin.x + run.aim.x * off, y: pl ? pl.y : run.origin.y + run.aim.y * off, next: this.simMs + L.startMs * k, left: L.count, ...(k !== 1 ? { every: L.everyMs * k } : {}) });
+      if (run.skill.id === 'elemental_ascension' && pl) { for (let n = 0; n < TRIO.n; n++) this.lingers.push({ run, x: pl.x, y: pl.y, next: this.simMs + L.startMs, left: L.count, trio: n, cx: pl.x, cy: pl.y } as (typeof this.lingers)[number]); } // the mage's Tempest Trio: three tornadoes, each on its own path (MageTornado)
+      else this.lingers.push({ run, x: pl ? pl.x : run.origin.x + run.aim.x * off, y: pl ? pl.y : run.origin.y + run.aim.y * off, next: this.simMs + L.startMs * k, left: L.count, ...(k !== 1 ? { every: L.everyMs * k } : {}) });
     }
     if (run.own) {
       if (phase === 'active' && run.skill.through) this.throughUntil = this.simMs + run.timings.active + run.timings.recovery + 450;
@@ -4739,7 +4751,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
       },
       onRelease: (from, m) => { // Judgment Blade thrown: final aim + the moment it left the hand
         if (m.at === -6) { this.fx?.samPoleSpring(from, Math.sign(m.ax) || 1); return; } // the samurai sprang off his banner
-        if (m.at === -10) { this.pvp?.remotes.get(from)?.teleport(m.ax, m.ay, 0); return; } // the mage came out of her other gate
+        if (m.at === -10) { const rm = this.pvp?.remotes.get(from) as unknown as { x?: number; y?: number; teleport(x: number, y: number, z: number): void } | undefined; if (rm && rm.x !== undefined && rm.y !== undefined) this.fx?.mageRiftCross(from, { x: rm.x, y: rm.y }, { x: m.ax, y: m.ay }); rm?.teleport(m.ax, m.ay, 0); return; } // the mage came out of her other gate
         if (m.at === -7) { this.fx?.samSubstitute(from, { x: m.ax, y: m.ay, z: 0 }); this.pvp?.remotes.get(from)?.vanish(SUBSTITUTE.unseenMs); return; } // his doll broke: he is gone
         if (m.at === -8) { this.pvp?.remotes.get(from)?.show(); this.fx?.samReappear(from, { x: m.ax, y: m.ay, z: 0 }); return; } // out of the ink
         const r = this.rt?.runs.find((x) => x.castId === m.castId && x.attackerId === from);
@@ -4747,6 +4759,7 @@ export class LegacyCourtyardScene extends Phaser.Scene {
         if (r && r.skill.id === 'arrow_storm' && m.at === -2) { r.place = { x: m.ax, y: m.ay }; return; } // Hunter's Rain: the caster moved the mark
         if (r && r.skill.id === 'arrow_storm' && m.at === -4) { r.phase = 'done'; return; } // Hunter's Rain: the caster ended it
         if (r && r.skill.id === 'long_guard' && m.at === -5) { r.phase = 'done'; return; } // Long Guard: he let go
+        if (r && r.skill.id === 'tempest_ride' && m.at === -11) { r.phase = 'done'; return; } // the mage's Thunder Ring: she let go
         if (r && r.skill.id === 'quick_shot_stream' && m.at === -9) { r.phase = 'done'; return; } // the archer's stream: she let go
         if (r && AIM_STEER.has(r.skill.id) && m.at === -1) { r.aim = sideAim(m.ax / 1000, m.ay / 1000, m.ax < 0 ? -1 : 1); return; } // Volley Stance / Spirit Bow / Eagle Tide: the caster turned the aim
         if (r && r.phase === 'startup') { r.aim = clampAim(unit(m.ax, m.ay)); r.timings.startup = Math.max(r.elapsed, m.at); }

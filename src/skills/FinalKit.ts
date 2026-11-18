@@ -297,18 +297,24 @@ const mage: FinalSkill[] = [
     relations: ['Rune net', 'Bind 3s'],
   }),
   S({
-    id: 'astral_burst', cls: 'book_mage', slot: 3, name: 'Astral Lift', roles: ['launcher', 'pull'], targeting: 'selfAim',
-    startup: 180, active: 140, recovery: 220, cooldown: 6000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
-    hits: [H(0, 28, { kind: 'circle', radius: 120, at: 'aimBias', bias: 80 }, { stun: 420, pull: 44, launch: 130, juggleCost: 30, slowFall: 1800 }, { reachUp: 130, heavy: true })], // (David 18 Oct 01:26: the tube of light lowers him slowly)
-    cancelOnHit: ['lightning_chain', 'arcane_wave', 'blink', 'arcane_bolt'], telegraph: 'circle',
-    description: 'A hand of starlight seizes the foe, draws it to you and throws it into the air. A heavy blow: on a frozen foe it SHATTERS the ice.',
-    relations: ['Launcher', 'Shatters the frozen'],
+    id: 'astral_burst', cls: 'book_mage', slot: 3, name: 'Astral Wheel', roles: ['zone', 'setup'], targeting: 'mouseGround',
+    startup: 260, active: 140, recovery: 200, cooldown: 9000, ground: true, air: true, cover: 'ARCS_OVER_LOW_COVER', move: LOCK,
+    // (David 18 Nov: "replace it with something that turns on the floor and does damage like a gentle tap, a few gentle bolts
+    // from above, holding 5 s"): a wheel of starlight laid where she aims, turning on the floor for 5 s; every half second
+    // it taps whoever stands in it (a light flinch, small damage) and now and then a thin bolt falls onto it. She is free
+    // to go on casting while it turns.
+    placeRange: 260, zoneMs: 5000,
+    hits: [H(0, 6, { kind: 'placed', radius: 130 }, { stun: 200, juggleCost: 4 }, { reachUp: 140 })],
+    linger: { at: 'place', startMs: 500, everyMs: 500, count: 9, radius: 130, maxZ: 140, hit: H(0, 4, { kind: 'circle', radius: 130 }, { stun: 180, juggleCost: 2 }, { reachUp: 140 }) },
+    cancelOnHit: ['lightning_chain', 'arcane_wave', 'blink', 'arcane_bolt'], telegraph: 'ground',
+    description: 'Lay a wheel of starlight on the floor where you aim. It turns for 5s, tapping every foe on it every half second while thin bolts fall onto it; you are free to keep casting.',
+    relations: ['Zone 5s', 'Taps every 0.5s'],
   }),
   S({
     id: 'frost_nova', cls: 'book_mage', slot: 4, name: 'Frost Nova', roles: ['zone', 'peel'], targeting: 'self',
     startup: 220, active: 260, recovery: 320, cooldown: 7000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
     dash: { distance: 0, lift: 46 }, // he rises a little on the burst of cold, then drops
-    hits: [H(0, 20, { kind: 'circle', radius: 120 }, { stun: 340 }, { reachUp: 120, el: FROST }),
+    hits: [H(0, 20, { kind: 'circle', radius: 120 }, { stun: 340, hardCC: { kind: 'freeze', ms: 4000, long: true } }, { reachUp: 120, el: FROST }), // (David 18 Nov: "gorgeous — let it freeze him at least 4 s")
       H(160, 8, { kind: 'circle', radius: 175 }, { stun: 300 }, { reachUp: 140 })],
     cancelOnHit: ['glacial_spikes', 'astral_burst', 'blink', 'arcane_bolt'], telegraph: 'circle',
     description: 'A ring of ice bursts out across the floor around you without moving anyone: it CHILLS every foe it touches (a foe already chilled FREEZES solid) — the cold that opens your element chain.',
@@ -351,22 +357,26 @@ const mage: FinalSkill[] = [
   }),
   // ---- extended kit (Q R F G C V T H Z X)
   S({
-    id: 'blink', cls: 'book_mage', slot: 8, name: 'Blink', roles: ['mobility', 'escape'], targeting: 'mouseDir',
-    startup: 40, active: 100, recovery: 110, cooldown: 5000, ground: true, air: true, cover: 'BLOCKED_BY_COVER', move: LOCK,
-    dash: { distance: 170 }, through: true, charges: 2, chargeGap: 220,
-    hits: [H(0, 0, { kind: 'capsule', radius: 34 }, { stun: 350, juggleCost: 6 }, { reachUp: 90 })],
-    description: 'Vanish and reappear a short way off in the direction you hold, in the air too; a foe you pass through is stunned (no damage). Toward a foe in the air it carries you up to it, to go on with the combo there. Two blinks in a row. It cancels the end of any of your spells.',
-    relations: ['2 in a row', 'Cancels any spell'],
+    id: 'blink', cls: 'book_mage', slot: 8, name: 'Cloud Ascent', roles: ['mobility', 'setup'], targeting: 'self',
+    startup: 200, active: 120, recovery: 150, cooldown: 16000, ground: true, air: true, cover: 'IGNORES_COVER', move: LOCK,
+    // (David 18 Nov: "replace the idea completely — clouds round the mage, he rises up and stays hovering 7–10 s"): clouds
+    // gather round her and lift her ~130 px; she hovers there 8 s (walks in the air, casts from it), then sinks down
+    hits: [], tags: ['buff'],
+    description: 'Clouds gather round you and lift you into the air: you hover there for 8s, moving and casting from above, then drift back down.',
+    relations: ['Hover 8s', 'Cast from the air'],
   }),
   S({
-    id: 'glacial_spikes', cls: 'book_mage', slot: 9, name: 'Glacial Spikes', roles: ['launcher', 'zone'], targeting: 'mouseCone',
-    startup: 220, active: 200, recovery: 220, cooldown: 6000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
-    hits: [H(0, 22, { kind: 'projectile', speed: 700, range: 260, radius: 30, count: 3, spread: 30, pierce: true }, { stun: 380, launch: 100, juggleCost: 22 }, { reachUp: 120, el: FROST })],
-    // the spikes stand 1.5s as a wall of ice: foes are held back from it
-    linger: { at: 'aim', offset: 180, startMs: 260, everyMs: 150, count: 10, radius: 90, maxZ: 60, hit: H(0, 0, { kind: 'circle', radius: 90 }, { push: 24 }, { reachUp: 60 }) },
-    cancelOnHit: ['astral_burst', 'lightning_chain', 'blink', 'arcane_bolt'], telegraph: 'cone',
-    description: 'Three rows of ice spikes burst from the floor in a fan: each spike throws its foe up and CHILLS it (a chilled foe FREEZES). The spikes stand for 1.5s as a wall of ice no foe can walk through.',
-    relations: ['Launcher', 'Ice wall 1.5s'],
+    id: 'glacial_spikes', cls: 'book_mage', slot: 9, name: 'Frost Field', roles: ['zone', 'peel'], targeting: 'mouseGround',
+    startup: 240, active: 160, recovery: 220, cooldown: 12000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    // (David 18 Nov: "a wave of ice over a very wide field in depth — as if the mage lays an ice floor on the planks, and the
+    // foe walks much slower"): the frost runs out from her feet and glazes a wide field where she aims (all the lane's depth);
+    // it stands 6 s and every foe on it walks at 40 % of his speed
+    placeRange: 200, zoneMs: 6000,
+    hits: [H(0, 10, { kind: 'placed', radius: 200 }, { stun: 220, slow: { pct: 0.6, ms: 500 } }, { reachUp: 60, el: FROST })],
+    linger: { at: 'place', startMs: 250, everyMs: 250, count: 23, radius: 200, maxZ: 40, hit: H(0, 0, { kind: 'circle', radius: 200 }, { slow: { pct: 0.6, ms: 450 } }, { reachUp: 40 }) },
+    cancelOnHit: ['astral_burst', 'lightning_chain', 'blink', 'arcane_bolt'], telegraph: 'ground',
+    description: 'Glaze a wide field of the floor with ice where you aim. It stands 6s; every foe on it moves at 40% of his speed.',
+    relations: ['Ice floor 6s', 'Slow 60%'],
   }),
   S({
     id: 'levity_field', cls: 'book_mage', slot: 11, name: 'Levity Field', roles: ['zone', 'hardCC', 'setup'], targeting: 'mouseGround',
@@ -401,36 +411,39 @@ const mage: FinalSkill[] = [
     relations: ['Silence 1.2s', 'No attacks or skills'],
   }),
   S({
-    id: 'elemental_ascension', cls: 'book_mage', slot: 17, name: 'Elemental Ascension', roles: ['setup'], targeting: 'self',
-    startup: 600, active: 160, recovery: 240, cooldown: 90000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 900],
-    hits: [H(0, 8, { kind: 'circle', radius: 160 }, { stun: 300, push: 34 }, { reachUp: 150 })],
-    tags: ['buff'],
-    description: 'Merge with the elements for 20s: every one of your hits both CHILLS and shocks, so magic reactions come from anything you cast, even Arcane Bolt.',
-    relations: ['Buff 20s', 'Every hit: frost + storm'],
+    id: 'elemental_ascension', cls: 'book_mage', slot: 17, name: 'Tempest Trio', roles: ['zone', 'signature'], targeting: 'mouseGround',
+    startup: 500, active: 160, recovery: 240, cooldown: 30000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
+    // (David 18 Nov: "summon 3 tornadoes coming from different directions, slowly, turning round the map for 10 s"): three
+    // storm tornadoes rise at three sides of the field where she aims and drift in slowly, then wander round it for 10 s
+    // (the path: MageTornado.ts); one catches whoever it touches (a light lift every quarter second while he is in it)
+    placeRange: 280, zoneMs: 10000,
+    hits: [],
+    linger: { at: 'place', startMs: 250, everyMs: 250, count: 40, radius: 70, maxZ: 200, hit: H(0, 3, { kind: 'circle', radius: 70 }, { stun: 260, float: true, launch: 20, juggleCost: 2 }, { reachUp: 200, el: STORM }) },
+    tags: [], telegraph: 'ground',
+    description: 'Summon three tornadoes at three sides of the field you aim at: they drift in slowly and wander round it for 10s, catching and lifting every foe they touch.',
+    relations: ['3 tornadoes', '10s'],
   }),
   S({
     id: 'rift_gates', cls: 'book_mage', slot: 18, name: 'Rift Gates', roles: ['mobility', 'setup'], targeting: 'self',
     startup: 200, active: 80, recovery: 160, cooldown: 600, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK,
-    // (David 18 Oct 01:26 + the Book Mage chat's Rift Gates): a press lays a violet rune gate into the floor under her (two at
-    // most: a third moves the oldest; each 10 s); pressed while she stands on one, she sinks into it and rises out of the
-    // other — 260 ms under, untouchable, then the gates wait 4 s (the scene: RIFT); foes cannot use them
+    // (David 18 Nov: "a portal, and somewhere else she runs to another one — not on the floor, a magic hole; the moment she
+    // touches one she is carried to the other; 10 s"): a press opens a portal standing in the air where she is (two at
+    // most: a third moves the oldest; each 10 s); walking into one carries her out of the other at once (the scene: RIFT)
     hits: [], tags: ['buff'],
     cancelOnHit: [],
     description: 'Lay a violet rift gate into the floor under you — two at most, each for 10s. Press it again while standing on one: you sink into it and rise out of the other, untouchable on the way; then the gates rest 4s. Foes cannot use them.',
     relations: ['Two gates (10s)', 'Cross between them'],
   }),
   S({
-    id: 'tempest_ride', cls: 'book_mage', slot: 19, name: 'Tempest Ride', roles: ['chase', 'zone'], targeting: 'self',
-    startup: 220, active: 2500, recovery: 300, cooldown: 14000, ground: true, air: false, cover: 'IGNORES_COVER', move: { startup: 0, active: 0.85, recovery: 0 }, armor: [0, 2720], follow: true,
-    // (David 18 Oct 01:26: "a tornado she can fly inside, hitting as it goes" + the Book Mage chat's Tempest Ride): she calls a
-    // tornado round herself and rides it — lifted ~60 px, steered as she walks for 2.5 s (unstaggerable); a foe it touches is
-    // caught (a cut every 250 ms holds him up in it), then it bursts outward and throws them
-    hits: [H(0, 5, { kind: 'circle', radius: 95 }, { stun: 300, launch: 60, juggleCost: 6 }, { reachUp: 180 }),
-      ...Array.from({ length: 9 }, (_, i) => H(250 + i * 250, 4, { kind: 'circle', radius: 95 }, { stun: 280, float: true, juggleCost: 3 }, { reachUp: 220, el: i % 3 === 2 ? STORM : undefined })),
-      H(2460, 16, { kind: 'circle', radius: 150 }, { stun: 420, launch: 110, push: 90, juggleCost: 14 }, { reachUp: 240, heavy: true, el: STORM })],
-    cancelOnHit: ['time_collapse'],
-    description: 'Call a violet-blue tornado round you and ride it for 2.5s — lifted off the floor, steered as you walk, nothing staggers you. A foe it touches is caught and held up in its funnel, then it bursts outward and throws everyone in it.',
-    relations: ['Ride 2.5s', 'Catches and throws'],
+    id: 'tempest_ride', cls: 'book_mage', slot: 19, name: 'Thunder Ring', roles: ['zone', 'peel'], targeting: 'self',
+    startup: 150, active: 8000, recovery: 250, cooldown: 16000, ground: true, air: false, cover: 'IGNORES_COVER', move: LOCK, armor: [0, 8150],
+    // (David 18 Nov: "a small ring of electricity that grows round her; while it lasts she cannot move, and it grows and grows
+    // as long as the key is held, up to 8 s"): held — she stands rooted while the ring widens from 60 to 290 px over 8 s,
+    // shocking whoever it holds every quarter second; let go, and it ends (the scene)
+    hits: Array.from({ length: 32 }, (_, i) => H(i * 250, 2, { kind: 'circle', radius: Math.round(60 + (230 * i) / 31) }, { stun: 240, float: true, juggleCost: 1 }, { reachUp: 140, el: i % 4 === 3 ? STORM : undefined })),
+    cancelOnHit: [],
+    description: 'Hold: a ring of lightning grows round you, wider and wider as long as you hold the key (up to 8s), shocking every foe inside it. You cannot move while it grows; let go and it ends.',
+    relations: ['Held up to 8s', 'Rooted'],
   }),
 ];
 /** Arcane Bolt as Attunement turns it (the element of the last spell): cast in its place, never on the skill bar. */

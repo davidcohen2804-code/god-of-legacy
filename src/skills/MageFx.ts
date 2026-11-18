@@ -11,7 +11,7 @@ import { SpaceWarp } from './SpaceWarp';
 import { keyBlack } from '../fx/keyBlack';
 import { supportAt } from '../world/WorldGeometry';
 import type { Fx3D } from '../arena3d/Fx3D';
-import { mageRune, mageRuneGone, mageWard, mageWardHit } from '../arena3d/fx3d/book_mage';
+import { mageRune, mageRuneGone, mageWard, mageWardHit, mageRiftCross } from '../arena3d/fx3d/book_mage';
 
 export const MAGE_KIT = 'mage-kit';
 export const MAGE_KIT_URL = 'assets/final/skills/book_mage/kit/';
@@ -463,7 +463,7 @@ export class MageFx {
   // ------------------------------------------------------------------ cast timeline
 
   cast(r: CastRun): void {
-    if (!this.ready) return;
+    if (!this.ready) return; // (18 Nov: Cloud Ascent, Frost Field, Tempest Trio, Astral Wheel, Thunder Ring are drawn by the room only — the flat layer has no picture of them)
     if (this.room) { if (r.skill.slot === 7) this.ctx.ultimateStage(r); return; } // (PVP 3D: the room draws it — the ultimate's portrait still crosses the screen)
     const s = r.skill, T = r.timings, me = this.me(r), side = sideOf(r), hand = this.handAt(r.attackerId, side, 22, 70);
     const own = !['page_bind', 'astral_burst', 'frost_nova', 'lightning_chain', 'blink', 'chrono_haste', 'chrono_sigil', 'arcane_ward', 'elemental_ascension', 'levity_field', 'arcane_gate', 'binding_rune', 'storm_field', 'time_collapse'].includes(s.id) && !(s.slot === 0 && r.stage !== 2); // (skills with ground art of their own: no circle under it)
@@ -476,8 +476,6 @@ export class MageFx {
       case 'lightning_chain': this.stormCharge(r); break;
       case 'storm_field': if (this.ctx.scene.textures.exists('mfx-tempest') && r.place) this.sheet('mfx-tempest', this.placeFloor(r).x, this.placeFloor(r).y, 600, T.startup, { floor: true, frames: [0, 4], oy: 0.72, depth: GROUND + 4, run: r, alpha: 0.35 }); /* (faint: the 3D spiral glyph opens the field) */ else if (!this.ctx.scene.textures.exists('mfx-sfield')) this.floor('storm_disc', r.place?.x ?? me.x, r.place?.y ?? me.y, 280, T.startup + T.active + 300, { add: true, glow: 0.6, spin: 20, run: r, a: kf([0, 0], [0.15, 0.5], [0.85, 0.9], [1, 0]), s: kf([0, 0.6], [0.2, 1, out3]) }); break;
       case 'time_collapse': this.timeCollapse(r); break;
-      case 'blink': this.blinkOut(me, side); break;
-      case 'glacial_spikes': this.drift(['snowflake'], me.x + side * 20, me.y - me.z - 30, 5, 24, { life: T.startup + 200, up: 40, size: [10, 18], add: true }); break;
       case 'chrono_haste': this.floor('sig_clock', me.x, me.y, 150, T.startup + 600, { add: true, glow: 0.6, spin: 360, run: r, a: kf([0, 0], [0.2, 1], [0.8, 1], [1, 0]), s: kf([0, 0.4], [0.3, 1, out3]) }); break;
       case 'levity_field': if (r.place) this.floor('sig_star', r.place.x, r.place.y, 320, T.startup + 2700, { add: true, glow: 0.5, spin: -30, run: r, a: kf([0, 0], [0.08, 0.85], [0.9, 0.85], [1, 0]), s: kf([0, 0.5], [0.1, 1, out3]) }); break;
       case 'origami_flock': this.spr({ name: 'page_group', w: 90, life: T.startup + 120, follow: this.at(r.attackerId, side, 26, 66), run: r, sx: kf([0, 0.3], [1, 1.2, out3]), sy: kf([0, 0.3], [1, 1.2, out3]), a: kf([0, 1], [0.8, 1], [1, 0]), rot: (u) => side * 60 * u }); break;
@@ -485,11 +483,6 @@ export class MageFx {
       case 'arcane_ward': this.drift(['rune_cyan', 'rune_blue'], me.x, me.y - me.z - 10, 8, 40, { life: T.startup + 200, up: 90, size: [16, 24], add: true }); break;
       case 'arcane_gate': if (r.place) this.floor('sig_disk', r.place.x, r.place.y, 110, T.startup + 240, { add: true, glow: 0.6, spin: 200, run: r, a: kf([0, 0], [0.3, 1], [1, 1]), s: kf([0, 0.3], [1, 1, out3]) }); break;
       case 'paper_curse': this.spr({ name: 'page_cocoon', w: 60, life: T.startup + 100, follow: this.at(r.attackerId, side, 28, 64), run: r, a: kf([0, 0], [0.3, 1], [1, 0]), rot: (u) => 180 * u }); break;
-      case 'elemental_ascension': {
-        this.spr({ name: 'frost_mist', w: 150, life: T.startup + 400, follow: this.at(r.attackerId, side, 0, 20), dz: -2, add: true, run: r, sx: kf([0, 0.4], [0.6, 1.2, out3]), a: kf([0, 0], [0.3, 0.8], [1, 0]) });
-        for (let i = 0; i < 4; i++) this.later(i * T.startup / 4, () => { const c = this.me(r); this.bolt('bolt_diag', { x: c.x + rnd(-60, 60), y: c.y - c.z - 180 }, { x: c.x + rnd(-20, 20), y: c.y - c.z - 40 }, { thick: 60, life: 180 }); }, r);
-        break;
-      }
     }
     if (s.slot === 7) this.ctx.ultimateStage(r);
   }
@@ -501,12 +494,9 @@ export class MageFx {
     switch (s.id) {
       case 'arcane_wave': this.wave(r); break;
       case 'frost_nova': this.nova(r); break;
-      case 'blink': this.later(T.active, () => this.blinkIn(this.me(r), side), r); break;
-      case 'glacial_spikes': this.spikes(r); break;
       case 'chrono_haste': this.ripple(me.x, me.y - me.z - 40, 200, VIOLET); this.aura(r.attackerId, 'haste', 120000); break;
       case 'levity_field': if (r.place) this.levity(this.placeFloor(r), 2500); break;
       case 'arcane_ward': this.ward(r.attackerId, 8000); break;
-      case 'elemental_ascension': this.aura(r.attackerId, 'ascension', 20000); this.ctx.punch(0.006, 200); break;
       case 'page_bind': { // the book slams shut in front of him: a white-blue snap of pages, cold spraying off them
         const x = me.x + r.aim.x * 70, y = me.y - me.z - 52 + r.aim.y * 30;
         this.sheet('mfx-paper', x, y, 170, 240, { frames: [8, 4], tint: 0xcfefff });
@@ -850,6 +840,8 @@ export class MageFx {
     }
   }
   /** Arcane Ward: the shell of rune hexagons round the caster while it holds. */
+  /** Rift Gates: she walked into one portal and comes out of the other (PVP 3D: the room's portals flare). */
+  riftCross(id: string, from: { x: number; y: number }, to: { x: number; y: number }): void { const room = this.room; if (room) mageRiftCross(room, id, from, to); }
   ward(id: string, ms: number): void {
     const room = this.room; if (room) { mageWard(room, id, ms); return; } // (PVP 3D: the sphere of hexagons)
     if (!this.ready) return;

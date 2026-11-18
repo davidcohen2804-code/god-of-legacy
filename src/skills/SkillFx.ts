@@ -2589,6 +2589,7 @@ export class SkillFx {
   barrier(at: V3, from: { x: number; y: number }): void { this.mage.barrier(at, from); }
   wardHit(id: string, broken: boolean, expired = false): void { this.mage.wardHit(id, broken, expired); }
   mageWard(id: string, ms: number): void { this.mage.ward(id, ms); }
+  mageRiftCross(id: string, from: { x: number; y: number }, to: { x: number; y: number }): void { this.mage.riftCross(id, from, to); }
   private cryMarks = new Map<string, { t: number; until: number; ims: Phaser.GameObjects.Image[]; ev: Phaser.Time.TimerEvent }>();
   /** War Cry shared with a party member (David: a party sees who is buffed): a small crimson ring of the roar turning over his
    *  head, a red glow under it, for as long as he has its +damage — a new share renews it; gone when he falls. */
