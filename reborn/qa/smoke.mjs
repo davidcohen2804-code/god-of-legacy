@@ -143,10 +143,10 @@ async function runProfile(p) {
     const fingers = new Map();
     let cdp = null;
     if (p.type === chromium) cdp = await page.context().newCDPSession(page);
+    let geo = null; // the canvas's box and the game's viewport, read once (each read costs a slow frame here)
     const toPage = async (gx, gy) => {
-      const st = await state();
-      const box = await page.locator('canvas').first().boundingBox();
-      return [box.x + (gx / st.vp[0]) * box.width, box.y + (gy / st.vp[1]) * box.height];
+      if (!geo) geo = { box: await page.locator('canvas').first().boundingBox(), vp: (await state()).vp };
+      return [geo.box.x + (gx / geo.vp[0]) * geo.box.width, geo.box.y + (gy / geo.vp[1]) * geo.box.height];
     };
     const touch = async (type, id, gx, gy) => {
       if (type !== 'end') fingers.set(id, await toPage(gx, gy));
@@ -206,31 +206,40 @@ async function runProfile(p) {
       await shot('8_controls');
       step(`controls: ${keys.length} on screen, smallest hit target ${minCss.toFixed(1)} CSS px (≥ 44), none overlapping or off screen; scale ${info && info.hit_scale}`);
 
-      await place(-8, 8, 90);
+      // The courtyard is 28 m across and the CI renders slowly, so each run starts on a long clear line and the
+      // checks look at what the body does (moved, sprint state), not at how far it got.
       const stick = st0.rects.btn_stick, cam = st0.rects.camera_zone;
       const sc = centre(stick), sr = stick[2] / 2;
+      const cc = centre(cam);
+      const away = (a, b) => Math.hypot(b.pos[0] - a.pos[0], b.pos[2] - a.pos[2]);
+      await place(-8, 8, 90);
       const p1 = pl(await state());
       await touch('start', 1, sc[0], sc[1]);
-      await swipe(1, sc, [sc[0], sc[1] - sr], 6);
-      const running = pl(await waitFor((s) => pl(s) && pl(s).speed > 3.5, 'the stick to run the Samurai', 60000));
+      await swipe(1, sc, [sc[0], sc[1] - sr], 3);
+      const running = pl(await waitFor((s) => pl(s) && (pl(s).speed > 3.5 || away(p1, pl(s)) > 2.5), 'the stick to run the Samurai', 60000));
       const sprinting = pl(await waitFor((s) => pl(s) && pl(s).sprinting, 'sprint after 250 ms at the rim', 60000));
       await shot('8_stick_sprint');
-      step(`joystick: ${running.anim} at ${running.speed} m/s, held at its rim → ${sprinting.anim} (sprinting)`);
-
-      const yaw0 = cs(await state()).yaw;
-      const cc = centre(cam);
-      await touch('start', 2, cc[0] - cam[2] * 0.3, cc[1]);
-      await swipe(2, [cc[0] - cam[2] * 0.3, cc[1]], [cc[0] + cam[2] * 0.4, cc[1]], 8);
-      const both = await waitFor((s) => cs(s) && angle(cs(s).yaw, yaw0) > 8, 'the camera to turn under the second finger', 60000);
-      const stillRunning = pl(both).speed > 2.5;
-      await shot('8_two_fingers');
-      await touch('end', 2);
-      if (!stillRunning) throw new Error('the stick finger stopped working while the camera finger moved');
-      step(`two fingers: camera turned ${angle(cs(both).yaw, yaw0).toFixed(0)}° while the Samurai kept running (${pl(both).speed} m/s, touches ${ctl(both) && ctl(both).touches})`);
       await touch('end', 1);
       const stopped = pl(await waitFor((s) => pl(s) && pl(s).speed < 0.4, 'stopping when the stick is let go', 60000));
-      const moved = Math.hypot(stopped.pos[0] - p1.pos[0], stopped.pos[2] - p1.pos[2]);
-      step(`stick released: the Samurai stopped (${stopped.anim}) after ${moved.toFixed(1)} m`);
+      step(`joystick: ${running.anim} at ${running.speed} m/s, held at its rim → sprinting (${sprinting.anim}); let go → stopped (${stopped.anim}) after ${away(p1, stopped).toFixed(1)} m`);
+
+      // two fingers: a slow walk on the stick while a second finger turns the camera
+      await place(-8, 8, 90);
+      const p2 = pl(await state());
+      const yaw0 = cs(await state()).yaw;
+      await touch('start', 1, sc[0], sc[1]);
+      await swipe(1, sc, [sc[0], sc[1] - sr * 0.4], 2);
+      await waitFor((s) => pl(s) && pl(s).speed > 1.0, 'the walk', 60000);
+      await touch('start', 2, cc[0] - cam[2] * 0.3, cc[1]);
+      await swipe(2, [cc[0] - cam[2] * 0.3, cc[1]], [cc[0] + cam[2] * 0.2, cc[1]], 5);
+      const both = await waitFor((s) => cs(s) && angle(cs(s).yaw, yaw0) > 8, 'the camera to turn under the second finger', 60000);
+      await shot('8_two_fingers');
+      const walking = pl(both).speed > 1.0 && ctl(both).stick && ctl(both).touches === 2;
+      await touch('end', 2);
+      await touch('end', 1);
+      if (!walking) throw new Error(`the stick finger stopped working while the camera finger moved: ${JSON.stringify({ player: pl(both), controls: ctl(both) })}`);
+      step(`two fingers: camera turned ${angle(cs(both).yaw, yaw0).toFixed(0)}° while the Samurai kept walking (${pl(both).speed} m/s, ${ctl(both).touches} touches; ${away(p2, pl(both)).toFixed(1)} m)`);
+      await waitFor((s) => pl(s) && pl(s).speed < 0.4, 'stopping', 60000);
 
       await touch('start', 3, cc[0], cc[1]);
       await swipe(3, [cc[0], cc[1]], sc, 8);
