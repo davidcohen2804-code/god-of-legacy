@@ -37,11 +37,16 @@ var _moving: Array[Control] = []
 var _halo: Control
 
 
+## How much the scenery is pushed back behind busy screens (0 = not at all), set before the backdrop enters the tree.
+var dim := 0.0
+
+
 class Layer extends Control:
 	var painter: Callable
 
 	func _draw() -> void:
-		painter.call(self)
+		if size.x >= 8.0 and size.y >= 8.0:
+			painter.call(self)
 
 
 func _ready() -> void:
@@ -152,8 +157,8 @@ func _paint_far(c: Control) -> void:
 	c.draw_circle(m, r, MOON, true, -1.0, true)
 	_glow_at(c, m + Vector2(r * 0.28, r * 0.3), Vector2(r, r) * 0.95, Color(0.55, 0.45, 0.72, 0.22))
 	for s in MARIA:
-		c.draw_circle(m + Vector2(s.x, s.y) * r, s.z * r, Color(0.6, 0.53, 0.7, 0.2), true, -1.0, true)
-	c.draw_colored_polygon(_ridge(w, h, hz - 0.17 * h, 0.05 * h, 0.31, 1.3), RIDGE_FAR)
+		_glow_at(c, m + Vector2(s.x, s.y) * r, Vector2(s.z, s.z) * r * 1.35, Color(0.52, 0.46, 0.64, 0.3))
+	c.draw_colored_polygon(_ridge(w, h, hz, hz - 0.17 * h, 0.05 * h, 0.31, 1.3, m.x, 3.2 * r, 0.72), RIDGE_FAR)
 	# A distant broken tower on the far ridge, right of the colonnade; the nearer ridge hides its foot.
 	var tx := 300.0 * u
 	var ty := hz - 0.2 * h
@@ -161,20 +166,21 @@ func _paint_far(c: Control) -> void:
 		Vector2(tx - 14 * u, hz), Vector2(tx - 11 * u, ty + 20 * u), Vector2(tx - 6 * u, ty + 6 * u),
 		Vector2(tx + 2 * u, ty + 14 * u), Vector2(tx + 9 * u, ty), Vector2(tx + 13 * u, ty + 24 * u),
 		Vector2(tx + 15 * u, hz)]), RIDGE_FAR.darkened(0.1))
-	c.draw_colored_polygon(_ridge(w, h, hz - 0.085 * h, 0.03 * h, 0.19, 4.1), RIDGE_NEAR)
+	c.draw_colored_polygon(_ridge(w, h, hz, hz - 0.085 * h, 0.03 * h, 0.19, 4.1, m.x, 2.4 * r, 0.45), RIDGE_NEAR)
 
 
-## A ridge line: `top` is its mean height, `amp` its swing, `hill` the width of its hills (in screen heights).
-static func _ridge(w: float, h: float, top: float, amp: float, hill: float, phase: float) -> PackedVector2Array:
+## A ridge line above the horizon `hz`: `top` is its mean height, `amp` its swing, `hill` the width of its hills (in
+## screen heights). It sinks by `dip` (0..1 of its height) into a valley `vw` wide at `vx`, under the moon.
+static func _ridge(w: float, h: float, hz: float, top: float, amp: float, hill: float, phase: float,
+		vx: float, vw: float, dip: float) -> PackedVector2Array:
 	var pts := PackedVector2Array([Vector2(0, h)])
-	var step := h * 0.02
-	var x := 0.0
-	while x < w + step:
-		var xx := minf(x, w)
-		var y := top - amp * sin(xx / (hill * h) + phase) - amp * 0.45 * sin(xx / (hill * 0.37 * h) + phase * 1.7) \
-			- amp * 0.22 * sin(xx / (hill * 0.13 * h) + phase * 2.3)
-		pts.append(Vector2(xx, y))
-		x += step
+	var n := int(ceil(w / (h * 0.02)))
+	for i in n + 1:
+		var x := w * float(i) / n
+		var y := top - amp * sin(x / (hill * h) + phase) - amp * 0.45 * sin(x / (hill * 0.37 * h) + phase * 1.7) \
+			- amp * 0.22 * sin(x / (hill * 0.13 * h) + phase * 2.3)
+		var valley := dip * exp(-pow((x - vx) / vw, 2.0))
+		pts.append(Vector2(x, minf(hz - 1.0, hz - (hz - y) * (1.0 - valley))))
 	pts.append(Vector2(w, h))
 	return pts
 
@@ -210,7 +216,7 @@ func _paint_ruins(c: Control) -> void:
 		if k % 5 == 3:
 			top = hz - 3.0 * u
 		wall.append(Vector2(x, top))
-		wall.append(Vector2(x + 38.0 * u, top + (k % 2) * 4.0 * u))
+		wall.append(Vector2(x + 38.0 * u, minf(top + (k % 2) * 4.0 * u, hz - 2.0 * u)))
 		x += 40.0 * u
 		k += 1
 	wall.append(Vector2(x, hz))
@@ -315,6 +321,8 @@ func _paint_near(c: Control) -> void:
 
 func _paint_vignette(c: Control) -> void:
 	c.draw_texture_rect(_vignette, Rect2(Vector2.ZERO, c.size), false)
+	if dim > 0.0:
+		c.draw_rect(Rect2(Vector2.ZERO, c.size), Color(0.067, 0.063, 0.125, dim))
 
 
 # --- moving layers -----------------------------------------------------------------------------------------------

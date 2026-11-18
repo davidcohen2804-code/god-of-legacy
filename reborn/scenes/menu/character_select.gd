@@ -26,7 +26,9 @@ var _toast_tween: Tween
 func _ready() -> void:
 	theme = UiTheme.build()
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(Backdrop.new())
+	var bg := Backdrop.new()
+	bg.dim = 0.38
+	add_child(bg)
 
 	var margin := MarginContainer.new()
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -99,31 +101,28 @@ func _make_card(c: Roster.Character) -> Button:
 	n.add_theme_color_override("font_color", UiTheme.TEXT if not c.locked else UiTheme.TEXT_DIM)
 	content.add_child(n)
 
-	var t := UiTheme.label(c.title if not c.locked else "Coming later", 18, UiTheme.TEXT_DIM)
+	var t := UiTheme.label(c.title if not c.locked else "Locked · coming later", 18, UiTheme.TEXT_DIM)
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	content.add_child(t)
 
 	if c.locked:
 		var veil := ColorRect.new()
-		veil.color = Color(0.03, 0.02, 0.06, 0.62)
+		veil.color = Color(0.03, 0.02, 0.06, 0.5)
 		veil.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		b.add_child(veil)
-		var lock_box := VBoxContainer.new()
-		lock_box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		lock_box.alignment = BoxContainer.ALIGNMENT_CENTER
-		lock_box.add_theme_constant_override("separation", 8)
-		b.add_child(lock_box)
+		# The lock sits over the darkened weapon; the name and "Locked · coming later" stay readable below it.
 		var lock := TextureRect.new()
 		lock.texture = load("res://assets/ui/lock.svg")
-		lock.custom_minimum_size = Vector2(0, 64)
 		lock.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		lock.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		lock.modulate = UiTheme.GOLD
-		lock_box.add_child(lock)
-		var lt := UiTheme.label("LOCKED", 20, UiTheme.GOLD, true)
-		lt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		lock_box.add_child(lt)
+		lock.set_anchors_preset(Control.PRESET_CENTER_TOP)
+		lock.offset_left = -30
+		lock.offset_right = 30
+		lock.offset_top = 52
+		lock.offset_bottom = 112
+		b.add_child(lock)
 	_ignore_mouse(b)
 	_style_card(b, c, false)
 	return b
