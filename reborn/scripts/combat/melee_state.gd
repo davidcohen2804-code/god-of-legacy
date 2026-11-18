@@ -85,9 +85,11 @@ func dodge_started() -> void:
 		_set_phase(Phase.FREE)
 
 
-## The fighter is hit (M5): the strike and the chain are interrupted.
+## The fighter is hit (M5): the strike and the chain are interrupted (and with them any hit-stop of his own strike —
+## the blow taken brings its own).
 func take_hit(stun: float) -> void:
 	hitstun = stun
+	hitstop = 0.0
 	_reset_chain("interrupted")
 	_set_phase(Phase.HITSTUN)
 

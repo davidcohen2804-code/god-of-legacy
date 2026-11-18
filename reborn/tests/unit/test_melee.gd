@@ -182,8 +182,8 @@ func test_a_hit_interrupts_the_chain() -> String:
 	s.take_hit(0.3)
 	if s.phase != MeleeState.Phase.HITSTUN or s.attack_pressed():
 		return "hit-stun did not hold the fighter"
-	_ticks(s, 0.35)
+	_ticks(s, 0.32)
 	if s.phase != MeleeState.Phase.FREE:
-		return "hit-stun never ended"
+		return "hit-stun never ended (still %s, %.3f s left)" % [MeleeState.Phase.keys()[s.phase], s.hitstun]
 	s.attack_pressed()
 	return "" if s.step_index == 0 else "after being hit the chain went on to strike %d" % (s.step_index + 1)
