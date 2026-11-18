@@ -16,6 +16,7 @@ var rig: CameraRig
 var touch: TouchControls
 var hud: CombatHud
 var dummy: TrainingDummy
+var vfx: HitVfx
 var _cam: Camera3D
 var _t := 0.0
 var _view := "game"
@@ -104,6 +105,14 @@ func _build_combat() -> void:
 	add_child(trail)
 	combat.trail = trail
 	controller.combat = combat
+	var sfx := CombatSfx.new()
+	sfx.name = "CombatSfx"
+	add_child(sfx)
+	sfx.bind(combat)
+	vfx = HitVfx.new()
+	vfx.name = "HitVfx"
+	add_child(vfx)
+	vfx.bind(combat)
 
 
 ## (QA) an inspection viewpoint; the rig holds the camera in the game view.

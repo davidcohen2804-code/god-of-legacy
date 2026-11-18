@@ -13,3 +13,5 @@
 | `assets/characters/samurai/katana.glb`, `katana_albedo.webp.bin` | The old project's katana (`public/assets/hero3d/w_katana.glb`): a GPT drawing of the katana inflated into a body by the old project's own tool (`tools/hero3d/weapons/inflate.py` → `wpnglb.mjs`), its grip found by `tools/build_samurai.mjs` (`tools/grip.json`) | project's own (GPT drawing + own tools) |
 | `assets/env/*.webp.bin` (flagstones, wall blocks, earth) | Generated procedurally by `tools/make_textures.py` (value noise, Voronoi) | project's own |
 | The Fallen Moon Courtyard, the training target | Built in code from Godot primitives (`scripts/world/*.gd`) with the textures above | project's own |
+| `assets/audio/swing_1-3.wav`, `impact_1-3.wav` | The katana's swings and impacts, synthesized by `tools/make_sfx.py` (filtered noise, sine thumps; numpy) — placeholders until the audio pass | project's own |
+| Hit sparks, dust, blade trail | Built in code (`scripts/vfx/hit_vfx.gd`, `scripts/combat/blade_trail.gd`): CPU particles and a ribbon with generated textures | project's own |

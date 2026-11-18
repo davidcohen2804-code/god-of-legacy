@@ -106,7 +106,8 @@ func take_hit(damage: int, reaction: float, push: float, dir: Vector3, sway: Vec
 	dir = dir.normalized() if dir.length() > 0.01 else Vector3.FORWARD
 	sway.y = 0.0
 	sway = sway.normalized() if sway.length() > 0.01 else dir
-	_lean_v += sway * deg_to_rad(30.0 + 150.0 * reaction / 0.2) # a sway that grows with the blow: ~9°, ~12°, ~19°
+	# a sway that grows with the blow (~9°, ~12°); a blow that pushes staggers it hard (~28°)
+	_lean_v += sway * deg_to_rad(30.0 + 150.0 * reaction / 0.2 + (90.0 if push > 0.0 else 0.0))
 	_fall_dir = sway
 	_back_t = -1.0 # a blow stops the slide back where it is
 	_back_wait = 0.6 if position.distance_to(_home) > 0.01 else 0.0
@@ -175,7 +176,7 @@ func _physics_process(delta: float) -> void:
 	_flash = maxf(0.0, _flash - delta)
 	var glow := clampf(_flash / 0.06, 0.0, 1.0)
 	for m in _mats:
-		m.emission_energy_multiplier = 1.1 * glow
+		m.emission_energy_multiplier = 0.55 * glow # (a lift, not a white cut-out: the straw and rope stay readable)
 	_clock += delta
 
 
@@ -229,7 +230,7 @@ func _mat(hex: String, rough: float) -> StandardMaterial3D:
 	m.albedo_color = Color(hex)
 	m.roughness = rough
 	m.emission_enabled = true
-	m.emission = Color("#c9b8ff")
+	m.emission = Color("#d9ccff")
 	m.emission_energy_multiplier = 0.0
 	_mats.append(m)
 	return m

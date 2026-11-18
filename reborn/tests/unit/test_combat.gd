@@ -156,3 +156,85 @@ func test_the_assist_turns_him_to_a_target_beside_him() -> String:
 		err = "the turned strike: %s" % [_steps(c)]
 	_clear()
 	return err
+
+
+## The hit shape against the visible swing (GPT's M3 review: validate each strike's hit shape against its animation).
+## For each basic strike the move is posed through its active window (as the game plays it: started at anim_from,
+## at anim_speed) and the katana tip's bearing and reach from his centre are compared with the arc and reach the hit
+## test uses. The table is printed for the report; the strike fails when the arc strays far from the blade.
+func test_each_strike_arc_follows_its_blade() -> String:
+	var tree := Engine.get_main_loop() as SceneTree
+	var v := CharacterVisual.create()
+	tree.root.add_child(v)
+	var hand := v.skeleton.find_bone("hand_r")
+	var err := ""
+	for a in AttackData.samurai_basics():
+		v.anim.play(v._alias[a.anim], 0.0)
+		var worst := 0.0
+		var far := 0.0
+		var rows: Array[String] = []
+		for i in 11:
+			var f := i / 10.0
+			v.anim.seek(a.anim_from + (a.startup + f * a.active) * a.anim_speed, true)
+			v.skeleton.force_update_all_bone_transforms()
+			var pose := v.skeleton.global_transform * v.skeleton.get_bone_global_pose(hand)
+			var tip := pose * (CharacterVisual.GRIP * Vector3(0, 0.79, 0))
+			var b := SwordSweep.bearing(v.global_position, 0.0, tip)
+			var want := lerpf(a.arc_from, a.arc_to, f)
+			var off := absf(wrapf(b.x - want, -180.0, 180.0))
+			if f >= 0.15 and f <= 0.85:
+				worst = maxf(worst, off)
+			far = maxf(far, b.y)
+			rows.append("f%.1f blade %+.0f° arc %+.0f° Δ%.0f° %.2fm h%.2f" % [f, b.x, want, off, b.y, tip.y])
+		print("[ARC] %s (arc %+.0f°→%+.0f°, reach %.2f m): %s" % [a.id, a.arc_from, a.arc_to, a.reach, " | ".join(rows)])
+		if err.is_empty() and worst > 40.0:
+			err = "%s: the arc strays %.0f° from the blade's tip mid-swing" % [a.id, worst]
+		elif err.is_empty() and (far > a.reach + 0.3 or far < a.reach - 0.6):
+			err = "%s: the blade reaches %.2f m, the hit test %.2f m" % [a.id, far, a.reach]
+	v.free()
+	return err
+
+
+## GPT's M3 review: the assist's cone is ±60° — a target 70° to his left is not turned to (and Basic 1, which cuts
+## from his right to 15° left, misses it).
+func test_the_assist_ignores_a_target_outside_its_cone() -> String:
+	var w := _world(1.5, PI - deg_to_rad(70.0))
+	var f: Fighter = w[0]
+	var c: CombatController = w[2]
+	var before := f.facing
+	_run(c, 0.5, [0.0])
+	var err := ""
+	if absf(wrapf(f.facing - before, -PI, PI)) > 0.01:
+		err = "he turned %.1f° toward a target outside the cone" % rad_to_deg(absf(wrapf(f.facing - before, -PI, PI)))
+	elif _steps(c) != [[1, 0, 0]]:
+		err = "a strike past a target 70° aside: %s" % [_steps(c)]
+	_clear()
+	return err
+
+
+## Human tapping rhythms (GPT's M3 review: varied intervals, and rapid tapping — not only the CI's 60 ms taps). Three
+## taps 0.15 s, 0.25 s, 0.35 s, 0.45 s or 0.6 s apart all make the chain; tapping as fast as a thumb can (every
+## 60 ms) makes it too; three taps 0.8 s apart are three first strikes (the 0.35 s grace after a strike has passed).
+func test_human_tapping_rhythms_make_the_chain() -> String:
+	var chain := [[1, 1, 10], [2, 1, 12], [3, 1, 18]]
+	var cases := {0.15: chain, 0.25: chain, 0.35: chain, 0.45: chain, 0.6: chain,
+		0.8: [[1, 1, 10], [1, 1, 10], [1, 1, 10]]}
+	for gap in cases:
+		var w := _world(1.6, PI)
+		var c: CombatController = w[2]
+		_run(c, 3.0 * float(gap) + 1.2, [0.0, float(gap), 2.0 * float(gap)])
+		var got := _steps(c).slice(0, 3)
+		_clear()
+		if got != cases[gap]:
+			return "taps %.2f s apart: %s (want %s)" % [gap, got, cases[gap]]
+	var w2 := _world(1.6, PI)
+	var c2: CombatController = w2[2]
+	var rapid := []
+	for i in 16:
+		rapid.append(i * 0.06)
+	_run(c2, 1.6, rapid)
+	var first := _steps(c2).slice(0, 3)
+	_clear()
+	if first != chain:
+		return "rapid taps (every 60 ms): %s" % [first]
+	return ""

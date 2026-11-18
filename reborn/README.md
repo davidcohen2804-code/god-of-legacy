@@ -47,6 +47,7 @@ close to Safari but is not iOS Safari; no physical phone is in the loop.
 | Combat state machine | `scripts/combat/melee_state.gd`, `attack_data.gd` | M3: pure logic on the physics tick — startup / active / recovery, hit-stop, the three-strike chain (only confirmed hits advance it), cancel rules |
 | Hit detection, targeting | `scripts/combat/sword_sweep.gd`, `combat_controller.gd` | the katana's arc swept per tick (no tunnelling), once per target per strike; target assist; drives body, moves, trail and camera from the state machine |
 | Blade trail | `scripts/combat/blade_trail.gd` | the swing's ribbon; shows, never decides |
+| Combat sound, hit effects | `scripts/audio/combat_sfx.gd`, `scripts/vfx/hit_vfx.gd` | listen to the combat controller's signals (swing on the active window, impact and sparks on a hit, dust on the finisher) |
 | Legacy Chain graph, ability definitions | `scripts/combat/`, `data/abilities/` (M4) | data-driven combo graph |
 | Animation controller, VFX | `scripts/animation/`, `scripts/vfx/` | read combat state, never decide it |
 | Enemy AI | `scripts/ai/` (M5) | training enemy, boss |

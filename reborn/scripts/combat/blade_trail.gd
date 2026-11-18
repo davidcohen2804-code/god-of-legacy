@@ -6,15 +6,15 @@ extends MeshInstance3D
 ## The blade's samples are taken once a frame and joined by Catmull-Rom curves, so the ribbon stays round even at a
 ## low frame rate. Built in world space (keep it under a node at the origin).
 
-const LIFE := 0.12 ## seconds a sample of the blade stays in the ribbon
-const BASE := 0.3 ## along the katana (its local +Y), m: the ribbon's inner edge…
+const LIFE := 0.2 ## seconds a sample of the blade stays in the ribbon (long enough to read at full speed)
+const BASE := 0.18 ## along the katana (its local +Y), m: the ribbon's inner edge…
 const TIP := 0.8 ## …and its outer edge (the blade runs from 0.08 to 0.79)
 const SUBDIV := 4
 
 var blade: Node3D
 var emitting := false
 var frozen := false
-var colour := Color(0.82, 0.78, 1.0)
+var colour := Color(0.92, 0.9, 1.0)
 
 var _samples: Array = [] ## [inner: Vector3, outer: Vector3, age: float]
 var _im := ImmediateMesh.new()
@@ -55,12 +55,12 @@ func _rebuild() -> void:
 			var f := float(k) / SUBDIV
 			var age := lerpf(float(_samples[i][2]), float(_samples[i + 1][2]), f)
 			var a := clampf(1.0 - age / LIFE, 0.0, 1.0)
-			_vertex(_curve(i, f, 0), Color(colour, 0.08 * a))
-			_vertex(_curve(i, f, 1), Color(colour, 0.75 * a * a))
+			_vertex(_curve(i, f, 0), Color(colour, 0.1 * a))
+			_vertex(_curve(i, f, 1), Color(colour, 0.9 * a * a))
 	var last: Array = _samples[n - 1]
 	var a_last := clampf(1.0 - float(last[2]) / LIFE, 0.0, 1.0)
-	_vertex(last[0], Color(colour, 0.08 * a_last))
-	_vertex(last[1], Color(colour, 0.75 * a_last * a_last))
+	_vertex(last[0], Color(colour, 0.1 * a_last))
+	_vertex(last[1], Color(colour, 0.9 * a_last * a_last))
 	_im.surface_end()
 
 

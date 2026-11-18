@@ -7,16 +7,28 @@ extends Node
 ##      in the "hurtbox" group (SwordSweep) — each target is damaged at most once per strike, and a confirmed hit
 ##      starts hit-stop and the target's reaction;
 ##   3. its events start the moves; through startup he turns toward the target the strike picked (assist: the nearest
-##      within 3.6 m and 80° of the stick, or of his facing when the stick is idle — never a full turn-around) or else
+##      within 3.6 m and 60° of the stick, or of his facing when the stick is idle — never a full turn-around) or else
 ##      toward the stick, steps into the cut (stopping short of the target), and through hit-stop body, move, blade
-##      trail and target all hold still; a landed blow jolts the camera, the finisher harder.
+##      trail and target all hold still; a landed blow jolts the camera, the finisher harder (restrained: mobile).
 ## Animation, camera and effects only follow what the state machine decided; nothing here reads the animation back.
+## Sound and hit effects listen to its signals.
 
-const ASSIST_RANGE := 3.6
-const ASSIST_CONE := 80.0
-const ASSIST_TURN := 16.0 ## rad/s
+## A strike began (0-based step).
+signal strike_started(step: int)
+## A strike's active window opened (the blade is cutting).
+signal strike_active(step: int)
+## A strike landed on `target` (its attack data, and the flat direction from the attacker to the target).
+signal strike_hit(step: int, target: Node3D, attack: AttackData, dir: Vector3)
+## A strike ended without a hit.
+signal strike_missed(step: int)
+
 const STOP_SHORT := 1.1 ## the step into a cut stops this close to the target's centre, m
 const STANCE_TIME := 4.0 ## the drawn-sword stance after a strike, s
+
+## The target assist (GPT's M3 review: 3.6 m, ±60°, at most 12 rad/s through startup; it turns, never moves him).
+var assist_range := 3.6
+var assist_cone := 60.0 ## degrees either side of the stick (or of his facing when the stick is idle)
+var assist_turn := 12.0 ## rad/s
 
 var fighter: Fighter
 var rig: CameraRig
@@ -60,6 +72,7 @@ func is_frozen() -> bool:
 
 func tick(dt: float, stick_dir: Vector3) -> void:
 	melee.step(dt)
+	_events(stick_dir) # (a strike's start and its active window before its hits: the swing sounds before the impact)
 	var a := melee.current()
 	if melee.swept.x >= 0.0:
 		for t in get_tree().get_nodes_in_group("hurtbox"):
@@ -84,16 +97,16 @@ func tick(dt: float, stick_dir: Vector3) -> void:
 			if _flat(_target.global_position - fighter.global_position).length() < STOP_SHORT:
 				step = Vector3.ZERO
 			if melee.phase == MeleeState.Phase.STARTUP:
-				fighter.face_toward(_target.global_position, ASSIST_TURN, dt)
+				fighter.face_toward(_target.global_position, assist_turn, dt)
 		elif melee.phase == MeleeState.Phase.STARTUP and _aim != Vector3.ZERO:
-			fighter.face_toward(fighter.global_position + _aim, ASSIST_TURN, dt)
+			fighter.face_toward(fighter.global_position + _aim, assist_turn, dt)
 		fighter.action_velocity = step
 	_stance = maxf(0.0, _stance - dt)
 	fighter.combat_ready = _stance > 0.0
 	if trail:
 		var cutting := melee.phase == MeleeState.Phase.ACTIVE
-		var near_cut := (melee.phase == MeleeState.Phase.STARTUP and melee.t > a.startup - 0.04) \
-			or (melee.phase == MeleeState.Phase.RECOVERY and melee.t < 0.05)
+		var near_cut := (melee.phase == MeleeState.Phase.STARTUP and melee.t > a.startup - 0.05) \
+			or (melee.phase == MeleeState.Phase.RECOVERY and melee.t < 0.07)
 		trail.emitting = cutting or near_cut
 		trail.frozen = frozen
 
@@ -113,6 +126,7 @@ func _land(a: AttackData, target: Node3D) -> void:
 		strike_log[-1]["damage"] += a.damage
 	if rig:
 		rig.shake(0.6 if a.knockback > 0.0 else 0.22)
+	strike_hit.emit(melee.step_index, target, a, dir)
 
 
 func _events(stick_dir: Vector3) -> void:
@@ -129,11 +143,16 @@ func _events(stick_dir: Vector3) -> void:
 				if strike_log.size() > 12:
 					strike_log.pop_front()
 				QA.flag("strike", "%d" % (int(e["step"]) + 1))
+				strike_started.emit(int(e["step"]))
+			"phase":
+				if String(e["phase"]) == "ACTIVE":
+					strike_active.emit(int(e["step"]))
 			"hit":
 				QA.flag("strike_hit", "%d:%d" % [int(e["step"]) + 1, int(e["damage"])])
 			"miss":
 				stats["misses"] += 1
 				QA.flag("strike_miss", "%d" % (int(e["step"]) + 1))
+				strike_missed.emit(int(e["step"]))
 			"chain_done":
 				stats["chains"] += 1
 				QA.flag("chain_done", stats["chains"])
@@ -142,13 +161,13 @@ func _events(stick_dir: Vector3) -> void:
 	melee.events.clear()
 
 
-## The target a strike turns to: the nearest living one within ASSIST_RANGE and no more than ASSIST_CONE off the
-## stick's direction (or the facing when the stick is idle).
+## The target a strike turns to: the nearest living one within the assist's range and cone around the stick's
+## direction (or the facing when the stick is idle).
 func _pick_target(stick_dir: Vector3) -> Node3D:
 	var aim := stick_dir if stick_dir.length() > 0.2 else fighter.forward()
 	var aim_yaw := atan2(aim.x, aim.z)
 	var best: Node3D = null
-	var best_d := ASSIST_RANGE
+	var best_d := assist_range
 	for t in get_tree().get_nodes_in_group("hurtbox"):
 		var n := t as Node3D
 		if n == null or (n.has_method("is_alive") and not n.is_alive()):
@@ -157,7 +176,7 @@ func _pick_target(stick_dir: Vector3) -> Node3D:
 		var d := to.length()
 		if d > best_d:
 			continue
-		if absf(rad_to_deg(wrapf(atan2(to.x, to.z) - aim_yaw, -PI, PI))) > ASSIST_CONE:
+		if absf(rad_to_deg(wrapf(atan2(to.x, to.z) - aim_yaw, -PI, PI))) > assist_cone:
 			continue
 		best = n
 		best_d = d
