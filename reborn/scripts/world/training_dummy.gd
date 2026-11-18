@@ -7,7 +7,7 @@ extends StaticBody3D
 static func create() -> TrainingDummy:
 	var d := TrainingDummy.new()
 	d.name = "TrainingDummy"
-	d.collision_layer = 1 | 4
+	d.collision_layer = 4
 	var shape := CollisionShape3D.new()
 	var c := CylinderShape3D.new()
 	c.radius = 0.38

@@ -96,7 +96,8 @@ func _publish() -> void:
 	var live := {}
 	for key in _tracks:
 		var g: Callable = _tracks[key]
-		if g.is_valid():
+		var o := g.get_object()
+		if g.is_valid() and not (o is Node and not (o as Node).is_inside_tree()):
 			live[key] = g.call()
 	var vp := get_viewport().get_visible_rect().size
 	var state := {

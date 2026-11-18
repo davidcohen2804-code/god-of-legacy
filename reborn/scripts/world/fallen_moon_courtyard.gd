@@ -5,7 +5,9 @@ extends RefCounted
 ## broken and one fallen — a damaged arch in the north wall with the great moon above it, three braziers for warm
 ## accents, ruined walls, rubble; cracked flagstones with a little moss. One shadow-casting light (the moon), no
 ## volumetrics or heavy post-processing. Built from primitives and three small textures (tools/make_textures.py) to
-## stay light on a phone's GPU. Collision on layer 1: the floor, the walls (a closed square) and the columns.
+## stay light on a phone's GPU. Collision layers: 1 the floor, the columns and the braziers; 8 the closed square of
+## walls round the courtyard (bodies only — the camera looks over them); 16 what the camera keeps in front of (the
+## columns).
 ## North is −Z; the player starts south of the centre looking north, toward the arch and the moon.
 
 const HALF := 14.0 ## half the courtyard's side
@@ -113,7 +115,7 @@ static func _walls(root: Node3D, stone: Material, dark: Material) -> void:
 			if h > 2.0 and rng.randf() < 0.5:
 				var cap := _mesh(root, _box(Vector3(seg * 0.6, 0.3, 1.05)), dark, pos + Vector3(0, h + 0.15, 0))
 				cap.rotation.y = yaw + rng.randf_range(-0.06, 0.06)
-		_collider(root, Vector3(HALF * 2.0 + 2.0, 4.0, 1.0), normal * (HALF + 0.5) + Vector3(0, 2.0, 0), yaw)
+		_collider(root, Vector3(HALF * 2.0 + 2.0, 4.0, 1.0), normal * (HALF + 0.5) + Vector3(0, 2.0, 0), yaw, 8)
 
 
 ## The damaged arch in the north wall: two piers, a ring of voussoirs with its keystone and a neighbour fallen.
@@ -164,14 +166,14 @@ static func _columns(root: Node3D, stone: Material, dark: Material) -> void:
 			chunk.rotation = Vector3(rng.randf_range(-0.4, 0.4), 0.0, rng.randf_range(-0.5, 0.5))
 		else:
 			_mesh(root, _box(Vector3(1.15, 0.38, 1.15)), dark, pos + Vector3(0, 0.4 + h + 0.19, 0))
-		_collider_cyl(root, 0.5, 0.4 + h, pos + Vector3(0, (0.4 + h) * 0.5, 0))
+		_collider_cyl(root, 0.5, 0.4 + h, pos + Vector3(0, (0.4 + h) * 0.5, 0), 1 | 16)
 
 
 ## Three braziers: stone bowls with live flames — the warm accents (no shadows).
 static func _braziers(root: Node3D, dark: Material) -> void:
 	var fire := StandardMaterial3D.new()
 	fire.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	fire.albedo_color = Color(1.0, 0.62, 0.25)
+	fire.albedo_color = Color(1.0, 0.7, 0.32)
 	fire.emission_enabled = true
 	fire.emission = Color(1.0, 0.55, 0.2)
 	fire.emission_energy_multiplier = 2.0
@@ -179,10 +181,12 @@ static func _braziers(root: Node3D, dark: Material) -> void:
 		_mesh(root, _cyl(0.22, 0.32, 1.0), dark, pos + Vector3(0, 0.5, 0))
 		_mesh(root, _cyl(0.55, 0.3, 0.32), dark, pos + Vector3(0, 1.16, 0))
 		var flame := MeshInstance3D.new()
-		var s := SphereMesh.new()
-		s.radius = 0.24
-		s.height = 0.62
-		flame.mesh = s
+		var cone := CylinderMesh.new()
+		cone.top_radius = 0.0
+		cone.bottom_radius = 0.2
+		cone.height = 0.55
+		cone.radial_segments = 10
+		flame.mesh = cone
 		flame.material_override = fire
 		flame.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		flame.position = pos + Vector3(0, 1.5, 0)
@@ -261,9 +265,9 @@ static func _cyl(top: float, bottom: float, h: float) -> CylinderMesh:
 	return c
 
 
-static func _collider(root: Node3D, size: Vector3, pos: Vector3, yaw: float) -> void:
+static func _collider(root: Node3D, size: Vector3, pos: Vector3, yaw: float, layer: int = 1) -> void:
 	var body := StaticBody3D.new()
-	body.collision_layer = 1
+	body.collision_layer = layer
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
 	box.size = size
@@ -274,9 +278,9 @@ static func _collider(root: Node3D, size: Vector3, pos: Vector3, yaw: float) -> 
 	root.add_child(body)
 
 
-static func _collider_cyl(root: Node3D, radius: float, h: float, pos: Vector3) -> void:
+static func _collider_cyl(root: Node3D, radius: float, h: float, pos: Vector3, layer: int = 1) -> void:
 	var body := StaticBody3D.new()
-	body.collision_layer = 1
+	body.collision_layer = layer
 	var shape := CollisionShape3D.new()
 	var c := CylinderShape3D.new()
 	c.radius = radius

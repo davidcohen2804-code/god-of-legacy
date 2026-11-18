@@ -70,7 +70,7 @@ async function runProfile(p) {
     };
     const shot = async (n) => {
       await page.evaluate((x) => console.log('[shot] before ' + x + ', page blits so far ' + (window.__blits || 0)), n);
-      await page.screenshot({ path: `${OUT}/${p.name}_${n}.png` });
+      await page.screenshot({ path: `${OUT}/${p.name}_${n}.png`, timeout: 90000 });
       await page.evaluate((x) => console.log('[shot] after ' + x), n);
     };
     const step = (s) => { res.steps.push(s); say(p.name, '✓', s); };

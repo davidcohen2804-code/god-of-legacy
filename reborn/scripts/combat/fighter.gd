@@ -44,7 +44,7 @@ func setup(v: CharacterVisual, radius: float = 0.34, height: float = 1.7) -> voi
 	shape.position = Vector3(0, height * 0.5, 0)
 	add_child(shape)
 	collision_layer = 2
-	collision_mask = 1 | 2
+	collision_mask = 1 | 2 | 4 | 8 # the world, other bodies, the target, the courtyard's bounds
 	floor_snap_length = 0.35
 	floor_max_angle = deg_to_rad(50.0)
 

@@ -6,7 +6,7 @@ extends Node3D
 ##   COMBO: a little closer, for aerial chains and finishers — still inside the same band, so a change of mode never
 ##   jumps the framing.
 ## Every change is damped (no snapping, no cuts). A touch drag turns it at any time; easing toward a locked foe never
-## overrides a drag. It pulls in in front of walls.
+## overrides a drag. It pulls in (never closer than 3 m) in front of columns; it looks over the low walls.
 
 enum Mode { EXPLORATION, COMBAT, COMBO }
 
@@ -14,6 +14,7 @@ const PITCH_MIN := -45.0
 const PITCH_MAX := -30.0
 const DIST_MIN := 7.0
 const DIST_MAX := 9.0
+const MIN_PULL := 3.0 ## the closest a wall-avoiding pull-in may bring the camera
 const PRESETS := {
 	Mode.EXPLORATION: {"pitch": -36.0, "dist": 8.0, "height": 1.3, "fov": 55.0},
 	Mode.COMBAT: {"pitch": -33.0, "dist": 8.6, "height": 1.25, "fov": 56.0},
@@ -101,8 +102,11 @@ func _process(delta: float) -> void:
 
 	var b := Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, deg_to_rad(_pitch))
 	var want_pos := _pos + b.z * _dist
-	var q := PhysicsRayQueryParameters3D.create(_pos, want_pos, 1)
+	# Kept in front of what it must not see through (the columns: layer 16), never closer than MIN_PULL; low walls are
+	# below its line, and the courtyard's invisible bounds are not on that layer.
+	var q := PhysicsRayQueryParameters3D.create(_pos, want_pos, 16)
 	var hit := get_world_3d().direct_space_state.intersect_ray(q)
 	if not hit.is_empty():
-		want_pos = (hit["position"] as Vector3) - b.z * 0.35
+		var d := maxf(_pos.distance_to(hit["position"]) - 0.35, MIN_PULL)
+		want_pos = _pos + b.z * d
 	cam.global_transform = Transform3D(b, want_pos)

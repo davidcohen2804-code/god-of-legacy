@@ -6,24 +6,28 @@ extends Node
 ## sprints, jumps, dodges and the camera turns. Recorded with Godot's Movie Maker (--write-movie, fixed frame rate),
 ## so the clip is smooth however slowly the machine renders. It quits when the script ends.
 
-## [time (s), action, args...] — stick values are (x right, y up) of the stick's push, 0..1.
+## [time (s), action, args...] — stick values are (x right, y up) of the stick's push, 0..1. The Samurai starts 7 m
+## south of the target looking north; the script keeps him inside the open middle (the camera only turns when a
+## finger drags it, so "right" stays east until then).
 const SCRIPT := [
-	[1.0, "stick", Vector2(0.55, 0.0)], # walk round the target, to his right
-	[2.6, "stick", Vector2(0.8, 0.6)], # run, curving
-	[4.2, "stick", Vector2(0.0, 1.0)], # held at the rim: sprint after 0.25 s
-	[6.6, "stick_up"],
-	[7.4, "tap", "jump"],
-	[8.8, "drag", Vector2(-420, 0), 1.6], # a second finger turns the camera
-	[10.8, "stick", Vector2(0.0, 1.0)],
-	[11.9, "tap", "jump"], # a running jump
-	[13.4, "stick_up"],
-	[13.8, "tap", "dodge"],
-	[14.8, "stick", Vector2(-1.0, 0.0)],
-	[15.0, "tap", "dodge"], # a roll to the left
-	[15.8, "stick", Vector2(-0.4, 1.0)], # run while turning the camera: two fingers
-	[16.1, "drag", Vector2(300, 0), 2.0],
-	[18.6, "stick_up"],
-	[20.5, "end"],
+	[1.0, "stick", Vector2(0.4, 0.0)], # walk to the right of the target
+	[2.8, "stick", Vector2(0.0, 0.85)], # run north, past it
+	[4.6, "stick", Vector2(-1.0, 0.0)], # held at the rim: a sprint west (after 0.25 s)
+	[6.2, "stick_up"],
+	[6.8, "tap", "jump"], # a standing jump
+	[8.0, "drag", Vector2(300, 0), 1.6], # a second finger turns the camera
+	[10.0, "stick", Vector2(0.0, 1.0)], # run the new forward
+	[10.8, "tap", "jump"], # a running jump
+	[11.8, "stick_up"],
+	[12.1, "tap", "dodge"], # a roll ahead
+	[13.0, "stick", Vector2(-1.0, 0.0)],
+	[13.2, "tap", "dodge"], # a roll to the left
+	[13.6, "stick_up"],
+	[14.2, "stick", Vector2(0.15, 0.4)], # two fingers: walking while the camera turns back
+	[14.4, "drag", Vector2(-300, 0), 2.2],
+	[16.8, "stick", Vector2(0.0, 0.9)], # and a short run
+	[17.8, "stick_up"],
+	[19.6, "end"],
 ]
 
 var touch: TouchControls
