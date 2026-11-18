@@ -112,6 +112,22 @@ async function runProfile(p) {
     await shot('5_arena');
     step('arena entered with the Samurai, ' + st.fps + ' fps (software rendering)');
 
+    // M2.1: the Samurai himself — inspection viewpoints (front, side, right hand and katana, feet on the floor).
+    const pl = (s) => (s.live && s.live.player) || null;
+    const p0 = pl(await waitFor((s) => pl(s) && pl(s).on_floor, 'the Samurai standing on the floor', 20000));
+    res.player = p0;
+    if (Math.abs(p0.pos[1]) > 0.05) throw new Error('the Samurai is not on the floor: y = ' + p0.pos[1]);
+    if (!/Idle/.test(p0.anim)) throw new Error('the Samurai is not idling: ' + p0.anim);
+    step(`Samurai on the floor (y ${p0.pos[1]}, lowest foot bone ${p0.feet} m), playing ${p0.anim}, katana ${p0.katana_to_hand} m from the hand bone`);
+    for (const v of ['front', 'side', 'hand', 'feet']) {
+      await page.evaluate((x) => window.__golCmd && window.__golCmd('cam', x), v);
+      await waitFor((s) => pl(s) && pl(s).view === v, 'the ' + v + ' view', 15000);
+      await page.waitForTimeout(900);
+      await shot('6_' + v);
+    }
+    await page.evaluate(() => window.__golCmd && window.__golCmd('cam', 'game'));
+    step('inspection views captured: front, side, right hand + katana, feet');
+
     await tap('arena_menu');
     await waitFor((s) => s.scene === 'main_menu', 'back to the menu', 60000);
     step('back to the main menu');
