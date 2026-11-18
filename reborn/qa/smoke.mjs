@@ -131,6 +131,12 @@ async function runProfile(p) {
 
     const cs = (s) => (s.live && s.live.camera) || null;
     const ctl = (s) => (s.live && s.live.controls) || null;
+    // (stand the Samurai where a long run is free of the ruins: x, z, facing in degrees — 90 = east)
+    const place = async (x, z, f) => {
+      await page.evaluate((a) => window.__golCmd('place', ...a), [x, z, f]);
+      await waitFor((s) => s.flags.placed === `${x},${z},${f}`, 'the Samurai to be placed', 15000);
+      await page.waitForTimeout(300);
+    };
 
     // Touches by id, several at once: Chromium through the DevTools protocol (real touch events), WebKit through
     // synthetic touch events on the canvas (Godot's web build listens there).
@@ -193,12 +199,14 @@ async function runProfile(p) {
         const a = circles[i], b = circles[j];
         if (Math.hypot(a.x - b.x, a.y - b.y) < a.r + b.r) throw new Error(`${a.k} and ${b.k} overlap`);
       }
+      if (!circles.some((c) => c.k === 'btn_stick') || circles.length < 8) throw new Error('the controls are not on screen: ' + keys.join(' '));
       const minCss = Math.min(...circles.filter((c) => c.k !== 'btn_stick').map((c) => c.r * 2 * css));
       const info = ctl(st0);
       res.controls = { minHitCss: +minCss.toFixed(1), info, viewport: [Math.round(box.width), Math.round(box.height)] };
       await shot('8_controls');
       step(`controls: ${keys.length} on screen, smallest hit target ${minCss.toFixed(1)} CSS px (≥ 44), none overlapping or off screen; scale ${info && info.hit_scale}`);
 
+      await place(-8, 8, 90);
       const stick = st0.rects.btn_stick, cam = st0.rects.camera_zone;
       const sc = centre(stick), sr = stick[2] / 2;
       const p1 = pl(await state());
@@ -233,6 +241,7 @@ async function runProfile(p) {
       if (pl(crossed).speed > 0.5) throw new Error('a camera drag over the stick moved the Samurai');
       step('a camera drag that crosses the joystick stays a camera drag (the stick does not take it)');
 
+      await place(-6, 8, 90);
       await tapAt('btn_jump');
       const air = pl(await waitFor((s) => pl(s) && pl(s).state === 'air', 'JUMP', 30000));
       await shot('8_jump');
@@ -255,6 +264,7 @@ async function runProfile(p) {
       // M2.2 (desktop profile): locomotion from the keyboard. The CI renders in software at a few frames per second, so
       // game time runs slower than real time: the checks wait for states, not for distances.
       await page.evaluate(() => { const c = document.querySelector('canvas'); c.tabIndex = 0; c.focus(); });
+      await place(-8, 8, 90);
       const start = pl(await state());
       await page.keyboard.down('KeyW');
       const run = pl(await waitFor((s) => pl(s) && pl(s).speed > 3.5, 'running (W)', 60000));
@@ -276,7 +286,9 @@ async function runProfile(p) {
       step(`jump: in the air (y ${air.pos[1]} m, ${air.anim}), landed (${landed.anim})`);
 
       const before = pl(await state());
+      await page.keyboard.down('KeyS');
       await page.keyboard.press('KeyK');
+      await page.keyboard.up('KeyS');
       await waitFor((s) => (s.events || []).some((e) => e === 'player_state=dodge'), 'the dodge', 30000);
       const after = pl(await waitFor((s) => pl(s) && pl(s).state === 'ground' && pl(s).speed < 0.4, 'the dodge to end', 60000));
       const rolled = Math.hypot(after.pos[0] - before.pos[0], after.pos[2] - before.pos[2]);

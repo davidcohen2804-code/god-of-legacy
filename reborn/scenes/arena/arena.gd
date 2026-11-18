@@ -15,11 +15,11 @@ var _view := "game"
 
 
 func _ready() -> void:
+	QA.mark("arena") # (first: marking a screen clears the previous one's rectangles and tracked values)
 	_build_world()
 	_spawn_player()
 	_build_camera()
 	_build_hud()
-	QA.mark("arena") # (first: marking a screen clears the previous one's tracked values)
 	QA.track("player", _player_state)
 	QA.track("camera", _camera_state)
 	QA.track("controls", touch.layout_info)
@@ -164,7 +164,14 @@ func _hand_position() -> Vector3:
 
 
 func _on_qa_command(cmd: String, args: Array) -> void:
-	if cmd == "cam" and not args.is_empty():
+	if cmd == "place" and args.size() >= 3:
+		# (tests) stand the Samurai at (x, z) facing `facing` degrees, the camera behind him
+		player.global_position = Vector3(float(args[0]), 0.0, float(args[1]))
+		player.velocity = Vector3.ZERO
+		player.facing = deg_to_rad(float(args[2]))
+		rig.snap_behind(player.facing)
+		QA.flag("placed", "%s,%s,%s" % [args[0], args[1], args[2]])
+	elif cmd == "cam" and not args.is_empty():
 		_view = str(args[0])
 		rig.active = _view == "game"
 		if _view != "game":
