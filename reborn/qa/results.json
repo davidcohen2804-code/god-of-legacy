@@ -1,0 +1,151 @@
+{
+  "when": "2026-11-18T18:55:38.445Z",
+  "results": [
+    {
+      "profile": "android-chromium",
+      "required": true,
+      "ok": true,
+      "steps": [
+        "main menu loaded in 1173 ms",
+        "settings open and close",
+        "character select reached by tapping Play",
+        "locked Warrior refused (selection stays Samurai, toast: Warrior is locked — coming later)",
+        "arena entered with the Samurai, 2 fps (software rendering)",
+        "back to the main menu"
+      ],
+      "errors": [
+        "ERROR: Invalid polygon data, triangulation failed.",
+        "   at: canvas_item_add_polygon (servers/rendering/renderer_canvas_cull.cpp:1770)",
+        "ERROR: Invalid polygon data, triangulation failed.",
+        "   at: canvas_item_add_polygon (servers/rendering/renderer_canvas_cull.cpp:1770)",
+        "ERROR: Invalid polygon data, triangulation failed.",
+        "   at: canvas_item_add_polygon (servers/rendering/renderer_canvas_cull.cpp:1770)"
+      ],
+      "log": [
+        "[log] Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org",
+        "[log] OpenGL API OpenGL ES 3.0 (WebGL 2.0 (OpenGL ES 3.0 Chromium)) - Compatibility - Using Device: WebKit - WebKit WebGL",
+        "[log] Build configuration: Emscripten 4.0.20, single-threaded, no GDExtension support.",
+        "[log] [QA] scene=main_menu",
+        "[error] ERROR: Invalid polygon data, triangulation failed.",
+        "[error]    at: canvas_item_add_polygon (servers/rendering/renderer_canvas_cull.cpp:1770)",
+        "[log] [QA] scene=character_select",
+        "[error] ERROR: Invalid polygon data, triangulation failed.",
+        "[error]    at: canvas_item_add_polygon (servers/rendering/renderer_canvas_cull.cpp:1770)",
+        "[log] [QA] scene=arena",
+        "[log] [QA] scene=main_menu",
+        "[error] ERROR: Invalid polygon data, triangulation failed.",
+        "[error]    at: canvas_item_add_polygon (servers/rendering/renderer_canvas_cull.cpp:1770)"
+      ],
+      "loadMs": 1173,
+      "fps": 2
+    },
+    {
+      "profile": "iphone-webkit",
+      "required": false,
+      "ok": true,
+      "steps": [
+        "main menu loaded in 3580 ms",
+        "settings open and close",
+        "character select reached by tapping Play",
+        "locked Warrior refused (selection stays Samurai, toast: Warrior is locked — coming later)",
+        "arena entered with the Samurai, 6 fps (software rendering)",
+        "back to the main menu"
+      ],
+      "errors": [
+        "ERROR: Invalid polygon data, triangulation failed.",
+        "   at: canvas_item_add_polygon (servers/rendering/renderer_canvas_cull.cpp:1770)",
+        "WebGL: INVALID_OPERATION: glBlitFramebuffer: Read and write color attachments cannot be the same image.",
+        "WebGL: INVALID_OPERATION: glBlitFramebuffer: Read and write color attachments cannot be the same image.",
+        "WebGL: INVALID_OPERATION: glBlitFramebuffer: Read and write color attachments cannot be the same image.",
+        "WebGL: INVALID_OPERATION: glBlitFramebuffer: Read and write color attachments cannot be the same image.",
+        "WebGL: INVALID_OPERATION: glBlitFramebuffer: Read and write color attachments cannot be the same image.",
+        "WebGL: INVALID_OPERATION: glBlitFramebuffer: Read and write color attachments cannot be the same image.",
+        "WebGL: INVALID_OPERATION: glBlitFramebuffer: Read and write color attachments cannot be the same image.",
+        "WebGL: INVALID_OPERATION: glBlitFramebuffer: Read and write color attachments cannot be the same image.",
+        "WebGL: INVALID_OPERATION: glBlitFramebuffer: Read and write color attachments cannot be the same image.",
+        "WebGL: INVALID_OPERATION: glBlitFramebuffer: Read and write color attachments cannot be the same image.",
+        "WebGL: INVALID_OPERATION: glBlitFramebuffer: Read and write color attachments cannot be the same image.",
+        "WebGL: INVALID_OPERATION: glBlitFramebuffer: Read and write color attachments cannot be the same image.",
+        "WebGL: INVALID_OPERATION: glBlitFramebuffer: Read and write color attachments cannot be the same image.",
+        "WebGL: INVALID_OPERATION: glBlitFramebuffer: Read and write color attachments cannot be the same image.",
+        "WebGL: INVALID_OPERATION: glBlitFramebuffer: Read and write color attachments cannot be the same image.",
+        "WebGL: INVALID_OPERATION: glBlitFramebuffer: Read and write color attachments cannot be the same image. (No more validation messages will be reported)",
+        "ERROR: Invalid polygon data, triangulation failed.",
+        "   at: canvas_item_add_polygon (servers/rendering/renderer_canvas_cull.cpp:1770)",
+        "ERROR: Invalid polygon data, triangulation failed.",
+        "   at: canvas_item_add_polygon (servers/rendering/renderer_canvas_cull.cpp:1770)"
+      ],
+      "log": [
+        "[log] Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org",
+        "[log] OpenGL API OpenGL ES 3.0 (WebGL 2.0) - Compatibility - Using Device: WebKit - WebKit WebGL",
+        "[log] Build configuration: Emscripten 4.0.20, single-threaded, no GDExtension support.",
+        "[log] [QA] scene=main_menu",
+        "[error] ERROR: Invalid polygon data, triangulation failed.",
+        "[error]    at: canvas_item_add_polygon (servers/rendering/renderer_canvas_cull.cpp:1770)",
+        "[error] WebGL: INVALID_OPERATION: glBlitFramebuffer: Read and write color attachments cannot be the same image.",
+        "[error] WebGL: INVALID_OPERATION: glBlitFramebuffer: Read and write color attachments cannot be the same image.",
+        "[error] WebGL: INVALID_OPERATION: glBlitFramebuffer: Read and write color attachments cannot be the same image.",
+        "[error] WebGL: INVALID_OPERATION: glBlitFramebuffer: Read and write color attachments cannot be the same image.",
+        "[error] WebGL: INVALID_OPERATION: glBlitFramebuffer: Read and write color attachments cannot be the same image.",
+        "[error] WebGL: INVALID_OPERATION: glBlitFramebuffer: Read and write color attachments cannot be the same image.",
+        "[error] WebGL: INVALID_OPERATION: glBlitFramebuffer: Read and write color attachments cannot be the same image.",
+        "[error] WebGL: INVALID_OPERATION: glBlitFramebuffer: Read and write color attachments cannot be the same image.",
+        "[error] WebGL: INVALID_OPERATION: glBlitFramebuffer: Read and write color attachments cannot be the same image.",
+        "[error] WebGL: INVALID_OPERATION: glBlitFramebuffer: Read and write color attachments cannot be the same image.",
+        "[error] WebGL: INVALID_OPERATION: glBlitFramebuffer: Read and write color attachments cannot be the same image.",
+        "[error] WebGL: INVALID_OPERATION: glBlitFramebuffer: Read and write color attachments cannot be the same image.",
+        "[error] WebGL: INVALID_OPERATION: glBlitFramebuffer: Read and write color attachments cannot be the same image.",
+        "[error] WebGL: INVALID_OPERATION: glBlitFramebuffer: Read and write color attachments cannot be the same image.",
+        "[error] WebGL: INVALID_OPERATION: glBlitFramebuffer: Read and write color attachments cannot be the same image.",
+        "[error] WebGL: INVALID_OPERATION: glBlitFramebuffer: Read and write color attachments cannot be the same image. (No more validation messages will be reported)",
+        "[log] [QA] scene=character_select",
+        "[error] ERROR: Invalid polygon data, triangulation failed.",
+        "[error]    at: canvas_item_add_polygon (servers/rendering/renderer_canvas_cull.cpp:1770)",
+        "[log] [QA] scene=arena",
+        "[log] [QA] scene=main_menu",
+        "[error] ERROR: Invalid polygon data, triangulation failed.",
+        "[error]    at: canvas_item_add_polygon (servers/rendering/renderer_canvas_cull.cpp:1770)"
+      ],
+      "loadMs": 3580,
+      "fps": 6
+    },
+    {
+      "profile": "chromium-16x9",
+      "required": true,
+      "ok": true,
+      "steps": [
+        "main menu loaded in 1210 ms",
+        "settings open and close",
+        "character select reached by tapping Play",
+        "locked Warrior refused (selection stays Samurai, toast: Warrior is locked — coming later)",
+        "arena entered with the Samurai, 1 fps (software rendering)",
+        "back to the main menu"
+      ],
+      "errors": [
+        "ERROR: Invalid polygon data, triangulation failed.",
+        "   at: canvas_item_add_polygon (servers/rendering/renderer_canvas_cull.cpp:1770)",
+        "ERROR: Invalid polygon data, triangulation failed.",
+        "   at: canvas_item_add_polygon (servers/rendering/renderer_canvas_cull.cpp:1770)",
+        "ERROR: Invalid polygon data, triangulation failed.",
+        "   at: canvas_item_add_polygon (servers/rendering/renderer_canvas_cull.cpp:1770)"
+      ],
+      "log": [
+        "[log] Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org",
+        "[log] OpenGL API OpenGL ES 3.0 (WebGL 2.0 (OpenGL ES 3.0 Chromium)) - Compatibility - Using Device: WebKit - WebKit WebGL",
+        "[log] Build configuration: Emscripten 4.0.20, single-threaded, no GDExtension support.",
+        "[log] [QA] scene=main_menu",
+        "[error] ERROR: Invalid polygon data, triangulation failed.",
+        "[error]    at: canvas_item_add_polygon (servers/rendering/renderer_canvas_cull.cpp:1770)",
+        "[log] [QA] scene=character_select",
+        "[error] ERROR: Invalid polygon data, triangulation failed.",
+        "[error]    at: canvas_item_add_polygon (servers/rendering/renderer_canvas_cull.cpp:1770)",
+        "[log] [QA] scene=arena",
+        "[log] [QA] scene=main_menu",
+        "[error] ERROR: Invalid polygon data, triangulation failed.",
+        "[error]    at: canvas_item_add_polygon (servers/rendering/renderer_canvas_cull.cpp:1770)"
+      ],
+      "loadMs": 1210,
+      "fps": 1
+    }
+  ]
+}
