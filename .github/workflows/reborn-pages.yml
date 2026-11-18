@@ -50,6 +50,25 @@ jobs:
           test -s build/web/index.pck
           echo "{\"commit\":\"${GITHUB_SHA::7}\",\"built\":\"$(date -u +%FT%TZ)\"}" > build/web/version.json
           ls -la build/web
+      - name: Movement demo video (Godot's Movie Maker at a fixed 30 fps, software OpenGL under Xvfb)
+        # The scripted demo (reborn/scripts/qa/demo_driver.gd) drives the touch controls through the engine's input;
+        # a fixed frame rate makes the clip smooth however slowly the runner renders.
+        id: demo
+        continue-on-error: true
+        timeout-minutes: 15
+        run: |
+          mkdir -p build/web/qa
+          xvfb-run -a -s "-screen 0 1280x720x24" ~/godot/godot --path reborn --rendering-method gl_compatibility \
+            --rendering-driver opengl3 --resolution 1280x720 --write-movie "$RUNNER_TEMP/demo.avi" --fixed-fps 30 \
+            -- --demo > "$RUNNER_TEMP/demo.log" 2>&1 || true
+          tail -n 25 "$RUNNER_TEMP/demo.log"
+          test -s "$RUNNER_TEMP/demo.avi"
+          ffmpeg -y -loglevel error -i "$RUNNER_TEMP/demo.avi" -an -c:v libx264 -pix_fmt yuv420p -crf 24 -preset veryfast \
+            -movflags +faststart build/web/qa/m2_movement_demo.mp4
+          ffmpeg -y -loglevel error -i build/web/qa/m2_movement_demo.mp4 -vf "fps=1,scale=480:-1,tile=5x4" -frames:v 1 \
+            build/web/qa/m2_movement_demo_frames.jpg
+          python3 reborn/tools/pack_png.py build/web/qa/m2_movement_demo.mp4 build/web/qa/m2_movement_demo.mp4.png
+          ls -la build/web/qa
       - name: Browser smoke test in Playwright's own image (Chromium as an Android phone and at 16:9, WebKit as an iPhone, all in landscape)
         # Playwright's image carries its browsers and their system libraries: no apt install on the runner (a slow
         # mirror once hung the run, and a killed apt-get kept its lock).

@@ -20,6 +20,8 @@ var camera_sensitivity := 1.0
 var show_fps := false
 ## Master volume, 0..1.
 var sound_volume := 0.8
+## The movement demo for the recordings (`-- --demo`): straight to the arena, driven by qa/demo_driver.gd.
+var demo := false
 
 ## A short fade through the menus' midnight violet between screens (and in from it at start).
 var _fade: ColorRect
@@ -38,6 +40,12 @@ func _ready() -> void:
 	_fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_fade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	layer.add_child(_fade)
+	if "--demo" in OS.get_cmdline_user_args():
+		demo = true
+		_fade.color.a = 0.0
+		selected_character = "samurai"
+		get_tree().call_deferred("change_scene_to_file", SCREENS["arena"])
+		return
 	create_tween().tween_property(_fade, "color:a", 0.0, 0.45)
 
 

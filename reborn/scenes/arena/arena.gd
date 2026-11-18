@@ -1,15 +1,20 @@
 extends Node3D
-## Arena — M2, step 3 of 5 (GPT's M2 order): the real Samurai in a minimal arena under twilight moonlight — walk,
-## run, sprint, jump and dodge relative to the camera, from the touch controls (several fingers at once), the
-## keyboard or a gamepad. The Fallen Moon Courtyard and the camera's framing pass come in step 4. With ?qa=1 the page
-## can switch the camera to inspection viewpoints.
+## Arena — M2, step 4 of 5 (GPT's M2 order): the Samurai in the Fallen Moon Courtyard (first visual pass) with the
+## training target in its middle — walk, run, sprint, jump and dodge relative to the camera, from the touch controls
+## (several fingers at once), the keyboard or a gamepad. The camera frames the target when he is near it (combat
+## framing) and roams free otherwise. With ?qa=1 the page can switch the camera to inspection viewpoints.
+
+## Within this distance of the target the camera takes its combat framing.
+const COMBAT_RANGE := 9.0
 
 var player: Fighter
 var input: PlayerInput
 var controller: PlayerController
 var rig: CameraRig
 var touch: TouchControls
+var dummy: TrainingDummy
 var _cam: Camera3D
+var _t := 0.0
 var _fps: Label
 var _view := "game"
 
@@ -24,90 +29,40 @@ func _ready() -> void:
 	QA.track("camera", _camera_state)
 	QA.track("controls", touch.layout_info)
 	QA.command.connect(_on_qa_command)
+	if Game.demo:
+		var d := DemoDriver.new()
+		d.name = "DemoDriver"
+		d.touch = touch
+		add_child(d)
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	_t += delta
 	if _view != "game":
 		_place_camera()
+	var near := player.global_position.distance_to(dummy.global_position) < COMBAT_RANGE
+	rig.focus = dummy if near else null
+	rig.mode = CameraRig.Mode.COMBAT if near else CameraRig.Mode.EXPLORATION
+	for i in FallenMoonCourtyard.flames.size():
+		var f := FallenMoonCourtyard.flames[i]
+		f.light_energy = 1.25 + 0.18 * sin(_t * 7.3 + i * 1.7) + 0.1 * sin(_t * 13.1 + i * 2.9)
 	if _fps.visible:
 		_fps.text = "%d FPS" % Engine.get_frames_per_second()
 
 
 func _build_world() -> void:
-	var env := Environment.new()
-	env.background_mode = Environment.BG_SKY
-	var sky := Sky.new()
-	var mat := ProceduralSkyMaterial.new()
-	mat.sky_top_color = Color("#151233")
-	mat.sky_horizon_color = Color("#4a3d72")
-	mat.sky_curve = 0.12
-	mat.ground_horizon_color = Color("#2b2440")
-	mat.ground_bottom_color = Color("#0d0b16")
-	mat.sun_angle_max = 2.6
-	mat.sun_curve = 0.08
-	sky.sky_material = mat
-	env.sky = sky
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color("#4d5174")
-	env.ambient_light_energy = 0.5
-	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	env.tonemap_exposure = 1.05
-	var we := WorldEnvironment.new()
-	we.environment = env
-	add_child(we)
-
-	# The moon: the one shadow-casting light, cool blue-violet, low in the sky.
-	var moon := DirectionalLight3D.new()
-	moon.name = "Moon"
-	moon.rotation_degrees = Vector3(-34, 152, 0)
-	moon.light_color = Color("#bcc0ec")
-	moon.light_energy = 1.15
-	moon.shadow_enabled = true
-	moon.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
-	moon.directional_shadow_max_distance = 32.0
-	add_child(moon)
-
-	# A warm accent from one side, so the armour's gold and the blade read (the braziers take this role in M2.4).
-	var warm := OmniLight3D.new()
-	warm.position = Vector3(-3.2, 2.2, 1.6)
-	warm.light_color = Color("#ff9a52")
-	warm.light_energy = 0.9
-	warm.omni_range = 7.0
-	add_child(warm)
-
-	# The floor: 28 × 28 m of worn flagstones (the courtyard's size; its ruins come in M2.4).
-	var floor_body := StaticBody3D.new()
-	floor_body.collision_layer = 1
-	var shape := CollisionShape3D.new()
-	var box := BoxShape3D.new()
-	box.size = Vector3(28, 1, 28)
-	shape.shape = box
-	shape.position = Vector3(0, -0.5, 0)
-	floor_body.add_child(shape)
-	var ground := MeshInstance3D.new()
-	var plane := PlaneMesh.new()
-	plane.size = Vector2(28, 28)
-	ground.mesh = plane
-	ground.material_override = TexLoader.material("res://assets/env/flagstones.webp.bin", Vector2(7, 7),
-		Color(0.7, 0.7, 0.74), 0.92)
-	floor_body.add_child(ground)
-	add_child(floor_body)
-	# The courtyard's edge: invisible walls until its ruins are built (M2.4).
-	for side: Vector3 in [Vector3(14.5, 1.5, 0), Vector3(-14.5, 1.5, 0), Vector3(0, 1.5, 14.5), Vector3(0, 1.5, -14.5)]:
-		var wall := CollisionShape3D.new()
-		var wb := BoxShape3D.new()
-		wb.size = Vector3(1, 3, 30) if absf(side.x) > 0.0 else Vector3(30, 3, 1)
-		wall.shape = wb
-		wall.position = side
-		floor_body.add_child(wall)
+	FallenMoonCourtyard.build(self)
+	dummy = TrainingDummy.create()
+	add_child(dummy)
 
 
 func _spawn_player() -> void:
 	player = Fighter.new()
 	player.name = "Samurai"
 	player.setup(CharacterVisual.create())
-	player.facing = PI # facing away from the camera, into the courtyard
+	player.facing = PI # looking north, at the target, the arch and the moon
 	add_child(player)
+	player.global_position = Vector3(0, 0, 7)
 	input = PlayerInput.new()
 	input.name = "PlayerInput"
 	add_child(input)
@@ -146,6 +101,9 @@ func _place_camera() -> void:
 			_look(h - right * 0.9 + fwd * 0.5 + Vector3(0, 0.15, 0), h + Vector3(0, -0.05, 0), 40.0)
 		"feet":
 			_look(p - right * 1.8 + fwd * 0.6 + Vector3(0, 0.25, 0), p + Vector3(0, 0.15, 0), 40.0)
+		"vista":
+			# a low view of the courtyard toward the arch and the moon (the establishing shot)
+			_look(Vector3(1.5, 1.6, 11.5), Vector3(0, 4.2, -14.0), 55.0)
 
 
 func _look(from: Vector3, at: Vector3, fov: float) -> void:
@@ -234,8 +192,8 @@ func _build_hud() -> void:
 	hp.position = Vector2(212, 30)
 	hud.add_child(hp)
 
-	var note := UiTheme.label("M2 · step 3 of 5 — stick: move (rim 0.25 s: sprint) · drag: camera · JUMP · DODGE", 18,
-		UiTheme.TEXT_DIM)
+	var note := UiTheme.label("M2 · the Fallen Moon Courtyard — stick: move (rim 0.25 s: sprint) · drag: camera · JUMP · DODGE",
+		18, UiTheme.TEXT_DIM)
 	note.position = Vector2(212, 66)
 	hud.add_child(note)
 
