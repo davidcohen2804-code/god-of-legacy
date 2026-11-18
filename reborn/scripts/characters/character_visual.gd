@@ -21,6 +21,9 @@ var katana: Node3D
 var current := ""
 var body_material: StandardMaterial3D
 var blade_material: StandardMaterial3D
+## Move names as the build tool wrote them → as Godot imported them (its importer turns a "_Loop" suffix into a
+## looping animation without the suffix: "Idle_Loop" → "Idle").
+var _alias := {}
 
 
 static func create() -> CharacterVisual:
@@ -60,9 +63,13 @@ func _build() -> void:
 		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 
 	if anim:
+		for n in anim.get_animation_list():
+			_alias[String(n)] = String(n)
+			if not String(n).ends_with("_Loop"):
+				_alias[String(n) + "_Loop"] = String(n)
 		for n in LOOPS:
-			if anim.has_animation(n):
-				anim.get_animation(n).loop_mode = Animation.LOOP_LINEAR
+			if has_move(n):
+				anim.get_animation(_alias[n]).loop_mode = Animation.LOOP_LINEAR
 		anim.playback_default_blend_time = 0.12
 
 	if skeleton:
@@ -86,21 +93,22 @@ func _build() -> void:
 
 
 func has_move(move: String) -> bool:
-	return anim != null and anim.has_animation(move)
+	return anim != null and _alias.has(move)
 
 
 func duration(move: String) -> float:
-	return anim.get_animation(move).length if has_move(move) else 0.5
+	return anim.get_animation(_alias[move]).length if has_move(move) else 0.5
 
 
-## Play a move (restarting it when asked); `from` seconds into it.
+## Play a move (restarting it when asked); `from` seconds into it. `current` keeps the name it was asked by.
 func play(move: String, blend: float = 0.12, speed: float = 1.0, restart: bool = false, from: float = 0.0) -> void:
 	if not has_move(move):
+		push_warning("CharacterVisual: no move " + move)
 		return
 	if move == current and not restart and anim.is_playing():
 		anim.speed_scale = speed
 		return
-	anim.play(move, blend)
+	anim.play(_alias[move], blend)
 	anim.speed_scale = speed
 	if restart or from > 0.0:
 		anim.seek(from, true)

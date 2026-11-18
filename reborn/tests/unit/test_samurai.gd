@@ -14,12 +14,23 @@ func test_body_has_its_skeleton_and_moves() -> String:
 		err = "no Skeleton3D"
 	else:
 		for m in MOVES:
-			if not v.anim.has_animation(m):
-				err = "missing move " + m
+			if not v.has_move(m):
+				err = "missing move %s (has %s)" % [m, v.anim.get_animation_list()]
 				break
 		for b in ["pelvis", "hand_r", "foot_l", "foot_r"]:
 			if v.skeleton.find_bone(b) < 0:
 				err = "missing bone " + b
+	v.free()
+	return err
+
+
+func test_locomotion_cycles_loop() -> String:
+	var v := CharacterVisual.create()
+	var err := ""
+	for m in ["Idle_Loop", "Walk_Loop", "Jog_Fwd_Loop", "Sprint_Loop", "Sword_Idle"]:
+		if not v.has_move(m) or v.anim.get_animation(v._alias[m]).loop_mode != Animation.LOOP_LINEAR:
+			err = m + " does not loop"
+			break
 	v.free()
 	return err
 
