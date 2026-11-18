@@ -48,7 +48,7 @@ static func _environment(root: Node3D) -> void:
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color("#4d5174")
-	env.ambient_light_energy = 0.5
+	env.ambient_light_energy = 0.62
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.tonemap_exposure = 1.05
 	env.fog_enabled = true
@@ -63,7 +63,7 @@ static func _environment(root: Node3D) -> void:
 	# the light's own (angular size), above the arch from the starting view.
 	var moon := DirectionalLight3D.new()
 	moon.name = "Moon"
-	moon.rotation_degrees = Vector3(-24, 160, 0)
+	moon.rotation_degrees = Vector3(-36, 160, 0)
 	moon.light_color = Color("#c3c4f0")
 	moon.light_energy = 1.15
 	moon.light_angular_distance = 3.2
@@ -74,7 +74,7 @@ static func _environment(root: Node3D) -> void:
 
 
 static func _ground(root: Node3D, dark: Material) -> void:
-	var floor_mat := TexLoader.material(ENV + "flagstones.webp.bin", Vector2(7, 7), Color(0.7, 0.7, 0.74), 0.92)
+	var floor_mat := TexLoader.material(ENV + "flagstones.webp.bin", Vector2(7, 7), Color(0.76, 0.76, 0.8), 0.92)
 	_mesh(root, _plane(Vector2(HALF * 2.0, HALF * 2.0)), floor_mat, Vector3.ZERO)
 	var earth := TexLoader.material(ENV + "earth.webp.bin", Vector2(30, 30), Color(0.2, 0.19, 0.25))
 	_mesh(root, _plane(Vector2(160, 160)), earth, Vector3(0, -0.02, 0))

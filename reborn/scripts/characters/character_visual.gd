@@ -56,7 +56,7 @@ func _build() -> void:
 	body_material.metallic_specular = 0.45
 	body_material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	body_material.rim_enabled = true
-	body_material.rim = 0.22
+	body_material.rim = 0.32
 	body_material.rim_tint = 0.5
 	for m in meshes:
 		m.material_override = body_material

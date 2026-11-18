@@ -106,7 +106,9 @@ async function runProfile(p) {
     await waitFor((s) => s.flags.selected === 'samurai', 'samurai selected', 15000);
     await tap('enter');
     await waitFor((s) => s.scene === 'arena', 'the arena', 60000);
-    await page.waitForTimeout(4000);
+    // (the arena marks itself first and then builds — the courtyard's shaders can take a while in software rendering)
+    await waitFor((s) => s.live && s.live.player, 'the arena to finish building', 240000);
+    await page.waitForTimeout(2500);
     const st = await state();
     res.fps = st.fps;
     await shot('5_arena');

@@ -33,6 +33,8 @@ func _ready() -> void:
 		var d := DemoDriver.new()
 		d.name = "DemoDriver"
 		d.touch = touch
+		d.player = player
+		d.rig = rig
 		add_child(d)
 
 
