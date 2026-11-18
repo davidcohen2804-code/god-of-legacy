@@ -188,6 +188,14 @@ async function runProfile(p) {
       await touch('end', 9);
     };
     const angle = (a, b) => Math.abs(((a - b + 540) % 360) - 180);
+    // A quick tap (finger down and up at once) on a button whose place is read once — for mashing.
+    const placeOf = {};
+    const quickTap = async (key) => {
+      if (!placeOf[key]) { const r = (await state()).rects[key]; if (!r) throw new Error('control not on screen: ' + key); placeOf[key] = centre(r); }
+      const [x, y] = placeOf[key];
+      await touch('start', 8, x, y);
+      await touch('end', 8);
+    };
 
     // M3: the sword. The game reports its combat state (phase, strikes so far, the last strikes' [step, hits, damage])
     // and the dummy's (hp, distance off its mark, last push).
@@ -197,16 +205,17 @@ async function runProfile(p) {
     const since = (s, from) => { const c = cb(s); const n = c.strikes - from; return n > 0 ? c.log.slice(-n) : []; };
     // Press attack again and again (as a player mashing the button) until `n` new strikes have started, then wait for
     // the last one to finish. Presses that land while a strike runs are held for the next one by the game's rules.
+    // (Three presses between two looks at the state: in software rendering a phone profile draws ~2 frames a second,
+    // and each look costs a frame — pressing only once per look let the chain's window pass between presses.)
     const mash = async (press, n, what) => {
       const s0 = await state();
       const from = cb(s0).strikes;
       const end = Date.now() + 120000;
       for (;;) {
-        await press();
+        for (let k = 0; k < 3; k++) await press();
         const s = await state();
         if (cb(s).strikes - from >= n) break;
         if (Date.now() > end) throw new Error(`${what}: only ${cb(s).strikes - from} strikes started (${JSON.stringify(cb(s))})`);
-        await page.waitForTimeout(80);
       }
       const done = await waitFor((s) => cb(s) && cb(s).phase === 'FREE', what + ': the strikes to finish', 60000);
       return { s0, from, done };
@@ -329,8 +338,8 @@ async function runProfile(p) {
       step('HEAVY (dimmed until its skill is built): the tap is taken and does nothing');
 
       // M3: ATTACK taps — the chain on the dummy, a deliberate miss, and a strike while the stick is held.
-      step(await chainTest(() => tapAt('btn_attack'), 'touch'));
-      step(await missTest(() => tapAt('btn_attack'), 'touch'));
+      step(await chainTest(() => quickTap('btn_attack'), 'touch'));
+      step(await missTest(() => quickTap('btn_attack'), 'touch'));
       await place(-8, 8, 90);
       const atk = st0.rects.btn_attack;
       const ac = centre(atk);
