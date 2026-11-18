@@ -27,6 +27,23 @@ async function runProfile(p) {
   let page = null;
   try {
     const ctx = await browser.newContext({ ...p.device });
+    // Diagnostic for WebKit's "glBlitFramebuffer: Read and write color attachments cannot be the same image": count the
+    // page's own blitFramebuffer calls (Godot's), so an error with no call behind it points at the browser itself
+    // (for instance its read-back of the canvas for a screenshot).
+    await ctx.addInitScript(() => {
+      const proto = window.WebGL2RenderingContext && WebGL2RenderingContext.prototype;
+      if (!proto) return;
+      const orig = proto.blitFramebuffer;
+      window.__blits = 0;
+      proto.blitFramebuffer = function (...a) {
+        window.__blits++;
+        if (window.__blits <= 6) {
+          const fb = (b) => (this.getParameter(b) ? 'fbo' : 'default');
+          console.log('[blit] #' + window.__blits + ' (' + a.join(',') + ') read=' + fb(this.READ_FRAMEBUFFER_BINDING) + ' draw=' + fb(this.DRAW_FRAMEBUFFER_BINDING));
+        }
+        return orig.apply(this, a);
+      };
+    });
     page = await ctx.newPage();
     page.on('console', (m) => { res.log.push(`[${m.type()}] ${m.text()}`); if (m.type() === 'error') res.errors.push(m.text()); });
     page.on('pageerror', (e) => res.errors.push('pageerror: ' + e.message));
@@ -51,7 +68,11 @@ async function runProfile(p) {
       const y = box.y + ((r[1] + r[3] / 2) / st.vp[1]) * box.height;
       await page.touchscreen.tap(x, y);
     };
-    const shot = async (n) => page.screenshot({ path: `${OUT}/${p.name}_${n}.png` });
+    const shot = async (n) => {
+      await page.evaluate((x) => console.log('[shot] before ' + x + ', page blits so far ' + (window.__blits || 0)), n);
+      await page.screenshot({ path: `${OUT}/${p.name}_${n}.png` });
+      await page.evaluate((x) => console.log('[shot] after ' + x), n);
+    };
     const step = (s) => { res.steps.push(s); say(p.name, '✓', s); };
 
     await waitFor((s) => s.scene === 'main_menu', 'the main menu');
@@ -100,7 +121,8 @@ async function runProfile(p) {
     say(p.name, 'FAIL', res.error);
     try { await page.screenshot({ path: `${OUT}/${p.name}_fail.png` }); } catch (e2) { /* (the page may be gone) */ }
   } finally {
-    res.log = res.log.slice(-80);
+    try { res.blits = await page.evaluate(() => window.__blits || 0); } catch (e3) { /* (the page may be gone) */ }
+    res.log = res.log.slice(-160);
     await browser.close().catch(() => {});
   }
   return res;
@@ -114,6 +136,11 @@ for (const p of PROFILES) {
   console.log(`${r.ok ? 'PASS' : 'FAIL'} ${r.profile}${r.error ? ' — ' + r.error : ''}`);
   for (const s of r.steps) console.log('   ✓ ' + s);
   for (const e of r.errors.slice(0, 12)) console.log('   console error: ' + e);
+  if (r.errors.length) {
+    console.log('   console around the errors:');
+    for (const l of r.log.filter((x) => /\[shot\]|\[blit\]|\[error\]|\[QA\]/.test(x)).slice(0, 40)) console.log('     ' + l);
+  }
+  console.log('   page blitFramebuffer calls: ' + (r.blits ?? 'n/a'));
 }
 fs.writeFileSync(`${OUT}/results.json`, JSON.stringify({ when: new Date().toISOString(), results }, null, 2));
 process.exit(results.some((r) => r.required && !r.ok) ? 1 : 0);
