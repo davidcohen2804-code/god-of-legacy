@@ -1,19 +1,19 @@
 {
-  "when": "2026-11-18T19:52:52.766Z",
+  "when": "2026-11-18T20:01:18.307Z",
   "results": [
     {
       "profile": "android-chromium",
       "required": true,
       "ok": false,
       "steps": [
-        "main menu loaded in 1036 ms",
+        "main menu loaded in 1009 ms",
         "settings open and close",
         "character select reached by tapping Play",
         "locked Warrior refused (selection stays Samurai, toast: Warrior is locked — coming later)",
         "arena entered with the Samurai, 3 fps (software rendering)",
         "Samurai on the floor (y 0, lowest foot bone 0.032 m), playing Idle_Loop, katana 0.122 m from the hand bone",
         "inspection views captured: front, side, right hand + katana, feet",
-        "controls: 0 on screen, smallest hit target Infinity CSS px (≥ 44), none overlapping or off screen; scale 1.292"
+        "controls: 8 on screen, smallest hit target 48.0 CSS px (≥ 44), none overlapping or off screen; scale 1.292"
       ],
       "errors": [],
       "log": [
@@ -27,35 +27,36 @@
         "[log] [blit] #4 (0,0,2265,945,0,0,2265,945,16384,9728) read=fbo draw=default",
         "[log] [blit] #5 (0,0,2265,945,0,0,2265,945,16384,9728) read=fbo draw=default",
         "[log] [blit] #6 (0,0,2265,945,0,0,2265,945,16384,9728) read=fbo draw=default",
-        "[log] [shot] before 1_menu, page blits so far 16",
+        "[log] [shot] before 1_menu, page blits so far 19",
         "[log] [shot] after 1_menu",
-        "[log] [shot] before 2_settings, page blits so far 47",
+        "[log] [shot] before 2_settings, page blits so far 51",
         "[log] [shot] after 2_settings",
         "[log] [QA] scene=character_select",
-        "[log] [shot] before 3_select, page blits so far 95",
+        "[log] [shot] before 3_select, page blits so far 97",
         "[log] [shot] after 3_select",
-        "[log] [shot] before 4_locked, page blits so far 119",
+        "[log] [shot] before 4_locked, page blits so far 123",
         "[log] [shot] after 4_locked",
         "[log] [QA] scene=arena",
-        "[log] [shot] before 5_arena, page blits so far 163",
+        "[log] [shot] before 5_arena, page blits so far 172",
         "[log] [shot] after 5_arena",
         "[log] [QA] command cam [\"front\"]",
-        "[log] [shot] before 6_front, page blits so far 182",
+        "[log] [shot] before 6_front, page blits so far 189",
         "[log] [shot] after 6_front",
         "[log] [QA] command cam [\"side\"]",
-        "[log] [shot] before 6_side, page blits so far 201",
+        "[log] [shot] before 6_side, page blits so far 211",
         "[log] [shot] after 6_side",
         "[log] [QA] command cam [\"hand\"]",
-        "[log] [shot] before 6_hand, page blits so far 221",
+        "[log] [shot] before 6_hand, page blits so far 229",
         "[log] [shot] after 6_hand",
         "[log] [QA] command cam [\"feet\"]",
-        "[log] [shot] before 6_feet, page blits so far 239",
+        "[log] [shot] before 6_feet, page blits so far 247",
         "[log] [shot] after 6_feet",
         "[log] [QA] command cam [\"game\"]",
-        "[log] [shot] before 8_controls, page blits so far 265",
-        "[log] [shot] after 8_controls"
+        "[log] [shot] before 8_controls, page blits so far 270",
+        "[log] [shot] after 8_controls",
+        "[log] [QA] command place [-8, 8, 90]"
       ],
-      "loadMs": 1036,
+      "loadMs": 1009,
       "fps": 3,
       "player": {
         "anim": "Idle_Loop",
@@ -75,7 +76,7 @@
         "view": "game"
       },
       "controls": {
-        "minHitCss": null,
+        "minHitCss": 48,
         "info": {
           "art_scale": 1.205,
           "css_per_px": 0.5,
@@ -93,22 +94,23 @@
           360
         ]
       },
-      "error": "Cannot read properties of undefined (reading '0')",
-      "blits": 296
+      "error": "timeout waiting for the stick to run the Samurai (last: {\"scene\":\"arena\",\"flags\":{\"entered\":\"samurai\",\"locked_tap\":\"warrior\",\"placed\":\"-8,8,90\",\"selected\":\"samurai\",\"settings_open\":false,\"toast\":\"Warrior is locked — coming later\",\"view\":\"game\"},\"live\":{\"camera\":{\"distance\":8,\"elevation\":36,\"mode\":\"EXPLORATION\",\"yaw\":270},\"controls\":{\"art_scale\":1.205,\"css_per_px\":0.5,\"enabled\":[\"dodge\",\"jump\"],\"hit_scale\":1.292,\"min_hit_css\":48,\"stick\":true,\"touches\":1},\"player\":{\"anim\":\"Idle_Loop\",\"facing\":90,\"feet\":0.032,\"invulnerable\":false,\"katana_to_hand\":0.122,\"on_floor\":true,\"pos\":[13.66,0,8],\"speed\":0,\"sprinting\":true,\"state\":\"ground\",\"view\":\"game\"}}})",
+      "blits": 519
     },
     {
       "profile": "iphone-webkit",
       "required": false,
       "ok": false,
       "steps": [
-        "main menu loaded in 2653 ms",
+        "main menu loaded in 2561 ms",
         "settings open and close",
         "character select reached by tapping Play",
         "locked Warrior refused (selection stays Samurai, toast: Warrior is locked — coming later)",
         "arena entered with the Samurai, 9 fps (software rendering)",
         "Samurai on the floor (y 0, lowest foot bone 0.032 m), playing Idle_Loop, katana 0.122 m from the hand bone",
         "inspection views captured: front, side, right hand + katana, feet",
-        "controls: 0 on screen, smallest hit target Infinity CSS px (≥ 44), none overlapping or off screen; scale 1.292"
+        "controls: 8 on screen, smallest hit target 48.0 CSS px (≥ 44), none overlapping or off screen; scale 1.292",
+        "joystick: Jog_Fwd_Loop at 5.2 m/s, held at its rim → Sprint_Loop (sprinting)"
       ],
       "errors": [
         "WebGL: INVALID_OPERATION: glBlitFramebuffer: Read and write color attachments cannot be the same image.",
@@ -135,9 +137,9 @@
         "[log] [QA] scene=main_menu",
         "[log] [blit] #1 (0,0,2250,1020,0,0,2250,1020,16384,9728) read=fbo draw=default",
         "[log] [blit] #2 (0,0,2250,1020,0,0,2250,1020,16384,9728) read=fbo draw=default",
+        "[log] [shot] before 1_menu, page blits so far 2",
         "[log] [blit] #3 (0,0,2250,1020,0,0,2250,1020,16384,9728) read=fbo draw=default",
         "[error] WebGL: INVALID_OPERATION: glBlitFramebuffer: Read and write color attachments cannot be the same image.",
-        "[log] [shot] before 1_menu, page blits so far 3",
         "[log] [blit] #4 (0,0,2250,1020,0,0,2250,1020,16384,9728) read=fbo draw=default",
         "[error] WebGL: INVALID_OPERATION: glBlitFramebuffer: Read and write color attachments cannot be the same image.",
         "[log] [shot] after 1_menu",
@@ -162,28 +164,33 @@
         "[log] [QA] scene=character_select",
         "[log] [shot] before 3_select, page blits so far 43",
         "[log] [shot] after 3_select",
-        "[log] [shot] before 4_locked, page blits so far 55",
+        "[log] [shot] before 4_locked, page blits so far 54",
         "[log] [shot] after 4_locked",
         "[log] [QA] scene=arena",
-        "[log] [shot] before 5_arena, page blits so far 98",
+        "[log] [shot] before 5_arena, page blits so far 96",
         "[log] [shot] after 5_arena",
         "[log] [QA] command cam [\"front\"]",
-        "[log] [shot] before 6_front, page blits so far 111",
+        "[log] [shot] before 6_front, page blits so far 109",
         "[log] [shot] after 6_front",
         "[log] [QA] command cam [\"side\"]",
-        "[log] [shot] before 6_side, page blits so far 124",
+        "[log] [shot] before 6_side, page blits so far 122",
         "[log] [shot] after 6_side",
         "[log] [QA] command cam [\"hand\"]",
-        "[log] [shot] before 6_hand, page blits so far 136",
+        "[log] [shot] before 6_hand, page blits so far 133",
         "[log] [shot] after 6_hand",
         "[log] [QA] command cam [\"feet\"]",
-        "[log] [shot] before 6_feet, page blits so far 150",
+        "[log] [shot] before 6_feet, page blits so far 146",
         "[log] [shot] after 6_feet",
         "[log] [QA] command cam [\"game\"]",
-        "[log] [shot] before 8_controls, page blits so far 156",
-        "[log] [shot] after 8_controls"
+        "[log] [shot] before 8_controls, page blits so far 153",
+        "[log] [shot] after 8_controls",
+        "[log] [QA] command place [-8, 8, 90]",
+        "[log] [shot] before 8_stick_sprint, page blits so far 187",
+        "[log] [shot] after 8_stick_sprint",
+        "[log] [shot] before 8_two_fingers, page blits so far 213",
+        "[log] [shot] after 8_two_fingers"
       ],
-      "loadMs": 2653,
+      "loadMs": 2561,
       "fps": 9,
       "player": {
         "anim": "Idle_Loop",
@@ -203,7 +210,7 @@
         "view": "game"
       },
       "controls": {
-        "minHitCss": null,
+        "minHitCss": 48,
         "info": {
           "art_scale": 1.205,
           "css_per_px": 0.472,
@@ -221,23 +228,26 @@
           340
         ]
       },
-      "error": "Cannot read properties of undefined (reading '0')",
-      "blits": 158
+      "error": "the stick finger stopped working while the camera finger moved",
+      "blits": 216
     },
     {
       "profile": "chromium-16x9",
       "required": true,
-      "ok": false,
+      "ok": true,
       "steps": [
-        "main menu loaded in 948 ms",
+        "main menu loaded in 1007 ms",
         "settings open and close",
         "character select reached by tapping Play",
         "locked Warrior refused (selection stays Samurai, toast: Warrior is locked — coming later)",
         "arena entered with the Samurai, 4 fps (software rendering)",
-        "Samurai on the floor (y 0, lowest foot bone 0.031 m), playing Idle_Loop, katana 0.122 m from the hand bone",
+        "Samurai on the floor (y 0, lowest foot bone 0.032 m), playing Idle_Loop, katana 0.122 m from the hand bone",
         "inspection views captured: front, side, right hand + katana, feet",
-        "walk/run/sprint: Jog_Fwd_Loop at 3.97 m/s, Sprint_Loop at 7.8 m/s (sprinting), stopped → Idle_Loop; moved 13.2 m",
-        "jump: in the air (y 0.77 m, Jump_Start), landed (Idle_Loop)"
+        "walk/run/sprint: Jog_Fwd_Loop at 3.97 m/s, Sprint_Loop at 7.8 m/s (sprinting), stopped → Idle_Loop; moved 14.0 m",
+        "jump: in the air (y 0.77 m, Jump_Start), landed (Idle_Loop)",
+        "dodge: rolled 3.6 m",
+        "camera turned 69°; elevation 36°, distance 8 m (EXPLORATION)",
+        "back to the main menu"
       ],
       "errors": [],
       "log": [
@@ -251,44 +261,48 @@
         "[log] [blit] #4 (0,0,1280,720,0,0,1280,720,16384,9728) read=fbo draw=default",
         "[log] [blit] #5 (0,0,1280,720,0,0,1280,720,16384,9728) read=fbo draw=default",
         "[log] [blit] #6 (0,0,1280,720,0,0,1280,720,16384,9728) read=fbo draw=default",
-        "[log] [shot] before 1_menu, page blits so far 24",
+        "[log] [shot] before 1_menu, page blits so far 25",
         "[log] [shot] after 1_menu",
-        "[log] [shot] before 2_settings, page blits so far 66",
+        "[log] [shot] before 2_settings, page blits so far 60",
         "[log] [shot] after 2_settings",
         "[log] [QA] scene=character_select",
-        "[log] [shot] before 3_select, page blits so far 119",
+        "[log] [shot] before 3_select, page blits so far 116",
         "[log] [shot] after 3_select",
-        "[log] [shot] before 4_locked, page blits so far 154",
+        "[log] [shot] before 4_locked, page blits so far 151",
         "[log] [shot] after 4_locked",
         "[log] [QA] scene=arena",
-        "[log] [shot] before 5_arena, page blits so far 212",
+        "[log] [shot] before 5_arena, page blits so far 213",
         "[log] [shot] after 5_arena",
         "[log] [QA] command cam [\"front\"]",
-        "[log] [shot] before 6_front, page blits so far 235",
+        "[log] [shot] before 6_front, page blits so far 236",
         "[log] [shot] after 6_front",
         "[log] [QA] command cam [\"side\"]",
-        "[log] [shot] before 6_side, page blits so far 254",
+        "[log] [shot] before 6_side, page blits so far 257",
         "[log] [shot] after 6_side",
         "[log] [QA] command cam [\"hand\"]",
-        "[log] [shot] before 6_hand, page blits so far 273",
+        "[log] [shot] before 6_hand, page blits so far 275",
         "[log] [shot] after 6_hand",
         "[log] [QA] command cam [\"feet\"]",
-        "[log] [shot] before 6_feet, page blits so far 292",
+        "[log] [shot] before 6_feet, page blits so far 294",
         "[log] [shot] after 6_feet",
         "[log] [QA] command cam [\"game\"]",
-        "[log] [shot] before 7_run, page blits so far 314",
+        "[log] [QA] command place [-8, 8, 90]",
+        "[log] [shot] before 7_run, page blits so far 319",
         "[log] [shot] after 7_run",
-        "[log] [shot] before 7_sprint, page blits so far 332",
+        "[log] [shot] before 7_sprint, page blits so far 338",
         "[log] [shot] after 7_sprint",
-        "[log] [shot] before 7_jump, page blits so far 348",
-        "[log] [shot] after 7_jump"
+        "[log] [shot] before 7_jump, page blits so far 356",
+        "[log] [shot] after 7_jump",
+        "[log] [shot] before 7_camera, page blits so far 384",
+        "[log] [shot] after 7_camera",
+        "[log] [QA] scene=main_menu"
       ],
-      "loadMs": 948,
+      "loadMs": 1007,
       "fps": 4,
       "player": {
         "anim": "Idle_Loop",
         "facing": 180,
-        "feet": 0.031,
+        "feet": 0.032,
         "invulnerable": false,
         "katana_to_hand": 0.122,
         "on_floor": true,
@@ -302,8 +316,7 @@
         "state": "ground",
         "view": "game"
       },
-      "error": "the dodge moved only 0.44 m",
-      "blits": 386
+      "blits": 409
     }
   ]
 }
