@@ -1,13 +1,14 @@
 extends Node3D
-## Arena — M2, step 2 of 5 (GPT's M2 order): the real Samurai in a minimal arena under twilight moonlight, now moving
-## — walk, run, sprint, jump and dodge relative to the camera (keyboard and gamepad in this step; the touch controls
-## come in step 3, the Fallen Moon Courtyard in step 4). With ?qa=1 the page can switch the camera to inspection
-## viewpoints.
+## Arena — M2, step 3 of 5 (GPT's M2 order): the real Samurai in a minimal arena under twilight moonlight — walk,
+## run, sprint, jump and dodge relative to the camera, from the touch controls (several fingers at once), the
+## keyboard or a gamepad. The Fallen Moon Courtyard and the camera's framing pass come in step 4. With ?qa=1 the page
+## can switch the camera to inspection viewpoints.
 
 var player: Fighter
 var input: PlayerInput
 var controller: PlayerController
 var rig: CameraRig
+var touch: TouchControls
 var _cam: Camera3D
 var _fps: Label
 var _view := "game"
@@ -21,6 +22,7 @@ func _ready() -> void:
 	QA.mark("arena") # (first: marking a screen clears the previous one's tracked values)
 	QA.track("player", _player_state)
 	QA.track("camera", _camera_state)
+	QA.track("controls", touch.layout_info)
 	QA.command.connect(_on_qa_command)
 
 
@@ -90,6 +92,14 @@ func _build_world() -> void:
 		Color(0.7, 0.7, 0.74), 0.92)
 	floor_body.add_child(ground)
 	add_child(floor_body)
+	# The courtyard's edge: invisible walls until its ruins are built (M2.4).
+	for side: Vector3 in [Vector3(14.5, 1.5, 0), Vector3(-14.5, 1.5, 0), Vector3(0, 1.5, 14.5), Vector3(0, 1.5, -14.5)]:
+		var wall := CollisionShape3D.new()
+		var wb := BoxShape3D.new()
+		wb.size = Vector3(1, 3, 30) if absf(side.x) > 0.0 else Vector3(30, 3, 1)
+		wall.shape = wb
+		wall.position = side
+		floor_body.add_child(wall)
 
 
 func _spawn_player() -> void:
@@ -198,17 +208,28 @@ func _build_hud() -> void:
 	hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layer.add_child(hud)
 
+	# The touch controls under the buttons of the bar (their touches are left to those buttons).
+	touch = TouchControls.new()
+	touch.name = "TouchControls"
+	touch.input = input
+	hud.add_child(touch)
+
 	var back := Button.new()
 	back.text = "MENU"
-	back.custom_minimum_size = Vector2(180, 72)
-	back.position = Vector2(32, 28)
+	back.custom_minimum_size = Vector2(160, 64)
+	back.position = Vector2(28, 24)
 	back.pressed.connect(func() -> void: Game.go("main_menu"))
 	hud.add_child(back)
 	QA.register("arena_menu", back)
+	touch.reserved = [Rect2(Vector2.ZERO, Vector2(220, 110))]
 
-	var note := UiTheme.label("M2 · step 2 of 5 — WASD move · Shift sprint · Space jump · K dodge · Q/E camera (touch next)", 20,
+	var hp := _hp_bar(200, 200)
+	hp.position = Vector2(212, 30)
+	hud.add_child(hp)
+
+	var note := UiTheme.label("M2 · step 3 of 5 — stick: move (rim 0.25 s: sprint) · drag: camera · JUMP · DODGE", 18,
 		UiTheme.TEXT_DIM)
-	note.position = Vector2(236, 48)
+	note.position = Vector2(212, 66)
 	hud.add_child(note)
 
 	_fps = UiTheme.label("", 22, UiTheme.GOLD, true)
@@ -219,3 +240,23 @@ func _build_hud() -> void:
 	_fps.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_fps.visible = Game.show_fps or QA.enabled
 	hud.add_child(_fps)
+
+
+## The Samurai's health (200, GPT's M3 numbers); damage arrives with M3.
+func _hp_bar(value: int, total: int) -> Control:
+	var box := Control.new()
+	box.custom_minimum_size = Vector2(300, 30)
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var back := Panel.new()
+	back.add_theme_stylebox_override("panel", UiTheme.box(Color(0.07, 0.06, 0.11, 0.8), UiTheme.GOLD_DIM, 6, 2, 0.0, 0.0))
+	back.size = Vector2(300, 22)
+	box.add_child(back)
+	var fill := ColorRect.new()
+	fill.color = UiTheme.CRIMSON
+	fill.position = Vector2(4, 4)
+	fill.size = Vector2(292.0 * float(value) / float(total), 14)
+	box.add_child(fill)
+	var t := UiTheme.label("%d / %d" % [value, total], 16, UiTheme.TEXT, true)
+	t.position = Vector2(310, -1)
+	box.add_child(t)
+	return box

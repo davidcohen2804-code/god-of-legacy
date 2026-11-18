@@ -79,7 +79,7 @@ for (const [out, dur] of added) {
     out.addSampler(sampler).addChannel(body.createAnimationChannel().setTargetNode(target).setTargetPath('rotation').setSampler(sampler));
   }
 }
-await body.transform(dequantize(), prune());
+await body.transform(dequantize(), prune({ keepAttributes: true }));
 body.getRoot().listExtensionsUsed().forEach((e) => e.dispose());
 await io.write(OUT + '/samurai.glb', body);
 console.log('samurai.glb:', added.length, 'moves', added.map(([a, d]) => `${a.getName()}:${d.toFixed(2)}`).join(' '));
@@ -103,7 +103,7 @@ const kt = kr.listTextures()[0];
 fs.writeFileSync(OUT + '/katana_albedo_src.' + (kt.getMimeType() === 'image/webp' ? 'webp' : 'png'), Buffer.from(kt.getImage()));
 for (const m of kr.listMaterials()) { m.setBaseColorTexture(null); m.setNormalTexture(null); m.setMetallicRoughnessTexture(null); m.setEmissiveTexture(null); m.setOcclusionTexture(null); }
 for (const t of kr.listTextures()) t.dispose();
-await kat.transform(dequantize(), prune());
+await kat.transform(dequantize(), prune({ keepAttributes: true }));
 kat.getRoot().listExtensionsUsed().forEach((e) => e.dispose());
 const kn = kr.listNodes().find((n) => n.getMesh());
 const km = kn.getMatrix();
