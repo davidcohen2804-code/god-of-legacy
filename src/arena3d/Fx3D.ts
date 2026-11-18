@@ -237,6 +237,8 @@ export interface Recipe {
   /** It runs along the floor (a crest follows the projectile). */
   crest?: { c: number; h: number; w: number };
   /** Lightning between the links of its chain. */
+  /** Its own link drawn from the caster to a chained foe (in place of `chainBolt`'s code bolt). */
+  chain?: (f: Fx3D, r: CastRun, o: V3, target: V3) => void;
   chainBolt?: number;
   /** The colour the room answers its blows in (the light, the floor mark and ring, the embers) — its family's colour
    *  (the Warrior's steel / stone / iron / holy / crimson); default: the class colour. Also the default 3D pieces'. */
@@ -898,7 +900,8 @@ export class Fx3D {
   active(r: CastRun): void { this.recipe(r.skill).active?.(this, r); }
   fired(r: CastRun, i: number, o: V3): void { this.recipe(r.skill).fired?.(this, r, i, o); }
   chain(r: CastRun, o: V3, target: V3 | null): void {
-    const c = this.recipe(r.skill).chainBolt; if (c === undefined || !target) return;
+    const rc = this.recipe(r.skill); if (rc.chain && target) { rc.chain(this, r, o, target); return; }
+    const c = rc.chainBolt; if (c === undefined || !target) return;
     this.bolt({ x: o.x, y: o.y, z: o.z + 70 }, { x: target.x, y: target.y, z: target.z + 70 }, c, { ms: 240, w: 9, forks: 2, hue: true });
   }
   projectile(p: Projectile): void {
