@@ -40,6 +40,7 @@ var last_push := 0.0
 var _clock := 0.0 ## game time seen by this dummy
 var _num_at := -10.0 ## when the last damage number appeared
 var _num_i := 0
+var _num_right := Vector3.RIGHT ## the view's right on the ground, so numbers sit side by side across the screen
 
 
 static func create() -> TrainingDummy:
@@ -113,6 +114,12 @@ func take_hit(damage: int, reaction: float, push: float, dir: Vector3, sway: Vec
 		_push_from = position
 		_push_to = position + dir * push
 		_push_t = 0.0
+	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
+	if cam:
+		var r := cam.global_transform.basis.x
+		r.y = 0.0
+		if r.length() > 0.01:
+			_num_right = r.normalized()
 	_damage_number(damage)
 	QA.flag("dummy_hit", "%d:%d" % [damage, hp])
 	if hp == 0:
@@ -208,7 +215,8 @@ func _damage_number(damage: int) -> void:
 	# blows in quick succession stack their numbers instead of covering each other
 	_num_i = (_num_i + 1) % 3 if _clock - _num_at < 0.6 else 0
 	_num_at = _clock
-	l.global_position = global_position + Vector3([0.0, -0.22, 0.22][_num_i], 2.2 + 0.3 * _num_i, 0)
+	# (side by side: a number rising from below would run into the next one's place)
+	l.global_position = global_position + _num_right * [0.0, 0.55, -0.55][_num_i] + Vector3(0, 2.2 + 0.12 * _num_i, 0)
 	var tw := l.create_tween()
 	tw.set_parallel(true)
 	tw.tween_property(l, "global_position:y", l.global_position.y + 0.7, 0.75).set_ease(Tween.EASE_OUT)
