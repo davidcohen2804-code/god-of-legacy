@@ -188,14 +188,6 @@ async function runProfile(p) {
       await touch('end', 9);
     };
     const angle = (a, b) => Math.abs(((a - b + 540) % 360) - 180);
-    // A quick tap (finger down and up at once) on a button whose place is read once — for mashing.
-    const placeOf = {};
-    const quickTap = async (key) => {
-      if (!placeOf[key]) { const r = (await state()).rects[key]; if (!r) throw new Error('control not on screen: ' + key); placeOf[key] = centre(r); }
-      const [x, y] = placeOf[key];
-      await touch('start', 8, x, y);
-      await touch('end', 8);
-    };
 
     // M3: the sword. The game reports its combat state (phase, strikes so far, the last strikes' [step, hits, damage])
     // and the dummy's (hp, distance off its mark, last push).
@@ -203,30 +195,57 @@ async function runProfile(p) {
     const dm = (s) => (s.live && s.live.dummy) || null;
     // The strikes since `from` (a strikes count), oldest first.
     const since = (s, from) => { const c = cb(s); const n = c.strikes - from; return n > 0 ? c.log.slice(-n) : []; };
-    // Press attack again and again (as a player mashing the button) until `n` new strikes have started, then wait for
-    // the last one to finish. Presses that land while a strike runs are held for the next one by the game's rules.
-    // (Three presses between two looks at the state: in software rendering a phone profile draws ~2 frames a second,
-    // and each look costs a frame — pressing only once per look let the chain's window pass between presses.)
-    const mash = async (press, n, what) => {
+    // Mashing attack (as a player hammering the button) until `n` new strikes have started, then waiting for the last
+    // one to finish. Presses that land while a strike runs are held for the next one by the game's rules.
+    // - mashBy(press): press, look at the state, press again (keyboard — fine at the desktop profile's ~4 fps);
+    // - mashInPage(key): the page itself taps the button every 60 ms (touch events on the canvas, as a finger's) until
+    //   told to stop — the software-rendered Pixel profile draws ~1 frame a second, and a press sent from here costs a
+    //   frame or more each, so presses sent one by one let the chain's window pass between two of them.
+    const mashBy = (press) => async (n, what) => {
       const s0 = await state();
       const from = cb(s0).strikes;
       const end = Date.now() + 120000;
       for (;;) {
-        for (let k = 0; k < 3; k++) await press();
+        await press();
         const s = await state();
         if (cb(s).strikes - from >= n) break;
         if (Date.now() > end) throw new Error(`${what}: only ${cb(s).strikes - from} strikes started (${JSON.stringify(cb(s))})`);
+        await page.waitForTimeout(80);
+      }
+      const done = await waitFor((s) => cb(s) && cb(s).phase === 'FREE', what + ': the strikes to finish', 60000);
+      return { s0, from, done };
+    };
+    const mashInPage = (key) => async (n, what) => {
+      const s0 = await state();
+      const from = cb(s0).strikes;
+      const [x, y] = await toPage(...centre(s0.rects[key]));
+      await page.evaluate(({ x, y }) => {
+        const c = document.querySelector('canvas');
+        const mk = () => ({ identifier: 77, target: c, clientX: x, clientY: y, pageX: x, pageY: y, screenX: x, screenY: y, radiusX: 4, radiusY: 4, force: 1 });
+        const fire = (type, down) => {
+          const ev = new Event(type, { bubbles: true, cancelable: true });
+          Object.defineProperty(ev, 'touches', { value: down ? [mk()] : [] });
+          Object.defineProperty(ev, 'targetTouches', { value: down ? [mk()] : [] });
+          Object.defineProperty(ev, 'changedTouches', { value: [mk()] });
+          c.dispatchEvent(ev);
+        };
+        window.__mash = setInterval(() => { fire('touchstart', true); fire('touchend', false); }, 60);
+      }, { x, y });
+      try {
+        await waitFor((s) => cb(s) && cb(s).strikes - from >= n, `${what}: ${n} strikes`, 120000);
+      } finally {
+        await page.evaluate(() => clearInterval(window.__mash));
       }
       const done = await waitFor((s) => cb(s) && cb(s).phase === 'FREE', what + ': the strikes to finish', 60000);
       return { s0, from, done };
     };
     // The chain against the dummy standing just in front: B1 → B2 → B3, each confirmed once, 10 + 12 + 18, the third
     // pushing it about 0.5 m; then it slides back onto its mark.
-    const chainTest = async (press, tag) => {
+    const chainTest = async (mash, tag) => {
       await place(0, 1.6, 180);
       await waitFor((s) => dm(s) && dm(s).alive && dm(s).off_mark < 0.05, 'the dummy on its mark', 30000);
       const hp0 = dm(await state()).hp;
-      const { from, done } = await mash(press, 3, tag + ' chain');
+      const { from, done } = await mash(3, tag + ' chain');
       const strikes = since(done, from);
       const first3 = strikes.slice(0, 3).map((e) => [e.step, e.hits, e.damage]);
       if (JSON.stringify(first3) !== JSON.stringify([[1, 1, 10], [2, 1, 12], [3, 1, 18]])) {
@@ -242,11 +261,11 @@ async function runProfile(p) {
       return `${tag}: B1 → B2 → B3 = ${first3.map((e) => e[2]).join(' + ')} (each strike hit once; ${strikes.length - 3} extra press${strikes.length === 4 ? '' : 'es'} after), dummy ${hp0} → ${hp1} HP, pushed ${pushed} m by the third and back on its mark`;
     };
     // A strike at the empty air: no damage, and the next strike is the first again.
-    const missTest = async (press, tag) => {
+    const missTest = async (mash, tag) => {
       await place(6, 6, 0); // 8 m from the dummy, facing away from it
       const hp0 = dm(await state()).hp;
-      const a = await mash(press, 1, tag + ' miss');
-      const b = await mash(press, 1, tag + ' second miss');
+      const a = await mash(1, tag + ' miss');
+      const b = await mash(1, tag + ' second miss');
       const s1 = since(a.done, a.from)[0], s2 = since(b.done, b.from)[0];
       if (s1.hits !== 0 || s1.damage !== 0 || dm(b.done).hp !== hp0) throw new Error(`${tag}: a strike at the air did damage: ${JSON.stringify([s1, dm(b.done)])}`);
       if (s2.step !== 1) throw new Error(`${tag}: after a miss the next strike was strike ${s2.step} (want 1)`);
@@ -338,8 +357,8 @@ async function runProfile(p) {
       step('HEAVY (dimmed until its skill is built): the tap is taken and does nothing');
 
       // M3: ATTACK taps — the chain on the dummy, a deliberate miss, and a strike while the stick is held.
-      step(await chainTest(() => quickTap('btn_attack'), 'touch'));
-      step(await missTest(() => quickTap('btn_attack'), 'touch'));
+      step(await chainTest(mashInPage('btn_attack'), 'touch'));
+      step(await missTest(mashInPage('btn_attack'), 'touch'));
       await place(-8, 8, 90);
       const atk = st0.rects.btn_attack;
       const ac = centre(atk);
@@ -423,8 +442,8 @@ async function runProfile(p) {
       await waitFor((s) => pl(s) && pl(s).speed < 0.4, 'stopping', 60000);
 
       // M3: the chain from J, a deliberate miss, then move, dodge and attack again.
-      step(await chainTest(() => page.keyboard.press('KeyJ'), 'keyboard'));
-      step(await missTest(() => page.keyboard.press('KeyJ'), 'keyboard'));
+      step(await chainTest(mashBy(() => page.keyboard.press('KeyJ')), 'keyboard'));
+      step(await missTest(mashBy(() => page.keyboard.press('KeyJ')), 'keyboard'));
       await place(-8, 8, 90);
       const n0 = cb(await state()).strikes;
       await page.keyboard.press('KeyJ');
