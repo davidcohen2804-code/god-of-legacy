@@ -19,7 +19,7 @@ concurrency:
 jobs:
   web:
     runs-on: ubuntu-24.04   # (Playwright 1.56 cannot install its browsers on 26.04)
-    timeout-minutes: 75
+    timeout-minutes: 100
     env:
       V: 4.7.2
     steps:
@@ -50,7 +50,7 @@ jobs:
           test -s build/web/index.pck
           echo "{\"commit\":\"${GITHUB_SHA::7}\",\"built\":\"$(date -u +%FT%TZ)\"}" > build/web/version.json
           ls -la build/web
-      - name: Movement demo video (Godot's Movie Maker at a fixed 30 fps, software OpenGL under Xvfb)
+      - name: Combat demo video (Godot's Movie Maker at a fixed 30 fps, software OpenGL under Xvfb)
         # The scripted demo (reborn/scripts/qa/demo_driver.gd) drives the touch controls through the engine's input;
         # a fixed frame rate makes the clip smooth however slowly the runner renders.
         id: demo
@@ -67,17 +67,20 @@ jobs:
           python3 -m venv "$RUNNER_TEMP/ff" && "$RUNNER_TEMP/ff/bin/pip" install -q imageio-ffmpeg==0.6.0
           FF=$("$RUNNER_TEMP/ff/bin/python" -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())")
           "$FF" -y -loglevel error -i "$RUNNER_TEMP/demo.avi" -an -c:v libx264 -pix_fmt yuv420p -crf 24 -preset veryfast \
-            -movflags +faststart build/web/qa/m2_movement_demo.mp4
-          "$FF" -y -loglevel error -i build/web/qa/m2_movement_demo.mp4 -vf "fps=1,scale=480:-1,tile=5x4" -frames:v 1 \
-            build/web/qa/m2_movement_demo_frames.jpg
-          python3 reborn/tools/pack_png.py build/web/qa/m2_movement_demo.mp4 build/web/qa/m2_movement_demo.mp4.png
+            -movflags +faststart build/web/qa/m3_combat_demo.mp4
+          MP4=build/web/qa/m3_combat_demo.mp4
+          # an overview (one frame a second), the first chain at 10 frames a second, the slow-motion chain at 5
+          "$FF" -y -loglevel error -i $MP4 -vf "fps=1,scale=480:-1,tile=5x5" -frames:v 1 build/web/qa/m3_combat_demo_frames.jpg
+          "$FF" -y -loglevel error -ss 2.1 -t 1.6 -i $MP4 -vf "fps=10,scale=480:-1,tile=4x4" -frames:v 1 build/web/qa/m3_chain_frames.jpg
+          "$FF" -y -loglevel error -ss 4.5 -t 4.0 -i $MP4 -vf "fps=5,scale=480:-1,tile=5x4" -frames:v 1 build/web/qa/m3_chain_slow_frames.jpg
+          python3 reborn/tools/pack_png.py $MP4 $MP4.png
           ls -la build/web/qa
       - name: Browser smoke test in Playwright's own image (Chromium as an Android phone and at 16:9, WebKit as an iPhone, all in landscape)
         # Playwright's image carries its browsers and their system libraries: no apt install on the runner (a slow
         # mirror once hung the run, and a killed apt-get kept its lock).
         id: smoke
         continue-on-error: true
-        timeout-minutes: 50
+        timeout-minutes: 65
         run: |
           img=mcr.microsoft.com/playwright:v1.56.1-noble
           docker pull -q "$img"

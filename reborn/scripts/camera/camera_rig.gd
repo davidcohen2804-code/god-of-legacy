@@ -2,11 +2,13 @@ class_name CameraRig
 extends Node3D
 ## Camera controller: third person, elevated 30–45° at 7–9 m (GPT's M2 spec). Modes —
 ##   EXPLORATION: steady behind the player;
-##   COMBAT: a little further and lower, framing the player and the current foe;
+##   COMBAT: framing the player and the current foe — closer and narrower than exploring (M3: both must read on a
+##   phone's small screen through the strikes and the foe's reactions);
 ##   COMBO: a little closer, for aerial chains and finishers — still inside the same band, so a change of mode never
 ##   jumps the framing.
 ## Every change is damped (no snapping, no cuts). A touch drag turns it at any time; easing toward a locked foe never
-## overrides a drag. It pulls in (never closer than 3 m) in front of columns; it looks over the low walls.
+## overrides a drag. It pulls in (never closer than 3 m) in front of columns; it looks over the low walls. A landed
+## blow gives it a brief jolt (shake), stronger for a finisher.
 
 enum Mode { EXPLORATION, COMBAT, COMBO }
 
@@ -17,7 +19,7 @@ const DIST_MAX := 9.0
 const MIN_PULL := 3.0 ## the closest a wall-avoiding pull-in may bring the camera
 const PRESETS := {
 	Mode.EXPLORATION: {"pitch": -36.0, "dist": 8.0, "height": 1.3, "fov": 55.0},
-	Mode.COMBAT: {"pitch": -33.0, "dist": 8.6, "height": 1.25, "fov": 56.0},
+	Mode.COMBAT: {"pitch": -34.0, "dist": 7.2, "height": 1.2, "fov": 50.0},
 	Mode.COMBO: {"pitch": -32.0, "dist": 7.4, "height": 1.4, "fov": 54.0},
 }
 
@@ -37,6 +39,8 @@ var _pitch := -36.0
 var _dist := 8.0
 var _height := 1.3
 var _drag_quiet := 1.0
+var _shake := 0.0
+var _shake_t := 0.0
 
 
 func _ready() -> void:
@@ -69,6 +73,11 @@ func turn(drag: Vector2) -> void:
 ## The ground-plane directions the joystick moves along (forward = away from the camera).
 func ground_basis() -> Basis:
 	return Basis(Vector3.UP, yaw)
+
+
+## A brief jolt of the view (0..1: a light blow ~0.2, a finisher ~0.6), dying away in a fraction of a second.
+func shake(amount: float) -> void:
+	_shake = clampf(maxf(_shake, amount), 0.0, 1.0)
 
 
 func elevation() -> float:
@@ -109,4 +118,9 @@ func _process(delta: float) -> void:
 	if not hit.is_empty():
 		var d := maxf(_pos.distance_to(hit["position"]) - 0.35, MIN_PULL)
 		want_pos = _pos + b.z * d
+	if _shake > 0.0:
+		_shake_t += delta
+		_shake = maxf(0.0, _shake - delta * 3.2)
+		b = b * Basis(Vector3.RIGHT, deg_to_rad(1.7 * _shake * sin(_shake_t * 59.0))) \
+			* Basis(Vector3.UP, deg_to_rad(1.1 * _shake * sin(_shake_t * 43.0 + 1.3)))
 	cam.global_transform = Transform3D(b, want_pos)

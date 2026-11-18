@@ -3,7 +3,8 @@ extends Node
 ## Input system: turns the touch controls, the keyboard and a gamepad into the player's intents — a move vector, a
 ## sprint wish, a camera turn and action presses. A press waits in a short buffer (GPT: configurable, 0.12 s by
 ## default) so one made just before an action becomes possible is not lost; the code that acts decides whether it
-## can use it. It knows nothing of the rules.
+## can use it. The buffer runs on the fixed physics tick, like the combat it feeds, and stands still while `paused`
+## (hit-stop: a press made during the freeze is kept for after it). It knows nothing of the rules.
 
 const ACTIONS: Array[String] = ["attack", "heavy", "skill1", "skill2", "skill3", "dodge", "jump", "cond1", "cond2"]
 ## Sprint from the stick: held at its rim this long (GPT: 250 ms).
@@ -11,6 +12,8 @@ const SPRINT_HOLD := 0.25
 
 ## How long a press stays usable, in seconds.
 var buffer_time := 0.12
+## While true the buffered presses do not age (set by the player controller through hit-stop).
+var paused := false
 ## From the on-screen joystick: x right, y forward, length 0..1; `touch_rim` while it is pushed to its rim.
 var touch_move := Vector2.ZERO
 var touch_rim := false
@@ -22,6 +25,7 @@ var _rim_time := 0.0
 
 func _ready() -> void:
 	_ensure_actions()
+	process_physics_priority = -20 # each tick: the buffer ages before the controller reads it
 
 
 func press(action: String) -> void:
@@ -71,11 +75,16 @@ func take_camera_drag(delta: float) -> Vector2:
 	return d + Input.get_vector("cam_left", "cam_right", "cam_up", "cam_down") * 520.0 * delta
 
 
-func _process(delta: float) -> void:
+func _physics_process(delta: float) -> void:
+	if paused:
+		return
 	for a in _pressed.keys():
 		_pressed[a] -= delta
 		if _pressed[a] <= 0.0:
 			_pressed.erase(a)
+
+
+func _process(delta: float) -> void:
 	_rim_time = _rim_time + delta if touch_rim else 0.0
 
 

@@ -68,6 +68,7 @@ static func _environment(root: Node3D) -> void:
 	moon.light_energy = 1.15
 	moon.light_angular_distance = 3.2
 	moon.shadow_enabled = true
+	moon.shadow_opacity = 0.72 # (M3: the ruins' long shadows softened, so they do not compete with the fight)
 	moon.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
 	moon.directional_shadow_max_distance = 34.0
 	root.add_child(moon)

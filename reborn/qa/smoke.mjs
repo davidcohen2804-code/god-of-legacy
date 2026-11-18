@@ -1,7 +1,9 @@
 // GOD OF LEGACY — REBORN: browser smoke test of the web build, run in CI against a local static server.
 // It drives the real touch interface (taps on the controls the game reports through window.__gol with ?qa=1) in two
-// emulated phones held in landscape: Chromium as an Android phone (required) and WebKit as an iPhone (advisory —
-// Playwright's WebKit on Linux is close to Safari but is not iOS Safari).
+// emulated phones held in landscape — Chromium as an Android phone (required) and WebKit as an iPhone (advisory —
+// Playwright's WebKit on Linux is close to Safari but is not iOS Safari) — and the keyboard in desktop Chromium at
+// 16:9 (required). M3: the katana chain against the training dummy (each strike's damage once, the third's push), a
+// deliberate miss, and moving, dodging and attacking again; on the phones, attacking while the stick is held.
 // Writes screenshots and results.json into OUT; exits 1 when the required profile fails.
 import { chromium, webkit, devices } from 'playwright';
 import fs from 'node:fs';
@@ -17,7 +19,7 @@ const PROFILES = [
   { name: 'chromium-16x9', kind: 'desktop', required: true, type: chromium, args: SWIFTSHADER,
     device: { viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1, hasTouch: true, isMobile: false } },
 ];
-const PROFILE_LIMIT = 15 * 60 * 1000; // a profile that hangs is stopped and reported, so the run always ends
+const PROFILE_LIMIT = 20 * 60 * 1000; // a profile that hangs is stopped and reported, so the run always ends
 const T0 = Date.now();
 const say = (...a) => console.log(`[${((Date.now() - T0) / 1000).toFixed(1)}s]`, ...a);
 
@@ -187,6 +189,61 @@ async function runProfile(p) {
     };
     const angle = (a, b) => Math.abs(((a - b + 540) % 360) - 180);
 
+    // M3: the sword. The game reports its combat state (phase, strikes so far, the last strikes' [step, hits, damage])
+    // and the dummy's (hp, distance off its mark, last push).
+    const cb = (s) => (s.live && s.live.combat) || null;
+    const dm = (s) => (s.live && s.live.dummy) || null;
+    // The strikes since `from` (a strikes count), oldest first.
+    const since = (s, from) => { const c = cb(s); const n = c.strikes - from; return n > 0 ? c.log.slice(-n) : []; };
+    // Press attack again and again (as a player mashing the button) until `n` new strikes have started, then wait for
+    // the last one to finish. Presses that land while a strike runs are held for the next one by the game's rules.
+    const mash = async (press, n, what) => {
+      const s0 = await state();
+      const from = cb(s0).strikes;
+      const end = Date.now() + 120000;
+      for (;;) {
+        await press();
+        const s = await state();
+        if (cb(s).strikes - from >= n) break;
+        if (Date.now() > end) throw new Error(`${what}: only ${cb(s).strikes - from} strikes started (${JSON.stringify(cb(s))})`);
+        await page.waitForTimeout(80);
+      }
+      const done = await waitFor((s) => cb(s) && cb(s).phase === 'FREE', what + ': the strikes to finish', 60000);
+      return { s0, from, done };
+    };
+    // The chain against the dummy standing just in front: B1 → B2 → B3, each confirmed once, 10 + 12 + 18, the third
+    // pushing it about 0.5 m; then it slides back onto its mark.
+    const chainTest = async (press, tag) => {
+      await place(0, 1.6, 180);
+      await waitFor((s) => dm(s) && dm(s).alive && dm(s).off_mark < 0.05, 'the dummy on its mark', 30000);
+      const hp0 = dm(await state()).hp;
+      const { from, done } = await mash(press, 3, tag + ' chain');
+      const strikes = since(done, from);
+      const first3 = strikes.slice(0, 3).map((e) => [e.step, e.hits, e.damage]);
+      if (JSON.stringify(first3) !== JSON.stringify([[1, 1, 10], [2, 1, 12], [3, 1, 18]])) {
+        throw new Error(`${tag}: the chain's strikes [step, hits, damage] were ${JSON.stringify(first3)} (want 1/1/10, 2/1/12, 3/1/18)`);
+      }
+      const dealt = strikes.reduce((a, e) => a + e.damage, 0);
+      const hp1 = dm(done).hp;
+      if (hp0 - hp1 !== dealt) throw new Error(`${tag}: the dummy lost ${hp0 - hp1} HP but the strikes dealt ${dealt}`);
+      const pushed = dm(await waitFor((s) => dm(s) && dm(s).last_push > 0.3, 'the third strike\'s push', 30000)).last_push;
+      if (pushed < 0.4 || pushed > 0.6) throw new Error(`${tag}: the third strike pushed the dummy ${pushed} m (want ~0.5)`);
+      await shot('9_' + tag + '_chain');
+      await waitFor((s) => dm(s) && dm(s).off_mark < 0.05, 'the dummy back on its mark', 30000);
+      return `${tag}: B1 → B2 → B3 = ${first3.map((e) => e[2]).join(' + ')} (each strike hit once; ${strikes.length - 3} extra press${strikes.length === 4 ? '' : 'es'} after), dummy ${hp0} → ${hp1} HP, pushed ${pushed} m by the third and back on its mark`;
+    };
+    // A strike at the empty air: no damage, and the next strike is the first again.
+    const missTest = async (press, tag) => {
+      await place(6, 6, 0); // 8 m from the dummy, facing away from it
+      const hp0 = dm(await state()).hp;
+      const a = await mash(press, 1, tag + ' miss');
+      const b = await mash(press, 1, tag + ' second miss');
+      const s1 = since(a.done, a.from)[0], s2 = since(b.done, b.from)[0];
+      if (s1.hits !== 0 || s1.damage !== 0 || dm(b.done).hp !== hp0) throw new Error(`${tag}: a strike at the air did damage: ${JSON.stringify([s1, dm(b.done)])}`);
+      if (s2.step !== 1) throw new Error(`${tag}: after a miss the next strike was strike ${s2.step} (want 1)`);
+      return `${tag}: a deliberate miss dealt nothing (dummy stays ${hp0} HP) and the next strike was the first again`;
+    };
+
     const touchTests = async () => {
       const st0 = await state();
       const box = await page.locator('canvas').first().boundingBox();
@@ -266,10 +323,32 @@ async function runProfile(p) {
       step('DODGE: rolled');
 
       const yawA = cs(await state()).yaw;
-      await tapAt('btn_attack');
-      const dim = await waitFor((s) => s.flags.dimmed_tap === 'attack', 'the dimmed ATTACK tap', 30000);
-      if (angle(cs(dim).yaw, yawA) > 1 || pl(dim).state !== 'ground') throw new Error('the dimmed ATTACK button did something');
-      step('ATTACK (dimmed until M3): the tap is taken and does nothing');
+      await tapAt('btn_heavy');
+      const dim = await waitFor((s) => s.flags.dimmed_tap === 'heavy', 'the dimmed HEAVY tap', 30000);
+      if (angle(cs(dim).yaw, yawA) > 1 || pl(dim).state !== 'ground' || cb(dim).phase !== 'FREE') throw new Error('the dimmed HEAVY button did something');
+      step('HEAVY (dimmed until its skill is built): the tap is taken and does nothing');
+
+      // M3: ATTACK taps — the chain on the dummy, a deliberate miss, and a strike while the stick is held.
+      step(await chainTest(() => tapAt('btn_attack'), 'touch'));
+      step(await missTest(() => tapAt('btn_attack'), 'touch'));
+      await place(-8, 8, 90);
+      const atk = st0.rects.btn_attack;
+      const ac = centre(atk);
+      await touch('start', 1, sc[0], sc[1]);
+      await swipe(1, sc, [sc[0], sc[1] - sr * 0.8], 3);
+      await waitFor((s) => pl(s) && pl(s).speed > 1.5, 'running on the stick', 60000);
+      const n0 = cb(await state()).strikes;
+      await touch('start', 2, ac[0], ac[1]);
+      await page.waitForTimeout(150);
+      await touch('end', 2);
+      const striking = await waitFor((s) => cb(s) && cb(s).strikes > n0, 'a strike from ATTACK while the stick is held', 60000);
+      const heldDuring = ctl(striking).stick;
+      await shot('9_touch_move_attack');
+      const again = await waitFor((s) => cb(s) && cb(s).phase === 'FREE' && pl(s) && pl(s).speed > 1.5, 'running again after the strike, the stick still held', 60000);
+      await touch('end', 1);
+      if (!heldDuring || !ctl(again).stick) throw new Error('the stick finger was lost during the strike: ' + JSON.stringify(ctl(striking)));
+      step(`ATTACK while running on the stick: the strike played (${pl(striking).anim}), the stick stayed held, and he ran on afterwards (${pl(again).speed} m/s, ${pl(again).anim})`);
+      await waitFor((s) => pl(s) && pl(s).speed < 0.4, 'stopping', 60000);
     };
 
     if (p.kind === 'desktop') {
@@ -314,6 +393,46 @@ async function runProfile(p) {
       await page.waitForTimeout(500);
       await shot('7_camera');
       step(`camera turned ${Math.abs(((turned.yaw - yaw0 + 540) % 360) - 180).toFixed(0)}°; elevation ${turned.elevation}°, distance ${turned.distance} m (${turned.mode})`);
+
+      // GPT's M2 follow-ups: a rapid reversal, jump → land → move, attack → move.
+      await place(-8, 8, 90);
+      await page.keyboard.down('KeyW');
+      const east = pl(await waitFor((s) => pl(s) && pl(s).speed > 3.5, 'running east (W)', 60000));
+      await page.keyboard.up('KeyW');
+      await page.keyboard.down('KeyS');
+      const west = pl(await waitFor((s) => pl(s) && angle(pl(s).facing, east.facing) > 150 && pl(s).speed > 1.5, 'turning round and running back (S)', 60000));
+      await page.keyboard.up('KeyS');
+      step(`rapid reversal: running at facing ${east.facing}° → turned round to ${west.facing}° and ran back at ${west.speed} m/s`);
+      await waitFor((s) => pl(s) && pl(s).speed < 0.4, 'stopping', 60000);
+      await page.keyboard.press('Space');
+      await waitFor((s) => pl(s) && pl(s).state === 'air', 'the jump', 30000);
+      await waitFor((s) => pl(s) && pl(s).state === 'ground', 'landing', 60000);
+      await page.keyboard.down('KeyW');
+      const offAgain = pl(await waitFor((s) => pl(s) && pl(s).speed > 1.5, 'moving straight after landing', 60000));
+      await page.keyboard.up('KeyW');
+      step(`jump → land → move: off again at ${offAgain.speed} m/s (${offAgain.anim})`);
+      await waitFor((s) => pl(s) && pl(s).speed < 0.4, 'stopping', 60000);
+
+      // M3: the chain from J, a deliberate miss, then move, dodge and attack again.
+      step(await chainTest(() => page.keyboard.press('KeyJ'), 'keyboard'));
+      step(await missTest(() => page.keyboard.press('KeyJ'), 'keyboard'));
+      await place(-8, 8, 90);
+      const n0 = cb(await state()).strikes;
+      await page.keyboard.press('KeyJ');
+      await page.keyboard.down('KeyW');
+      await waitFor((s) => cb(s) && cb(s).strikes > n0, 'the strike (J)', 60000);
+      const moving = pl(await waitFor((s) => cb(s) && cb(s).phase === 'FREE' && pl(s) && pl(s).speed > 1.5, 'moving after the strike (W held)', 60000));
+      await page.keyboard.up('KeyW');
+      await waitFor((s) => pl(s) && pl(s).speed < 0.4, 'stopping', 60000);
+      const d0 = cb(await state()).strikes;
+      const rolls = pl(await state()).dodges;
+      await page.keyboard.press('KeyK');
+      await waitFor((s) => pl(s) && pl(s).dodges > rolls, 'the dodge (K)', 30000);
+      await waitFor((s) => pl(s) && pl(s).state === 'ground', 'the dodge to end', 60000);
+      await page.keyboard.press('KeyJ');
+      await waitFor((s) => cb(s) && cb(s).strikes > d0, 'a strike after the dodge', 60000);
+      await waitFor((s) => cb(s) && cb(s).phase === 'FREE', 'the strike to end', 60000);
+      step(`attack → move (${moving.anim} at ${moving.speed} m/s once the strike ended), dodge, attack again: no stuck state`);
     } else {
       // M2.3 (phone profiles): the touch controls — layout and sizes, the joystick with sprint at its rim, two fingers
       // at once (stick + camera), a camera drag that crosses the stick, Jump, Dodge and a dimmed combat button.

@@ -46,7 +46,8 @@ def fbm(n, base, octaves, seed):
 
 
 def flagstones(n=1024, grid=7):
-    """Irregular, worn flagstones (a jittered-grid Voronoi, tileable) with dark mortar and moss in the joints."""
+    """Irregular, worn flagstones (a jittered-grid Voronoi, tileable) with mortar and moss in the joints. Kept low in
+    contrast (M3, GPT: the floor must not compete with the fighters and their strikes)."""
     pts = (np.stack(np.meshgrid(np.arange(grid), np.arange(grid), indexing='ij'), -1)
            + 0.15 + 0.7 * rng.random((grid, grid, 2))) / grid
     tint = rng.random((grid, grid))
@@ -74,10 +75,10 @@ def flagstones(n=1024, grid=7):
     mortar = np.clip((0.09 - edge) / 0.05, 0, 1)
     bevel = np.clip((0.22 - edge) / 0.13, 0, 1) * (1 - mortar)
     base = np.stack([0.50 + 0.10 * cid, 0.47 + 0.08 * cid, 0.42 + 0.06 * cid], -1)
-    col = base * (0.78 + 0.34 * grain[..., None]) * (0.9 + 0.12 * wear[..., None])
-    col = col * (1 - 0.32 * bevel[..., None])
+    col = base * (0.86 + 0.2 * grain[..., None]) * (0.92 + 0.08 * wear[..., None])
+    col = col * (1 - 0.16 * bevel[..., None])
     moss = np.clip((fbm(n, 6, 4, 21) - 0.45) * 3.0, 0, 1) * mortar
-    mortar_col = np.array([0.16, 0.15, 0.13]) * (0.8 + 0.4 * grain[..., None])
+    mortar_col = np.array([0.3, 0.285, 0.26]) * (0.85 + 0.3 * grain[..., None])
     moss_col = np.array([0.25, 0.33, 0.16]) * (0.7 + 0.5 * grain[..., None])
     col = col * (1 - mortar[..., None]) + mortar_col * mortar[..., None]
     col = col * (1 - moss[..., None]) + moss_col * moss[..., None]

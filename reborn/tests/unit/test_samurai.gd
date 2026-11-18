@@ -1,8 +1,9 @@
 extends RefCounted
-## The Samurai's game files: the body, its skeleton and moves, the katana in the right hand, and the runtime textures.
+## The Samurai's game files: the body, its skeleton and moves (the three sword strikes too), the katana in the right
+## hand, and the runtime textures.
 
 const MOVES: Array[String] = ["Idle_Loop", "Sword_Idle", "Walk_Loop", "Jog_Fwd_Loop", "Sprint_Loop", "Roll",
-	"Jump_Start", "Jump_Loop", "Jump_Land"]
+	"Jump_Start", "Jump_Loop", "Jump_Land", "Sword_Regular_A", "Sword_Regular_B", "Sword_Regular_C"]
 
 
 func test_body_has_its_skeleton_and_moves() -> String:

@@ -2,13 +2,22 @@ extends SceneTree
 ## Headless tests (CI: godot --headless --path reborn -s res://tests/run_tests.gd).
 ## 1. Every script and scene in the project must load and compile.
 ## 2. The unit tests in res://tests/unit: each method named test_* returns "" when it passes, else what went wrong.
+## They run on the first frame, once the tree is up (the autoloads ready, nodes can join it), so a test may put real
+## nodes in the tree — and must take them out again.
 
 var failures: Array[String] = []
+var _ran := false
 
 
 func _initialize() -> void:
 	for dir in ["res://scripts", "res://scenes"]:
 		_check_loads(dir)
+
+
+func _process(_delta: float) -> bool:
+	if _ran:
+		return false
+	_ran = true
 	_run_units("res://tests/unit")
 	if failures.is_empty():
 		print("[TESTS] all passed")
@@ -17,6 +26,7 @@ func _initialize() -> void:
 		for f in failures:
 			printerr("[TESTS] FAIL ", f)
 		quit(1)
+	return false
 
 
 func _check_loads(dir: String) -> void:
@@ -61,7 +71,10 @@ func _run_units(dir: String) -> void:
 			if not n.begins_with("test_"):
 				continue
 			var err: Variant = t.call(n)
-			if typeof(err) == TYPE_STRING and not (err as String).is_empty():
+			if typeof(err) != TYPE_STRING:
+				# (a script error aborts the test and returns nothing: that is a failure too)
+				failures.append("%s %s: did not finish (script error?)" % [path.get_file(), n])
+			elif not (err as String).is_empty():
 				failures.append("%s %s: %s" % [path.get_file(), n, err])
 			else:
 				print("[TESTS] pass ", path.get_file(), " ", n)

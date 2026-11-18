@@ -1,21 +1,23 @@
 extends Node3D
-## Arena — M2, step 4 of 5 (GPT's M2 order): the Samurai in the Fallen Moon Courtyard (first visual pass) with the
-## training target in its middle — walk, run, sprint, jump and dodge relative to the camera, from the touch controls
-## (several fingers at once), the keyboard or a gamepad. The camera frames the target when he is near it (combat
-## framing) and roams free otherwise. With ?qa=1 the page can switch the camera to inspection viewpoints.
+## Arena — M3: the first playable sword combat. The Samurai in the Fallen Moon Courtyard with the training dummy in
+## its middle: walk, run, sprint, jump and dodge relative to the camera, and the three-strike katana chain (Basic
+## Attack) against the dummy — from the touch controls (several fingers at once), the keyboard or a gamepad. The
+## camera frames both when he is near the dummy (combat framing) and roams free otherwise. With ?qa=1 the page can
+## place him and switch the camera to inspection viewpoints, and the HUD shows the developer's notes.
 
-## Within this distance of the target the camera takes its combat framing.
+## Within this distance of the target the camera takes its combat framing and the target's bar shows.
 const COMBAT_RANGE := 9.0
 
 var player: Fighter
 var input: PlayerInput
 var controller: PlayerController
+var combat: CombatController
 var rig: CameraRig
 var touch: TouchControls
+var hud: CombatHud
 var dummy: TrainingDummy
 var _cam: Camera3D
 var _t := 0.0
-var _fps: Label
 var _view := "game"
 
 
@@ -24,10 +26,13 @@ func _ready() -> void:
 	_build_world()
 	_spawn_player()
 	_build_camera()
+	_build_combat()
 	_build_hud()
 	QA.track("player", _player_state)
 	QA.track("camera", _camera_state)
 	QA.track("controls", touch.layout_info)
+	QA.track("combat", combat.state)
+	QA.track("dummy", dummy.state)
 	QA.command.connect(_on_qa_command)
 	if Game.demo:
 		var d := DemoDriver.new()
@@ -35,6 +40,7 @@ func _ready() -> void:
 		d.touch = touch
 		d.player = player
 		d.rig = rig
+		d.caption = hud.prompt
 		add_child(d)
 
 
@@ -42,14 +48,14 @@ func _process(delta: float) -> void:
 	_t += delta
 	if _view != "game":
 		_place_camera()
+	# (the training dummy keeps the framing while it is down: it stands up again)
 	var near := player.global_position.distance_to(dummy.global_position) < COMBAT_RANGE
 	rig.focus = dummy if near else null
 	rig.mode = CameraRig.Mode.COMBAT if near else CameraRig.Mode.EXPLORATION
+	hud.set_near(near)
 	for i in FallenMoonCourtyard.flames.size():
 		var f := FallenMoonCourtyard.flames[i]
 		f.light_energy = 1.25 + 0.18 * sin(_t * 7.3 + i * 1.7) + 0.1 * sin(_t * 13.1 + i * 2.9)
-	if _fps.visible:
-		_fps.text = "%d FPS" % Engine.get_frames_per_second()
 
 
 func _build_world() -> void:
@@ -84,6 +90,20 @@ func _build_camera() -> void:
 	rig.snap_behind(player.facing)
 	_cam = rig.cam
 	controller.rig = rig
+
+
+func _build_combat() -> void:
+	combat = CombatController.new()
+	combat.name = "Combat"
+	combat.fighter = player
+	combat.rig = rig
+	add_child(combat)
+	var trail := BladeTrail.new()
+	trail.name = "BladeTrail"
+	trail.blade = player.visual.katana
+	add_child(trail)
+	combat.trail = trail
+	controller.combat = combat
 
 
 ## (QA) an inspection viewpoint; the rig holds the camera in the game view.
@@ -153,6 +173,8 @@ func _player_state() -> Dictionary:
 		"anim": player.visual.current,
 		"feet": snappedf(player.visual.feet_height(), 0.001),
 		"katana_to_hand": snappedf(k.distance_to(_hand_position()), 0.001),
+		"action_lock": player.action_lock,
+		"dodges": player.dodges,
 		"view": _view,
 	}
 
@@ -169,61 +191,31 @@ func _camera_state() -> Dictionary:
 func _build_hud() -> void:
 	var layer := CanvasLayer.new()
 	add_child(layer)
-	var hud := Control.new()
-	hud.theme = UiTheme.build()
-	hud.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	layer.add_child(hud)
+	var root := Control.new()
+	root.theme = UiTheme.build()
+	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.add_child(root)
 
 	# The touch controls under the buttons of the bar (their touches are left to those buttons).
 	touch = TouchControls.new()
 	touch.name = "TouchControls"
 	touch.input = input
-	hud.add_child(touch)
+	root.add_child(touch)
+
+	hud = CombatHud.new()
+	hud.name = "HUD"
+	root.add_child(hud)
+	hud.set_player_hp(200, 200) # (GPT's M3 numbers; nothing hits the Samurai before M5)
+	hud.set_target("Training dummy", dummy.hp, TrainingDummy.MAX_HP)
+	dummy.hp_changed.connect(hud.on_target_hp)
+	hud.set_note("M3 · stick: move (rim 0.25 s: sprint) · drag: camera · ATTACK ×3 · DODGE · JUMP — keys WASD J K Space")
 
 	var back := Button.new()
 	back.text = "MENU"
 	back.custom_minimum_size = Vector2(160, 64)
 	back.position = Vector2(28, 24)
 	back.pressed.connect(func() -> void: Game.go("main_menu"))
-	hud.add_child(back)
+	root.add_child(back)
 	QA.register("arena_menu", back)
 	touch.reserved = [Rect2(Vector2.ZERO, Vector2(220, 110))]
-
-	var hp := _hp_bar(200, 200)
-	hp.position = Vector2(212, 30)
-	hud.add_child(hp)
-
-	var note := UiTheme.label("M2 · the Fallen Moon Courtyard — stick: move (rim 0.25 s: sprint) · drag: camera · JUMP · DODGE",
-		18, UiTheme.TEXT_DIM)
-	note.position = Vector2(212, 66)
-	hud.add_child(note)
-
-	_fps = UiTheme.label("", 22, UiTheme.GOLD, true)
-	_fps.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	_fps.offset_left = -180
-	_fps.offset_top = 40
-	_fps.offset_right = -32
-	_fps.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_fps.visible = Game.show_fps or QA.enabled
-	hud.add_child(_fps)
-
-
-## The Samurai's health (200, GPT's M3 numbers); damage arrives with M3.
-func _hp_bar(value: int, total: int) -> Control:
-	var box := Control.new()
-	box.custom_minimum_size = Vector2(300, 30)
-	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var back := Panel.new()
-	back.add_theme_stylebox_override("panel", UiTheme.box(Color(0.07, 0.06, 0.11, 0.8), UiTheme.GOLD_DIM, 6, 2, 0.0, 0.0))
-	back.size = Vector2(300, 22)
-	box.add_child(back)
-	var fill := ColorRect.new()
-	fill.color = UiTheme.CRIMSON
-	fill.position = Vector2(4, 4)
-	fill.size = Vector2(292.0 * float(value) / float(total), 14)
-	box.add_child(fill)
-	var t := UiTheme.label("%d / %d" % [value, total], 16, UiTheme.TEXT, true)
-	t.position = Vector2(310, -1)
-	box.add_child(t)
-	return box

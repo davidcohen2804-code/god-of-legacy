@@ -1,39 +1,57 @@
 class_name DemoDriver
 extends Node
-## The movement demo (for the M2 review's recording): run with `-- --demo`, the game goes straight to the arena and
+## The review recording (M3: the first sword combat): run with `-- --demo`, the game goes straight to the arena and
 ## this node plays a fixed script of touches through the engine's own input — the same path a finger takes — so the
-## on-screen controls show the thumb on the stick, the presses and the sprint ring while the Samurai walks, runs,
-## sprints, jumps, dodges and the camera turns. Recorded with Godot's Movie Maker (--write-movie, fixed frame rate),
-## so the clip is smooth however slowly the machine renders. It quits when the script ends.
+## on-screen controls show the thumb on the stick and the taps on ATTACK and DODGE while the Samurai approaches the
+## training dummy, lands the three-strike chain (then the same chain in slow motion), misses on purpose, rolls away,
+## comes back for two more chains — the dummy falls at 0 HP and stands up again — and strikes it once more. Captions
+## in the HUD's prompt line name each part. Recorded with Godot's Movie Maker (--write-movie, fixed frame rate), so the
+## clip is smooth however slowly the machine renders; the script runs in game time. It quits when the script ends.
 
 ## [time (s), action, args...]. "go": the thumb steers the stick toward a point of the courtyard (x, z) at a push
-## (0..1; 1 = the rim, which sprints after 0.25 s) until he is there — so the walk stays inside the open middle
-## whatever the camera does; "stick": a fixed push (x right, y up); "drag": a second finger turns the camera.
-## The Samurai starts 7 m south of the target looking north.
+## (0..1; 1 = the rim, which sprints after 0.25 s) until he is there; "stick": a fixed push (x right, y up);
+## "tap": a button; "drag": a second finger turns the camera; "caption": a line in the HUD for some seconds;
+## "slowmo": the game's speed. The Samurai starts 7 m south of the dummy looking north; the camera stays south.
 const SCRIPT := [
-	[1.0, "go", Vector2(4.0, 5.0), 0.4], # walk to the target's right
-	[2.6, "go", Vector2(5.0, -3.0), 0.85], # run past it
-	[4.3, "go", Vector2(-6.0, -4.5), 1.0], # sprint across
-	[6.3, "stick_up"],
-	[6.8, "tap", "jump"], # a standing jump
-	[8.0, "drag", Vector2(300, 0), 1.6], # a second finger turns the camera
-	[10.0, "go", Vector2(-2.0, 6.0), 0.9],
-	[10.7, "tap", "jump"], # a running jump
-	[11.7, "stick_up"],
-	[12.0, "tap", "dodge"], # a roll ahead
-	[13.0, "stick", Vector2(-1.0, 0.0)],
-	[13.2, "tap", "dodge"], # a roll to the left
-	[13.6, "stick_up"],
-	[14.2, "go", Vector2(4.0, 2.0), 0.4], # two fingers: walking while the camera turns back
-	[14.4, "drag", Vector2(-300, 0), 2.2],
-	[16.8, "go", Vector2(0.0, 6.5), 0.9], # and a short run back
-	[18.4, "stick_up"],
-	[19.6, "end"],
+	[0.6, "caption", "Three katana strikes — only a confirmed hit opens the next", 3.2],
+	[0.8, "go", Vector2(0.0, 1.2), 0.85], # run up to the dummy
+	[2.2, "tap", "attack"], # Basic 1
+	[2.53, "tap", "attack"], # Basic 2
+	[2.9, "tap", "attack"], # Basic 3: the push
+	[4.0, "slowmo", 0.35],
+	[4.0, "caption", "The same chain at 0.35× speed", 1.8],
+	[4.2, "tap", "attack"],
+	[4.53, "tap", "attack"],
+	[4.9, "tap", "attack"],
+	[5.8, "slowmo", 1.0],
+	[6.0, "go", Vector2(3.0, 3.0), 0.4], # walk away
+	[7.8, "stick", Vector2(1.0, 0.0)], # turn east, away from the dummy
+	[8.1, "stick_up"],
+	[8.2, "caption", "A deliberate miss: no damage, and the chain starts over", 2.4],
+	[8.4, "tap", "attack"], # a whiff…
+	[9.0, "tap", "attack"], # …and the first strike again
+	[9.8, "stick", Vector2(0.0, -1.0)],
+	[9.9, "tap", "dodge"], # a roll away
+	[10.5, "stick_up"],
+	[10.8, "caption", "Dodge, then back in", 1.5],
+	[11.0, "go", Vector2(1.4, 0.4), 0.85],
+	[12.4, "tap", "attack"],
+	[12.73, "tap", "attack"],
+	[13.1, "tap", "attack"],
+	[14.2, "caption", "At 0 HP the dummy falls — and stands up again", 3.2],
+	[14.6, "tap", "attack"],
+	[14.93, "tap", "attack"],
+	[15.3, "tap", "attack"],
+	[16.2, "go", Vector2(-2.5, 3.5), 0.85], # away while it is down
+	[17.6, "go", Vector2(-0.6, 0.9), 0.4], # and back
+	[19.0, "tap", "attack"],
+	[20.2, "end"],
 ]
 
 var touch: TouchControls
 var player: Fighter
 var rig: CameraRig
+var caption: Callable
 var _t := 0.0
 var _i := 0
 var _stick_down := false
@@ -91,7 +109,13 @@ func _run(step: Array) -> void:
 			var from := Vector2(touch.size.x * 0.42, touch.size.y * 0.32)
 			_touch(1, from, true)
 			_drag = {"from": from, "to": from + (step[2] as Vector2), "start": _t, "length": float(step[3]), "last": from}
+		"caption":
+			if caption.is_valid():
+				caption.call(String(step[2]), float(step[3]))
+		"slowmo":
+			Engine.time_scale = float(step[2])
 		"end":
+			Engine.time_scale = 1.0
 			get_tree().quit()
 
 

@@ -1,8 +1,9 @@
 class_name Fighter
 extends CharacterBody3D
 ## A combatant's body: movement, gravity, facing, jump and dodge, shared by the player and (later) the enemies. What
-## drives it (PlayerController, an enemy brain) only sets intents; its visual only shows what it does. The combat
-## state machine (M3) will own attacks and reactions and ask this body to move.
+## drives it (PlayerController, an enemy brain) only sets intents; its visual only shows what it does. While the
+## combat state machine owns the body (a strike, a reaction) it sets `action_lock` and drives the body's step itself;
+## `frozen` holds it still through hit-stop.
 
 ## ground | air | dodge
 signal state_changed(state: String)
@@ -26,6 +27,13 @@ var jump_velocity := 7.8
 var state := "ground"
 var invulnerable := false
 var combat_ready := false
+## Set by the combat controller: the body follows `action_velocity` instead of the stick (a strike's step forward).
+var action_lock := false
+var action_velocity := Vector3.ZERO
+## Hit-stop: no movement, no gravity, no animation advance.
+var frozen := false
+## Rolls so far (for the tests and the report).
+var dodges := 0
 
 var _dodge_t := 0.0
 var _dodge_dir := Vector3.ZERO
@@ -72,15 +80,17 @@ func jump() -> bool:
 	return true
 
 
-## A quick roll along `dir` (world space; the facing when none), with its short defensive window.
+## A quick roll along `dir` (world space; the facing when none), with its short defensive window. Only from the
+## ground (no mid-air roll — GPT's M2 review) and never during a strike (the combat controller asks first).
 func dodge(dir: Vector3) -> bool:
-	if state == "dodge":
+	if state != "ground" or not is_on_floor() or action_lock:
 		return false
 	if dir.length() < 0.1:
 		dir = forward()
 	_dodge_dir = Vector3(dir.x, 0.0, dir.z).normalized()
 	_dodge_t = 0.0
 	facing = atan2(_dodge_dir.x, _dodge_dir.z)
+	dodges += 1
 	_set_state("dodge")
 	visual.play("Roll", 0.05, 1.8, true)
 	return true
@@ -92,8 +102,27 @@ func _set_state(s: String) -> void:
 		state_changed.emit(s)
 
 
+## Turn toward a point at up to `rate` radians per second (a strike's target assist).
+func face_toward(point: Vector3, rate: float, delta: float) -> void:
+	var to := point - global_position
+	if Vector2(to.x, to.z).length() < 0.05:
+		return
+	var want := atan2(to.x, to.z)
+	facing = facing + clampf(wrapf(want - facing, -PI, PI), -rate * delta, rate * delta)
+
+
 func _physics_process(delta: float) -> void:
+	visual.rotation.y = facing
+	if frozen:
+		return
 	var on_floor := is_on_floor()
+	if action_lock:
+		velocity.x = action_velocity.x
+		velocity.z = action_velocity.z
+		if not on_floor:
+			velocity.y -= gravity * delta
+		move_and_slide()
+		return
 	if state == "dodge":
 		_dodge_t += delta
 		var sp := DODGE_SPEED * clampf((1.0 - _dodge_t / DODGE_TIME) * 1.35, 0.0, 1.0)
