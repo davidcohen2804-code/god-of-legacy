@@ -106,7 +106,7 @@ func _make_card(c: Roster.Character) -> Button:
 
 	if c.locked:
 		var veil := ColorRect.new()
-		veil.color = Color(0.01, 0.015, 0.03, 0.5)
+		veil.color = Color(0.03, 0.02, 0.06, 0.62)
 		veil.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		b.add_child(veil)
 		var lock_box := VBoxContainer.new()
@@ -137,11 +137,14 @@ func _ignore_mouse(n: Node) -> void:
 
 
 func _style_card(b: Button, c: Roster.Character, selected: bool) -> void:
-	var border := c.accent if selected else (UiTheme.GOLD_DIM if not c.locked else Color(1, 1, 1, 0.14))
-	var bg := Color(0.09, 0.105, 0.16, 0.95) if selected else Color(0.055, 0.065, 0.1, 0.9)
+	var border := UiTheme.ACCENT if selected else (UiTheme.GOLD_DIM if not c.locked else Color(1, 1, 1, 0.14))
+	var bg := Color(0.16, 0.12, 0.27, 0.96) if selected else Color(0.075, 0.063, 0.12, 0.92)
 	var w := 4 if selected else 2
 	for state in ["normal", "hover", "pressed", "disabled"]:
-		var sb := UiTheme.box(bg, border, 18, w, 0.0, 0.0)
+		var sb := UiTheme.box(bg, border, 14, w, 0.0, 0.0)
+		if selected:
+			sb.shadow_color = Color(UiTheme.ACCENT.r, UiTheme.ACCENT.g, UiTheme.ACCENT.b, 0.45)
+			sb.shadow_size = 16
 		if state == "hover" and not selected:
 			sb.border_color = UiTheme.GOLD if not c.locked else Color(1, 1, 1, 0.3)
 		b.add_theme_stylebox_override(state, sb)

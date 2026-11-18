@@ -19,7 +19,7 @@ concurrency:
 jobs:
   web:
     runs-on: ubuntu-24.04   # (Playwright 1.56 cannot install its browsers on 26.04)
-    timeout-minutes: 20
+    timeout-minutes: 45
     env:
       V: 4.7.2
     steps:
@@ -50,13 +50,36 @@ jobs:
           test -s build/web/index.pck
           echo "{\"commit\":\"${GITHUB_SHA::7}\",\"built\":\"$(date -u +%FT%TZ)\"}" > build/web/version.json
           ls -la build/web
-      - name: Browser smoke test (Chromium as an Android phone, WebKit as an iPhone, both in landscape)
-        id: smoke
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-1.56.1-chromium-webkit-ubuntu-24.04
+      - name: Playwright 1.56.1 with Chromium and WebKit (each attempt time-limited; a hung install stopped the run once)
+        id: pw
         continue-on-error: true
+        timeout-minutes: 14
         run: |
           cd reborn/qa
           npm i --no-save --no-audit --no-fund playwright@1.56.1 > /dev/null
-          npx playwright install --with-deps chromium webkit > /dev/null
+          try() {
+            for i in 1 2 3; do
+              if timeout -k 15 240 "$@" > /tmp/pw.log 2>&1; then return 0; fi
+              echo "attempt $i of: $* — failed or timed out"; tail -n 8 /tmp/pw.log
+              sudo dpkg --configure -a > /dev/null 2>&1 || true
+              sleep 5
+            done
+            return 1
+          }
+          try npx playwright install-deps chromium webkit
+          try npx playwright install chromium webkit
+          npx playwright --version
+      - name: Browser smoke test (Chromium as an Android phone and at 16:9, WebKit as an iPhone, all in landscape)
+        id: smoke
+        if: steps.pw.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 24
+        run: |
+          cd reborn/qa
           (cd "$GITHUB_WORKSPACE/build/web" && python3 -m http.server 8060 > /dev/null 2>&1 &)
           npx -y wait-on@8 -t 30000 http://localhost:8060/index.html
           OUT="$GITHUB_WORKSPACE/build/web/qa" node smoke.mjs
@@ -74,6 +97,6 @@ jobs:
             sleep 7
           done
           exit 1
-      - name: Fail when the smoke test failed (the build and its screenshots are published either way)
-        if: steps.smoke.outcome == 'failure'
+      - name: Fail when the smoke test failed or could not run (the build and its screenshots are published either way)
+        if: steps.pw.outcome != 'success' || steps.smoke.outcome != 'success'
         run: exit 1

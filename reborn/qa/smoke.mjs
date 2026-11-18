@@ -10,18 +10,24 @@ const BASE = process.env.BASE || 'http://localhost:8060/index.html?qa=1';
 const OUT = process.env.OUT || 'qa-out';
 fs.mkdirSync(OUT, { recursive: true });
 
+const SWIFTSHADER = ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'];
 const PROFILES = [
-  { name: 'android-chromium', required: true, type: chromium, device: devices['Pixel 7 landscape'],
-    args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] },
+  { name: 'android-chromium', required: true, type: chromium, device: devices['Pixel 7 landscape'], args: SWIFTSHADER },
   { name: 'iphone-webkit', required: false, type: webkit, device: devices['iPhone 14 landscape'] },
+  { name: 'chromium-16x9', required: true, type: chromium, args: SWIFTSHADER,
+    device: { viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1, hasTouch: true, isMobile: false } },
 ];
+const PROFILE_LIMIT = 7 * 60 * 1000; // a profile that hangs is stopped and reported, so the run always ends
+const T0 = Date.now();
+const say = (...a) => console.log(`[${((Date.now() - T0) / 1000).toFixed(1)}s]`, ...a);
 
 async function runProfile(p) {
   const res = { profile: p.name, required: p.required, ok: false, steps: [], errors: [], log: [] };
   const browser = await p.type.launch({ args: p.args || [] });
+  let page = null;
   try {
     const ctx = await browser.newContext({ ...p.device });
-    const page = await ctx.newPage();
+    page = await ctx.newPage();
     page.on('console', (m) => { res.log.push(`[${m.type()}] ${m.text()}`); if (m.type() === 'error') res.errors.push(m.text()); });
     page.on('pageerror', (e) => res.errors.push('pageerror: ' + e.message));
     const t0 = Date.now();
@@ -46,7 +52,7 @@ async function runProfile(p) {
       await page.touchscreen.tap(x, y);
     };
     const shot = async (n) => page.screenshot({ path: `${OUT}/${p.name}_${n}.png` });
-    const step = (s) => res.steps.push(s);
+    const step = (s) => { res.steps.push(s); say(p.name, '✓', s); };
 
     await waitFor((s) => s.scene === 'main_menu', 'the main menu');
     res.loadMs = Date.now() - t0;
@@ -91,6 +97,8 @@ async function runProfile(p) {
     res.ok = true;
   } catch (e) {
     res.error = String(e && e.message || e);
+    say(p.name, 'FAIL', res.error);
+    try { await page.screenshot({ path: `${OUT}/${p.name}_fail.png` }); } catch (e2) { /* (the page may be gone) */ }
   } finally {
     res.log = res.log.slice(-80);
     await browser.close().catch(() => {});
@@ -100,7 +108,8 @@ async function runProfile(p) {
 
 const results = [];
 for (const p of PROFILES) {
-  const r = await runProfile(p);
+  say('profile', p.name, 'start');
+  const r = await Promise.race([runProfile(p), new Promise((res) => setTimeout(() => res({ profile: p.name, required: p.required, ok: false, steps: [], errors: [], log: [], error: 'profile time limit reached' }), PROFILE_LIMIT))]);
   results.push(r);
   console.log(`${r.ok ? 'PASS' : 'FAIL'} ${r.profile}${r.error ? ' — ' + r.error : ''}`);
   for (const s of r.steps) console.log('   ✓ ' + s);

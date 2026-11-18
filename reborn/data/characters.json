@@ -6,7 +6,7 @@
       "title": "Blade of the Phantom Chain",
       "locked": false,
       "weapon": "katana",
-      "accent": "#8fd6ff",
+      "accent": "#D9B778",
       "summary": "A swift duelist. Binds a foe with a spectral chain, drags it in, launches it and finishes the chain in the air.",
       "style": ["Speed", "Combos", "Mobility"]
     },

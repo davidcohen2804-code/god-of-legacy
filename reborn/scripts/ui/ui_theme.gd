@@ -3,13 +3,18 @@ extends RefCounted
 ## The interface's look in one place: fonts, colours, panels and buttons. Every box keeps comfortable padding
 ## between its text and its border.
 
-const GOLD := Color("#e9c77b")
-const GOLD_DIM := Color("#8f7239")
-const INK := Color("#0b0d16")
-const PANEL := Color(0.055, 0.065, 0.105, 0.9)
-const TEXT := Color("#eef2ff")
-const TEXT_DIM := Color("#a9b1c9")
-const ACCENT := Color("#8fd6ff")
+## GPT's REBORN palette (direction v1.1): midnight violet and deep plum grounds, antique gold and spirit violet
+## accents (no dominant cyan), crimson for danger, warm ivory text.
+const MIDNIGHT := Color("#111020")
+const PLUM := Color("#211B35")
+const GOLD := Color("#D9B778")
+const GOLD_DIM := Color("#8C7448")
+const INK := Color("#111020")
+const PANEL := Color(0.129, 0.106, 0.208, 0.92)
+const TEXT := Color("#F2E9DD")
+const TEXT_DIM := Color("#B9AEA3")
+const ACCENT := Color("#9674E7")
+const CRIMSON := Color("#A93553")
 
 static var _theme: Theme
 static var _fonts := {}
@@ -54,11 +59,11 @@ static func build() -> Theme:
 	t.default_font_size = 26
 
 	var bold := font("inter-latin-700-normal")
-	t.set_stylebox("normal", "Button", box(Color(0.075, 0.085, 0.135, 0.94), GOLD_DIM, 14, 2, 34.0, 16.0))
-	t.set_stylebox("hover", "Button", box(Color(0.11, 0.12, 0.18, 0.96), GOLD, 14, 2, 34.0, 16.0))
-	t.set_stylebox("pressed", "Button", box(GOLD, GOLD, 14, 2, 34.0, 16.0))
-	t.set_stylebox("focus", "Button", box(Color(0, 0, 0, 0), Color(1, 1, 1, 0.55), 16, 2, 34.0, 16.0))
-	t.set_stylebox("disabled", "Button", box(Color(0.06, 0.065, 0.09, 0.8), Color(1, 1, 1, 0.12), 14, 2, 34.0, 16.0))
+	t.set_stylebox("normal", "Button", box(Color(0.082, 0.07, 0.14, 0.94), GOLD_DIM, 10, 2, 40.0, 16.0))
+	t.set_stylebox("hover", "Button", box(Color(0.13, 0.105, 0.2, 0.96), GOLD, 10, 2, 40.0, 16.0))
+	t.set_stylebox("pressed", "Button", box(GOLD, GOLD, 10, 2, 40.0, 16.0))
+	t.set_stylebox("focus", "Button", box(Color(0, 0, 0, 0), GOLD, 12, 3, 40.0, 16.0))
+	t.set_stylebox("disabled", "Button", box(Color(0.07, 0.06, 0.1, 0.8), Color(1, 1, 1, 0.12), 10, 2, 40.0, 16.0))
 	t.set_font("font", "Button", bold)
 	t.set_font_size("font_size", "Button", 28)
 	t.set_color("font_color", "Button", TEXT)
@@ -71,13 +76,13 @@ static func build() -> Theme:
 	t.set_color("font_color", "Label", TEXT)
 	t.set_stylebox("panel", "PanelContainer", box())
 
-	t.set_stylebox("normal", "OptionButton", box(Color(0.075, 0.085, 0.135, 0.94), GOLD_DIM, 12, 2, 22.0, 12.0))
-	t.set_stylebox("hover", "OptionButton", box(Color(0.11, 0.12, 0.18, 0.96), GOLD, 12, 2, 22.0, 12.0))
-	t.set_stylebox("pressed", "OptionButton", box(Color(0.11, 0.12, 0.18, 0.96), GOLD, 12, 2, 22.0, 12.0))
-	t.set_stylebox("focus", "OptionButton", box(Color(0, 0, 0, 0), Color(1, 1, 1, 0.55), 12, 2, 22.0, 12.0))
+	t.set_stylebox("normal", "OptionButton", box(Color(0.082, 0.07, 0.14, 0.94), GOLD_DIM, 10, 2, 22.0, 12.0))
+	t.set_stylebox("hover", "OptionButton", box(Color(0.13, 0.105, 0.2, 0.96), GOLD, 10, 2, 22.0, 12.0))
+	t.set_stylebox("pressed", "OptionButton", box(Color(0.13, 0.105, 0.2, 0.96), GOLD, 10, 2, 22.0, 12.0))
+	t.set_stylebox("focus", "OptionButton", box(Color(0, 0, 0, 0), GOLD, 10, 2, 22.0, 12.0))
 	t.set_font("font", "OptionButton", bold)
 	t.set_font_size("font_size", "OptionButton", 24)
-	t.set_stylebox("panel", "PopupMenu", box(Color(0.07, 0.08, 0.12, 0.98), GOLD_DIM, 12, 2, 16.0, 12.0))
+	t.set_stylebox("panel", "PopupMenu", box(Color(0.1, 0.085, 0.16, 0.98), GOLD_DIM, 10, 2, 16.0, 12.0))
 	t.set_font_size("font_size", "PopupMenu", 26)
 	t.set_constant("v_separation", "PopupMenu", 18)
 
@@ -114,7 +119,7 @@ static func title(text: String, size: int = 54, spacing: int = 3) -> Label:
 	l.add_theme_font_override("font", display_font(spacing))
 	l.add_theme_font_size_override("font_size", size)
 	l.add_theme_color_override("font_color", GOLD)
-	l.add_theme_color_override("font_outline_color", Color(0.09, 0.055, 0.02, 0.95))
+	l.add_theme_color_override("font_outline_color", Color(0.07, 0.05, 0.1, 0.95))
 	l.add_theme_constant_override("outline_size", maxi(4, size / 9))
 	l.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.55))
 	l.add_theme_constant_override("shadow_offset_x", 0)

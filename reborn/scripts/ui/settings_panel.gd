@@ -1,10 +1,11 @@
 class_name SettingsPanel
 extends Control
-## The settings window (graphics quality, camera sensitivity, fps counter), saved by Game.
+## The settings window (graphics quality, sound, camera sensitivity, fps counter), saved by Game.
 
 signal closed
 
 var _sens_value: Label
+var _sound_value: Label
 
 
 func _ready() -> void:
@@ -25,7 +26,7 @@ func _ready() -> void:
 	panel.add_theme_stylebox_override("panel", UiTheme.box(UiTheme.PANEL, UiTheme.GOLD_DIM, 20, 2, 40.0, 32.0))
 	center.add_child(panel)
 	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 22)
+	col.add_theme_constant_override("separation", 18)
 	panel.add_child(col)
 	col.add_child(UiTheme.title("SETTINGS", 44, 3))
 
@@ -37,6 +38,22 @@ func _ready() -> void:
 	quality.item_selected.connect(func(i: int) -> void: Game.set_setting("quality", i))
 	col.add_child(_row("Graphics quality", quality))
 	QA.register("settings_quality", quality)
+
+	var sound := HSlider.new()
+	sound.min_value = 0
+	sound.max_value = 100
+	sound.step = 5
+	sound.value = roundf(Game.sound_volume * 100.0)
+	sound.custom_minimum_size = Vector2(260, 48)
+	sound.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_sound_value = UiTheme.label("%d%%" % int(sound.value), 24, UiTheme.GOLD, true)
+	_sound_value.custom_minimum_size = Vector2(70, 0)
+	sound.value_changed.connect(_on_sound)
+	var sound_box := HBoxContainer.new()
+	sound_box.add_theme_constant_override("separation", 16)
+	sound_box.add_child(sound)
+	sound_box.add_child(_sound_value)
+	col.add_child(_row("Sound", sound_box))
 
 	var sens := HSlider.new()
 	sens.min_value = 0.3
@@ -83,6 +100,11 @@ func _unhandled_input(event: InputEvent) -> void:
 	if visible and event.is_action_pressed("ui_cancel"):
 		close_panel()
 		get_viewport().set_input_as_handled()
+
+
+func _on_sound(v: float) -> void:
+	Game.set_setting("sound_volume", v / 100.0)
+	_sound_value.text = "%d%%" % int(v)
 
 
 func _on_sensitivity(v: float) -> void:

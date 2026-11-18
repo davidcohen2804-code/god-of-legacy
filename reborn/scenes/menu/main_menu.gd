@@ -17,8 +17,8 @@ func _ready() -> void:
 	col.add_theme_constant_override("separation", 10)
 	center.add_child(col)
 
-	col.add_child(UiTheme.title("GOD OF LEGACY", 96, 4))
-	var sub := UiTheme.title("R E B O R N", 30, 6)
+	col.add_child(UiTheme.title("GOD OF LEGACY", 100, 5))
+	var sub := UiTheme.title("REBORN", 30, 18)
 	sub.add_theme_color_override("font_color", UiTheme.ACCENT)
 	col.add_child(sub)
 
@@ -46,17 +46,25 @@ func _ready() -> void:
 	ver.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	add_child(ver)
 
-	modulate.a = 0.0
-	create_tween().tween_property(self, "modulate:a", 1.0, 0.5)
 	play.grab_focus()
 	QA.mark("main_menu")
 
 
+## A wide panel button with a small gold diamond at each end (bright while focused or hovered).
 func _button(text: String, cb: Callable) -> Button:
 	var b := Button.new()
 	b.text = text
-	b.custom_minimum_size = Vector2(400, 88)
+	b.custom_minimum_size = Vector2(460, 86)
 	b.pressed.connect(cb)
+	b.draw.connect(func() -> void:
+		var mode := b.get_draw_mode()
+		var col := UiTheme.GOLD if b.has_focus() or mode == BaseButton.DRAW_HOVER else UiTheme.GOLD_DIM
+		if mode == BaseButton.DRAW_PRESSED or mode == BaseButton.DRAW_HOVER_PRESSED:
+			col = UiTheme.INK
+		var y := b.size.y * 0.5
+		for x: float in [26.0, b.size.x - 26.0]:
+			b.draw_colored_polygon(PackedVector2Array([
+				Vector2(x, y - 7), Vector2(x + 7, y), Vector2(x, y + 7), Vector2(x - 7, y)]), col))
 	return b
 
 
