@@ -1,8 +1,10 @@
 class_name TrainingDummy
 extends StaticBody3D
 ## The training enemy in the courtyard's middle (M3): a straw-wrapped post on a stone base with 150 HP. It reacts to
-## every confirmed strike — a flash and a sway that grow with the blow (GPT: ~80 ms for the first strike, ~110 ms for
-## the second, 180–220 ms and a controlled 0.5 m push for the third) — shows the damage, holds still through hit-stop,
+## every confirmed strike — a short flash and a sway that grows with the blow (GPT: ~80 ms for the first strike,
+## ~110 ms for the second, 180–220 ms and a controlled 0.5 m push for the third), the sway carried along with the
+## blade's travel as well as away from the attacker (so it reads from behind him too) — shows the damage (stacked
+## when blows follow each other), holds still through hit-stop,
 ## topples at 0 HP and stands up again, whole, two seconds later. After a push it slides back onto its mark (0.6 s
 ## later, over 0.5 s), so the courtyard's middle stays the training spot. It does not move or attack (M5).
 
@@ -19,9 +21,10 @@ var hurt_radius := RADIUS
 var hurt_height := HEIGHT
 var _pivot: Node3D
 var _mats: Array[StandardMaterial3D] = []
-var _tilt := 0.0 ## sway angle (rad)
-var _tilt_v := 0.0
-var _tilt_axis := Vector3.RIGHT
+## The sway: where the top leans (a horizontal vector, its length the angle in radians) and how fast.
+var _lean := Vector3.ZERO
+var _lean_v := Vector3.ZERO
+var _fall_dir := Vector3.FORWARD
 var _flash := 0.0
 var _freeze := 0.0
 var _push_from := Vector3.ZERO
@@ -34,6 +37,9 @@ var _back_from := Vector3.ZERO
 var _back_t := -1.0
 ## The last push's distance (m), for the tests and the report.
 var last_push := 0.0
+var _clock := 0.0 ## game time seen by this dummy
+var _num_at := -10.0 ## when the last damage number appeared
+var _num_i := 0
 
 
 static func create() -> TrainingDummy:
@@ -87,17 +93,20 @@ func is_alive() -> bool:
 	return _down < 0.0
 
 
-## A confirmed strike: `damage`, reeling for `reaction` s, pushed `push` m along `dir` (flat, from the attacker).
-func take_hit(damage: int, reaction: float, push: float, dir: Vector3) -> void:
+## A confirmed strike: `damage`, reeling for `reaction` s, pushed `push` m along `dir` (flat, from the attacker),
+## swaying along `sway` (flat; `dir` when none — the attacker gives the blade's travel blended with `dir`).
+func take_hit(damage: int, reaction: float, push: float, dir: Vector3, sway: Vector3 = Vector3.ZERO) -> void:
 	if not is_alive():
 		return
 	hp = maxi(0, hp - damage)
 	hp_changed.emit(hp, MAX_HP)
-	_flash = maxf(_flash, reaction)
+	_flash = FLASH_TIME
 	dir.y = 0.0
 	dir = dir.normalized() if dir.length() > 0.01 else Vector3.FORWARD
-	_tilt_axis = Vector3.UP.cross(dir).normalized()
-	_tilt_v += deg_to_rad(30.0 + 150.0 * reaction / 0.2) # a sway that grows with the blow: ~9°, ~12°, ~19°
+	sway.y = 0.0
+	sway = sway.normalized() if sway.length() > 0.01 else dir
+	_lean_v += sway * deg_to_rad(30.0 + 150.0 * reaction / 0.2) # a sway that grows with the blow: ~9°, ~12°, ~19°
+	_fall_dir = sway
 	_back_t = -1.0 # a blow stops the slide back where it is
 	_back_wait = 0.6 if position.distance_to(_home) > 0.01 else 0.0
 	if push > 0.0:
@@ -109,6 +118,9 @@ func take_hit(damage: int, reaction: float, push: float, dir: Vector3) -> void:
 	if hp == 0:
 		_down = 0.0
 		defeated.emit()
+
+
+const FLASH_TIME := 0.1 ## the hit flash: a short pulse (a longer one hid the dummy's shape)
 
 
 ## Hold still for `t` seconds (hit-stop).
@@ -143,24 +155,27 @@ func _physics_process(delta: float) -> void:
 	if _down >= 0.0:
 		_down += delta
 		var fall := clampf(_down / 0.6, 0.0, 1.0)
-		_tilt = lerpf(_tilt, deg_to_rad(78.0), 1.0 - pow(1.0 - fall, 3.0))
+		_lean = _lean.lerp(_fall_dir * deg_to_rad(78.0), 1.0 - pow(1.0 - fall, 3.0))
 		if _down >= 2.6:
 			_stand_up()
 	else:
 		# a damped spring back to upright
-		_tilt_v += (-90.0 * _tilt - 9.0 * _tilt_v) * delta
-		_tilt += _tilt_v * delta
-	_pivot.transform = Transform3D(Basis(_tilt_axis, _tilt), Vector3.ZERO) if absf(_tilt) > 0.0001 else Transform3D()
+		_lean_v += (-90.0 * _lean - 9.0 * _lean_v) * delta
+		_lean += _lean_v * delta
+	var angle := _lean.length()
+	_pivot.transform = Transform3D(Basis(Vector3.UP.cross(_lean / angle).normalized(), angle), Vector3.ZERO) \
+		if angle > 0.0001 else Transform3D()
 	_flash = maxf(0.0, _flash - delta)
 	var glow := clampf(_flash / 0.06, 0.0, 1.0)
 	for m in _mats:
-		m.emission_energy_multiplier = 1.6 * glow
+		m.emission_energy_multiplier = 1.1 * glow
+	_clock += delta
 
 
 func _stand_up() -> void:
 	_down = -1.0
-	_tilt = 0.0
-	_tilt_v = 0.0
+	_lean = Vector3.ZERO
+	_lean_v = Vector3.ZERO
 	hp = MAX_HP
 	position = _home
 	_push_t = -1.0
@@ -174,7 +189,7 @@ func _stand_up() -> void:
 func state() -> Dictionary:
 	return {"hp": hp, "alive": is_alive(), "pos": [snappedf(position.x, 0.01), snappedf(position.z, 0.01)],
 		"off_mark": snappedf(position.distance_to(_home), 0.01), "last_push": snappedf(last_push, 0.01),
-		"tilt": snappedf(rad_to_deg(_tilt), 0.1)}
+		"tilt": snappedf(rad_to_deg(_lean.length()), 0.1)}
 
 
 func _damage_number(damage: int) -> void:
@@ -190,7 +205,10 @@ func _damage_number(damage: int) -> void:
 	l.no_depth_test = true
 	l.fixed_size = false
 	get_parent().add_child(l)
-	l.global_position = global_position + Vector3(randf_range(-0.25, 0.25), 2.25, 0)
+	# blows in quick succession stack their numbers instead of covering each other
+	_num_i = (_num_i + 1) % 3 if _clock - _num_at < 0.6 else 0
+	_num_at = _clock
+	l.global_position = global_position + Vector3([0.0, -0.22, 0.22][_num_i], 2.2 + 0.3 * _num_i, 0)
 	var tw := l.create_tween()
 	tw.set_parallel(true)
 	tw.tween_property(l, "global_position:y", l.global_position.y + 0.7, 0.75).set_ease(Tween.EASE_OUT)

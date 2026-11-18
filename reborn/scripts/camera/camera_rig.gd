@@ -19,7 +19,7 @@ const DIST_MAX := 9.0
 const MIN_PULL := 3.0 ## the closest a wall-avoiding pull-in may bring the camera
 const PRESETS := {
 	Mode.EXPLORATION: {"pitch": -36.0, "dist": 8.0, "height": 1.3, "fov": 55.0},
-	Mode.COMBAT: {"pitch": -34.0, "dist": 7.2, "height": 1.2, "fov": 50.0},
+	Mode.COMBAT: {"pitch": -33.0, "dist": 7.2, "height": 1.2, "fov": 44.0},
 	Mode.COMBO: {"pitch": -32.0, "dist": 7.4, "height": 1.4, "fov": 54.0},
 }
 

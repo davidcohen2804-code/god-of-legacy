@@ -99,9 +99,11 @@ func tick(dt: float, stick_dir: Vector3) -> void:
 
 
 func _land(a: AttackData, target: Node3D) -> void:
-	var dir := _flat(target.global_position - fighter.global_position)
+	var dir := _flat(target.global_position - fighter.global_position).normalized()
+	# the target sways along the blade's travel (its arc runs toward his left or right) as well as away from him
+	var side := Vector3(dir.z, 0.0, -dir.x) * signf(a.arc_to - a.arc_from)
 	if target.has_method("take_hit"):
-		target.take_hit(a.damage, a.reaction, a.knockback, dir)
+		target.take_hit(a.damage, a.reaction, a.knockback, dir, (dir * 0.55 + side * 0.85).normalized())
 	if target.has_method("freeze_for"):
 		target.freeze_for(a.hit_stop)
 	stats["hits"] += 1
