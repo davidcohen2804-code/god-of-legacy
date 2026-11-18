@@ -18,10 +18,9 @@ func _ready() -> void:
 		enabled = typeof(search) == TYPE_STRING and String(search).contains("qa=1")
 
 
-## Called by each screen when it is ready; forgets the previous screen's controls.
+## Called by each screen when it is ready (the previous screen's controls drop out once they are freed).
 func mark(scene_name: String) -> void:
 	scene = scene_name
-	_controls.clear()
 	print("[QA] scene=%s" % scene_name)
 	_publish()
 
@@ -50,9 +49,11 @@ func _publish() -> void:
 	if not enabled:
 		return
 	var rects := {}
-	for key in _controls:
+	for key in _controls.keys():
 		var c: Object = _controls[key].get_ref()
-		if c is Control and (c as Control).is_visible_in_tree():
+		if c == null:
+			_controls.erase(key)
+		elif c is Control and (c as Control).is_visible_in_tree():
 			var r: Rect2 = (c as Control).get_global_rect()
 			rects[key] = [r.position.x, r.position.y, r.size.x, r.size.y]
 	var vp := get_viewport().get_visible_rect().size

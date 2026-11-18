@@ -33,10 +33,10 @@ func _draw() -> void:
 	draw_polygon(
 		PackedVector2Array([Vector2(0, 0), Vector2(w, 0), Vector2(w, h), Vector2(0, h)]),
 		PackedColorArray([top, top, bottom, bottom]))
-	var moon := Vector2(w * 0.74, h * 0.26)
-	for i in range(10, 0, -1):
-		draw_circle(moon, h * 0.045 * i, Color(0.72, 0.82, 1.0, 0.012 * (11 - i)))
-	draw_circle(moon, h * 0.065, Color(0.9, 0.94, 1.0, 0.85))
+	var moon := Vector2(w * 0.87, h * 0.17)
+	for i in range(28, 0, -1):
+		draw_circle(moon, h * 0.012 * i, Color(0.72, 0.82, 1.0, 0.0045 * (29 - i)))
+	draw_circle(moon, h * 0.05, Color(0.9, 0.94, 1.0, 0.82))
 	for e in _embers:
 		var y := fposmod(float(e["y"]) - _t * float(e["v"]), 1.0)
 		var x := float(e["x"]) + sin(_t * 0.6 + float(e["p"])) * 0.01
