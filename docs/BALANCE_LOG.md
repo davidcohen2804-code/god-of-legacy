@@ -4,6 +4,24 @@ Every balance change to any class's skills, newest first. Class chats: read this
 needs new visuals / motion (an effect sized to a new hitbox, an animation timed to a new startup), do that part.
 Values apply to the whole game (only damage may differ in PvP: arenaDmg / the arena's scaling).
 
+## 2026-11-18 — Book Mage: David's notes (18 Nov 20:07) — new mechanics with his numbers (for DFO's review)
+David gave these directly to the Book Mage chat; the numbers are his. DFO: tune as you see fit and log it here.
+- **3 Astral Lift → Astral Wheel** (`astral_burst`): a wheel laid where she aims (placeRange 260), 5 s; a tap at once
+  (6 dmg, stun 200) then every 0.5 s (9 taps, 4 dmg, stun 180, r 130). She casts on freely. Cooldown 9 s.
+- **4 Frost Nova**: the first ring freezes 4 s (`hardCC freeze 4000, long`) — "at least 4 seconds".
+- **Q Blink → Cloud Ascent** (`blink`): she rises ~130 px into clouds and hovers 8 s (walks and casts from there); no
+  dash, no invulnerability. Cooldown 16 s. (David: "7–10 s".)
+- **R Glacial Spikes → Frost Field** (`glacial_spikes`): an ice floor r 200 where she aims (placeRange 200), 6 s; foes on
+  it at 40 % speed (slow 0.6). The burst 10 dmg, stun 220. Cooldown 12 s. No launch any more (trials RIME / AVALANCHE /
+  SPARK / TEMPEST used its launch — they need a new route).
+- **T Elemental Ascension → Tempest Trio** (`elemental_ascension`): three tornadoes round the field she aims at
+  (placeRange 280) drift in for 3 s and wander 10 s (`src/skills/MageTornado.ts`); each r 70, every 0.25 s 3 dmg, stun
+  260, float, launch 20. The 20 s chill + shock buff is gone. Cooldown 30 s.
+- **H Rift Gates**: a press always opens a portal where she stands (two at most, 10 s); walking into one carries her out
+  of the other at once (no press, no 4 s rest; after coming out she must step 70 px clear before either takes her again).
+- **Z Tempest Ride → Thunder Ring** (`tempest_ride`): held, up to 8 s, rooted, armored; a ring round her widening 60 → 290
+  px, every 0.25 s 2 dmg, stun 240, float; let go = it ends. Cooldown 16 s.
+
 ## 2026-11-05 — The styles' mechanics: the Polarity, the Tack, the House Edge, the Gate Pressure (David 4 Nov 14:59)
 - GPT's designs (scratchpad styles/*_styles.md); the numbers in `src/skills/StyleMechanics.ts`, which strikes feed or spend
   them in the kits (`FinalKit`: a hit's `pol` / `tack`, a skill's `earns` / `spends` / `charged` / `stakes`). The same in the
