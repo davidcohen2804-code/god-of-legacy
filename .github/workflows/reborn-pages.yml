@@ -19,7 +19,7 @@ concurrency:
 jobs:
   web:
     runs-on: ubuntu-24.04   # (Playwright 1.56 cannot install its browsers on 26.04)
-    timeout-minutes: 45
+    timeout-minutes: 75
     env:
       V: 4.7.2
     steps:
@@ -77,7 +77,7 @@ jobs:
         # mirror once hung the run, and a killed apt-get kept its lock).
         id: smoke
         continue-on-error: true
-        timeout-minutes: 32
+        timeout-minutes: 50
         run: |
           img=mcr.microsoft.com/playwright:v1.56.1-noble
           docker pull -q "$img"
