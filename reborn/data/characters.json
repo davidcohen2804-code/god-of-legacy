@@ -1,0 +1,54 @@
+{
+  "characters": [
+    {
+      "id": "samurai",
+      "name": "Samurai",
+      "title": "Blade of the Phantom Chain",
+      "locked": false,
+      "weapon": "katana",
+      "accent": "#8fd6ff",
+      "summary": "A swift duelist. Binds a foe with a spectral chain, drags it in, launches it and finishes the chain in the air.",
+      "style": ["Speed", "Combos", "Mobility"]
+    },
+    {
+      "id": "warrior",
+      "name": "Warrior",
+      "title": "Coming later",
+      "locked": true,
+      "weapon": "sword",
+      "accent": "#ff9d6b",
+      "summary": "A heavy frontline fighter.",
+      "style": ["Power", "Armor"]
+    },
+    {
+      "id": "archer",
+      "name": "Archer",
+      "title": "Coming later",
+      "locked": true,
+      "weapon": "bow",
+      "accent": "#9be37a",
+      "summary": "A ranged hunter.",
+      "style": ["Range", "Traps"]
+    },
+    {
+      "id": "mage",
+      "name": "Mage",
+      "title": "Coming later",
+      "locked": true,
+      "weapon": "staff",
+      "accent": "#c79bff",
+      "summary": "A caster of wide spells.",
+      "style": ["Area", "Control"]
+    },
+    {
+      "id": "gambler",
+      "name": "Gambler",
+      "title": "Coming later",
+      "locked": true,
+      "weapon": "cards",
+      "accent": "#ffd36b",
+      "summary": "A trickster of cards and chance.",
+      "style": ["Tricks", "Luck"]
+    }
+  ]
+}

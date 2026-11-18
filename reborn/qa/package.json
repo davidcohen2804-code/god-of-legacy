@@ -1,0 +1,6 @@
+{
+  "name": "gol-reborn-qa",
+  "private": true,
+  "type": "module",
+  "description": "Browser smoke tests for the REBORN web build (run in CI; not part of the game)."
+}

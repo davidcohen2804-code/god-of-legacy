@@ -1,0 +1,79 @@
+name: REBORN web build (gh-pages/reborn)
+
+# GOD OF LEGACY — REBORN (reborn/, Godot 4, Compatibility renderer, single-threaded Web export so it runs from plain
+# static hosting and on mobile Safari without cross-origin isolation). Every push to the reborn branch that touches the
+# project imports it, runs its headless logic tests, exports it and publishes it into gh-pages/reborn — only that
+# folder; the game at the site's root is untouched (main's deploy keeps reborn/ in place).
+on:
+  push:
+    branches: [reborn]
+    paths: ['reborn/**', '.github/workflows/reborn-pages.yml']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pages-reborn
+  cancel-in-progress: false
+
+jobs:
+  web:
+    runs-on: ubuntu-24.04   # (Playwright 1.56 cannot install its browsers on 26.04)
+    timeout-minutes: 20
+    env:
+      V: 4.7.2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        id: godot
+        with:
+          path: ~/godot
+          key: godot-${{ env.V }}-web-nothreads
+      - name: Godot (official release)
+        if: steps.godot.outputs.cache-hit != 'true'
+        run: |
+          base=https://github.com/godotengine/godot/releases/download/${V}-stable
+          mkdir -p ~/godot && cd ~/godot
+          curl -fsSL -O "$base/Godot_v${V}-stable_linux.x86_64.zip"
+          curl -fsSL -O "$base/Godot_v${V}-stable_export_templates.tpz"
+          unzip -q Godot_v${V}-stable_linux.x86_64.zip && mv Godot_v${V}-stable_linux.x86_64 godot
+          unzip -q Godot_v${V}-stable_export_templates.tpz 'templates/web_nothreads_*' 'templates/version.txt'
+          rm -f ./*.zip ./*.tpz
+      - name: Import, test, export
+        run: |
+          d=~/.local/share/godot/export_templates/${V}.stable && mkdir -p "$d" && cp ~/godot/templates/* "$d/"
+          G=~/godot/godot
+          $G --headless --path reborn --import
+          $G --headless --path reborn -s res://tests/run_tests.gd
+          mkdir -p build/web
+          $G --headless --path reborn --export-release "Web" "$GITHUB_WORKSPACE/build/web/index.html"
+          test -s build/web/index.pck
+          echo "{\"commit\":\"${GITHUB_SHA::7}\",\"built\":\"$(date -u +%FT%TZ)\"}" > build/web/version.json
+          ls -la build/web
+      - name: Browser smoke test (Chromium as an Android phone, WebKit as an iPhone, both in landscape)
+        id: smoke
+        continue-on-error: true
+        run: |
+          cd reborn/qa
+          npm i --no-save --no-audit --no-fund playwright@1.56.1 > /dev/null
+          npx playwright install --with-deps chromium webkit > /dev/null
+          (cd "$GITHUB_WORKSPACE/build/web" && python3 -m http.server 8060 > /dev/null 2>&1 &)
+          npx -y wait-on@8 -t 30000 http://localhost:8060/index.html
+          OUT="$GITHUB_WORKSPACE/build/web/qa" node smoke.mjs
+      - name: Publish into gh-pages/reborn
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898+github-actions[bot]@users.noreply.github.com"
+          for i in 1 2 3 4; do
+            rm -rf pages && git worktree prune
+            git fetch --depth=1 origin gh-pages
+            git worktree add -f pages origin/gh-pages
+            (cd pages && rm -rf reborn && mkdir reborn && cp -a ../build/web/. reborn/ && git add -A reborn \
+              && { git commit -qm "REBORN web build ${GITHUB_SHA::7}" || exit 0; } \
+              && git push "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" HEAD:gh-pages) && exit 0
+            sleep 7
+          done
+          exit 1
+      - name: Fail when the smoke test failed (the build and its screenshots are published either way)
+        if: steps.smoke.outcome == 'failure'
+        run: exit 1
