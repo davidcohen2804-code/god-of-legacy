@@ -155,16 +155,16 @@ def samurai_look(img, mask):
     w_red = (1 - _sstep(16, 34, hd(348))) * _sstep(0.28, 0.45, s)
     w_pale = _sstep(0.58, 0.78, v) * (1 - _sstep(0.28, 0.5, s)) * (1 - w_gold)
     w_arm = np.clip(1 - w_gold - w_red - w_pale, 0, 1)
-    gold = _rgb(full(40), np.minimum(s * 0.7, 0.5), np.minimum(v * 0.9, 0.86))
-    red = _rgb(full(346), np.minimum(s * 0.7, 0.6), np.minimum(v * 0.78, 0.66))
+    gold = _rgb(full(41), np.minimum(s * 0.85, 0.62), np.minimum(v * 0.92, 0.86))
+    red = _rgb(full(348), np.minimum(s * 0.6, 0.5), np.minimum(v * 0.7, 0.58))
     pale = _rgb(full(35), full(0.07), 0.45 + 0.35 * v)
     arm = _rgb(full(255), 0.05 + 0.08 * s, np.minimum(0.07 + 0.42 * v ** 1.15, 0.48))
     tot = (w_gold + w_red + w_pale + w_arm + 1e-6)[..., None]
     out = (gold * w_gold[..., None] + red * w_red[..., None] + pale * w_pale[..., None] + arm * w_arm[..., None]) / tot
     # the surface map (glTF order: R occlusion, G roughness, B metallic): metallic gold trim, satin armour, matte
     # cloth and hair
-    rough = 0.62 - 0.28 * w_gold + 0.14 * w_pale
-    metal = 0.8 * w_gold
+    rough = 0.62 - 0.24 * w_gold + 0.14 * w_pale
+    metal = 0.5 * w_gold
     if mask is not None:
         m = np.asarray(mask.convert('RGB').resize(img.size, Image.BILINEAR)).astype(np.float32) / 255.0
         hair = _rgb(full(266), full(0.08), np.minimum(0.46 + 0.34 * v, 0.8))

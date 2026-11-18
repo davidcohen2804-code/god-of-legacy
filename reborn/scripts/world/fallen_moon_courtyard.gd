@@ -28,7 +28,6 @@ static func build(root: Node3D) -> void:
 	_columns(root, stone, dark)
 	_braziers(root, dark)
 	_rubble(root, dark)
-	_horizon(root)
 
 
 static func _environment(root: Node3D) -> void:
@@ -52,7 +51,7 @@ static func _environment(root: Node3D) -> void:
 	env.tonemap_exposure = 1.05
 	env.fog_enabled = true
 	env.fog_light_color = Color("#2b2646")
-	env.fog_density = 0.012
+	env.fog_density = 0.02
 	env.fog_sky_affect = 0.0
 	var we := WorldEnvironment.new()
 	we.environment = env
@@ -75,16 +74,10 @@ static func _environment(root: Node3D) -> void:
 static func _ground(root: Node3D, dark: Material) -> void:
 	var floor_mat := TexLoader.material(ENV + "flagstones.webp.bin", Vector2(7, 7), Color(0.7, 0.7, 0.74), 0.92)
 	_mesh(root, _plane(Vector2(HALF * 2.0, HALF * 2.0)), floor_mat, Vector3.ZERO)
-	var earth := TexLoader.material(ENV + "earth.webp.bin", Vector2(30, 30), Color(0.55, 0.55, 0.62))
+	var earth := TexLoader.material(ENV + "earth.webp.bin", Vector2(30, 30), Color(0.2, 0.19, 0.25))
 	_mesh(root, _plane(Vector2(160, 160)), earth, Vector3(0, -0.02, 0))
-	# The open middle's edge: a low ring of darker inlaid stone.
-	var ring := TorusMesh.new()
-	ring.inner_radius = CLEAR_R - 0.28
-	ring.outer_radius = CLEAR_R + 0.28
-	ring.rings = 64
-	ring.ring_segments = 4
-	var r := _mesh(root, ring, dark, Vector3(0, 0.0, 0))
-	r.scale = Vector3(1, 0.03, 1)
+	# The open middle's edge: a band of darker stone inlaid flush with the floor.
+	var r := _mesh(root, _annulus(CLEAR_R - 0.18, CLEAR_R + 0.18, 96), dark, Vector3(0, 0.006, 0))
 	r.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var body := StaticBody3D.new()
 	body.collision_layer = 1
@@ -221,23 +214,6 @@ static func _rubble(root: Node3D, dark: Material) -> void:
 		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 
-## Dark ruined silhouettes far beyond the walls, so the horizon is not empty.
-static func _horizon(root: Node3D) -> void:
-	var shade := StandardMaterial3D.new()
-	shade.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	shade.albedo_color = Color("#171428")
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 77
-	for i in 22:
-		var a := TAU * float(i) / 22.0 + rng.randf_range(-0.08, 0.08)
-		var d := rng.randf_range(46.0, 62.0)
-		var w := rng.randf_range(4.0, 11.0)
-		var h := rng.randf_range(3.0, 10.0)
-		var m := _mesh(root, _box(Vector3(w, h, 3.0)), shade, Vector3(cos(a) * d, h * 0.5 - 0.5, sin(a) * d))
-		m.rotation.y = -a + PI * 0.5
-		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-
-
 static func _mesh(root: Node3D, mesh: Mesh, mat: Material, pos: Vector3) -> MeshInstance3D:
 	var m := MeshInstance3D.new()
 	m.mesh = mesh
@@ -245,6 +221,22 @@ static func _mesh(root: Node3D, mesh: Mesh, mat: Material, pos: Vector3) -> Mesh
 	m.position = pos
 	root.add_child(m)
 	return m
+
+
+## A flat ring on the ground (normals up), `n` segments.
+static func _annulus(r0: float, r1: float, n: int) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_normal(Vector3.UP)
+	for i in n:
+		var a0 := TAU * float(i) / float(n)
+		var a1 := TAU * float(i + 1) / float(n)
+		var p := [Vector3(cos(a0) * r0, 0, sin(a0) * r0), Vector3(cos(a0) * r1, 0, sin(a0) * r1),
+			Vector3(cos(a1) * r1, 0, sin(a1) * r1), Vector3(cos(a1) * r0, 0, sin(a1) * r0)]
+		for k: int in [0, 1, 2, 0, 2, 3]: # (clockwise from above: Godot's front faces)
+			st.set_uv(Vector2((p[k] as Vector3).x, (p[k] as Vector3).z) * 0.5)
+			st.add_vertex(p[k])
+	return st.commit()
 
 
 static func _plane(s: Vector2) -> PlaneMesh:

@@ -63,9 +63,12 @@ jobs:
             -- --demo > "$RUNNER_TEMP/demo.log" 2>&1 || true
           tail -n 25 "$RUNNER_TEMP/demo.log"
           test -s "$RUNNER_TEMP/demo.avi"
-          ffmpeg -y -loglevel error -i "$RUNNER_TEMP/demo.avi" -an -c:v libx264 -pix_fmt yuv420p -crf 24 -preset veryfast \
+          # (the runner image has no ffmpeg: the static build inside the imageio-ffmpeg wheel, from PyPI)
+          python3 -m venv "$RUNNER_TEMP/ff" && "$RUNNER_TEMP/ff/bin/pip" install -q imageio-ffmpeg==0.6.0
+          FF=$("$RUNNER_TEMP/ff/bin/python" -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())")
+          "$FF" -y -loglevel error -i "$RUNNER_TEMP/demo.avi" -an -c:v libx264 -pix_fmt yuv420p -crf 24 -preset veryfast \
             -movflags +faststart build/web/qa/m2_movement_demo.mp4
-          ffmpeg -y -loglevel error -i build/web/qa/m2_movement_demo.mp4 -vf "fps=1,scale=480:-1,tile=5x4" -frames:v 1 \
+          "$FF" -y -loglevel error -i build/web/qa/m2_movement_demo.mp4 -vf "fps=1,scale=480:-1,tile=5x4" -frames:v 1 \
             build/web/qa/m2_movement_demo_frames.jpg
           python3 reborn/tools/pack_png.py build/web/qa/m2_movement_demo.mp4 build/web/qa/m2_movement_demo.mp4.png
           ls -la build/web/qa

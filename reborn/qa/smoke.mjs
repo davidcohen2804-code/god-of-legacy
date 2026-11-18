@@ -119,7 +119,7 @@ async function runProfile(p) {
     if (Math.abs(p0.pos[1]) > 0.05) throw new Error('the Samurai is not on the floor: y = ' + p0.pos[1]);
     if (!/Idle/.test(p0.anim)) throw new Error('the Samurai is not idling: ' + p0.anim);
     step(`Samurai on the floor (y ${p0.pos[1]}, lowest foot bone ${p0.feet} m), playing ${p0.anim}, katana ${p0.katana_to_hand} m from the hand bone`);
-    for (const v of ['front', 'side', 'hand', 'feet']) {
+    for (const v of ['front', 'side', 'hand', 'feet', 'vista']) {
       await page.evaluate((x) => window.__golCmd && window.__golCmd('cam', x), v);
       await waitFor((s) => pl(s) && pl(s).view === v, 'the ' + v + ' view', 15000);
       await page.waitForTimeout(900);
@@ -127,7 +127,7 @@ async function runProfile(p) {
     }
     await page.evaluate(() => window.__golCmd && window.__golCmd('cam', 'game'));
     await waitFor((s) => pl(s) && pl(s).view === 'game', 'the game view', 15000);
-    step('inspection views captured: front, side, right hand + katana, feet');
+    step('inspection views captured: front, side, right hand + katana, feet, the courtyard toward the arch');
 
     const cs = (s) => (s.live && s.live.camera) || null;
     const ctl = (s) => (s.live && s.live.controls) || null;
