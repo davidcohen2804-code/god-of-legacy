@@ -1,13 +1,13 @@
 extends Node3D
-## Arena — M2, step 1 of 5 (GPT's M2 order): the real Samurai in a minimal arena under twilight moonlight, to check
-## his materials, rig, right-hand katana, collision and idle. Movement, touch controls, the camera rig and the Fallen
-## Moon Courtyard come in the next steps. With ?qa=1 the page can switch the camera to inspection viewpoints.
-
-const GAME_PITCH := -36.0 ## camera elevation, degrees (GPT: 30–45°)
-const GAME_DIST := 8.0 ## camera distance, metres (GPT: 7–9 m)
-const LOOK_HEIGHT := 1.3
+## Arena — M2, step 2 of 5 (GPT's M2 order): the real Samurai in a minimal arena under twilight moonlight, now moving
+## — walk, run, sprint, jump and dodge relative to the camera (keyboard and gamepad in this step; the touch controls
+## come in step 3, the Fallen Moon Courtyard in step 4). With ?qa=1 the page can switch the camera to inspection
+## viewpoints.
 
 var player: Fighter
+var input: PlayerInput
+var controller: PlayerController
+var rig: CameraRig
 var _cam: Camera3D
 var _fps: Label
 var _view := "game"
@@ -18,13 +18,15 @@ func _ready() -> void:
 	_spawn_player()
 	_build_camera()
 	_build_hud()
+	QA.mark("arena") # (first: marking a screen clears the previous one's tracked values)
 	QA.track("player", _player_state)
+	QA.track("camera", _camera_state)
 	QA.command.connect(_on_qa_command)
-	QA.mark("arena")
 
 
 func _process(_delta: float) -> void:
-	_place_camera()
+	if _view != "game":
+		_place_camera()
 	if _fps.visible:
 		_fps.text = "%d FPS" % Engine.get_frames_per_second()
 
@@ -44,8 +46,8 @@ func _build_world() -> void:
 	sky.sky_material = mat
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color("#5a5288")
-	env.ambient_light_energy = 0.55
+	env.ambient_light_color = Color("#4d5174")
+	env.ambient_light_energy = 0.5
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.tonemap_exposure = 1.05
 	var we := WorldEnvironment.new()
@@ -56,7 +58,7 @@ func _build_world() -> void:
 	var moon := DirectionalLight3D.new()
 	moon.name = "Moon"
 	moon.rotation_degrees = Vector3(-34, 152, 0)
-	moon.light_color = Color("#c9c0ff")
+	moon.light_color = Color("#bcc0ec")
 	moon.light_energy = 1.15
 	moon.shadow_enabled = true
 	moon.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
@@ -85,7 +87,7 @@ func _build_world() -> void:
 	plane.size = Vector2(28, 28)
 	ground.mesh = plane
 	ground.material_override = TexLoader.material("res://assets/env/flagstones.webp.bin", Vector2(7, 7),
-		Color(0.78, 0.76, 0.84), 0.92)
+		Color(0.7, 0.7, 0.74), 0.92)
 	floor_body.add_child(ground)
 	add_child(floor_body)
 
@@ -96,19 +98,28 @@ func _spawn_player() -> void:
 	player.setup(CharacterVisual.create())
 	player.facing = PI # facing away from the camera, into the courtyard
 	add_child(player)
+	input = PlayerInput.new()
+	input.name = "PlayerInput"
+	add_child(input)
+	controller = PlayerController.new()
+	controller.name = "PlayerController"
+	controller.fighter = player
+	controller.input = input
+	add_child(controller)
+	player.state_changed.connect(func(st: String) -> void: QA.flag("player_state", st))
 
 
 func _build_camera() -> void:
-	_cam = Camera3D.new()
-	_cam.fov = 55.0
-	_cam.near = 0.05
-	_cam.far = 200.0
-	add_child(_cam)
-	_cam.current = true
-	_place_camera()
+	rig = CameraRig.new()
+	rig.name = "CameraRig"
+	rig.target = player
+	add_child(rig)
+	rig.snap_behind(player.facing)
+	_cam = rig.cam
+	controller.rig = rig
 
 
-## The gameplay viewpoint behind the Samurai, or (QA) an inspection viewpoint.
+## (QA) an inspection viewpoint; the rig holds the camera in the game view.
 func _place_camera() -> void:
 	if player == null or _cam == null:
 		return
@@ -125,11 +136,6 @@ func _place_camera() -> void:
 			_look(h - right * 0.9 + fwd * 0.5 + Vector3(0, 0.15, 0), h + Vector3(0, -0.05, 0), 40.0)
 		"feet":
 			_look(p - right * 1.8 + fwd * 0.6 + Vector3(0, 0.25, 0), p + Vector3(0, 0.15, 0), 40.0)
-		_:
-			var b := Basis(Vector3.UP, player.facing + PI) * Basis(Vector3.RIGHT, deg_to_rad(GAME_PITCH))
-			var aim := p + Vector3(0, LOOK_HEIGHT, 0)
-			_cam.global_transform = Transform3D(b, aim + b.z * GAME_DIST)
-			_cam.fov = 55.0
 
 
 func _look(from: Vector3, at: Vector3, fov: float) -> void:
@@ -150,6 +156,9 @@ func _hand_position() -> Vector3:
 func _on_qa_command(cmd: String, args: Array) -> void:
 	if cmd == "cam" and not args.is_empty():
 		_view = str(args[0])
+		rig.active = _view == "game"
+		if _view != "game":
+			_place_camera()
 		QA.flag("view", _view)
 
 
@@ -159,10 +168,24 @@ func _player_state() -> Dictionary:
 	return {
 		"pos": [snappedf(p.x, 0.01), snappedf(p.y, 0.01), snappedf(p.z, 0.01)],
 		"on_floor": player.is_on_floor(),
+		"state": player.state,
+		"speed": snappedf(player.ground_speed(), 0.01),
+		"sprinting": player.sprinting,
+		"invulnerable": player.invulnerable,
+		"facing": snappedf(rad_to_deg(player.facing), 0.1),
 		"anim": player.visual.current,
 		"feet": snappedf(player.visual.feet_height(), 0.001),
 		"katana_to_hand": snappedf(k.distance_to(_hand_position()), 0.001),
 		"view": _view,
+	}
+
+
+func _camera_state() -> Dictionary:
+	return {
+		"yaw": snappedf(rad_to_deg(rig.yaw), 0.1),
+		"elevation": snappedf(rig.elevation(), 0.1),
+		"distance": snappedf(rig.distance(), 0.01),
+		"mode": CameraRig.Mode.keys()[rig.mode],
 	}
 
 
@@ -183,7 +206,8 @@ func _build_hud() -> void:
 	hud.add_child(back)
 	QA.register("arena_menu", back)
 
-	var note := UiTheme.label("M2 · step 1 of 5 — the Samurai in the arena (movement next)", 22, UiTheme.TEXT_DIM)
+	var note := UiTheme.label("M2 · step 2 of 5 — WASD move · Shift sprint · Space jump · K dodge · Q/E camera (touch next)", 20,
+		UiTheme.TEXT_DIM)
 	note.position = Vector2(236, 48)
 	hud.add_child(note)
 

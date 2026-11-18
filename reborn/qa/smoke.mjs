@@ -17,7 +17,7 @@ const PROFILES = [
   { name: 'chromium-16x9', required: true, type: chromium, args: SWIFTSHADER,
     device: { viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1, hasTouch: true, isMobile: false } },
 ];
-const PROFILE_LIMIT = 7 * 60 * 1000; // a profile that hangs is stopped and reported, so the run always ends
+const PROFILE_LIMIT = 9 * 60 * 1000; // a profile that hangs is stopped and reported, so the run always ends
 const T0 = Date.now();
 const say = (...a) => console.log(`[${((Date.now() - T0) / 1000).toFixed(1)}s]`, ...a);
 
@@ -55,7 +55,7 @@ async function runProfile(p) {
       for (;;) {
         const st = await state();
         if (st && pred(st)) return st;
-        if (Date.now() > end) throw new Error('timeout waiting for ' + what + ' (last: ' + JSON.stringify(st && { scene: st.scene, flags: st.flags }) + ')');
+        if (Date.now() > end) throw new Error('timeout waiting for ' + what + ' (last: ' + JSON.stringify(st && { scene: st.scene, flags: st.flags, live: st.live }) + ')');
         await page.waitForTimeout(250);
       }
     };
@@ -126,7 +126,50 @@ async function runProfile(p) {
       await shot('6_' + v);
     }
     await page.evaluate(() => window.__golCmd && window.__golCmd('cam', 'game'));
+    await waitFor((s) => pl(s) && pl(s).view === 'game', 'the game view', 15000);
     step('inspection views captured: front, side, right hand + katana, feet');
+
+    // M2.2: locomotion from the keyboard (the touch controls arrive in M2.3). The CI renders in software at a few
+    // frames per second, so game time runs slower than real time: the checks wait for states, not for distances.
+    await page.evaluate(() => { const c = document.querySelector('canvas'); c.tabIndex = 0; c.focus(); });
+    const cs = (s) => (s.live && s.live.camera) || null;
+    const start = pl(await state());
+    await page.keyboard.down('KeyW');
+    const run = pl(await waitFor((s) => pl(s) && pl(s).speed > 3.5, 'running (W)', 60000));
+    await page.waitForTimeout(600);
+    await shot('7_run');
+    await page.keyboard.down('ShiftLeft');
+    const spr = pl(await waitFor((s) => pl(s) && pl(s).sprinting && pl(s).speed > 6.5, 'sprinting (Shift+W)', 60000));
+    await page.waitForTimeout(400);
+    await shot('7_sprint');
+    await page.keyboard.up('ShiftLeft');
+    await page.keyboard.up('KeyW');
+    const stopped = pl(await waitFor((s) => pl(s) && pl(s).speed < 0.4 && pl(s).state === 'ground', 'stopping', 60000));
+    const moved = Math.hypot(stopped.pos[0] - start.pos[0], stopped.pos[2] - start.pos[2]);
+    if (moved < 1.5) throw new Error('W moved the Samurai only ' + moved.toFixed(2) + ' m');
+    step(`walk/run/sprint: ${run.anim} at ${run.speed} m/s, ${spr.anim} at ${spr.speed} m/s (sprinting), stopped → ${stopped.anim}; moved ${moved.toFixed(1)} m`);
+
+    await page.keyboard.press('Space');
+    const air = pl(await waitFor((s) => pl(s) && pl(s).state === 'air', 'the jump', 30000));
+    await shot('7_jump');
+    const landed = pl(await waitFor((s) => pl(s) && pl(s).state === 'ground' && pl(s).on_floor, 'landing', 60000));
+    step(`jump: in the air (y ${air.pos[1]} m, ${air.anim}), landed (${landed.anim})`);
+
+    const before = pl(await state());
+    await page.keyboard.press('KeyK');
+    await waitFor((s) => (s.events || []).some((e) => e === 'player_state=dodge'), 'the dodge', 30000);
+    const after = pl(await waitFor((s) => pl(s) && pl(s).state === 'ground' && pl(s).speed < 0.4, 'the dodge to end', 60000));
+    const rolled = Math.hypot(after.pos[0] - before.pos[0], after.pos[2] - before.pos[2]);
+    if (rolled < 1.0) throw new Error('the dodge moved only ' + rolled.toFixed(2) + ' m');
+    step(`dodge: rolled ${rolled.toFixed(1)} m`);
+
+    const yaw0 = cs(await state()).yaw;
+    await page.keyboard.down('KeyE');
+    const turned = cs(await waitFor((s) => cs(s) && Math.abs(((cs(s).yaw - yaw0 + 540) % 360) - 180) > 25, 'the camera turn (E)', 60000));
+    await page.keyboard.up('KeyE');
+    await page.waitForTimeout(500);
+    await shot('7_camera');
+    step(`camera turned ${Math.abs(((turned.yaw - yaw0 + 540) % 360) - 180).toFixed(0)}°; elevation ${turned.elevation}°, distance ${turned.distance} m (${turned.mode})`);
 
     await tap('arena_menu');
     await waitFor((s) => s.scene === 'main_menu', 'back to the menu', 60000);

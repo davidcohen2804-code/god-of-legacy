@@ -55,7 +55,7 @@ jobs:
         # mirror once hung the run, and a killed apt-get kept its lock).
         id: smoke
         continue-on-error: true
-        timeout-minutes: 25
+        timeout-minutes: 32
         run: |
           img=mcr.microsoft.com/playwright:v1.56.1-noble
           docker pull -q "$img"
