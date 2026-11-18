@@ -159,7 +159,10 @@ async function runProfile(p) {
       if (type === 'end') fingers.delete(id);
       const pts = [...fingers].map(([i, [x, y]]) => ({ id: i, x, y }));
       if (cdp) {
-        await cdp.send('Input.dispatchTouchEvent', { type: type === 'start' ? 'touchStart' : type === 'move' ? 'touchMove' : 'touchEnd', touchPoints: pts });
+        // (start and move list every finger on the glass; an end lists the finger that lifts — Chromium releases the
+        // points an end names, so naming the ones that stay lifted the wrong finger)
+        const lifted = [{ id, x: moved[0], y: moved[1] }];
+        await cdp.send('Input.dispatchTouchEvent', { type: type === 'start' ? 'touchStart' : type === 'move' ? 'touchMove' : 'touchEnd', touchPoints: type === 'end' ? lifted : pts });
       } else {
         // (Safari has no Touch constructor: an event carrying plain touch records, which is all Godot reads.)
         await page.evaluate(({ type, id, moved, pts }) => {
