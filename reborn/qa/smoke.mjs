@@ -247,7 +247,8 @@ async function runProfile(p) {
     const chainTest = async (mash, tag) => {
       await place(0, 1.6, 180);
       await waitFor((s) => dm(s) && dm(s).alive && dm(s).off_mark < 0.05, 'the dummy on its mark', 30000);
-      const hp0 = dm(await state()).hp;
+      const before = dm(await state());
+      const hp0 = before.hp;
       const { from, done } = await mash(3, tag + ' chain');
       const strikes = since(done, from);
       const first3 = strikes.slice(0, 3).map((e) => [e.step, e.hits, e.damage]);
@@ -257,11 +258,28 @@ async function runProfile(p) {
       const dealt = strikes.reduce((a, e) => a + e.damage, 0);
       const hp1 = dm(done).hp;
       if (hp0 - hp1 !== dealt) throw new Error(`${tag}: the dummy lost ${hp0 - hp1} HP but the strikes dealt ${dealt}`);
-      const pushed = dm(await waitFor((s) => dm(s) && dm(s).last_push > 0.3, 'the third strike\'s push', 30000)).last_push;
+      const pushed = dm(await waitFor((s) => dm(s) && dm(s).pushes > before.pushes, 'the third strike\'s push', 30000)).last_push;
       if (pushed < 0.4 || pushed > 0.6) throw new Error(`${tag}: the third strike pushed the dummy ${pushed} m (want ~0.5)`);
       await shot('9_' + tag + '_chain');
       await waitFor((s) => dm(s) && dm(s).off_mark < 0.05, 'the dummy back on its mark', 30000);
       return `${tag}: B1 → B2 → B3 = ${first3.map((e) => e[2]).join(' + ')} (each strike hit once; ${strikes.length - 3} extra press${strikes.length === 4 ? '' : 'es'} after), dummy ${hp0} → ${hp1} HP, pushed ${pushed} m by the third and back on its mark`;
+    };
+    // Heavy (M4 stage A): one strike on its own button — one hit for 30, a push of about 0.5 m.
+    const heavyTest = async (press, tag) => {
+      await place(0, 1.6, 180);
+      await waitFor((s) => dm(s) && dm(s).alive && dm(s).off_mark < 0.05, 'the dummy on its mark', 30000);
+      const s0 = await state();
+      const from = cb(s0).strikes, hp0 = dm(s0).hp, pushes0 = dm(s0).pushes;
+      await press();
+      const done = await waitFor((s) => cb(s) && cb(s).strikes > from && cb(s).phase === 'FREE', tag + ' heavy to finish', 90000);
+      const h = since(done, from)[0];
+      if (!h || h.id !== 'heavy' || h.hits !== 1 || h.damage !== 30) throw new Error(`${tag}: the heavy strike was ${JSON.stringify(h)} (want one hit for 30)`);
+      if (hp0 - dm(done).hp !== 30) throw new Error(`${tag}: the dummy lost ${hp0 - dm(done).hp} HP to a heavy`);
+      const pushed = dm(await waitFor((s) => dm(s) && dm(s).pushes > pushes0, 'the heavy\'s push', 30000)).last_push;
+      if (pushed < 0.4 || pushed > 0.6) throw new Error(`${tag}: the heavy pushed the dummy ${pushed} m (want ~0.5)`);
+      await shot('9_' + tag + '_heavy');
+      await waitFor((s) => dm(s) && dm(s).off_mark < 0.05, 'the dummy back on its mark', 30000);
+      return `${tag}: HEAVY — one hit for 30 (dummy ${hp0} → ${dm(done).hp}), pushed ${pushed} m`;
     };
     // A strike at the empty air: no damage, and the next strike is the first again.
     const missTest = async (mash, tag) => {
@@ -354,13 +372,14 @@ async function runProfile(p) {
       step('DODGE: rolled');
 
       const yawA = cs(await state()).yaw;
-      await tapAt('btn_heavy');
-      const dim = await waitFor((s) => s.flags.dimmed_tap === 'heavy', 'the dimmed HEAVY tap', 30000);
-      if (angle(cs(dim).yaw, yawA) > 1 || pl(dim).state !== 'ground' || cb(dim).phase !== 'FREE') throw new Error('the dimmed HEAVY button did something');
-      step('HEAVY (dimmed until its skill is built): the tap is taken and does nothing');
+      await tapAt('btn_skill1');
+      const dim = await waitFor((s) => s.flags.dimmed_tap === 'skill1', 'the dimmed CHAIN tap', 30000);
+      if (angle(cs(dim).yaw, yawA) > 1 || pl(dim).state !== 'ground' || cb(dim).phase !== 'FREE') throw new Error('the dimmed CHAIN button did something');
+      step('CHAIN (a skill, dimmed until it is built): the tap is taken and does nothing');
 
       // M3: ATTACK taps — the chain on the dummy, a deliberate miss, and a strike while the stick is held.
       step(await chainTest(mashInPage('btn_attack'), 'touch'));
+      step(await heavyTest(() => tapAt('btn_heavy'), 'touch'));
       step(await missTest(mashInPage('btn_attack'), 'touch'));
       await place(-8, 8, 90);
       const atk = st0.rects.btn_attack;
@@ -446,6 +465,7 @@ async function runProfile(p) {
 
       // M3: the chain from J, a deliberate miss, then move, dodge and attack again.
       step(await chainTest(mashBy(() => page.keyboard.press('KeyJ')), 'keyboard'));
+      step(await heavyTest(() => page.keyboard.press('KeyH'), 'keyboard'));
       step(await missTest(mashBy(() => page.keyboard.press('KeyJ')), 'keyboard'));
       await place(-8, 8, 90);
       const n0 = cb(await state()).strikes;

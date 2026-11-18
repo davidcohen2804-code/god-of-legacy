@@ -1,9 +1,9 @@
 class_name CombatSfx
 extends Node
-## The sword's sounds (GPT's M3 review): a swing as each strike's active window opens and an impact on each confirmed
-## hit — three distinct ones, the third heavier. Synthesized placeholders (tools/make_sfx.py). It only listens to the
-## combat controller; it never decides anything. Non-positional (the camera is always close to the fight); the
-## Settings sound level applies (the master bus).
+## The sword's sounds (GPT's M3 review): a swing as each action's active window opens and an impact on each confirmed
+## hit — three distinct ones for the chain, the third heavier; Heavy takes the heaviest, pitched down. Synthesized
+## placeholders (tools/make_sfx.py). It only listens to the combat controller; it never decides anything.
+## Non-positional (the camera is always close to the fight); the Settings sound level applies (the master bus).
 
 const DIR := "res://assets/audio/"
 const VOICES := 6
@@ -30,20 +30,32 @@ func bind(c: CombatController) -> void:
 	c.strike_hit.connect(_on_hit)
 
 
-func _on_active(step: int) -> void:
-	_play(_swing[clampi(step, 0, 2)], -5.0)
+func _on_active(a: AttackData, step: int) -> void:
+	_play(_swing[_voice(a, step)], -5.0, _pitch(step))
 
 
-func _on_hit(step: int, _target: Node3D, _attack: AttackData, _dir: Vector3) -> void:
-	_play(_impact[clampi(step, 0, 2)], -1.0)
+func _on_hit(a: AttackData, step: int, _target: Node3D, _dir: Vector3) -> void:
+	_play(_impact[_voice(a, step)], -1.0, _pitch(step))
 
 
-func _play(s: AudioStream, db: float) -> void:
+## The chain's strikes have their own sounds; another action takes the heaviest when it pushes (Heavy), the lightest
+## otherwise — pitched down a little, so it sounds like neither.
+func _voice(a: AttackData, step: int) -> int:
+	if step >= 0:
+		return clampi(step, 0, 2)
+	return 2 if a != null and a.knockback > 0.0 else 0
+
+
+func _pitch(step: int) -> float:
+	return randf_range(0.96, 1.04) * (1.0 if step >= 0 else 0.86)
+
+
+func _play(s: AudioStream, db: float, pitch: float) -> void:
 	if s == null:
 		return
 	var p := _players[_next]
 	_next = (_next + 1) % _players.size()
 	p.stream = s
 	p.volume_db = db
-	p.pitch_scale = randf_range(0.96, 1.04)
+	p.pitch_scale = pitch
 	p.play()

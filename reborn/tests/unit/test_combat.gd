@@ -158,39 +158,42 @@ func test_the_assist_turns_him_to_a_target_beside_him() -> String:
 	return err
 
 
-## The hit shape against the visible swing (GPT's M3 review: validate each strike's hit shape against its animation).
-## For each basic strike the move is posed through its active window (as the game plays it: started at anim_from,
-## at anim_speed) and the katana tip's bearing and reach from his centre are compared with the arc and reach the hit
-## test uses. The table is printed for the report; the strike fails when the arc strays far from the blade.
-func test_each_strike_arc_follows_its_blade() -> String:
+## The hit shape against the visible swing (GPT's M3 review: validate each attack's hit shape against its animation).
+## Each attack's move is posed as the game plays it (started at anim_from, at anim_speed) at 13 moments through its
+## active window, and the blade Godot draws — near the guard and at the tip — is compared with the baked path the hit
+## test sweeps (samurai_blades.json). They must agree within 6 cm. The table is printed for the report.
+func test_each_attacks_hit_path_is_its_visible_blade() -> String:
 	var tree := Engine.get_main_loop() as SceneTree
 	var v := CharacterVisual.create()
 	tree.root.add_child(v)
 	var hand := v.skeleton.find_bone("hand_r")
 	var err := ""
-	for a in AttackData.samurai_basics():
+	var all := AttackData.load_set()
+	for id in ["basic1", "basic2", "basic3", "heavy"]:
+		var a: AttackData = all[id]
+		if a.blade_tip.size() != 13:
+			err = "%s has no baked blade" % id
+			break
 		v.anim.play(v._alias[a.anim], 0.0)
 		var worst := 0.0
-		var far := 0.0
 		var rows: Array[String] = []
-		for i in 11:
-			var f := i / 10.0
+		for i in 13:
+			var f := i / 12.0
 			v.anim.seek(a.anim_from + (a.startup + f * a.active) * a.anim_speed, true)
 			v.skeleton.force_update_all_bone_transforms()
 			var pose := v.skeleton.global_transform * v.skeleton.get_bone_global_pose(hand)
-			var tip := pose * (CharacterVisual.GRIP * Vector3(0, 0.79, 0))
-			var b := SwordSweep.bearing(v.global_position, 0.0, tip)
-			var want := lerpf(a.arc_from, a.arc_to, f)
-			var off := absf(wrapf(b.x - want, -180.0, 180.0))
-			if f >= 0.15 and f <= 0.85:
-				worst = maxf(worst, off)
-			far = maxf(far, b.y)
-			rows.append("f%.1f blade %+.0f° arc %+.0f° Δ%.0f° %.2fm h%.2f" % [f, b.x, want, off, b.y, tip.y])
-		print("[ARC] %s (arc %+.0f°→%+.0f°, reach %.2f m): %s" % [a.id, a.arc_from, a.arc_to, a.reach, " | ".join(rows)])
-		if err.is_empty() and worst > 40.0:
-			err = "%s: the arc strays %.0f° from the blade's tip mid-swing" % [a.id, worst]
-		elif err.is_empty() and (far > a.reach + 0.3 or far < a.reach - 0.6):
-			err = "%s: the blade reaches %.2f m, the hit test %.2f m" % [a.id, far, a.reach]
+			var tip := pose * (CharacterVisual.GRIP * Vector3(0, 0.792, 0))
+			var base := pose * (CharacterVisual.GRIP * Vector3(0, 0.12, 0))
+			var off := maxf(tip.distance_to(a.blade_tip[i]), base.distance_to(a.blade_base[i]))
+			worst = maxf(worst, off)
+			if i % 3 == 0:
+				var b := SwordSweep.bearing(Vector3.ZERO, 0.0, tip)
+				rows.append("f%.2f tip %+.0f° %.2fm h%.2f (baked %+.0f°, Δ%.0fcm)" % [f, b.x, b.y, tip.y,
+					SwordSweep.bearing(Vector3.ZERO, 0.0, a.blade_tip[i]).x, off * 100.0])
+		print("[BLADE] %s %s: worst Δ %.1f cm | %s" % [id, a.anim, worst * 100.0, " | ".join(rows)])
+		if worst > 0.06:
+			err = "%s: the baked blade is %.1f cm from the blade Godot draws" % [id, worst * 100.0]
+			break
 	v.free()
 	return err
 
@@ -212,29 +215,57 @@ func test_the_assist_ignores_a_target_outside_its_cone() -> String:
 	return err
 
 
-## Human tapping rhythms (GPT's M3 review: varied intervals, and rapid tapping — not only the CI's 60 ms taps). Three
-## taps 0.15 s, 0.25 s, 0.35 s, 0.45 s or 0.6 s apart all make the chain; tapping as fast as a thumb can (every
-## 60 ms) makes it too; three taps 0.8 s apart are three first strikes (the 0.35 s grace after a strike has passed).
+## Human tapping rhythms (GPT's M3 review: varied intervals, and rapid tapping — not only the CI's 60 ms taps). A
+## thumb tapping steadily every 0.15 s, 0.25 s, 0.35 s, 0.45 s or 0.6 s makes the chain (a tap that lands while the
+## next strike is already held is simply not needed); tapping as fast as a thumb can (every 60 ms) makes it too;
+## taps 0.8 s apart are first strikes each time (the 0.35 s grace after a strike has passed).
 func test_human_tapping_rhythms_make_the_chain() -> String:
 	var chain := [[1, 1, 10], [2, 1, 12], [3, 1, 18]]
-	var cases := {0.15: chain, 0.25: chain, 0.35: chain, 0.45: chain, 0.6: chain,
-		0.8: [[1, 1, 10], [1, 1, 10], [1, 1, 10]]}
-	for gap in cases:
+	for gap in [0.06, 0.15, 0.25, 0.35, 0.45, 0.6, 0.8]:
 		var w := _world(1.6, PI)
 		var c: CombatController = w[2]
-		_run(c, 3.0 * float(gap) + 1.2, [0.0, float(gap), 2.0 * float(gap)])
+		# tap every `gap` until the third strike has begun, then let it finish
+		var t := 0.0
+		var next := 0.0
+		var buffered := -1.0
+		while t < 6.0 and (c.stats["strikes"] < 3 or c.melee.is_attacking()):
+			t += DT
+			if t >= next and c.stats["strikes"] < 3:
+				next += gap
+				buffered = 0.12
+			if buffered > 0.0:
+				if c.try_attack():
+					buffered = -1.0
+				elif not c.is_frozen():
+					buffered -= DT
+			c.tick(DT, Vector3.ZERO)
 		var got := _steps(c).slice(0, 3)
 		_clear()
-		if got != cases[gap]:
-			return "taps %.2f s apart: %s (want %s)" % [gap, got, cases[gap]]
-	var w2 := _world(1.6, PI)
-	var c2: CombatController = w2[2]
-	var rapid := []
-	for i in 16:
-		rapid.append(i * 0.06)
-	_run(c2, 1.6, rapid)
-	var first := _steps(c2).slice(0, 3)
-	_clear()
-	if first != chain:
-		return "rapid taps (every 60 ms): %s" % [first]
+		var want: Array = chain if gap < 0.7 else [[1, 1, 10], [1, 1, 10], [1, 1, 10]]
+		if got != want:
+			return "taps every %.2f s: %s (want %s)" % [gap, got, want]
 	return ""
+
+
+## M4 stage A: Heavy (GPT: 330/110/350 ms, 30) through the same resolver — one hit for 30 and a push, on its own
+## button; the chain is not touched by it, and an Attack press during it brings the first strike after it.
+func test_heavy_lands_once_for_30_and_pushes() -> String:
+	var w := _world(1.6, PI)
+	var d: TrainingDummy = w[1]
+	var c: CombatController = w[2]
+	var err := ""
+	if not c.try_press("heavy"):
+		err = "the heavy press was refused"
+	else:
+		var t := 0.0
+		while t < 1.2:
+			t += DT
+			c.tick(DT, Vector3.ZERO)
+		if _steps(c) != [[0, 1, 30]]:
+			err = "heavy: %s (want one hit for 30, off the chain)" % [_steps(c)]
+		elif d.hp != TrainingDummy.MAX_HP - 30:
+			err = "the dummy has %d HP after a heavy" % d.hp
+		elif not is_equal_approx(d._push_from.distance_to(d._push_to), 0.5):
+			err = "the heavy pushed %s m" % d._push_from.distance_to(d._push_to)
+	_clear()
+	return err

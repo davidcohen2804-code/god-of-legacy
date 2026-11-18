@@ -218,7 +218,7 @@ func _build_hud() -> void:
 	hud.set_player_hp(200, 200) # (GPT's M3 numbers; nothing hits the Samurai before M5)
 	hud.set_target("Training dummy", dummy.hp, TrainingDummy.MAX_HP)
 	dummy.hp_changed.connect(hud.on_target_hp)
-	hud.set_note("M3 · stick: move (rim 0.25 s: sprint) · drag: camera · ATTACK ×3 · DODGE · JUMP — keys WASD J K Space")
+	hud.set_note("M4 · stick: move (rim 0.25 s: sprint) · drag: camera · ATTACK ×3 · HEAVY · DODGE · JUMP — keys WASD J H K Space")
 
 	var back := Button.new()
 	back.text = "MENU"

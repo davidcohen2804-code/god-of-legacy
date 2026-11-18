@@ -35,8 +35,9 @@ var _home := Vector3.ZERO
 var _back_wait := 0.0 ## after a push: time left before sliding back onto the mark
 var _back_from := Vector3.ZERO
 var _back_t := -1.0
-## The last push's distance (m), for the tests and the report.
+## The last push's distance (m) and the pushes so far, for the tests and the report.
 var last_push := 0.0
+var pushes := 0
 var _clock := 0.0 ## game time seen by this dummy
 var _num_at := -10.0 ## when the last damage number appeared
 var _num_i := 0
@@ -147,6 +148,7 @@ func _physics_process(delta: float) -> void:
 		if k >= 1.0:
 			_push_t = -1.0
 			last_push = _push_from.distance_to(position)
+			pushes += 1
 			QA.flag("dummy_pushed", snappedf(last_push, 0.01))
 			_back_wait = 0.6
 	elif _back_t >= 0.0:
@@ -196,7 +198,7 @@ func _stand_up() -> void:
 ## For the QA bridge.
 func state() -> Dictionary:
 	return {"hp": hp, "alive": is_alive(), "pos": [snappedf(position.x, 0.01), snappedf(position.z, 0.01)],
-		"off_mark": snappedf(position.distance_to(_home), 0.01), "last_push": snappedf(last_push, 0.01),
+		"off_mark": snappedf(position.distance_to(_home), 0.01), "last_push": snappedf(last_push, 0.01), "pushes": pushes,
 		"tilt": snappedf(rad_to_deg(_lean.length()), 0.1)}
 
 

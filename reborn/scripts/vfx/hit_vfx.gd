@@ -40,7 +40,7 @@ func bind(c: CombatController) -> void:
 	c.strike_hit.connect(_on_hit)
 
 
-func _on_hit(_step: int, target: Node3D, attack: AttackData, dir: Vector3) -> void:
+func _on_hit(attack: AttackData, _step: int, target: Node3D, dir: Vector3) -> void:
 	if target == null or not is_instance_valid(target):
 		return
 	var r: Variant = target.get("hurt_radius")

@@ -187,3 +187,83 @@ func test_a_hit_interrupts_the_chain() -> String:
 		return "hit-stun never ended (still %s, %.3f s left)" % [MeleeState.Phase.keys()[s.phase], s.hitstun]
 	s.attack_pressed()
 	return "" if s.step_index == 0 else "after being hit the chain went on to strike %d" % (s.step_index + 1)
+
+
+## M4 stage A: the actions other than the chain (Heavy, later the skills) run through the same state machine.
+func _action(id: String, cooldown: float = 0.0, events: Array = []) -> AttackData:
+	var a := AttackData.make(id, 0.2, 0.1, 0.2, 20, 0.05, 0.1, 0.0, "", 0.0, 1.0, Vector2(-40, 40), 1.5, 0.0)
+	a.cooldown = cooldown
+	a.events = events
+	return a
+
+
+func test_heavy_is_gpts() -> String:
+	var h := AttackData.get_attack("heavy")
+	if h == null:
+		return "no heavy attack in the data"
+	if not (is_equal_approx(h.startup, 0.33) and is_equal_approx(h.active, 0.11) and is_equal_approx(h.recovery, 0.35)
+			and h.damage == 30 and h.button == "heavy"):
+		return "heavy is %s/%s/%s %s on %s" % [h.startup, h.active, h.recovery, h.damage, h.button]
+	if AttackData.for_button("heavy") != h:
+		return "the heavy button does not start the heavy attack"
+	return ""
+
+
+func test_another_action_breaks_the_chain() -> String:
+	var s := MeleeState.new()
+	s.attack_pressed()
+	_until_swept(s)
+	s.hit_confirmed(T1)
+	_until_phase(s, MeleeState.Phase.FREE)
+	if s.next_step != 1:
+		return "no chain open after a confirmed first strike"
+	if not s.action_pressed(_action("heavy_test")):
+		return "a free fighter could not start another action"
+	if s.step_index != -1 or s.next_step != 0 or s.chain_open > 0.0:
+		return "the chain survived another action (step %d, next %d)" % [s.step_index, s.next_step]
+	_until_phase(s, MeleeState.Phase.FREE)
+	s.attack_pressed()
+	return "" if s.step_index == 0 else "after another action the chain went on to strike %d" % (s.step_index + 1)
+
+
+func test_actions_wait_for_free_and_for_their_cooldown() -> String:
+	var s := MeleeState.new()
+	var a := _action("cd_test", 1.0)
+	s.attack_pressed()
+	if s.action_pressed(a):
+		return "another action started in the middle of a strike"
+	_until_phase(s, MeleeState.Phase.FREE)
+	if not s.action_pressed(a):
+		return "the action did not start from free"
+	_until_phase(s, MeleeState.Phase.FREE)
+	if s.action_pressed(a):
+		return "the action started again while cooling down (%.2f s left)" % s.cooldown_left("cd_test")
+	_ticks(s, 1.0)
+	if s.cooldown_left("cd_test") > 0.0 or not s.action_pressed(a):
+		return "the action was not ready after its cooldown"
+	return ""
+
+
+func test_an_attack_press_during_an_action_follows_it() -> String:
+	var s := MeleeState.new()
+	s.action_pressed(_action("heavy_test"))
+	_until_phase(s, MeleeState.Phase.RECOVERY)
+	if not s.attack_pressed():
+		return "an Attack press during the action's recovery was refused"
+	_until_phase(s, MeleeState.Phase.STARTUP, 1.0)
+	return "" if s.step_index == 0 else "the held Attack press did not start the first strike (step %d)" % s.step_index
+
+
+func test_action_events_fire_once_in_order() -> String:
+	var s := MeleeState.new()
+	s.action_pressed(_action("ev_test", 0.0, [{"at": 0.05, "name": "release"}, {"at": 0.25, "name": "mark"}]))
+	var fired: Array[String] = []
+	for i in 60:
+		s.step(DT)
+		if s.swept.x >= 0.0:
+			s.hit_confirmed(T1) # (a hit-stop in the middle must not repeat or skip anything)
+		for e in s.events:
+			if e["type"] == "event":
+				fired.append(String(e["name"]))
+		s.events.clear()
+	return "" if fired == ["release", "mark"] else "the action's events fired as %s" % [fired]

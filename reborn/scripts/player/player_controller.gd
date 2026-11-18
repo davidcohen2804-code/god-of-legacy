@@ -4,8 +4,8 @@ extends Node
 ## stick moves it along the camera's ground plane; jump, dodge and attack presses are taken from the buffer — and turns
 ## the camera with the drag. Every physics tick, before the body moves: the presses go to whoever may take them (the
 ## combat controller decides about attacks and when a dodge may cancel a strike), then the combat ticks, then the body
-## (Fighter, later in the same tick) follows the stick or the strike. Heavy, the skills and the conditional buttons are
-## not in M3: their presses are dropped.
+## (Fighter, later in the same tick) follows the stick or the strike. Attack and Heavy go to the combat controller;
+## the skills and the conditional buttons are not built yet: their presses are dropped.
 
 var fighter: Fighter
 var input: PlayerInput
@@ -37,9 +37,10 @@ func _physics_process(delta: float) -> void:
 			combat.on_dodge()
 			if fighter.dodge(dir):
 				input.consume("dodge")
-	if input.peek("attack") and combat != null and combat.try_attack():
-		input.consume("attack")
-	for a in ["heavy", "skill1", "skill2", "skill3", "cond1", "cond2"]:
+	for b in ["attack", "heavy"]:
+		if input.peek(b) and combat != null and combat.try_press(b):
+			input.consume(b)
+	for a in ["skill1", "skill2", "skill3", "cond1", "cond2"]:
 		input.consume(a)
 	if combat:
 		combat.tick(delta, dir)

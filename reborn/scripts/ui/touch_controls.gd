@@ -9,8 +9,8 @@ extends Control
 ## (spacing and hit sizes together) as far as the right cluster still fits under the top bar; a hit circle grown past
 ## its drawn button never reaches a neighbour's. The drawn buttons grow less than their hit areas, to keep the screen
 ## clean.
-## It only produces intents (PlayerInput); it knows nothing of the rules. M3: Basic Attack takes presses (the katana
-## chain) besides Dodge and Jump; Heavy and the skills are drawn dimmed and take none until theirs is built.
+## It only produces intents (PlayerInput); it knows nothing of the rules. Basic Attack (the katana chain), Heavy,
+## Dodge and Jump take presses; the skills are drawn dimmed and take none until theirs is built (M4).
 
 const REF := Vector2(1280, 720)
 ## name → [centre in the reference, diameter, cluster ("L" bottom-left, "R" bottom-right)]
@@ -39,7 +39,7 @@ const DEAD := 0.12
 
 var input: PlayerInput
 ## Buttons that take presses; the rest are drawn dimmed.
-var enabled_actions := {"attack": true, "dodge": true, "jump": true}
+var enabled_actions := {"attack": true, "heavy": true, "dodge": true, "jump": true}
 ## Areas left to the interface's own buttons (pause...): touches there are not taken.
 var reserved: Array[Rect2] = []
 

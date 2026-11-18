@@ -1,7 +1,10 @@
 extends RefCounted
-## The katana's sweep test (SwordSweep): bearings around the attacker, reach, the band of heights, the slice of the
-## arc swept in one tick — a blade that crosses a target between two ticks still hits it (no tunnelling) — and the
-## whole chain, sweep included, giving the same hits at 30, 60 and 144 ticks a second.
+## The katana's sweep test (SwordSweep): bearings around the attacker; a blade swept through a slice of its window
+## hits what it passes and nothing it does not — reach, the arc's ends, a target standing higher or lower; a blade that
+## crosses a target between two ticks still hits it (no tunnelling); a target crossing the cut is hit once; and the
+## whole chain, with the Samurai's real baked blades, gives the same hits at 30, 60 and 144 ticks a second.
+## (Most cases use a made-up level blade from 0.35 m to its reach at 1 m height, so the geometry is exact: a target of
+## radius 0.38 is touched when its axis comes within 0.41 m of the blade.)
 
 
 func _strike(arc_from: float, arc_to: float, reach: float = 1.5) -> AttackData:
@@ -53,8 +56,8 @@ func test_reach_and_height() -> String:
 		return "a target beyond reach + its radius (1.9 m) was hit"
 	if SwordSweep.hits(a, Vector3.ZERO, 0.0, Vector2(0, 1), Vector3(0, 2.5, 1.2), 0.38, 1.9):
 		return "a target standing 2.5 m higher was hit"
-	if not SwordSweep.hits(a, Vector3.ZERO, 0.0, Vector2(0, 1), Vector3(0, -1.0, 1.2), 0.38, 1.9):
-		return "a target 1 m lower (reaching up into the cut) was missed"
+	if not SwordSweep.hits(a, Vector3.ZERO, 0.0, Vector2(0, 1), Vector3(0, -0.8, 1.2), 0.38, 1.9):
+		return "a target 0.8 m lower (its top reaching up into the cut) was missed"
 	return ""
 
 
@@ -112,47 +115,38 @@ func test_the_same_hits_at_any_tick_rate() -> String:
 	return ""
 
 
-## The edges of each basic strike's shape (GPT's M3 review: edge-of-range, side angles, vertical separation): just
-## inside every edge hits, just outside misses.
-func test_the_edges_of_each_basic_strike() -> String:
-	var r := 0.38
-	for a in AttackData.samurai_basics():
-		var mid := (a.arc_from + a.arc_to) * 0.5
-		var at := func(yaw: float, dist: float, y: float = 0.0) -> Vector3:
-			return Vector3(dist * sin(deg_to_rad(yaw)), y, dist * cos(deg_to_rad(yaw)))
-		var hit := func(p: Vector3) -> bool: return SwordSweep.hits(a, Vector3.ZERO, 0.0, Vector2(0, 1), p, r, 1.9)
-		# range
-		if not hit.call(at.call(mid, a.reach + r - 0.02)):
-			return "%s: a target just inside its reach was missed" % a.id
-		if hit.call(at.call(mid, a.reach + r + 0.02)):
-			return "%s: a target just beyond its reach was hit" % a.id
-		# the arc's two ends, 1.2 m away (the target's own half-width counts)
-		var half := rad_to_deg(asin(r / 1.2))
-		for end in [maxf(a.arc_from, a.arc_to), minf(a.arc_from, a.arc_to)]:
-			var out := 1.0 if end == maxf(a.arc_from, a.arc_to) else -1.0
-			if not hit.call(at.call(end + out * (half - 1.0), 1.2)):
-				return "%s: a target just inside the arc's end at %.0f° was missed" % [a.id, end]
-			if hit.call(at.call(end + out * (half + 1.0), 1.2)):
-				return "%s: a target just past the arc's end at %.0f° was hit" % [a.id, end]
-		# heights: a target standing on a step (its base just under the cut's top) / just above it
-		if not hit.call(at.call(mid, 1.2, a.height.y - 0.05)):
-			return "%s: a target whose base is just under the cut's top was missed" % a.id
-		if hit.call(at.call(mid, 1.2, a.height.y + 0.05)):
-			return "%s: a target standing above the cut was hit" % a.id
-		# a target below (its top just above / just under the cut's bottom)
-		if not hit.call(at.call(mid, 1.2, a.height.x - 1.9 + 0.05)):
-			return "%s: a target reaching just into the cut from below was missed" % a.id
-		if hit.call(at.call(mid, 1.2, a.height.x - 1.9 - 0.05)):
-			return "%s: a target entirely below the cut was hit" % a.id
+## The blade's edges (GPT's M3 review: edge-of-range, side angles, vertical separation) — just inside each edge
+## hits, just outside misses. A level blade at 1 m height, 0.35–1.5 m from him, turning from 60° right to 60° left;
+## the target's radius 0.38 plus the blade's 0.03: contact within 0.41 m.
+func test_the_blade_edges() -> String:
+	var a := _strike(-60, 60, 1.5)
+	var hit := func(p: Vector3) -> bool: return SwordSweep.hits(a, Vector3.ZERO, 0.0, Vector2(0, 1), p, 0.38, 1.9)
+	var at := func(yaw: float, dist: float, y: float = 0.0) -> Vector3:
+		return Vector3(dist * sin(deg_to_rad(yaw)), y, dist * cos(deg_to_rad(yaw)))
+	# reach: the tip passes 0.41 m short of a target at 1.91 m
+	if not hit.call(at.call(0.0, 1.89)) or hit.call(at.call(0.0, 1.93)):
+		return "the reach edge is not at 1.91 m"
+	# the arc's ends: at 1 m a target is touched up to asin(0.41) = 24.2° past the end
+	for end in [60.0, -60.0]:
+		var out := signf(end)
+		if not hit.call(at.call(end + out * 23.2, 1.0)) or hit.call(at.call(end + out * 25.2, 1.0)):
+			return "the side edge past %.0f° is not at 24°" % end
+	# above: a target whose capsule axis starts 0.41 m over the blade (base 1.03 m) is the edge
+	if not hit.call(at.call(0.0, 1.0, 1.0)) or hit.call(at.call(0.0, 1.0, 1.06)):
+		return "the upper edge is not at a base of 1.03 m"
+	# below: a target whose axis ends 0.41 m under the blade (base -0.93 m) is the edge
+	if not hit.call(at.call(0.0, 1.0, -0.9)) or hit.call(at.call(0.0, 1.0, -0.96)):
+		return "the lower edge is not at a base of -0.93 m"
 	return ""
 
 
-## A target crossing in front of him while the strike runs (moving targets, GPT's M3 review): one hit, once — whether
-## it runs against the blade's travel or with it (then only if the blade catches it).
+## A target crossing in front of him while the strike runs (moving targets, GPT's M3 review): one hit, once — running
+## against the blade's travel and with it.
 func test_a_moving_target_is_hit_once() -> String:
 	for speed in [-4.0, 4.0]:
-		var s := MeleeState.new()
-		s.attack_pressed() # Basic 1: from 72° right to 15° left of him
+		var one: Array[AttackData] = [_strike(-72, 15, 1.45)]
+		var s := MeleeState.new(one)
+		s.attack_pressed()
 		var pos := Vector3(1.0 if speed < 0.0 else -1.0, 0, 1.2)
 		var hits := 0
 		var dt := 1.0 / 60.0
@@ -165,4 +159,18 @@ func test_a_moving_target_is_hit_once() -> String:
 			s.events.clear()
 		if hits != 1:
 			return "a target crossing at %+.0f m/s was hit %d times" % [speed, hits]
+	return ""
+
+
+## The segment distance itself, on cases worked by hand.
+func test_segment_distance() -> String:
+	var d := SwordSweep.segment_distance(Vector3(0, 1, 0), Vector3(2, 1, 0), Vector3(1, 0, 1), Vector3(1, 2, 1))
+	if not is_equal_approx(d, 1.0):
+		return "crossing segments 1 m apart measured %s" % d
+	d = SwordSweep.segment_distance(Vector3(0, 0, 0), Vector3(1, 0, 0), Vector3(3, 0, 0), Vector3(4, 0, 0))
+	if not is_equal_approx(d, 2.0):
+		return "collinear segments 2 m apart measured %s" % d
+	d = SwordSweep.segment_distance(Vector3(0, 0, 0), Vector3(0, 0, 0), Vector3(-1, 3, 0), Vector3(1, 3, 0))
+	if not is_equal_approx(d, 3.0):
+		return "a point 3 m from a segment measured %s" % d
 	return ""

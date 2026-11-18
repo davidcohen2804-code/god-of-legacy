@@ -1,0 +1,32 @@
+{
+  "_doc": "The Samurai's attacks (GPT's REBORN direction v1.1 and M3/M4 reviews). Times in seconds, distances in metres. anim / anim_from / anim_speed: the move, where to start it and how fast to play it so its swing fills the active window. reaction: how long the target reels; knockback: how far it is pushed; lunge: his step into the cut. The blade's path through each active window is baked into samurai_blades.json by tools/bake_blades.mjs (re-run it after changing any timing or move here).",
+  "attacks": {
+    "basic1": {
+      "name": "Basic 1", "button": "attack",
+      "startup": 0.12, "active": 0.075, "recovery": 0.17, "damage": 10, "cooldown": 0.0,
+      "hit_stop": 0.035, "reaction": 0.08, "knockback": 0.0, "lunge": 0.25,
+      "anim": "Sword_Regular_A", "anim_from": 0.10, "anim_speed": 1.0
+    },
+    "basic2": {
+      "name": "Basic 2", "button": "attack",
+      "startup": 0.11, "active": 0.085, "recovery": 0.17, "damage": 12, "cooldown": 0.0,
+      "hit_stop": 0.045, "reaction": 0.11, "knockback": 0.0, "lunge": 0.2,
+      "anim": "Sword_Regular_B", "anim_from": 0.117, "anim_speed": 0.94
+    },
+    "basic3": {
+      "name": "Basic 3", "button": "attack",
+      "startup": 0.16, "active": 0.10, "recovery": 0.22, "damage": 18, "cooldown": 0.0,
+      "hit_stop": 0.065, "reaction": 0.20, "knockback": 0.5, "lunge": 0.35,
+      "anim": "Sword_Regular_C", "anim_from": 0.492, "anim_speed": 0.8
+    },
+    "heavy": {
+      "name": "Heavy", "button": "heavy",
+      "startup": 0.33, "active": 0.11, "recovery": 0.35, "damage": 30, "cooldown": 0.0,
+      "hit_stop": 0.065, "reaction": 0.20, "knockback": 0.5, "lunge": 0.3,
+      "anim": "Sword_Attack", "anim_from": 0.11, "anim_speed": 0.818
+    }
+  },
+  "chains": {
+    "attack": ["basic1", "basic2", "basic3"]
+  }
+}
