@@ -1,12 +1,12 @@
 {
-  "when": "2026-11-18T19:06:03.199Z",
+  "when": "2026-11-18T19:09:45.928Z",
   "results": [
     {
       "profile": "android-chromium",
       "required": true,
       "ok": true,
       "steps": [
-        "main menu loaded in 1142 ms",
+        "main menu loaded in 1049 ms",
         "settings open and close",
         "character select reached by tapping Play",
         "locked Warrior refused (selection stays Samurai, toast: Warrior is locked — coming later)",
@@ -27,7 +27,7 @@
         "[log] [blit] #6 (0,0,2265,945,0,0,2265,945,16384,9728) read=fbo draw=default",
         "[log] [shot] before 1_menu, page blits so far 17",
         "[log] [shot] after 1_menu",
-        "[log] [shot] before 2_settings, page blits so far 55",
+        "[log] [shot] before 2_settings, page blits so far 44",
         "[log] [shot] after 2_settings",
         "[log] [QA] scene=character_select",
         "[log] [shot] before 3_select, page blits so far 93",
@@ -35,24 +35,24 @@
         "[log] [shot] before 4_locked, page blits so far 117",
         "[log] [shot] after 4_locked",
         "[log] [QA] scene=arena",
-        "[log] [shot] before 5_arena, page blits so far 168",
+        "[log] [shot] before 5_arena, page blits so far 161",
         "[log] [shot] after 5_arena",
         "[log] [QA] scene=main_menu"
       ],
-      "loadMs": 1142,
+      "loadMs": 1049,
       "fps": 2,
-      "blits": 194
+      "blits": 190
     },
     {
       "profile": "iphone-webkit",
       "required": false,
       "ok": true,
       "steps": [
-        "main menu loaded in 2918 ms",
+        "main menu loaded in 2851 ms",
         "settings open and close",
         "character select reached by tapping Play",
         "locked Warrior refused (selection stays Samurai, toast: Warrior is locked — coming later)",
-        "arena entered with the Samurai, 9 fps (software rendering)",
+        "arena entered with the Samurai, 6 fps (software rendering)",
         "back to the main menu"
       ],
       "errors": [
@@ -85,9 +85,9 @@
         "[log] [shot] before 1_menu, page blits so far 3",
         "[log] [blit] #4 (0,0,2250,1020,0,0,2250,1020,16384,9728) read=fbo draw=default",
         "[error] WebGL: INVALID_OPERATION: glBlitFramebuffer: Read and write color attachments cannot be the same image.",
-        "[log] [shot] after 1_menu",
         "[log] [blit] #5 (0,0,2250,1020,0,0,2250,1020,16384,9728) read=fbo draw=default",
         "[error] WebGL: INVALID_OPERATION: glBlitFramebuffer: Read and write color attachments cannot be the same image.",
+        "[log] [shot] after 1_menu",
         "[log] [blit] #6 (0,0,2250,1020,0,0,2250,1020,16384,9728) read=fbo draw=default",
         "[error] WebGL: INVALID_OPERATION: glBlitFramebuffer: Read and write color attachments cannot be the same image.",
         "[error] WebGL: INVALID_OPERATION: glBlitFramebuffer: Read and write color attachments cannot be the same image.",
@@ -99,35 +99,35 @@
         "[error] WebGL: INVALID_OPERATION: glBlitFramebuffer: Read and write color attachments cannot be the same image.",
         "[error] WebGL: INVALID_OPERATION: glBlitFramebuffer: Read and write color attachments cannot be the same image.",
         "[error] WebGL: INVALID_OPERATION: glBlitFramebuffer: Read and write color attachments cannot be the same image.",
-        "[log] [shot] before 2_settings, page blits so far 15",
         "[error] WebGL: INVALID_OPERATION: glBlitFramebuffer: Read and write color attachments cannot be the same image.",
-        "[log] [shot] after 2_settings",
         "[error] WebGL: INVALID_OPERATION: glBlitFramebuffer: Read and write color attachments cannot be the same image.",
+        "[log] [shot] before 2_settings, page blits so far 17",
         "[error] WebGL: INVALID_OPERATION: glBlitFramebuffer: Read and write color attachments cannot be the same image. (No more validation messages will be reported)",
+        "[log] [shot] after 2_settings",
         "[log] [QA] scene=character_select",
-        "[log] [shot] before 3_select, page blits so far 38",
+        "[log] [shot] before 3_select, page blits so far 39",
         "[log] [shot] after 3_select",
         "[log] [shot] before 4_locked, page blits so far 49",
         "[log] [shot] after 4_locked",
         "[log] [QA] scene=arena",
-        "[log] [shot] before 5_arena, page blits so far 94",
+        "[log] [shot] before 5_arena, page blits so far 84",
         "[log] [shot] after 5_arena",
         "[log] [QA] scene=main_menu"
       ],
-      "loadMs": 2918,
-      "fps": 9,
-      "blits": 102
+      "loadMs": 2851,
+      "fps": 6,
+      "blits": 92
     },
     {
       "profile": "chromium-16x9",
       "required": true,
       "ok": true,
       "steps": [
-        "main menu loaded in 1055 ms",
+        "main menu loaded in 1100 ms",
         "settings open and close",
         "character select reached by tapping Play",
         "locked Warrior refused (selection stays Samurai, toast: Warrior is locked — coming later)",
-        "arena entered with the Samurai, 4 fps (software rendering)",
+        "arena entered with the Samurai, 3 fps (software rendering)",
         "back to the main menu"
       ],
       "errors": [],
@@ -142,23 +142,23 @@
         "[log] [blit] #4 (0,0,1280,720,0,0,1280,720,16384,9728) read=fbo draw=default",
         "[log] [blit] #5 (0,0,1280,720,0,0,1280,720,16384,9728) read=fbo draw=default",
         "[log] [blit] #6 (0,0,1280,720,0,0,1280,720,16384,9728) read=fbo draw=default",
-        "[log] [shot] before 1_menu, page blits so far 24",
+        "[log] [shot] before 1_menu, page blits so far 22",
         "[log] [shot] after 1_menu",
-        "[log] [shot] before 2_settings, page blits so far 60",
+        "[log] [shot] before 2_settings, page blits so far 57",
         "[log] [shot] after 2_settings",
         "[log] [QA] scene=character_select",
-        "[log] [shot] before 3_select, page blits so far 112",
+        "[log] [shot] before 3_select, page blits so far 103",
         "[log] [shot] after 3_select",
-        "[log] [shot] before 4_locked, page blits so far 144",
+        "[log] [shot] before 4_locked, page blits so far 132",
         "[log] [shot] after 4_locked",
         "[log] [QA] scene=arena",
-        "[log] [shot] before 5_arena, page blits so far 203",
+        "[log] [shot] before 5_arena, page blits so far 190",
         "[log] [shot] after 5_arena",
         "[log] [QA] scene=main_menu"
       ],
-      "loadMs": 1055,
-      "fps": 4,
-      "blits": 222
+      "loadMs": 1100,
+      "fps": 3,
+      "blits": 221
     }
   ]
 }
