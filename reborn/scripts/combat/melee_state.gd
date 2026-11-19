@@ -183,6 +183,17 @@ func hit_confirmed(target_id: int) -> bool:
 	return true
 
 
+## Has this activation already been resolved against `target_id` (a hit, or a blow evaded or avoided)?
+func touched(target_id: int) -> bool:
+	return _hit_ids.has(target_id)
+
+
+## This activation was resolved against `target_id` without landing (evaded, avoided): it is spent on that target — it
+## cannot strike it later in the same swing, and its outcome is reported once.
+func spent_on(target_id: int) -> void:
+	_hit_ids[target_id] = true
+
+
 ## One fixed tick. Afterwards `swept` holds the part of the active window covered by it.
 func step(dt: float) -> void:
 	swept = Vector2(-1, -1)

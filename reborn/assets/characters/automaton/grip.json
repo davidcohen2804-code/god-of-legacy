@@ -22,5 +22,6 @@
   ]
  },
  "holdY": -0.04,
- "note": "practice sword along +y from the fist"
+ "note": "practice sword along +y from the fist: its blade from 0.08 to 0.78 (y1: the tip, for tools/bake_blades.mjs)",
+ "y1": 0.78
 }

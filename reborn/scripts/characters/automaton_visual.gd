@@ -15,6 +15,9 @@ var bronze_material: StandardMaterial3D
 var stone_material: StandardMaterial3D
 var eye_material: StandardMaterial3D
 var sword_material: StandardMaterial3D
+## The attack's telegraph on the practice sword: an amber sheath along the blade, unshaded and additive.
+var _sword_glow: MeshInstance3D
+var _glow_material: StandardMaterial3D
 var _fit := {}
 var _skel_from_model := Transform3D.IDENTITY
 
@@ -174,6 +177,34 @@ func _practice_sword() -> void:
 	wrap.bottom_radius = 0.016
 	wrap.height = 0.22
 	_add(katana, wrap, stone_material, Transform3D(Basis(), Vector3(0, -0.04, 0)))
+	_glow_material = StandardMaterial3D.new()
+	_glow_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_glow_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_glow_material.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	_glow_material.albedo_color = Color(1.0, 0.6, 0.18, 0.0)
+	var sheath := CylinderMesh.new()
+	sheath.top_radius = 0.026
+	sheath.bottom_radius = 0.036
+	sheath.height = 0.72
+	sheath.radial_segments = 10
+	sheath.rings = 1
+	_sword_glow = MeshInstance3D.new()
+	_sword_glow.mesh = sheath
+	_sword_glow.material_override = _glow_material
+	_sword_glow.transform = Transform3D(Basis(), Vector3(0, 0.43, 0))
+	_sword_glow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_sword_glow.visible = false
+	katana.add_child(_sword_glow)
+
+
+## The attack's telegraph (0..1, GPT's v1.3: restrained amber): the practice sword kindles amber along its blade and
+## the eye slits burn brighter as the windup holds; through the cut (`cutting`) the sword's glow peaks.
+func set_telegraph(k: float, cutting: bool) -> void:
+	if _sword_glow:
+		_sword_glow.visible = k > 0.01
+		_glow_material.albedo_color = Color(1.0, 0.6, 0.18, (0.85 if cutting else 0.55) * k)
+	if eye_material:
+		eye_material.emission_energy_multiplier = 1.4 + 1.8 * k
 
 
 ## The hit flash (0..1): a short pale-violet lift over the wood, bronze and stone (the eyes keep their own glow).

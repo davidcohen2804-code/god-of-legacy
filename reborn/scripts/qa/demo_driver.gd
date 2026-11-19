@@ -1,56 +1,65 @@
 class_name DemoDriver
 extends Node
-## The review recording (M4 Stage B: Phantom Control): run with `-- --demo`, the game goes straight to the arena and
-## this node plays a fixed script of touches through the engine's own input — the same path a finger takes — so the
-## on-screen controls show the thumb on the stick and the taps on CHAIN, PULL, RISE and PURSUE: the Samurai takes his
-## place 6.6 m from the Training Automaton and runs the branch at real speed — Phantom Chain captures it, Chain Pull
-## drags it in, Rising Slash launches it, Aerial Pursuit leaps after it and strikes it in the air — then a chain thrown
-## at nothing (missed: no PULL) and a Rising Slash at nothing (no launch: no PURSUE), and the whole branch once more at
-## half speed. The conditional buttons are tapped a moment after they appear, as a player would (PURSUE while Rising
-## Slash still recovers: it waits for its cancel point). Captions in the HUD's prompt line name each part; the game's
-## own notices (a missed chain) show there too. Recorded with Godot's Movie Maker (--write-movie, fixed frame rate), so
-## the clip is smooth however slowly the machine renders; the script runs in game time. It quits when the script ends.
+## The review recording (M4 Stage C: defensive counterplay): run with `-- --demo`, the game goes straight to the arena
+## and this node plays a fixed script of touches through the engine's own input — the same path a finger takes — so the
+## on-screen controls show the thumb on the stick and the taps on STEP, COUNTER and DODGE. The Samurai walks up to the
+## Training Automaton (its sparring script off: the script starts each of its attacks, so every example begins the
+## same way) and, at real speed: its telegraphed sweep (the raised, kindling sword and the amber arc), Shadow Step
+## timed into the cut — the blade passes through his fading shadow — COUNTER appearing and pressed, the counter's dash
+## and cut landing; then three failed evasions: too late (struck in the step's startup), a plain roll (no shadow — no
+## COUNTER), too early (his shadow has faded before the blade comes); and the success once more at half speed. Presses
+## timed against the sweep are made when its attack has run a set time, a frame or two of input latency included, as a
+## practised thumb would. Captions in the HUD's prompt line name each part. Recorded with Godot's Movie Maker
+## (--write-movie, fixed frame rate), so the clip is smooth however slowly the machine renders; the script runs in game
+## time. It quits when the script ends.
 
 ## [time (s), action, args...]. "go": the thumb steers the stick toward a point of the courtyard (x, z) at a push
-## (0..1; 1 = the rim, which sprints after 0.25 s) until he is there; "point": a light push toward a direction of the
-## courtyard (x, z) for a moment, so he turns to face it; "stick": a fixed push (x right, y up); "tap": a button;
-## "tap_shown": a button tapped `delay` s after it appears (within 2 s); "drag": a second finger turns the camera;
-## "caption": a line in the HUD for some seconds; "slowmo": the game's speed. The Samurai starts 7 m south of the dummy
-## looking north; the automaton stands north-west of the dummy, at (-3.5, -2.5).
+## (0..1; 1 = the rim, which sprints after 0.25 s) until he is there; "approach": he walks at a push toward the
+## automaton until he stands `d` m from it; "point": a light push toward a direction of the courtyard (x, z) for a
+## moment, so he turns to face it; "stick": a fixed push (x right, y up); "stick_up": the thumb lifts; "tap": a button;
+## "tap_shown": a button tapped `delay` s after it appears (within 2 s); "tap_on_attack": a button tapped when the
+## automaton's attack has run `at` s; "stick_on_attack": the stick pushed so then; "attack": the automaton attacks (as
+## soon as it can, within 2 s); "spar": its
+## sparring script on or off; "drag": a second finger turns the camera; "caption": a line in the HUD for some seconds;
+## "slowmo": the game's speed. The Samurai starts 7 m south of the dummy looking north; the automaton stands north-west
+## of the dummy, at (-3.5, -2.5).
 const SCRIPT := [
-	[0.4, "caption", "Phantom Control: chain → pull → rising slash → aerial pursuit", 3.4],
-	[0.5, "go", Vector2(-10.4, 0.6), 0.85], # run west, past the dummy
-	[3.2, "go", Vector2(-9.4, -0.9), 0.3], # walk to his place
-	[4.2, "point", Vector2(1.0, -0.3), 0.25], # face the automaton, 6.6 m away
-	[4.8, "caption", "PHANTOM CHAIN — thrown, it captures the automaton", 1.6],
-	[4.9, "tap", "skill1"],
-	[5.3, "tap_shown", "cond1", 0.25], # PULL, a moment after it appears
-	[5.6, "caption", "CHAIN PULL — dragged in to him", 1.2],
-	[6.45, "caption", "RISING SLASH — launched", 1.2],
-	[6.5, "tap", "skill3"],
-	[6.6, "tap_shown", "cond1", 0.1], # PURSUE, pressed while Rising Slash still recovers: it waits for 50 %
-	[6.85, "caption", "AERIAL PURSUIT — he leaps after it and strikes it in the air", 2.2],
-	[8.6, "caption", "A missed chain: nothing is captured — no PULL", 2.6],
-	[8.7, "go", Vector2(-8.6, 3.6), 0.85],
-	[10.0, "point", Vector2(0.0, 1.0), 0.25], # face the open courtyard
-	[10.95, "tap", "skill1"], # (off cooldown at 10.9)
-	[11.8, "caption", "A Rising Slash that misses: nothing is launched — no PURSUE", 2.4],
-	[12.0, "tap", "skill3"],
-	[13.6, "go", Vector2(-9.6, -0.8), 0.85], # back to his place (the automaton has walked back to its mark)
-	[15.4, "point", Vector2(1.0, -0.3), 0.25],
-	[16.2, "caption", "The same branch at half speed", 2.0],
-	[16.3, "slowmo", 0.5],
-	[17.0, "tap", "skill1"],
-	[17.4, "tap_shown", "cond1", 0.25],
-	[18.6, "tap", "skill3"],
-	[18.7, "tap_shown", "cond1", 0.1],
-	[20.0, "slowmo", 1.0],
-	[21.6, "end"],
+	[0.2, "spar", false],
+	[0.4, "caption", "Shadow Counter: evade the automaton's telegraphed sweep, then answer it", 3.0],
+	[0.5, "go", Vector2(-3.5, 1.4), 0.85], # run up to it (the stick lets go 0.8 m short of the point)
+	[2.2, "approach", 1.75, 0.35], # walk in to 1.75 m from it, facing it
+	[3.7, "caption", "Its telegraph: the sword raised and kindling amber, an amber arc where the cut will pass", 2.0],
+	[3.7, "attack"],
+	[3.7, "tap_on_attack", "skill2", 0.43], # Shadow Step, timed into the cut (idle stick: backward)
+	[4.35, "caption", "SHADOW STEP — the blade passes through his fading shadow: COUNTER", 1.5],
+	[4.35, "tap_shown", "cond1", 0.15],
+	[4.95, "caption", "SHADOW COUNTER — he dashes back at it; the cut must connect (14)", 1.8],
+	[7.1, "caption", "Failed evasion 1 — too late: struck in the step's startup", 2.2],
+	[7.1, "attack"],
+	[7.1, "tap_on_attack", "skill2", 0.53],
+	[10.2, "caption", "Failed evasion 2 — a plain roll: no shadow, no COUNTER", 2.2],
+	[10.2, "attack"],
+	[10.2, "stick_on_attack", Vector2(1, 0), 0.44], # the thumb pushes right (east, along the cut's sweep)...
+	[10.2, "tap_on_attack", "dodge", 0.5], # ...and DODGE rolls that way as the blade comes
+	[11.3, "stick_up"],
+	[11.5, "approach", 1.75, 0.35],
+	[13.3, "caption", "Failed evasion 3 — too early: his shadow fades before the blade arrives", 2.2],
+	[13.3, "attack"],
+	[13.3, "tap_on_attack", "skill2", 0.25],
+	[14.6, "approach", 1.75, 0.35],
+	[16.7, "caption", "The evasion and the counter again, at half speed", 2.4],
+	[16.8, "slowmo", 0.5],
+	[17.0, "attack"],
+	[17.0, "tap_on_attack", "skill2", 0.43],
+	[17.6, "tap_shown", "cond1", 0.15],
+	[19.6, "slowmo", 1.0],
+	[21.2, "end"],
 ]
 
 var touch: TouchControls
 var player: Fighter
 var rig: CameraRig
+var automaton: TrainingAutomaton
 var caption: Callable
 var _t := 0.0
 var _i := 0
@@ -61,6 +70,9 @@ var _push := 0.0
 var _point_left := 0.0 ## the light push toward a direction: time left
 var _point_dir := Vector3.ZERO
 var _wait := {} ## a button to tap once it shows: key, delay, since (when it appeared), limit
+var _on_attack: Array[Dictionary] = [] ## taps (key) or stick pushes (stick) at a moment of the automaton's attack: at
+var _attack_left := 0.0 ## an "attack" still trying (s)
+var _approach := {} ## walking in to the automaton: d, push
 
 
 func _physics_process(delta: float) -> void:
@@ -85,6 +97,28 @@ func _physics_process(delta: float) -> void:
 		else:
 			var local := rig.ground_basis().inverse() * _point_dir
 			_stick(Vector2(local.x, -local.z).normalized() * 0.25, true)
+	if _attack_left > 0.0:
+		_attack_left -= delta
+		if automaton and automaton.attack():
+			_attack_left = 0.0
+	for i in range(_on_attack.size() - 1, -1, -1):
+		if automaton and automaton.attack_time() >= float(_on_attack[i]["at"]):
+			var e: Dictionary = _on_attack[i]
+			_on_attack.remove_at(i)
+			if e.has("stick"):
+				_goal = Vector3.INF
+				_stick(e["stick"], true)
+			else:
+				_tap(String(e["key"]))
+	if not _approach.is_empty() and automaton:
+		var to := automaton.global_position - player.global_position
+		to.y = 0.0
+		if to.length() <= float(_approach["d"]):
+			_approach = {}
+			_stick(Vector2.ZERO, false)
+		else:
+			var local := rig.ground_basis().inverse() * to.normalized()
+			_stick(Vector2(local.x, -local.z).normalized() * float(_approach["push"]), true)
 	if not _wait.is_empty():
 		_wait["limit"] = float(_wait["limit"]) - delta
 		if touch.is_shown(String(_wait["key"])):
@@ -120,6 +154,18 @@ func _run(step: Array) -> void:
 		"stick_up":
 			_goal = Vector3.INF
 			_stick(Vector2.ZERO, false)
+		"approach":
+			_goal = Vector3.INF
+			_approach = {"d": float(step[2]), "push": float(step[3])}
+		"attack":
+			_attack_left = 2.0
+		"tap_on_attack":
+			_on_attack.append({"key": String(step[2]), "at": float(step[3])})
+		"stick_on_attack":
+			_on_attack.append({"stick": step[2] as Vector2, "at": float(step[3])})
+		"spar":
+			if automaton:
+				automaton.spar = bool(step[2])
 		"tap":
 			_tap(String(step[2]))
 		"tap_shown":

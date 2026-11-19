@@ -68,14 +68,14 @@ jobs:
           FF=$("$RUNNER_TEMP/ff/bin/python" -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())")
           # (with its sound: Movie Maker records the game's own mix)
           "$FF" -y -loglevel error -i "$RUNNER_TEMP/demo.avi" -c:v libx264 -pix_fmt yuv420p -crf 24 -preset veryfast \
-            -c:a aac -b:a 128k -movflags +faststart build/web/qa/m4b_demo.mp4
-          MP4=build/web/qa/m4b_demo.mp4
-          # an overview (one frame a second); the branch at real speed (chain → pull → rise → pursuit) at 10 frames a
-          # second; the two failed attempts at 4; the branch at half speed at 5
-          "$FF" -y -loglevel error -i $MP4 -vf "fps=1,scale=480:-1,tile=6x5" -frames:v 1 build/web/qa/m4b_demo_frames.jpg
-          "$FF" -y -loglevel error -ss 4.8 -t 3.0 -i $MP4 -vf "fps=10,scale=480:-1,tile=6x5" -frames:v 1 build/web/qa/m4b_branch_frames.jpg
-          "$FF" -y -loglevel error -ss 10.8 -t 3.0 -i $MP4 -vf "fps=4,scale=480:-1,tile=4x3" -frames:v 1 build/web/qa/m4b_failed_frames.jpg
-          "$FF" -y -loglevel error -ss 17.6 -t 6.0 -i $MP4 -vf "fps=5,scale=480:-1,tile=6x5" -frames:v 1 build/web/qa/m4b_branch_slow_frames.jpg
+            -c:a aac -b:a 128k -movflags +faststart build/web/qa/m4c_demo.mp4
+          MP4=build/web/qa/m4c_demo.mp4
+          # an overview (one frame a second); the telegraph → Shadow Step → COUNTER at real speed at 10 frames a second;
+          # the three failed evasions at 3; the success again at half speed at 7.5
+          "$FF" -y -loglevel error -i $MP4 -vf "fps=1,scale=480:-1,tile=6x5" -frames:v 1 build/web/qa/m4c_demo_frames.jpg
+          "$FF" -y -loglevel error -ss 3.6 -t 3.0 -i $MP4 -vf "fps=10,scale=480:-1,tile=6x5" -frames:v 1 build/web/qa/m4c_success_frames.jpg
+          "$FF" -y -loglevel error -ss 7.0 -t 9.0 -i $MP4 -vf "fps=3,scale=480:-1,tile=6x5" -frames:v 1 build/web/qa/m4c_failed_frames.jpg
+          "$FF" -y -loglevel error -ss 17.0 -t 4.0 -i $MP4 -vf "fps=7.5,scale=480:-1,tile=6x5" -frames:v 1 build/web/qa/m4c_slow_frames.jpg
           python3 reborn/tools/pack_png.py $MP4 $MP4.png
           ls -la build/web/qa
       - name: The demo and its contact sheets as a run artifact (fetchable before the smoke test ends)
@@ -85,8 +85,8 @@ jobs:
         with:
           name: demo
           path: |
-            build/web/qa/m4b_*.mp4
-            build/web/qa/m4b_*.jpg
+            build/web/qa/m4c_*.mp4
+            build/web/qa/m4c_*.jpg
           retention-days: 7
       - name: Browser smoke test in Playwright's own image (Chromium as an Android phone and at 16:9, WebKit as an iPhone, all in landscape)
         # Playwright's image carries its browsers and their system libraries: no apt install on the runner (a slow

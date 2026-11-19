@@ -3,7 +3,9 @@
 // emulated phones held in landscape — Chromium as an Android phone (required) and WebKit as an iPhone (advisory —
 // Playwright's WebKit on Linux is close to Safari but is not iOS Safari) — and the keyboard in desktop Chromium at
 // 16:9 (required). M3: the katana chain against the training dummy (each strike's damage once, the third's push), a
-// deliberate miss, and moving, dodging and attacking again; on the phones, attacking while the stick is held.
+// deliberate miss, and moving, dodging and attacking again; on the phones, attacking while the stick is held. M4: the
+// Training Automaton's reactions, Phantom Chain → Chain Pull, Rising Slash → Aerial Pursuit, and (Stage C) its
+// telegraphed sweep evaded with Shadow Step → Shadow Counter, and a plain roll that opens nothing.
 // Writes screenshots and results.json into OUT; exits 1 when the required profile fails.
 import { chromium, webkit, devices } from 'playwright';
 import fs from 'node:fs';
@@ -140,6 +142,7 @@ async function runProfile(p) {
     const au = (s) => (s.live && s.live.automaton) || null;
     const cmd = (...a) => page.evaluate((x) => window.__golCmd && window.__golCmd(...x), a);
     {
+      await cmd('auto', 'spar', 0); // (its sparring script off: each check below starts its attacks itself)
       const a0 = au(await waitFor((s) => au(s), 'the automaton', 15000));
       if (a0.state !== 'stand' || a0.hp !== 150 || Math.abs(a0.pos[1]) > 0.01) throw new Error('the automaton is not standing on its mark: ' + JSON.stringify(a0));
       step(`Training Automaton on its mark (${a0.pos.join(', ')}), ${a0.state}, ${a0.anim}, ${a0.hp} HP`);
@@ -381,6 +384,50 @@ async function runProfile(p) {
       }
     };
 
+    // M4 Stage C: the automaton's telegraphed sweep (started by the page: 'auto attack'), Shadow Step pressed by the
+    // game itself 0.46 s into it (the 'arm' command puts the press into the input buffer at that moment of the attack —
+    // the same path a key takes — so the slow software renderer cannot make it late) → the blade crosses his Shadow
+    // Origin: evaded, COUNTER on its button → pressed (touch: the page taps it the moment it shows) → the counter dashes
+    // back and its cut lands (14); he takes no damage.
+    const spar = (s) => au(s) && au(s).state === 'stand' && !(au(s).cadence > 0) && cb(s) && cb(s).phase === 'FREE'
+      && !((cb(s).cooldowns || {}).shadow_step > 0);
+    const counterTest = async (pressCounter, stopCounter, tag) => {
+      await cmd('auto', 'place', -3.5, -2.5, 180);
+      await place(-3.5, -4.2, 0); // 1.7 m in front of it, facing it
+      await waitFor(spar, tag + ': ready (the automaton on guard, STEP off cooldown)', 120000);
+      const s0 = await state();
+      const hp0 = au(s0).hp, ev0 = cb(s0).evasions, me0 = cb(s0).hp;
+      await cmd('arm', 'skill2', 0.46);
+      await cmd('auto', 'attack');
+      await waitFor((s) => cb(s) && cb(s).evasions > ev0 && cb(s).conds[0] === 'shadow_counter', tag + ': the evasion and COUNTER on its button', 60000);
+      await shot('9_' + tag + '_evaded');
+      await pressCounter();
+      try {
+        await waitFor((s) => cb(s) && cb(s).log.some((e) => e.id === 'shadow_counter' && e.hits === 1), tag + ': the counter\'s cut', 60000);
+      } finally {
+        await stopCounter();
+      }
+      await shot('9_' + tag + '_countered');
+      const done = await waitFor((s) => cb(s) && cb(s).phase === 'FREE' && au(s) && au(s).state !== 'attack', tag + ': the exchange to end', 60000);
+      if (hp0 - au(done).hp !== 14) throw new Error(`${tag}: the counter dealt ${hp0 - au(done).hp} (want 14)`);
+      if (cb(done).hp !== me0 || cb(done).evasions !== ev0 + 1) throw new Error(`${tag}: after the evasion: ${JSON.stringify(cb(done))}`);
+      return `${tag}: the sweep (550 ms telegraph) → STEP pressed 0.46 s into it → the blade crossed his shadow: evaded once, COUNTER on its button → the counter dashed ${cb(done).dash} m and its cut landed (14): ${hp0} → ${au(done).hp} HP; he took no damage`;
+    };
+    // ...and a plain DODGE (the roll) at the same moment: avoided or struck, never an evasion — no COUNTER.
+    const rollTest = async (tag) => {
+      await cmd('auto', 'place', -3.5, -2.5, 180);
+      await place(-3.5, -4.2, 0);
+      await waitFor(spar, tag + ': ready to roll', 120000);
+      const s0 = await state();
+      const ev0 = cb(s0).evasions, n0 = au(s0).attacks;
+      await cmd('arm', 'dodge', 0.5);
+      await cmd('auto', 'attack');
+      const end = await waitFor((s) => au(s) && au(s).attacks > n0 && au(s).state !== 'attack' && s.flags.armed_press, tag + ': the attack against the roll to end', 60000);
+      const r = au(end).last_attack;
+      if (r === 'evaded' || cb(end).evasions !== ev0 || cb(end).conds.some((c) => c)) throw new Error(`${tag}: a roll was taken for an evasion: ${r} ${JSON.stringify(cb(end))}`);
+      return `${tag}: a plain DODGE 0.5 s into the sweep: ${r} — no evasion, no COUNTER`;
+    };
+
     // A throw at the empty courtyard: it flies its 9 m and misses — nothing is held, nothing opens, no damage.
     const chainMissTest = async (throwIt, tag) => {
       await place(-8, 8, 90); // facing east along the courtyard's south side: no target within 9 m of his aim
@@ -516,17 +563,22 @@ async function runProfile(p) {
       await waitFor((s) => pl(s) && pl(s).state === 'ground', 'the dodge to end', 60000);
       step('DODGE: rolled');
 
-      const yawA = cs(await state()).yaw;
+      // M4 Stage C: STEP in open space — Shadow Step's burst backward (the stick idle), and with no attack nothing opens
+      const pS = pl(await state());
+      const ev0 = cb(await state()).evasions;
       await tapAt('btn_skill2');
-      const dim = await waitFor((s) => s.flags.dimmed_tap === 'skill2', 'the dimmed STEP tap', 30000);
-      if (angle(cs(dim).yaw, yawA) > 1 || pl(dim).state !== 'ground' || cb(dim).phase !== 'FREE') throw new Error('the dimmed STEP button did something');
-      step('STEP (a skill, dimmed until it is built): the tap is taken and does nothing');
+      await waitFor((s) => s.flags.step, 'STEP', 30000);
+      const stepped = await waitFor((s) => cb(s) && cb(s).phase === 'FREE' && cb(s).action === 'shadow_step' && pl(s).state === 'ground', 'the step to end', 60000);
+      const stepMoved = away(pS, pl(stepped));
+      if (stepMoved < 3.0 || cb(stepped).evasions !== ev0 || cb(stepped).conds.some((c) => c)) throw new Error('STEP in open space: ' + JSON.stringify({ moved: stepMoved, combat: cb(stepped) }));
+      step(`STEP (Shadow Step) in open space: ${stepMoved.toFixed(1)} m backward in one burst; no attack — nothing opened`);
 
       // M3: ATTACK taps — the chain on the dummy, a deliberate miss, and a strike while the stick is held.
       step(await chainTest(mashInPage('btn_attack'), 'touch'));
       step(await heavyTest(() => tapAt('btn_heavy'), 'touch'));
       step(await chainPullTest(() => tapAt('btn_skill1'), tapWhenShown('btn_cond1'), stopTaps, 'touch'));
       step(await risePursueTest(() => tapAt('btn_skill3'), tapWhenShown('btn_cond1'), stopTaps, 'touch'));
+      step(await counterTest(tapWhenShown('btn_cond1'), stopTaps, 'touch'));
       step(await missTest(mashInPage('btn_attack'), 'touch'));
       await place(-8, 8, 90);
       const atk = st0.rects.btn_attack;
@@ -616,6 +668,8 @@ async function runProfile(p) {
       step(await chainPullTest(() => page.keyboard.press('Digit1'), pullByKey, async () => {}, 'keyboard'));
       step(await risePursueTest(() => page.keyboard.press('Digit3'),
         pressUntil('Digit4', (s) => cb(s).action === 'aerial_pursuit' || cb(s).log.some((e) => e.id === 'aerial_pursuit')), async () => {}, 'keyboard'));
+      step(await counterTest(pressUntil('Digit4', (s) => cb(s).action === 'shadow_counter' || cb(s).log.some((e) => e.id === 'shadow_counter')), async () => {}, 'keyboard'));
+      step(await rollTest('keyboard'));
       step(await chainMissTest(() => page.keyboard.press('Digit1'), 'keyboard'));
       step(await missTest(mashBy(() => page.keyboard.press('KeyJ')), 'keyboard'));
       await place(-8, 8, 90);
@@ -637,7 +691,7 @@ async function runProfile(p) {
       step(`attack → move (${moving.anim} at ${moving.speed} m/s once the strike ended), dodge, attack again: no stuck state`);
     } else {
       // M2.3 (phone profiles): the touch controls — layout and sizes, the joystick with sprint at its rim, two fingers
-      // at once (stick + camera), a camera drag that crosses the stick, Jump, Dodge and a dimmed combat button.
+      // at once (stick + camera), a camera drag that crosses the stick, Jump, Dodge and Shadow Step in open space.
       await touchTests();
     }
 

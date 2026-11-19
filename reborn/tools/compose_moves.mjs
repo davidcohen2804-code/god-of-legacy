@@ -3,7 +3,10 @@
 // move's legs: Air_Chop (M4, GPT's Stage B review — Aerial Pursuit needs a clear airborne windup and body pose) is
 // Sword_Heavy_Combo's vertical chop from 2.32 to 2.97 s (the sword raised behind his head, the chop, the follow-through)
 // with the legs tucked as in NinjaJump_Idle_Loop. Only the legs differ from the chop, so the hand — and the katana's
-// baked path — are the chop's own. Re-running replaces the composites; the other moves are untouched.
+// baked path — are the chop's own. The composite's keys lie on a 30 fps grid from its start (the source sampled
+// there): Godot's importer resamples every track at 30 fps, so on the grid it keeps exactly these keys and plays the
+// same pose the blade baker reads (off the grid it cut the chop's corners: 24 cm at the katana's tip). Re-running
+// replaces the composites; the other moves are untouched.
 // Usage: node compose_moves.mjs <samurai.glb>
 import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
@@ -14,6 +17,7 @@ const doc = await io.read(GLB);
 const root = doc.getRoot();
 const buffer = root.listBuffers()[0];
 const LEGS = /^(thigh|calf|foot|ball)_[lr]$/;
+const FPS = 30; // Godot's import resampling rate (animation/fps)
 const COMPOSITES = [
   { name: 'Air_Chop', body: ['Sword_Heavy_Combo', 2.32, 2.97], legs: ['NinjaJump_Idle_Loop', 0.5] },
 ];
@@ -60,8 +64,9 @@ for (const c of COMPOSITES) {
   for (const ch of body.listChannels()) {
     const node = ch.getTargetNode(), path = ch.getTargetPath(), s = ch.getSampler();
     if (path === 'rotation' && legRot.has(node)) continue; // (the legs come from the jump)
-    const inp = Array.from(s.getInput().getArray());
-    const times = [t0, ...inp.filter((t) => t > t0 + 1e-4 && t < t1 - 1e-4), t1];
+    const times = [];
+    for (let k = 0; k * (1 / FPS) < t1 - t0 - 1e-4; k++) times.push(t0 + k / FPS);
+    times.push(t1);
     channel(out, node, path, times.map((t) => t - t0), times.flatMap((t) => valueAt(s, t)));
     n++;
   }

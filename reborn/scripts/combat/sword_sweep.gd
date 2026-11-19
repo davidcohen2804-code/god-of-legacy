@@ -29,8 +29,17 @@ static func bearing(attacker: Vector3, facing: float, point: Vector3) -> Vector2
 ## that moved during this tick passes `centre_from`, where its base stood when the tick began.
 static func hits(a: AttackData, attacker: Vector3, facing: float, span: Vector2, centre: Vector3, radius: float,
 		height: float, centre_from: Vector3 = Vector3.INF) -> bool:
+	return first_contact(a, attacker, facing, span, centre, radius, height, centre_from) >= 0.0
+
+
+## Where in this tick (0..1: from its start to its end) the blade swept over `span` first touches the capsule — moving
+## from `centre_from` to `centre` through the same tick when it moved — or -1 when it does not. The blade and the body
+## are taken at the same moments of the tick, so the answer says when the blow arrives, not only whether (the resolver
+## asks what the defender was doing at that moment: Shadow Step's defensive window, a roll's).
+static func first_contact(a: AttackData, attacker: Vector3, facing: float, span: Vector2, centre: Vector3,
+		radius: float, height: float, centre_from: Vector3 = Vector3.INF) -> float:
 	if span.x < 0.0 or a == null:
-		return false
+		return -1.0
 	var start := centre_from if centre_from.is_finite() else centre
 	var basis := Basis(Vector3.UP, facing)
 	var low := Vector3(0, minf(radius, height * 0.5), 0)
@@ -43,8 +52,8 @@ static func hits(a: AttackData, attacker: Vector3, facing: float, span: Vector2,
 		var q := attacker + basis * (blade[1] as Vector3)
 		var c := start.lerp(centre, f)
 		if segment_distance(p, q, c + low, c + high) <= radius + BLADE_RADIUS:
-			return true
-	return false
+			return f
+	return -1.0
 
 
 ## The shortest distance between segments p1–q1 and p2–q2 (Ericson, Real-Time Collision Detection 5.1.9).

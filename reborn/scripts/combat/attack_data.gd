@@ -5,16 +5,20 @@ extends RefCounted
 ## window, baked from that move (samurai_blades.json, by tools/bake_blades.mjs). The hit test sweeps that path
 ## (SwordSweep), so the hit follows the visible swing (GPT's M3 review), and the combat logic never reads the
 ## animation player. Other kinds: "projectile" (the Phantom Chain: thrown at its release event, its flight and
-## capture in `projectile` / `capture`) and "pull" (Chain Pull: its drag in `pull`).
+## capture in `projectile` / `capture`), "pull" (Chain Pull: its drag in `pull`) and "step" (Shadow Step: a burst of
+## movement with a defensive window, in `step`). The Training Automaton's attacks are read the same way from their own
+## file (automaton.json, its blades baked from its own model).
 
 const DATA := "res://data/abilities/samurai.json"
 const BLADES := "res://data/abilities/samurai_blades.json"
+const AUTOMATON := "res://data/abilities/automaton.json"
+const AUTOMATON_BLADES := "res://data/abilities/automaton_blades.json"
 
 var id := ""
 var name := ""
 var label := "" ## the short word on its button
 var button := "" ## the input that starts it ("attack", "heavy", "skill1"…; "cond": a Legacy Chain opportunity)
-## melee (a blade) | projectile | pull
+## melee (a blade) | projectile | pull | step
 var kind := "melee"
 var startup := 0.1
 var active := 0.08
@@ -51,10 +55,20 @@ var spike := {}
 ## Where the assist puts the target relative to his facing (degrees, + = his left): the middle of a cut that runs to
 ## one side.
 var aim_yaw := 0.0
-## The move, where to start it and how fast to play it so its swing fills the active window.
+## A step (Shadow Step): {distance m, defense: [from, to] s from the start of the movement — its defensive window}.
+var step := {}
+## A dash at the opportunity's target through startup (Shadow Counter): {max m, stop: m short of its centre}.
+var dash := {}
+## The automaton's telegraph: {to: the move's time it raises the weapon to, time: s it takes, lock: s into startup its
+## direction locks, turn: rad/s until then}; and its follow-through through recovery: {to: the move's time}.
+var windup := {}
+var follow := {}
+## The move, where to start it and how fast to play it so its swing fills the active window — or, with `active_at`
+## (≥ 0), the move's time where the active window begins (a startup of its own before it: the automaton's telegraph).
 var anim := ""
 var anim_from := 0.0
 var anim_speed := 1.0
+var active_at := -1.0
 ## The blade through the active window: a point near the guard and the tip, in the attacker's frame (+Z forward,
 ## +X his left, +Y up, origin between his feet), evenly spaced in time from the window's start to its end.
 var blade_base := PackedVector3Array()
@@ -71,6 +85,21 @@ static var _sets := {}
 
 func total() -> float:
 	return startup + active + recovery
+
+
+## The move's time at fraction `f` (0..1) of the active window, as the game plays it (and as its blade was baked).
+func move_time(f: float) -> float:
+	if active_at >= 0.0:
+		return active_at + f * active * anim_speed
+	return anim_from + (startup + f * active) * anim_speed
+
+
+## The start of Shadow Step's defensive window and its end, in seconds from the action's start (zero when none).
+func defense_window() -> Vector2:
+	var d: Array = step.get("defense", []) as Array
+	if d.size() < 2:
+		return Vector2.ZERO
+	return Vector2(startup + float(d[0]), startup + float(d[1]))
 
 
 ## The blade at fraction `f` (0..1) of the active window: [base, tip] in the attacker's frame.
@@ -117,6 +146,11 @@ static func from_dict(p_id: String, d: Dictionary) -> AttackData:
 	a.within = float(d.get("within", 0.0))
 	a.spike = d.get("spike", {}) as Dictionary
 	a.aim_yaw = float(d.get("aim_yaw", 0.0))
+	a.step = d.get("step", {}) as Dictionary
+	a.dash = d.get("dash", {}) as Dictionary
+	a.windup = d.get("windup", {}) as Dictionary
+	a.follow = d.get("follow", {}) as Dictionary
+	a.active_at = float(d.get("active_at", -1.0))
 	a.startup = float(d.get("startup", a.startup))
 	a.active = float(d.get("active", a.active))
 	a.recovery = float(d.get("recovery", a.recovery))
@@ -161,6 +195,11 @@ static func load_set(path: String = DATA, blades: String = BLADES) -> Dictionary
 
 static func get_attack(p_id: String) -> AttackData:
 	return load_set().get(p_id) as AttackData
+
+
+## One of the Training Automaton's attacks.
+static func automaton_attack(p_id: String) -> AttackData:
+	return load_set(AUTOMATON, AUTOMATON_BLADES).get(p_id) as AttackData
 
 
 ## The action a button starts, other than the Attack chain (Heavy…); null when none is defined.

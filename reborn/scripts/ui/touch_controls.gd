@@ -12,8 +12,8 @@ extends Control
 ## its drawn button never reaches a neighbour's. The drawn buttons grow less than their hit areas, to keep the screen
 ## clean.
 ## It only produces intents (PlayerInput); it knows nothing of the rules — what the conditional buttons show, and each
-## skill's cooldown, it is told. Basic Attack (the katana chain), Heavy, Phantom Chain, Rising Slash, Dodge and Jump
-## take presses; the skill not built yet (Shadow Step) is drawn dimmed and takes none.
+## skill's cooldown, it is told. Basic Attack (the katana chain), Heavy, Phantom Chain, Shadow Step, Rising Slash,
+## Dodge and Jump take presses (a button not built yet would be drawn dimmed and take none).
 
 const REF := Vector2(1280, 720)
 ## name → [centre in the reference, diameter, cluster ("L" bottom-left, "R" bottom-right)]
@@ -43,7 +43,8 @@ const DEAD := 0.12
 
 var input: PlayerInput
 ## Buttons that take presses; the rest are drawn dimmed.
-var enabled_actions := {"attack": true, "heavy": true, "skill1": true, "skill3": true, "dodge": true, "jump": true}
+var enabled_actions := {"attack": true, "heavy": true, "skill1": true, "skill2": true, "skill3": true, "dodge": true,
+	"jump": true}
 ## Areas left to the interface's own buttons (pause...): touches there are not taken.
 var reserved: Array[Rect2] = []
 

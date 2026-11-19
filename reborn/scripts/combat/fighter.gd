@@ -36,8 +36,14 @@ var action_air := false
 var frozen := false
 ## Rolls so far (for the tests and the report).
 var dodges := 0
+## The upright capsule an enemy's blade is tested against, and where he stood when this tick's movement began (the
+## blade is swept against his movement through the tick, not only where he ended up).
+var hurt_radius := 0.34
+var hurt_height := 1.7
+var prev_position := Vector3.ZERO
 
 var _dodge_t := 0.0
+var _dodge_prev := 0.0 ## the roll's clock when this tick began
 var _dodge_dir := Vector3.ZERO
 var _air_t := 0.0
 var _land_t := 0.0
@@ -53,6 +59,8 @@ func setup(v: CharacterVisual, radius: float = 0.34, height: float = 1.7) -> voi
 	shape.shape = cap
 	shape.position = Vector3(0, height * 0.5, 0)
 	add_child(shape)
+	hurt_radius = radius
+	hurt_height = height
 	collision_layer = 2
 	collision_mask = 1 | 2 | 4 | 8 # the world, other bodies, the target, the courtyard's bounds
 	floor_snap_length = 0.35
@@ -98,6 +106,20 @@ func dodge(dir: Vector3) -> bool:
 	return true
 
 
+## The roll ends here (he was struck out of it): no more movement or defensive window from it.
+func cancel_dodge() -> void:
+	if state == "dodge":
+		invulnerable = false
+		_set_state("ground" if is_on_floor() else "air")
+
+
+## The part of his last tick (fractions 0..1) that lay inside the roll's defensive window; (-1, -1) when none.
+func iframe_span() -> Vector2:
+	if state != "dodge":
+		return Vector2(-1, -1)
+	return HitResolver.overlap(DODGE_IFRAMES, Vector2(_dodge_prev, _dodge_t))
+
+
 func _set_state(s: String) -> void:
 	if s != state:
 		state = s
@@ -121,6 +143,8 @@ func face_toward(point: Vector3, rate: float, delta: float) -> void:
 
 func _physics_process(delta: float) -> void:
 	visual.rotation.y = facing
+	prev_position = global_position
+	_dodge_prev = _dodge_t
 	if frozen:
 		return
 	var on_floor := is_on_floor()

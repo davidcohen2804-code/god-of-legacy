@@ -1,0 +1,13 @@
+{
+  "_doc": "The Training Automaton's attacks (GPT's M4 v1.3 direction for Stage C: a scripted training attacker, no full AI). Times in seconds, distances in metres; the same fields as data/abilities/samurai.json. Its blade (the practice sword) through the active window is baked into automaton_blades.json by tools/bake_blades.mjs from automaton.glb (re-run it after changing a timing or move here). active_at: the move's time where the active window begins (the startup is a telegraph of its own, below), played at anim_speed through the window. windup: through startup the move plays from its start to `to` over `time` s, then holds there — the weapon raised, trembling — until the cut (the telegraph); it turns toward its foe at `turn` rad/s until `lock` s into startup, then its direction is locked. follow: through recovery the move plays on from the window's end to `to`. lunge: its step into the cut, from 0.1 s before the window to its end, with collision. reaction / knockback: the foe's hitstun (s) and push (m) when the blow lands. cooldown: from one attack's start to the next one's earliest start (the sparring cadence). GPT's numbers: startup 0.55, active 0.13, recovery 0.4, damage 15, reach about 2.2 m (the cut's 1.6 m and the 0.3 m step, against a body 0.34 m round). Provisional (for GPT's review): hit_stop, reaction, knockback, lunge, the windup and its lock, cooldown.",
+  "attacks": {
+    "sweep": {
+      "name": "Sweep", "label": "SWEEP",
+      "startup": 0.55, "active": 0.13, "recovery": 0.4, "damage": 15, "cooldown": 3.0,
+      "hit_stop": 0.06, "reaction": 0.35, "knockback": 0.35, "lunge": 0.3,
+      "anim": "Sword_Attack", "active_at": 0.36, "anim_speed": 1.115,
+      "windup": {"to": 0.36, "time": 0.36, "lock": 0.3, "turn": 6.0},
+      "follow": {"to": 0.8}
+    }
+  }
+}

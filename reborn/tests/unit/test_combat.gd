@@ -169,7 +169,7 @@ func test_each_attacks_hit_path_is_its_visible_blade() -> String:
 	var hand := v.skeleton.find_bone("hand_r")
 	var err := ""
 	var all := AttackData.load_set()
-	for id in ["basic1", "basic2", "basic3", "heavy", "rising_slash", "aerial_pursuit"]:
+	for id in ["basic1", "basic2", "basic3", "heavy", "rising_slash", "aerial_pursuit", "shadow_counter"]:
 		var a: AttackData = all[id]
 		if a.blade_tip.size() != 13:
 			err = "%s has no baked blade" % id
@@ -179,7 +179,7 @@ func test_each_attacks_hit_path_is_its_visible_blade() -> String:
 		var rows: Array[String] = []
 		for i in 13:
 			var f := i / 12.0
-			v.anim.seek(a.anim_from + (a.startup + f * a.active) * a.anim_speed, true)
+			v.anim.seek(a.move_time(f), true)
 			v.skeleton.force_update_all_bone_transforms()
 			var pose := v.skeleton.global_transform * v.skeleton.get_bone_global_pose(hand)
 			var tip := pose * (CharacterVisual.GRIP * Vector3(0, 0.792, 0))
@@ -194,6 +194,41 @@ func test_each_attacks_hit_path_is_its_visible_blade() -> String:
 		if worst > 0.06:
 			err = "%s: the baked blade is %.1f cm from the blade Godot draws" % [id, worst * 100.0]
 			break
+	v.free()
+	return err
+
+
+## The same for the Training Automaton's sweep (M4 Stage C): its practice sword in its own hand, the move posed through
+## the window as it plays it (the window starting at active_at), against automaton_blades.json.
+func test_the_automatons_hit_path_is_its_visible_blade() -> String:
+	var tree := Engine.get_main_loop() as SceneTree
+	var v := AutomatonVisual.build_new()
+	tree.root.add_child(v)
+	var hand := v.skeleton.find_bone("hand_r")
+	var grip := v.katana.transform # (the practice sword's place in the hand: grip.json)
+	var a := AttackData.automaton_attack("sweep")
+	var err := ""
+	if a == null or a.blade_tip.size() != 13:
+		err = "the sweep has no baked blade"
+	else:
+		v.anim.play(v._alias[a.anim], 0.0)
+		var worst := 0.0
+		var rows: Array[String] = []
+		for i in 13:
+			var f := i / 12.0
+			v.anim.seek(a.move_time(f), true)
+			v.skeleton.force_update_all_bone_transforms()
+			var pose := v.skeleton.global_transform * v.skeleton.get_bone_global_pose(hand)
+			var tip := pose * (grip * Vector3(0, 0.78, 0))
+			var base := pose * (grip * Vector3(0, 0.12, 0))
+			var off := maxf(tip.distance_to(a.blade_tip[i]), base.distance_to(a.blade_base[i]))
+			worst = maxf(worst, off)
+			if i % 3 == 0:
+				var b := SwordSweep.bearing(Vector3.ZERO, 0.0, tip)
+				rows.append("f%.2f tip %+.0f° %.2fm h%.2f (Δ%.0fcm)" % [f, b.x, b.y, tip.y, off * 100.0])
+		print("[BLADE] sweep (automaton) %s: worst Δ %.1f cm | %s" % [a.anim, worst * 100.0, " | ".join(rows)])
+		if worst > 0.06:
+			err = "the sweep's baked blade is %.1f cm from the practice sword Godot draws" % (worst * 100.0)
 	v.free()
 	return err
 

@@ -18,6 +18,12 @@ extends Node
 ## button; the Legacy Chain's conditional abilities start from its two buttons — the resolver (LegacyChain), fed only
 ## by confirmed combat events, decides what each button holds. Animation, camera, sound and effects only follow what
 ## the state machine decided — they listen to the signals; nothing here reads the animation back.
+## Enemy blows (M4 Stage C: the Training Automaton's) come in through `incoming`: each tick of an attacker's active
+## window is resolved against his body along its movement through the tick (HitResolver) — a blow that would have
+## struck him inside Shadow Step's defensive window is a genuine evasion (attack_evaded: Shadow Counter opens against
+## that attacker); one inside a roll's window is avoided (nothing opens); any other contact lands (damage, hitstun,
+## his opportunities close). Shadow Step itself is a burst of movement along the stick (backward when it is idle) that
+## keeps his facing; Shadow Counter dashes at its attacker through its startup, then strikes like any cut.
 
 ## An action began (`step`: its place in the Attack chain, 0..2, or -1).
 signal strike_started(a: AttackData, step: int)
@@ -29,9 +35,19 @@ signal strike_hit(a: AttackData, step: int, target: Node3D, dir: Vector3)
 signal strike_missed(a: AttackData, step: int)
 ## An outcome the player should read (the chain missed or was blocked, a target resisted, a pull was blocked…).
 signal notice(text: String)
+## The resolver's authoritative evasion: `attacker_id`'s attack `attack_id` would have struck `defender_id` (him) inside
+## Shadow Step's defensive window and was prevented by it. Once per qualifying attack.
+signal attack_evaded(attacker_id: int, defender_id: int, attack_id: String)
+## An enemy's blow landed on him (`dir`: flat, from the attacker toward him).
+signal blow_taken(a: AttackData, attacker: Node3D, dir: Vector3)
+signal hp_changed(hp: int, max_hp: int)
 
 const STOP_SHORT := 1.1 ## the step into a cut stops this close to the target's centre, m
 const STANCE_TIME := 4.0 ## the drawn-sword stance after an action, s
+const PUSH_TIME := 0.2 ## a blow's push on him lasts this long, s
+## A step is blocked at once when a test move of its first BLOCK_PROBE m (sliding along what it touches) gets him
+## less than half of that away (GPT's v1.4: no stationary shadow against a wall).
+const BLOCK_PROBE := 0.6
 
 ## The target assist (GPT's M3 review: 3.6 m, ±60°, at most 12 rad/s through startup; it turns, never moves him).
 var assist_range := 3.6
@@ -52,6 +68,14 @@ var stats := {"strikes": 0, "hits": 0, "misses": 0, "damage": 0, "chains": 0}
 var strike_log: Array[Dictionary] = []
 ## The last pull, for the tests and the report: {result: arrived | blocked | escaped | interrupted, dist, time}.
 var last_pull := {}
+## His health (GPT's M3 numbers: 200). In the training courtyard (`training`) he is never defeated: at 0 it refills.
+var max_hp := 200
+var hp := 200
+var training := true
+## Enemy blows so far: evaded (genuine evasions), avoided (a roll's window), taken.
+var evasions := 0
+var avoided := 0
+var blows := 0
 
 var _target: Node3D
 var _aim := Vector3.ZERO
@@ -66,6 +90,22 @@ var _pull_action: AttackData
 ## A leap's path (Aerial Pursuit): from where he left the ground to where he strikes.
 var _leap_from := Vector3.ZERO
 var _leap_to := Vector3.ZERO
+## The action this tick ran (null when none) and how far into it the tick began and ended (s from its start) — the
+## defensive window's place in the tick, Shadow Step's and Shadow Counter's movement through it.
+var _span_action: AttackData
+var _span_e := Vector2(-1, -1)
+## Shadow Step's direction (flat, world space); its Shadow Origin — where he stood when its movement began (GPT's v1.4
+## rule B: through the defensive window a blow is tested against him there) — and whether it was blocked at once;
+## Shadow Counter's dash length (m) and how far it has gone.
+var _step_dir := Vector3.ZERO
+var _shadow_at := Vector3.INF
+var _shadow_blocked := false
+var _dash_len := 0.0
+var _dash_moved := 0.0
+## A blow's push on him: along `_push_dir`, `_push_dist` m in all, `_push_left` s still to go.
+var _push_dir := Vector3.ZERO
+var _push_dist := 0.0
+var _push_left := 0.0
 
 
 ## Dodging is allowed from free movement, or in the later part of an action's recovery (cancelling it and the chain).
@@ -137,8 +177,14 @@ func is_frozen() -> bool:
 
 func tick(dt: float, stick_dir: Vector3) -> void:
 	_try_queued()
+	_span_action = melee.current() if melee.is_attacking() else null
+	var e0 := melee.elapsed() if _span_action else -1.0
 	melee.step(dt)
+	_span_e = Vector2(e0, _elapsed_of(_span_action))
 	_events(stick_dir) # (an action's start and its active window before its hits: the swing sounds before the impact)
+	if _span_action and _span_action.kind == "step" and _span_e.x < _span_action.startup \
+			and _span_e.y >= _span_action.startup:
+		_shadow_origin() # (its movement begins in this tick: he still stands where it began)
 	var a := melee.current()
 	if a and a.kind == "melee" and melee.swept.x >= 0.0:
 		for t in get_tree().get_nodes_in_group("hurtbox"):
@@ -161,20 +207,30 @@ func tick(dt: float, stick_dir: Vector3) -> void:
 	if melee.hitstop <= 0.0:
 		legacy.step(dt) # (the windows hold through hit-stop)
 	_check_opportunities()
+	if legacy.events.size() > 64:
+		legacy.events = legacy.events.slice(-32) # (nothing drains them in play: keep the latest for the tests)
 	# the body: held still through hit-stop, driven by the action while it lasts
 	var frozen := melee.hitstop > 0.0
 	fighter.frozen = frozen
 	fighter.action_lock = melee.locks_movement()
 	if melee.is_attacking() and fighter.visual.anim and fighter.visual.current == a.anim:
 		fighter.visual.anim.speed_scale = 0.0 if frozen else a.anim_speed
+	elif melee.phase == MeleeState.Phase.HITSTUN and fighter.visual.anim:
+		fighter.visual.anim.speed_scale = 0.0 if frozen else 1.0
 	fighter.action_velocity = Vector3.ZERO
 	fighter.action_air = false
 	if a and a.air and melee.is_attacking():
 		_air_body(a, dt, frozen)
+	elif melee.phase == MeleeState.Phase.HITSTUN:
+		_stun_body(dt, frozen)
+	elif a and a.kind == "step" and _span_action == a:
+		_step_body(a, dt, frozen)
 	elif not frozen and (melee.phase == MeleeState.Phase.STARTUP or melee.phase == MeleeState.Phase.ACTIVE):
 		var step := fighter.forward() * a.lunge / (a.startup + a.active)
+		if not a.dash.is_empty():
+			step = _dash_velocity(a, dt)
 		if _target and is_instance_valid(_target):
-			if _flat(_target.global_position - fighter.global_position).length() < STOP_SHORT:
+			if a.dash.is_empty() and _flat(_target.global_position - fighter.global_position).length() < STOP_SHORT:
 				step = Vector3.ZERO
 			if melee.phase == MeleeState.Phase.STARTUP:
 				_face_target(a, dt)
@@ -203,6 +259,176 @@ func _land(a: AttackData, target: Node3D) -> void:
 	if not a.spike.is_empty() and target.has_method("spike") and target.is_airborne():
 		target.spike(float(a.spike.get("start", 3.0)), float(a.spike.get("accel", 45.0)), float(a.spike.get("top", 10.0)))
 	_after_hit(a, target, dir, melee.step_index)
+
+
+## An enemy's blow this tick — `a`'s active window over `span` (fractions), by `attacker` (a Node3D with `facing`) —
+## resolved against his body through its movement this tick and his defensive windows (HitResolver), and acted on:
+## "hit" (damage, hitstun, interrupted), "evaded" (the authoritative attack_evaded: Shadow Counter opens against the
+## attacker), "avoided" (a roll's window: nothing opens) — or "" when the blade does not touch him. The attacker asks
+## for each tick of its active window, until it has a result against him (one result per attack).
+func incoming(a: AttackData, attacker: Node3D, span: Vector2) -> String:
+	if a == null or attacker == null or span.x < 0.0:
+		return ""
+	var shadow := Vector3.INF
+	if _span_action and _span_action.kind == "step" and String(_span_action.step.get("evade", "body")) == "shadow":
+		shadow = _shadow_at
+	var r := HitResolver.resolve(a, attacker.global_position, float(attacker.get("facing")), span,
+		fighter.prev_position, fighter.global_position, fighter.hurt_radius, fighter.hurt_height,
+		evasion_span(), fighter.iframe_span(), shadow, _shadow_blocked)
+	if r.is_empty():
+		return ""
+	var result := String(r["result"])
+	match result:
+		"evaded":
+			_evaded(a, attacker)
+		"avoided":
+			avoided += 1
+			QA.flag("blow_avoided", a.id)
+		"hit":
+			_take_blow(a, attacker)
+	return result
+
+
+## The part of his last tick (fractions 0..1) that lay inside Shadow Step's defensive window; (-1, -1) when none
+## (also once a blow has struck him: whatever he was doing was cut off).
+func evasion_span() -> Vector2:
+	if _span_action == null or _span_action.kind != "step" or melee.phase == MeleeState.Phase.HITSTUN:
+		return Vector2(-1, -1)
+	return HitResolver.overlap(_span_action.defense_window(), _span_e)
+
+
+## Shadow Step's Shadow Origin (INF before its movement began).
+func shadow_origin() -> Vector3:
+	return _shadow_at
+
+
+## Is he inside Shadow Step's defensive window now?
+func evading() -> bool:
+	var a := melee.current()
+	if a == null or a.kind != "step" or not melee.is_attacking():
+		return false
+	var w := a.defense_window()
+	return melee.elapsed() >= w.x and melee.elapsed() <= w.y
+
+
+## Shadow Step's movement begins: its Shadow Origin is where he stands now; and is the step blocked at once — a test
+## move of its first BLOCK_PROBE m along its direction, sliding along what it touches, gets him less than half of
+## that away (against a wall: then it earns no evasion, GPT's v1.4)?
+func _shadow_origin() -> void:
+	_shadow_at = fighter.global_position
+	_shadow_blocked = false
+	if fighter.is_inside_tree():
+		var t := fighter.global_transform
+		t.origin.y += 0.05 # (clear of the floor it stands on)
+		var start := t.origin
+		var motion := _step_dir * BLOCK_PROBE
+		for i in 3:
+			var c := KinematicCollision3D.new()
+			if not fighter.test_move(t, motion, c):
+				t.origin += motion
+				break
+			t.origin += c.get_travel()
+			motion = c.get_remainder().slide(c.get_normal())
+			motion.y = 0.0
+			if motion.length() < 0.01:
+				break
+		_shadow_blocked = _flat(t.origin - start).length() < BLOCK_PROBE * 0.5
+	QA.flag("shadow_origin", "%.2f,%.2f%s" % [_shadow_at.x, _shadow_at.z, ":blocked" if _shadow_blocked else ""])
+
+
+## A genuine evasion: the resolver's authoritative event — Shadow Counter opens against that attacker.
+func _evaded(a: AttackData, attacker: Node3D) -> void:
+	evasions += 1
+	var id := attacker.get_instance_id()
+	legacy.event("evaded", id)
+	QA.flag("evaded", "%s:%d" % [a.id, evasions])
+	attack_evaded.emit(id, fighter.get_instance_id(), a.id)
+
+
+## A blow landed on him: its damage; its hitstun cuts off whatever he was doing (a roll too) — his opportunities close
+## and the chain lets go; its push (GPT's v1.4: 350 ms of hitstun, a 0.35 m controlled push, for the automaton's
+## sweep); a flinch and the camera's jolt.
+func _take_blow(a: AttackData, attacker: Node3D) -> void:
+	var dir := _flat(fighter.global_position - attacker.global_position)
+	dir = dir.normalized() if dir.length() > 0.01 else -fighter.forward()
+	blows += 1
+	hp = maxi(0, hp - a.damage)
+	if hp == 0 and training:
+		_training_refill()
+	hp_changed.emit(hp, max_hp)
+	fighter.cancel_dodge()
+	interrupted("hit")
+	melee.take_hit(a.reaction)
+	melee.hitstop = a.hit_stop # (he holds still for the blow's hit-stop, then reels)
+	_push_dir = dir
+	_push_dist = a.knockback
+	_push_left = PUSH_TIME if a.knockback > 0.0 else 0.0
+	fighter.visual.play("Hit_Chest", 0.05, 1.0, true)
+	if rig:
+		rig.shake(0.5)
+	QA.flag("blow_taken", "%s:%d" % [a.id, hp])
+	blow_taken.emit(a, attacker, dir)
+
+
+## The training courtyard's rule, apart from any defeat (GPT's v1.4: approved for training, separate from normal
+## defeat logic): at 0 his health comes back whole.
+func _training_refill() -> void:
+	hp = max_hp
+	notice.emit("Health restored (training)")
+	QA.flag("player_restored", true)
+
+
+## How far into `a` the state machine is now (its whole length once it has ended); -1 for none.
+func _elapsed_of(a: AttackData) -> float:
+	if a == null:
+		return -1.0
+	if melee.current() == a and melee.is_attacking():
+		return melee.elapsed()
+	return a.total()
+
+
+## Shadow Step's burst: still through startup; through the active window along its direction — `step.distance` m on a
+## smooth curve, easing in and out — moved by his body with collision (a wall stops it or turns it aside); still
+## through recovery. His facing is kept (he faces his foe as he steps). Each tick moves him over the part of the
+## action's time the tick ran through, so the burst is the same at any tick rate.
+func _step_body(a: AttackData, dt: float, frozen: bool) -> void:
+	if frozen or _span_e.x < 0.0:
+		return
+	var m0 := clampf((_span_e.x - a.startup) / maxf(a.active, 0.0001), 0.0, 1.0)
+	var m1 := clampf((_span_e.y - a.startup) / maxf(a.active, 0.0001), 0.0, 1.0)
+	if m1 <= m0:
+		return
+	var dist := float(a.step.get("distance", 4.0))
+	fighter.action_velocity = _step_dir * dist * (_smooth(m1) - _smooth(m0)) / maxf(dt, 0.0001)
+
+
+## Shadow Counter's dash through startup: toward its target as it stands now (following it), `dash.max` m at most in
+## all and stopping `dash.stop` m short of its centre, easing out; his body moves it with collision — nothing solid
+## is passed through, and he never ends up behind the target. Nothing after startup.
+func _dash_velocity(a: AttackData, dt: float) -> Vector3:
+	if _target == null or not is_instance_valid(_target) or _span_e.x < 0.0:
+		return Vector3.ZERO
+	var k0 := clampf(_span_e.x / maxf(a.startup, 0.0001), 0.0, 1.0)
+	var k1 := clampf(_span_e.y / maxf(a.startup, 0.0001), 0.0, 1.0)
+	if k1 <= k0:
+		return Vector3.ZERO
+	var to := _flat(_target.global_position - fighter.global_position)
+	var room := to.length() - float(a.dash.get("stop", STOP_SHORT))
+	if room <= 0.0:
+		return Vector3.ZERO
+	var d := minf(_dash_len * (_ease_out(k1) - _ease_out(k0)), room)
+	_dash_moved += d
+	return to.normalized() * d / maxf(dt, 0.0001)
+
+
+## Reeling from a blow: pushed `_push_dist` m away from the attacker over PUSH_TIME, easing out, with collision.
+func _stun_body(dt: float, frozen: bool) -> void:
+	if frozen or _push_left <= 0.0:
+		return
+	var k0 := 1.0 - _push_left / PUSH_TIME
+	_push_left = maxf(0.0, _push_left - dt)
+	var k1 := 1.0 - _push_left / PUSH_TIME
+	fighter.action_velocity = _push_dir * _push_dist * (_ease3(k1) - _ease3(k0)) / maxf(dt, 0.0001)
 
 
 ## A launching blow landed: a launchable target is thrown up (its arc is its own), which opens Aerial Pursuit against
@@ -316,6 +542,19 @@ func _events(stick_dir: Vector3) -> void:
 				fighter.visual.play(a.anim, 0.05, a.anim_speed, true, a.anim_from)
 				if a.air:
 					_begin_leap(a)
+				if a.kind == "step":
+					# along the stick; backward (away from where he faces) when it is idle
+					var sd := _flat(stick_dir)
+					_step_dir = sd.normalized() if sd.length() > 0.2 else -fighter.forward()
+					_shadow_at = Vector3.INF # (recorded when its movement begins)
+					_shadow_blocked = false
+					QA.flag("step", "%.2f,%.2f" % [_step_dir.x, _step_dir.z])
+				if not a.dash.is_empty():
+					_dash_moved = 0.0
+					_dash_len = 0.0
+					if _target and is_instance_valid(_target):
+						_dash_len = clampf(_flat(_target.global_position - fighter.global_position).length()
+							- float(a.dash.get("stop", STOP_SHORT)), 0.0, float(a.dash.get("max", 4.0)))
 				_stance = STANCE_TIME
 				stats["strikes"] += 1
 				strike_log.append({"step": step + 1, "id": a.id, "hits": 0, "damage": 0})
@@ -614,8 +853,26 @@ func state() -> Dictionary:
 		"pull": last_pull.duplicate(),
 		"body": fighter.state,
 		"y": snappedf(fighter.global_position.y, 0.01),
+		"hp": hp,
+		"evasions": evasions,
+		"avoided": avoided,
+		"blows": blows,
+		"evading": evading(),
+		"dash": snappedf(_dash_moved, 0.01),
 	}
 
 
 static func _flat(v: Vector3) -> Vector3:
 	return Vector3(v.x, 0.0, v.z)
+
+
+static func _smooth(k: float) -> float:
+	return k * k * (3.0 - 2.0 * k)
+
+
+static func _ease_out(k: float) -> float:
+	return 1.0 - (1.0 - k) * (1.0 - k)
+
+
+static func _ease3(k: float) -> float:
+	return 1.0 - pow(1.0 - k, 3.0)

@@ -1,8 +1,10 @@
 extends Node3D
 ## Arena — M3–M4: sword combat in the Fallen Moon Courtyard. The Samurai, the straw training dummy in the middle (a
 ## fixed diagnostic target) and, north-west of it, the Training Automaton (M4: the humanoid opponent the skills are
-## tried on — pulled, launched, knocked down): walk, run, sprint, jump and dodge relative to the camera, the three-strike
-## katana chain and Heavy — from the touch controls (several fingers at once), the keyboard or a gamepad. The camera
+## tried on — pulled, launched, knocked down — and, from Stage C, a sparring partner whose telegraphed sweep he can
+## take, roll from, or evade with Shadow Step and answer with Shadow Counter): walk, run, sprint, jump and dodge
+## relative to the camera, the three-strike katana chain, Heavy and the skills — from the touch controls (several
+## fingers at once), the keyboard or a gamepad. The camera
 ## frames him with the target he is fighting (the one he struck in the last seconds, else the nearest) and roams free
 ## otherwise; the HUD's bar shows that target. With ?qa=1 the page can place him, switch the camera to inspection
 ## viewpoints, put the automaton through its reactions, and the HUD shows the developer's notes.
@@ -23,6 +25,9 @@ var dummy: TrainingDummy
 var automaton: TrainingAutomaton
 var vfx: HitVfx
 var _cam: Camera3D
+var _player_numbers := DamageNumbers.new()
+## (QA) a press armed for a moment of the automaton's attack: {action, at (s into the attack), sent}.
+var _armed := {}
 var _t := 0.0
 var _view := "game"
 var _shown: Node3D ## the target on the HUD's bar
@@ -31,6 +36,7 @@ var _last_hit_t := -100.0
 
 
 func _ready() -> void:
+	process_physics_priority = -12 # (QA's armed presses: after the automaton's tick, before the player's controller)
 	QA.mark("arena") # (first: marking a screen clears the previous one's rectangles and tracked values)
 	_build_world()
 	_spawn_player()
@@ -50,12 +56,28 @@ func _ready() -> void:
 		d.touch = touch
 		d.player = player
 		d.rig = rig
+		d.automaton = automaton
 		d.caption = hud.prompt
 		add_child(d)
 
 
+func _physics_process(_delta: float) -> void:
+	# (QA) an armed press goes into the input buffer at its moment of the automaton's attack — the same path a key takes
+	if _armed.is_empty():
+		return
+	if bool(_armed.get("sent", false)):
+		input.release(String(_armed["action"]))
+		_armed = {}
+		return
+	if automaton.attack_time() >= float(_armed["at"]):
+		input.press(String(_armed["action"]))
+		_armed["sent"] = true
+		QA.flag("armed_press", "%s:%.3f" % [_armed["action"], automaton.attack_time()])
+
+
 func _process(delta: float) -> void:
 	_t += delta
+	_player_numbers.advance(delta)
 	if _view != "game":
 		_place_camera()
 	# (a target keeps the framing while it is down: it stands up again)
@@ -133,6 +155,15 @@ func _build_combat() -> void:
 	automaton.impacted.connect(func(at: Vector3) -> void:
 		vfx.impact(at)
 		rig.shake(0.3))
+	automaton.foe = combat # (its sweep is resolved against him)
+	sfx.bind_attacker(automaton)
+	var shadow := ShadowStepVisual.new()
+	shadow.name = "ShadowStep"
+	shadow.combat = combat
+	shadow.fighter = player
+	add_child(shadow)
+	combat.blow_taken.connect(func(a: AttackData, _by: Node3D, _dir: Vector3) -> void:
+		_player_numbers.spawn(player, a.damage, 2.1, UiTheme.CRIMSON))
 	var chain := PhantomChainVisual.new()
 	chain.name = "PhantomChain"
 	chain.combat = combat
@@ -227,7 +258,15 @@ func _on_qa_command(cmd: String, args: Array) -> void:
 					automaton.place(Vector3(float(args[1]), 0.0, float(args[2])))
 				if n > 3:
 					automaton.facing = deg_to_rad(float(args[3]))
+			"attack":
+				automaton.attack()
+			"spar":
+				automaton.spar = n < 2 or str(args[1]) != "0"
 		QA.flag("auto_cmd", str(args[0]))
+	elif cmd == "arm" and args.size() >= 2:
+		# (tests) press `action` when the automaton's attack has run `at` s (its telegraph: a timed defence)
+		_armed = {"action": str(args[0]), "at": float(args[1]), "sent": false}
+		QA.flag("armed", "%s:%s" % [args[0], args[1]])
 	elif cmd == "speed" and not args.is_empty():
 		# (inspection shots) the game's speed, so a slow renderer catches a quick moment
 		Engine.time_scale = clampf(float(args[0]), 0.05, 4.0)
@@ -287,11 +326,12 @@ func _build_hud() -> void:
 	hud = CombatHud.new()
 	hud.name = "HUD"
 	root.add_child(hud)
-	hud.set_player_hp(200, 200) # (GPT's M3 numbers; nothing hits the Samurai before M5)
+	hud.set_player_hp(combat.hp, combat.max_hp) # (GPT's M3 numbers: 200)
+	combat.hp_changed.connect(hud.set_player_hp)
 	_show_target(dummy)
 	dummy.hp_changed.connect(func(hp: int, total: int) -> void: _on_target_hp(dummy, hp, total))
 	automaton.hp_changed.connect(func(hp: int, total: int) -> void: _on_target_hp(automaton, hp, total))
-	hud.set_note("M4 · stick: move (rim 0.25 s: sprint) · drag: camera · ATTACK ×3 · HEAVY · CHAIN (then PULL) · RISE (then PURSUE) · DODGE · JUMP — keys WASD J H 1 3 K Space, 4 / 5 the conditional buttons")
+	hud.set_note("M4 · stick: move (rim 0.25 s: sprint) · drag: camera · ATTACK ×3 · HEAVY · CHAIN (then PULL) · STEP through its sweep (then COUNTER) · RISE (then PURSUE) · DODGE · JUMP — keys WASD J H 1 2 3 K Space, 4 / 5 the conditional buttons")
 	combat.notice.connect(func(text: String) -> void: hud.prompt(text, 1.6))
 
 	var back := Button.new()

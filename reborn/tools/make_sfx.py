@@ -4,6 +4,9 @@ WAV, which Godot imports). M3 review (GPT): three distinct sword swings and impa
                 with a faint whistle; 1 short and light, 2 a long wide sweep, 3 lower and fuller.
   impact_1/2/3 — the blade biting a straw-wrapped post: a sharp transient, a mid "thwack", the straw's crackle and
                 a body thump; 3 deeper and longer, with a low boom.
+  evade       — Shadow Step's genuine evasion (M4 Stage C, GPT's v1.4: a distinctive sound): a soft airy rush as the
+                blade cuts through his shadow, and a glassy fracture — a few inharmonic partials struck at once,
+                falling a little in pitch and ringing out quickly.
 Placeholder quality (synthesized, not recorded): to be replaced or layered in the audio pass.
 Usage: python3 make_sfx.py <out dir>"""
 import struct
@@ -106,3 +109,17 @@ save('swing_3', swing(0.30, 200, 950, 0.48, 0.35, whistle=0.02, body=0.8), 0.9)
 save('impact_1', impact(0.22, 190, 95, 0.05, 900, 0.8), 0.8)
 save('impact_2', impact(0.26, 170, 80, 0.07, 760, 1.0), 0.85)
 save('impact_3', impact(0.55, 140, 46, 0.14, 560, 1.3, boom=1.6), 0.95)
+
+
+def evade(dur):
+    n = int(SR * dur)
+    t = np.arange(n) / SR
+    rush = one_pole_low(svf_band(rng.standard_normal(n), np.full(n, 2300.0), 0.6), 6500)
+    x = 0.9 * rush * np.exp(-((t - 0.035) / 0.03) ** 2)
+    for f, a, d in [(1480, 0.5, 0.17), (2210, 0.45, 0.12), (3370, 0.32, 0.09), (4690, 0.22, 0.06)]:
+        fr = f * (1 - 0.05 * (1 - np.exp(-t / 0.09)))
+        x += a * np.sin(np.cumsum(2 * np.pi * fr / SR)) * np.exp(-t / d) * np.clip(t / 0.002, 0, 1)
+    return x * np.clip((dur - t) / 0.03, 0, 1)
+
+
+save('evade', evade(0.42), 0.7)

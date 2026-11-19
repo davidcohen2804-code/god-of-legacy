@@ -136,6 +136,12 @@ func pose(move: String, at: float, blend: float = 0.12) -> void:
 	anim.seek(at, false)
 
 
+## Shadow Step's shadow (0..1): the body sinks into a dark violet while its defensive window lasts.
+func set_shadow(k: float) -> void:
+	if body_material:
+		body_material.albedo_color = Color.WHITE.lerp(Color(0.34, 0.27, 0.5), clampf(k, 0.0, 1.0))
+
+
 ## The lowest point of the body's skeleton above its own origin (the feet's contact with the ground), in metres.
 func feet_height() -> float:
 	if skeleton == null:

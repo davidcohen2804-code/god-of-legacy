@@ -14,8 +14,9 @@ func advance(delta: float) -> void:
 	_clock += delta
 
 
-## Show `damage` above `owner` (a node in the tree), `height` m over its origin.
-func spawn(owner: Node3D, damage: int, height: float = 2.2) -> void:
+## Show `damage` above `owner` (a node in the tree), `height` m over its origin — in `tint` when given (the Samurai's
+## own wounds), else ivory, gold for a heavy blow.
+func spawn(owner: Node3D, damage: int, height: float = 2.2, tint: Color = Color(0, 0, 0, 0)) -> void:
 	if not owner.is_inside_tree() or owner.get_parent() == null:
 		return
 	var cam := owner.get_viewport().get_camera_3d()
@@ -30,7 +31,7 @@ func spawn(owner: Node3D, damage: int, height: float = 2.2) -> void:
 	l.font_size = 96
 	l.pixel_size = 0.004
 	l.outline_size = 18
-	l.modulate = Color("#F2E9DD") if damage < 18 else Color("#D9B778")
+	l.modulate = tint if tint.a > 0.0 else (Color("#F2E9DD") if damage < 18 else Color("#D9B778"))
 	l.outline_modulate = Color(0.07, 0.05, 0.1, 0.9)
 	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	l.no_depth_test = true

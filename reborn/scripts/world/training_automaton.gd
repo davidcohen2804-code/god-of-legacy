@@ -2,10 +2,18 @@ class_name TrainingAutomaton
 extends CharacterBody3D
 ## The Training Automaton (M4, GPT's v1.2 decision): a humanoid sparring construct of lacquered wood, bronze and stone
 ## (AutomatonVisual) — the courtyard's opponent for the Samurai's skills. 150 HP; a small target the Phantom Chain can
-## capture and pull and Rising Slash can launch (data/targets.json). In M4 it does not chase or attack (its telegraphed
-## attacks come with Shadow Counter, Stage C): it stands on its mark facing the Samurai, and each reaction is a state of
+## capture and pull and Rising Slash can launch (data/targets.json). It never chases; it stands on its mark facing the
+## Samurai and spars with him (Stage C: a scripted training attacker, no full AI) — and each reaction is a state of
 ## its own on the fixed tick, moved with collision — nothing it does passes through the ruins:
-##   stand — on guard (Sword_Idle), turning to face the Samurai;
+##   stand — on guard (Sword_Idle), turning to face the Samurai; when he stands within 3 m in front of it, a second
+##     after the last blow it took and no sooner than its cadence allows, it attacks;
+##   attack — its telegraphed sweep (data/abilities/automaton.json, run through the same combat state machine as the
+##     Samurai's actions): through the 550 ms startup it raises its practice sword and holds it, trembling, as the
+##     sword and its eyes kindle amber and a faint amber arc on the flagstones marks where the cut will pass; it keeps
+##     turning toward him until 300 ms in, then its direction is locked; it steps 0.3 m into the 130 ms cut (with
+##     collision), whose blade — its baked path — is resolved against him each tick after he has moved (his
+##     CombatController: hit, evaded through Shadow Step's defensive window, avoided by a roll, or nothing); then 400 ms
+##     of recovery, open to his counter. A blow it takes cuts the attack off (it flinches as ever);
 ##   stagger — a confirmed blow: a flinch (Hit_Chest, Hit_Head) or, for a pushing blow, a stagger back
 ##     (Idle_Shield_Break) and a 0.5 m push over 0.2 s, stopped by whatever it backs into;
 ##   captured — held by the chain: no movement and no action for the hold (repeated captures hold it less, then not
@@ -30,6 +38,11 @@ signal pull_finished(result: String)
 signal landed(airtime: float)
 ## A spiked body struck the floor at `at`.
 signal impacted(at: Vector3)
+## Its attack began; its cut began; it was resolved against its foe: "hit" | "evaded" | "avoided" | "missed" (nothing
+## touched him) | "interrupted" (a blow, a capture… cut it off first).
+signal attack_started
+signal attack_active
+signal attack_resolved(result: String)
 
 const RADIUS := 0.3
 const HEIGHT := 1.8
@@ -38,6 +51,7 @@ const PUSH_TIME := 0.2
 const FLASH_TIME := 0.1
 const WALK_SPEED := 1.3
 const DOWN_HEIGHT := 0.55 ## the hurt capsule's height while it lies on the floor
+const LUNGE_LEAD := 0.1 ## its step into the cut begins this long before the cut
 
 ## What it is and resists (data/targets.json).
 var target_data := TargetData.of("training_automaton")
@@ -65,6 +79,19 @@ var last_pull := {}
 var pushes := 0
 var captures := 0
 var launches := 0
+## The Samurai's combat — whom it spars with: its blows are resolved against him (his body, his defensive windows).
+var foe: CombatController
+## Its sparring script is on: it attacks its foe when he stands in reach (off: it only stands and reacts, as in Stage B).
+var spar := true
+## Its attack (data/abilities/automaton.json), run through its own combat state machine.
+var attack_data: AttackData
+var attacks := 0
+## How its last attack ended against its foe (see attack_resolved).
+var last_attack := ""
+## The telegraph's strength now (0..1; 1 through the cut) — the sword's and eyes' kindling, the arc on the floor.
+var telegraph := 0.0
+## The arc on the flagstones where the cut will pass.
+var arc: TelegraphArc
 
 var _home := Vector3.ZERO
 var _t := 0.0 ## time in the current state
@@ -104,6 +131,24 @@ var spikes := 0
 var last_spike_speed := 0.0
 var _captures_n := 0 ## captures in the current diminishing-returns run
 var _last_capture := -1000.0
+var _melee: MeleeState
+var _e0 := 0.0 ## how far into its attack it was when this tick began
+var _attack_from := Vector3.ZERO ## where it stood when the attack began (the arc's place)
+var _locked := false
+var _outcome := ""
+
+
+## Its late tick (priority +10, after the Samurai's body has moved): its blade is resolved against him then, so both
+## stand where they are at the end of the same tick.
+class LateTick extends Node:
+	var body: TrainingAutomaton
+
+	func _ready() -> void:
+		process_physics_priority = 10
+
+	func _physics_process(_delta: float) -> void:
+		if body and body.is_physics_processing():
+			body.strike_check()
 
 
 static func create() -> TrainingAutomaton:
@@ -122,6 +167,18 @@ static func create() -> TrainingAutomaton:
 	a.add_child(shape)
 	a.visual = AutomatonVisual.build_new()
 	a.add_child(a.visual)
+	var sp: Dictionary = a.target_data.get("spar", {})
+	a.attack_data = AttackData.automaton_attack(String(sp.get("attack", "sweep")))
+	var moves: Array[AttackData] = []
+	if a.attack_data:
+		moves.append(a.attack_data)
+		a.arc = TelegraphArc.for_attack(a.attack_data)
+		a.add_child(a.arc)
+	a._melee = MeleeState.new(moves)
+	var late := LateTick.new()
+	late.name = "LateTick"
+	late.body = a
+	a.add_child(late)
 	return a
 
 
@@ -192,6 +249,8 @@ func step(dt: float) -> void:
 	numbers.advance(dt)
 	_t += dt
 	_since_hit += dt
+	_e0 = _melee.elapsed()
+	_melee.step(dt) # (its attack's phases, and its cadence: the attack's cooldown)
 	match state:
 		"stand":
 			_do_stand(dt)
@@ -211,6 +270,12 @@ func step(dt: float) -> void:
 			_do_getup()
 		"defeated":
 			_do_defeated()
+		"attack":
+			_do_attack(dt)
+	for e in _melee.events:
+		if String(e["type"]) == "phase" and String(e["phase"]) == "ACTIVE":
+			attack_active.emit()
+	_melee.events.clear()
 	visual.rotation.y = facing
 
 
@@ -252,7 +317,7 @@ func thaw() -> void:
 
 
 func can_capture() -> bool:
-	return is_alive() and bool(target_data.get("pullable", false)) and state in ["stand", "walk", "stagger"]
+	return is_alive() and bool(target_data.get("pullable", false)) and state in ["stand", "walk", "stagger", "attack"]
 
 
 ## The Phantom Chain caught it: held still — no movement, no action — for `seconds`, less for a capture soon after
@@ -297,7 +362,7 @@ func pull_to(point: Vector3, seconds: float) -> bool:
 
 func can_launch() -> bool:
 	return is_alive() and bool(target_data.get("launchable", false)) and not _protected \
-		and state in ["stand", "walk", "stagger", "captured", "pulled"]
+		and state in ["stand", "walk", "stagger", "captured", "pulled", "attack"]
 
 
 ## Rising Slash: thrown straight up `height` m, back on the floor `airtime` s later (unless something above stops it).
@@ -336,11 +401,149 @@ func spike(start: float, accel: float, top: float) -> bool:
 	return true
 
 
+## Attack now (its sparring script, or the tests and QA): only on guard, alive, with its cadence allowing it. True when
+## it began.
+func attack() -> bool:
+	if attack_data == null or not is_alive() or state != "stand" or _melee.cooldown_left(attack_data.id) > 0.0:
+		return false
+	if not _melee.action_pressed(attack_data):
+		return false
+	_melee.events.clear()
+	attacks += 1
+	_outcome = ""
+	_locked = false
+	_attack_from = global_position
+	_enter("attack")
+	QA.flag("automaton_attack_start", attacks)
+	attack_started.emit()
+	return true
+
+
+## How far into its attack it is (s from its start; -1 when it is not attacking).
+func attack_time() -> float:
+	return _melee.elapsed() if state == "attack" and _melee.is_attacking() else -1.0
+
+
+## Its late tick: the slice of its active window this tick swept, resolved against its foe (after he moved this
+## tick) — once per attack: the first result against him spends the attack on him. (The game calls it from LateTick;
+## the tests call it after stepping his body.)
+func strike_check() -> void:
+	var a := _melee.current()
+	if state != "attack" or a == null or _melee.swept.x < 0.0 or foe == null or not is_instance_valid(foe):
+		return
+	var span := _melee.swept
+	_melee.swept = Vector2(-1, -1) # (once per tick)
+	var id := foe.fighter.get_instance_id()
+	if _melee.touched(id):
+		return
+	var r := foe.incoming(a, self, span)
+	match r:
+		"hit":
+			_melee.hit_confirmed(id) # (its own hit-stop: the cut holds still for a moment)
+		"evaded", "avoided":
+			_melee.spent_on(id)
+	if r != "":
+		_resolved(r)
+
+
+func _resolved(r: String) -> void:
+	_outcome = r
+	last_attack = r
+	QA.flag("automaton_attack", r)
+	attack_resolved.emit(r)
+
+
+func _wants_attack() -> bool:
+	if foe == null or not is_instance_valid(foe) or foe.fighter == null:
+		return false
+	var sp: Dictionary = target_data.get("spar", {})
+	if _since_hit < float(sp.get("after_hit", 1.0)):
+		return false
+	var to := _flat(foe.fighter.global_position - global_position)
+	if to.length() > float(sp.get("trigger", 3.0)):
+		return false
+	return absf(rad_to_deg(wrapf(atan2(to.x, to.z) - facing, -PI, PI))) <= float(sp.get("cone", 45.0))
+
+
+## The attack through its phases (the state machine's): the windup's raise and trembling hold, turning toward its foe
+## until the lock; the cut along its baked path; the follow-through; its step into the cut; the telegraph's glow.
+func _do_attack(dt: float) -> void:
+	var a := attack_data
+	var w := a.windup
+	var at := 0.0
+	match _melee.phase:
+		MeleeState.Phase.STARTUP:
+			var t := _melee.t
+			if t < float(w.get("lock", 0.3)):
+				if foe and is_instance_valid(foe):
+					_turn_toward(foe.fighter.global_position - global_position, float(w.get("turn", 6.0)), dt)
+			elif not _locked:
+				_locked = true
+				QA.flag("automaton_attack_locked", snappedf(rad_to_deg(facing), 0.1))
+			var top := float(w.get("to", 0.36))
+			var rise := float(w.get("time", 0.36))
+			at = top * clampf(t / rise, 0.0, 1.0)
+			if t > rise:
+				at -= 0.01 * (0.5 + 0.5 * sin(_clock * 46.0)) # the raised weapon trembles
+			telegraph = pow(clampf(t / a.startup, 0.0, 1.0), 1.5)
+		MeleeState.Phase.ACTIVE:
+			_locked = true
+			at = a.move_time(clampf(_melee.t / maxf(_melee.active_length(), 0.0001), 0.0, 1.0))
+			telegraph = 1.0
+		MeleeState.Phase.RECOVERY:
+			at = lerpf(a.move_time(1.0), float(a.follow.get("to", 0.8)), clampf(_melee.t / a.recovery, 0.0, 1.0))
+			telegraph = maxf(0.0, 1.0 - _melee.t / 0.15)
+		_:
+			_finish_attack()
+			return
+	_lunge(a)
+	visual.pose(a.anim, at, 0.1)
+	_anim_speed = 1.0
+	_show_telegraph()
+
+
+## Its step into the cut: `lunge` m along its facing from LUNGE_LEAD s before the cut to the cut's end, with collision.
+func _lunge(a: AttackData) -> void:
+	if a.lunge <= 0.0:
+		return
+	var from := a.startup - LUNGE_LEAD
+	var to := a.startup + a.active
+	var d := (clampf(_melee.elapsed(), from, to) - clampf(_e0, from, to)) / (to - from) * a.lunge
+	if d > 0.0:
+		_move(forward() * d)
+
+
+func _finish_attack() -> void:
+	if _outcome == "":
+		_resolved("missed")
+	telegraph = 0.0
+	_show_telegraph()
+	_enter("stand")
+
+
+## Its attack was cut off (a blow, a capture, a launch, defeat): the state machine drops it, the telegraph goes out.
+func _leave_attack() -> void:
+	if _melee.is_attacking():
+		_melee.take_hit(0.0)
+		if _outcome == "":
+			_resolved("interrupted")
+	telegraph = 0.0
+	_show_telegraph()
+
+
+func _show_telegraph() -> void:
+	visual.set_telegraph(telegraph, _melee.phase == MeleeState.Phase.ACTIVE)
+	if arc:
+		arc.show_at(_attack_from, facing, telegraph, _melee.phase == MeleeState.Phase.ACTIVE)
+
+
 func _do_stand(dt: float) -> void:
 	if watch and is_instance_valid(watch):
 		_turn_toward(watch.global_position - global_position, 5.0, dt)
 	if visual.current != "Sword_Idle":
 		_play("Sword_Idle", 0.25)
+	if spar and _wants_attack() and attack():
+		return
 	if _since_hit > float(target_data.get("return_after", 4.0)) and _flat(_home - global_position).length() > 1.0:
 		_stuck = 0.0
 		_enter("walk")
@@ -551,6 +754,8 @@ func _react(reaction: float, push: float, dir: Vector3) -> void:
 
 
 func _enter(s: String) -> void:
+	if state == "attack" and s != "attack":
+		_leave_attack()
 	if s != state:
 		QA.flag("automaton_state", s)
 	state = s
@@ -595,7 +800,10 @@ func info() -> Dictionary:
 		"airtime": snappedf(last_airtime, 0.001), "juggle_hits": _juggle_hits, "protected": _protected,
 		"hold": snappedf(maxf(_hold, 0.0), 0.001), "pull": last_pull, "last_push": snappedf(last_push, 0.01),
 		"spikes": spikes, "spike_speed": snappedf(last_spike_speed, 0.01),
-		"pushes": pushes, "captures": captures, "launches": launches, "frozen": _freeze > 0.0}
+		"pushes": pushes, "captures": captures, "launches": launches, "frozen": _freeze > 0.0,
+		"spar": spar, "attacks": attacks, "last_attack": last_attack,
+		"attack_t": snappedf(attack_time(), 0.001), "locked": _locked, "telegraph": snappedf(telegraph, 0.01),
+		"cadence": snappedf(_melee.cooldown_left(attack_data.id) if attack_data else 0.0, 0.01)}
 
 
 static func _ease3(k: float) -> float:
