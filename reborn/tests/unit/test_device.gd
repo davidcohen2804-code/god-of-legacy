@@ -118,8 +118,9 @@ func test_the_camera_starts_settled() -> String:
 		n.free()
 	if before.y > 0.5:
 		return "(the case is wrong: the camera began %.2f m up)" % before.y
-	if h < 3.0 or absf(fov0 - 44.0) > 0.01:
-		return "settled, the camera is %.2f m up with a %.1f° view (want the combat framing: above 3 m, 44°)" % [h, fov0]
+	var want_fov := float(CameraRig.VARIANTS[CameraRig.variant]["fov"])
+	if h < 3.0 or absf(fov0 - want_fov) > 0.01:
+		return "settled, the camera is %.2f m up with a %.1f° view (want the combat framing: above 3 m, %.0f°)" % [h, fov0, want_fov]
 	return "" if moved < 0.01 and turned < 0.02 and zoomed < 0.01 else \
 		"over the next 15 frames it still moved %.3f m, turned %.2f°, zoomed %.2f° (want none)" % [moved, turned, zoomed]
 
@@ -225,8 +226,8 @@ func test_the_cue_marks_each_new_opportunity_on_a_button() -> String:
 	var clear := true
 	for k in ["cond1", "more", "skill2", "skill3"]:
 		var o: Dictionary = tc._btn[k]
-		var extent := float(o["r_art"]) * (1.5 if k == "more" else 1.0)
-		if tc.is_shown(k) and (o["c"] as Vector2).distance_to(tc._btn["cond2"]["c"]) - extent < reach:
+		var extent := float(o["r_art"]) * (1.5 if k == "more" and TouchControls.style == "words" else 1.0)
+		if tc.is_shown(k) and TouchControls._gap(o, tc._btn["cond2"]) - extent < reach:
 			clear = false
 	rows.append(reach > r and reach <= r * TouchControls.CUE_GROW + 1e-3 and clear)
 	var hit_r := float(tc._btn["cond2"]["r_hit"])

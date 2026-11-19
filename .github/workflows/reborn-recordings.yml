@@ -38,6 +38,10 @@ jobs:
           unzip -q Godot_v${V}-stable_linux.x86_64.zip && mv Godot_v${V}-stable_linux.x86_64 godot && rm -f ./*.zip
       - name: Import
         run: ~/godot/godot --headless --path reborn --import
+      - name: Unit tests (their outcome is reported at the end; the recordings are made either way)
+        id: tests
+        continue-on-error: true
+        run: ~/godot/godot --headless --path reborn -s res://tests/run_tests.gd
       - name: The recordings (Movie Maker at a fixed 30 fps, software OpenGL under Xvfb)
         run: |
           python3 -m venv "$RUNNER_TEMP/ff" && "$RUNNER_TEMP/ff/bin/pip" install -q imageio-ffmpeg==0.6.0
@@ -54,3 +58,6 @@ jobs:
           if git fetch -q --depth=1 origin reborn-rec-out; then git checkout -q -b out FETCH_HEAD; else git checkout -q --orphan out; fi
           git rm -rq --ignore-unmatch . && cp "$GITHUB_WORKSPACE"/out/* .
           git add -A && git commit -qm "REBORN review recordings of ${GITHUB_SHA::7}" && git push -q origin HEAD:reborn-rec-out
+      - name: Fail when the unit tests failed
+        if: steps.tests.outcome != 'success'
+        run: exit 1

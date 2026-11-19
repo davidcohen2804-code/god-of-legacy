@@ -34,7 +34,7 @@ func _body(at: Vector3) -> Node3D:
 
 
 func _done(d: Dictionary) -> void:
-	CameraRig.variant = "A"
+	CameraRig.variant = "B"
 	for k: String in ["rig", "player", "foe"]:
 		(d[k] as Node).free()
 
@@ -116,6 +116,7 @@ func test_a_foreground_column_fades_and_one_behind_does_not() -> String:
 	fader.add_group([front])
 	fader.add_group([back])
 	var own: Material = front.material_override
+	var was := OcclusionFader.enabled
 	OcclusionFader.enabled = true
 	for i in 10:
 		fader._process(0.05)
@@ -126,6 +127,7 @@ func test_a_foreground_column_fades_and_one_behind_does_not() -> String:
 		fader._process(0.05)
 	var back_mat := front.material_override
 	var b := fader.info()["alphas"] as Array
+	OcclusionFader.enabled = was
 	for n: Node in [front, back, fader]:
 		n.free()
 	_done(d)
@@ -160,3 +162,76 @@ func _column(at: Vector3) -> MeshInstance3D:
 	_tree().root.add_child(m)
 	m.global_position = at + Vector3(0, 2.5, 0)
 	return m
+
+
+# --- B's corrections (M4.2-A2, GPT's v2.2) ---------------------------------------------------------------------------
+
+
+func test_b_stands_off_his_shoulder_and_keeps_its_aim_centred() -> String:
+	var with := _rig("B", Vector3(0, 0, 1.5))
+	var rig: CameraRig = with["rig"]
+	var side := (rig.cam.global_position - (with["player"] as Node3D).global_position).dot(Basis(Vector3.UP, rig.yaw).x)
+	var sx := rig.cam.unproject_position((with["player"] as Node3D).global_position + Vector3(0, 0.9, 0)).x
+	var fx := rig.cam.unproject_position((with["foe"] as Node3D).global_position + Vector3(0, 0.9, 0)).x
+	var mid := rig.screen.x * 0.5
+	_done(with)
+	CameraRig.shoulder = 0.0
+	var plain := _rig("B", Vector3(0, 0, 1.5))
+	rig = plain["rig"]
+	var sx0 := rig.cam.unproject_position((plain["player"] as Node3D).global_position + Vector3(0, 0.9, 0)).x
+	var fx0 := rig.cam.unproject_position((plain["foe"] as Node3D).global_position + Vector3(0, 0.9, 0)).x
+	_done(plain)
+	CameraRig.shoulder = 0.35
+	var apart := (sx - fx) - (sx0 - fx0)
+	if absf(side + 0.35) > 0.02:
+		return "the camera stands %.2f m to his right (want 0.35 m to his left)" % side
+	return "" if apart > 4.0 and absf((sx + fx) * 0.5 - mid) < 40.0 else \
+		"him %.1f px and the foe %.1f px across (plain: %.1f, %.1f): parted by %.1f px more (want > 4, the pair still near the middle %.1f)" % [
+			sx, fx, sx0, fx0, apart, mid]
+
+
+func test_b_rises_and_flattens_for_a_target_in_the_air() -> String:
+	var view := _tree().root.get_visible_rect().size
+	var band: Array[Rect2] = [Rect2(0, 0, view.x, view.y * 0.153)]
+	var up := _rig("B", Vector3(0, 2.2, 1.5), band) # (launched: 2.2 m up, 2.5 m ahead)
+	var rig: CameraRig = up["rig"]
+	var got := [snappedf(rig.lift, 0.01), snappedf(rig.elevation(), 0.01)]
+	var head := float((rig.screen_box(up["foe"], 1.0)["box"] as Array)[1])
+	_done(up)
+	CameraRig.air_framing = false
+	var flat := _rig("B", Vector3(0, 2.2, 1.5), band)
+	rig = flat["rig"]
+	var head0 := float((rig.screen_box(flat["foe"], 1.0)["box"] as Array)[1])
+	_done(flat)
+	CameraRig.air_framing = true
+	if got != [0.8, 30.0]:
+		return "a target 2.2 m up: the aim rose %s m, the pitch %s° (want 0.8, 30)" % got
+	return "" if head > head0 + 10.0 else "its head at %.1f px from the top (without the correction %.1f): want it lower on the screen" % [head, head0]
+
+
+func test_b_turns_a_little_when_the_target_enters_the_cluster() -> String:
+	var d := _rig("B", Vector3(0, 0, 1.5))
+	var rig: CameraRig = d["rig"]
+	rig.yaw += deg_to_rad(18.0) # (the camera turned left: the target sits right of the middle)
+	rig.settle()
+	rig.assist_zone = Rect2(rig.screen.x * 0.56, 0.0, rig.screen.x * 0.44, rig.screen.y)
+	var yaw0 := rig.yaw
+	var in0: bool = Rect2(rig.screen_box(d["foe"], 1.0)["box"][0], rig.screen_box(d["foe"], 1.0)["box"][1],
+		rig.screen_box(d["foe"], 1.0)["box"][2], rig.screen_box(d["foe"], 1.0)["box"][3]).intersects(rig.assist_zone)
+	for i in 90:
+		rig._update(1.0 / 30.0, false)
+	var turned := rad_to_deg(yaw0 - rig.yaw)
+	var count := rig.assists
+	# a drag stops it at once and it waits before acting again
+	rig.yaw += deg_to_rad(12.0)
+	rig.turn(Vector2(1, 0))
+	var y1 := rig.yaw
+	for i in 6: # 0.2 s: inside its pause
+		rig._update(1.0 / 30.0, false)
+	var during := absf(rad_to_deg(rig.yaw - y1))
+	_done(d)
+	if not in0:
+		return "the setup did not put the target in the zone"
+	if count < 1 or turned <= 1.0 or turned > CameraRig.ASSIST_MAX + 0.01:
+		return "it turned %.2f° (%d times) with the target in the cluster (want some, %.0f° at most)" % [turned, count, CameraRig.ASSIST_MAX]
+	return "" if during < 0.01 else "it turned %.2f° within its pause after a drag (want none)" % during

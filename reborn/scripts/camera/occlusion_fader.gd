@@ -8,9 +8,9 @@ extends Node
 ## little while it is faded, and it stays faded HOLD s after it stops obstructing (hysteresis: no flicker at a
 ## threshold). Collision is untouched. Materials: each group's transparent copies are made once, when it is added —
 ## nothing is created per frame; a group back at full opacity has its own opaque materials again (the opaque pass).
-## Off unless switched on (`enabled`: QA, until a camera is chosen — the production view unchanged).
+## On at 25 % since M4.2-A2 (GPT's v2.2); QA can switch it off or change the opacity.
 
-static var enabled := false
+static var enabled := true
 static var opacity := 0.25
 const OUT := 0.15 ## s to fade out
 const BACK := 0.3 ## s to come back

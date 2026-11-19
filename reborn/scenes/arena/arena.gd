@@ -1,12 +1,13 @@
 extends Node3D
 ## Arena — M3–M4: sword combat in the Fallen Moon Courtyard. The Samurai, the straw training dummy in the middle (a
-## fixed diagnostic target) and, north-west of it, the Training Automaton (M4: the humanoid opponent the skills are
+## fixed diagnostic target — only with ?qa=1 since M4.2-A2: not in ordinary play nor the device test, GPT's v2.1) and,
+## north-west of it, the Training Automaton (M4: the humanoid opponent the skills are
 ## tried on — pulled, launched, knocked down — and, from Stage C, a sparring partner whose telegraphed sweep he can
 ## take, roll from, or evade with Shadow Step and answer with Shadow Counter): walk, run, sprint, jump and dodge
 ## relative to the camera, the three-strike katana chain, Heavy and the skills — from the touch controls (several
 ## fingers at once), the keyboard or a gamepad. The camera
-## frames him with the target he is fighting (the one he struck in the last seconds, else the nearest) and roams free
-## otherwise; the HUD's bar shows that target. With ?qa=1 the page can place him, switch the camera to inspection
+## frames him with the current target (TargetSelector: the combo's target, else the one he is fighting, else the
+## nearest — GPT's v2.1) and roams free otherwise; the HUD's bar shows that target and clears once it is defeated. With ?qa=1 the page can place him, switch the camera to inspection
 ## viewpoints, put the automaton through its reactions, and the HUD shows the developer's notes.
 
 ## Within this distance of a target the camera takes its combat framing and the target's bar shows.
@@ -24,8 +25,10 @@ var hud: CombatHud
 var dummy: TrainingDummy
 var automaton: TrainingAutomaton
 var vfx: HitVfx
-## Foreground columns and the arch fading out of the fight's way (M4.2-A; off until a camera is chosen).
+## Foreground columns and the arch fading out of the fight's way (M4.2-A; on at 25 % since A2, GPT's v2.2).
 var fader: OcclusionFader
+## The current target (the bar's and the camera's).
+var targets := TargetSelector.new()
 ## The device test's screen (?device=1), when it runs.
 var device: DevicePanel
 var _cam: Camera3D
@@ -35,8 +38,9 @@ var _armed := {}
 var _t := 0.0
 var _view := "game"
 var _shown: Node3D ## the target on the HUD's bar
-var _last_hit: Node3D
-var _last_hit_t := -100.0
+var _engaged := {} ## target → when the last blow between him and it fell (his on it, or its on him)
+var _dead_for := 0.0 ## s the target on the bar has been defeated
+var _hud_preview := {} ## (QA) the controls held in a given state, while set
 
 
 func _ready() -> void:
@@ -51,7 +55,8 @@ func _ready() -> void:
 	QA.track("camera", _camera_state)
 	QA.track("controls", touch.layout_info)
 	QA.track("combat", combat.state)
-	QA.track("dummy", dummy.state)
+	if dummy.is_inside_tree():
+		QA.track("dummy", dummy.state)
 	QA.track("automaton", automaton.info)
 	QA.track("render", Game.render_state)
 	QA.track("framing", _framing_state)
@@ -76,6 +81,7 @@ func _ready() -> void:
 		d.player = player
 		d.rig = rig
 		d.automaton = automaton
+		d.fader = fader
 		d.combat = combat
 		d.caption = hud.prompt
 		if not Game.bench.is_empty():
@@ -121,13 +127,21 @@ func _process(delta: float) -> void:
 	# (the camera's framing keeps the fighters clear of the HUD: its areas, from the controls' layout — M4.2-A)
 	rig.screen = get_viewport().get_visible_rect().size
 	rig.exclusions = touch.exclusion_rects()
-	# (a target keeps the framing while it is down: it stands up again)
-	var focus := _focus_target()
-	rig.focus = focus
-	rig.mode = CameraRig.Mode.COMBAT if focus else CameraRig.Mode.EXPLORATION
+	rig.assist_zone = touch.cluster_box("R")
+	var focus := _pick_target(delta)
+	var frame := focus
+	if frame == null and _shown and _shown.is_inside_tree() and not bool(_shown.call("is_alive")) \
+			and _flat_dist(_shown) < TargetSelector.RANGE:
+		frame = _shown # (a defeated target keeps the camera's framing while it lies there: it rises again)
+	rig.focus = frame
+	rig.mode = CameraRig.Mode.COMBAT if frame else CameraRig.Mode.EXPLORATION
 	hud.set_near(focus != null)
 	if focus and focus != _shown:
 		_show_target(focus)
+	# (the bar clears once its target is defeated — after its last loss has drained)
+	_dead_for = _dead_for + delta if _shown and not _shown.call("is_alive") else 0.0
+	if _dead_for > 0.8 and _dead_for - delta <= 0.8:
+		hud.clear_target()
 	_update_buttons()
 	for i in FallenMoonCourtyard.flames.size():
 		var f := FallenMoonCourtyard.flames[i]
@@ -137,7 +151,8 @@ func _process(delta: float) -> void:
 func _build_world() -> void:
 	FallenMoonCourtyard.build(self)
 	dummy = TrainingDummy.create()
-	add_child(dummy)
+	if QA.enabled and not Game.device_test:
+		add_child(dummy) # (GPT's v2.1: the straw dummy only in ?qa=1 — and in the tests, which make their own)
 	automaton = TrainingAutomaton.create()
 	automaton.position = AUTOMATON_HOME
 	automaton.facing = atan2(-AUTOMATON_HOME.x, 7.0 - AUTOMATON_HOME.z) # toward where the Samurai starts
@@ -170,7 +185,7 @@ func _build_camera() -> void:
 	add_child(rig)
 	rig.snap_behind(player.facing)
 	# (the framing it starts in — combat when a target is within range — at once: the first frame drawn is the game view)
-	rig.focus = _focus_target()
+	rig.focus = _pick_target(1.0)
 	rig.mode = CameraRig.Mode.COMBAT if rig.focus else CameraRig.Mode.EXPLORATION
 	rig.settle()
 	_cam = rig.cam
@@ -213,7 +228,9 @@ func _build_combat() -> void:
 	shadow.combat = combat
 	shadow.fighter = player
 	add_child(shadow)
-	combat.blow_taken.connect(func(a: AttackData, _by: Node3D, _dir: Vector3) -> void:
+	combat.blow_taken.connect(func(a: AttackData, by: Node3D, _dir: Vector3) -> void:
+		if by and is_instance_valid(by):
+			_engaged[by] = _t # (one that struck him is his opponent too)
 		_player_numbers.spawn(player, a.damage, 2.1, UiTheme.CRIMSON))
 	var chain := PhantomChainVisual.new()
 	chain.name = "PhantomChain"
@@ -381,9 +398,24 @@ func _on_qa_command(cmd: String, args: Array) -> void:
 			_place_camera()
 		QA.flag("view", _view)
 	elif cmd == "camvar" and not args.is_empty() and CameraRig.VARIANTS.has(str(args[0])):
-		# (M4.2-A's comparison) the combat framing A, B or C — the player's default stays A
+		# (M4.2-A) the combat framing A, B or C — B the player's since A2 (GPT's v2.2)
 		CameraRig.variant = str(args[0])
 		QA.flag("camvar", CameraRig.variant)
+	elif cmd == "camfx" and args.size() >= 3:
+		# (M4.2-A2) B's corrections, each on or off: the shoulder (its offset in m; 0 off), the airborne framing, the assist
+		CameraRig.shoulder = clampf(float(args[0]), 0.0, 0.5)
+		CameraRig.air_framing = str(args[1]) != "0"
+		CameraRig.assist = str(args[2]) != "0"
+		QA.flag("camfx", "%s:%s:%s" % [CameraRig.shoulder, CameraRig.air_framing, CameraRig.assist])
+	elif cmd == "expvar" and not args.is_empty() and CameraRig.EXPLORE_VARIANTS.has(str(args[0])):
+		# (M4.2-A2) the exploration framing: A as before, B GPT's v2.2 proposal
+		CameraRig.explore = str(args[0])
+		QA.flag("expvar", CameraRig.explore)
+	elif cmd == "hudstyle" and not args.is_empty() and str(args[0]) in ["icons", "words"]:
+		# (M4.2-A2) the controls: GPT's v2.3 icons, labels and capsules, or the earlier words
+		TouchControls.style = str(args[0])
+		touch._layout()
+		QA.flag("hudstyle", TouchControls.style)
 	elif cmd == "fade" and not args.is_empty():
 		# (M4.2-A's comparison) the foreground columns' fading on or off, and its opacity
 		OcclusionFader.enabled = str(args[0]) != "0"
@@ -393,7 +425,7 @@ func _on_qa_command(cmd: String, args: Array) -> void:
 	elif cmd == "frame":
 		# (M4.2-A's comparison: identical shots) the camera behind him toward his foe ("foe") or along his facing
 		# ("facing"), settled at once in its framing
-		rig.focus = _focus_target()
+		rig.focus = _pick_target(1.0)
 		rig.mode = CameraRig.Mode.COMBAT if rig.focus else CameraRig.Mode.EXPLORATION
 		if (args.is_empty() or str(args[0]) == "foe") and rig.focus:
 			var to := rig.focus.global_position - player.global_position
@@ -410,6 +442,16 @@ func _on_qa_command(cmd: String, args: Array) -> void:
 		# (M4.2-A's comparison) the straw dummy out of the shot, or back
 		dummy.visible = str(args[0]) != "off"
 		QA.flag("dummy", dummy.visible)
+	elif cmd == "hudpreview":
+		# (M4.2-A2's evidence: the real controls, held) "off", or two capsules' words, the chip's count and cooldowns:
+		# hudpreview COUNTER EXECUTE 1 — CHAIN and RISE part-way through their cooldowns (HEAVY has none)
+		if args.is_empty() or str(args[0]) == "off":
+			_hud_preview = {}
+		else:
+			_hud_preview = {"words": [str(args[0]), str(args[1]) if args.size() > 1 else ""], "left": [0.7, 0.35],
+				"waiting": int(args[2]) if args.size() > 2 else 0,
+				"cooldowns": {"skill1": [3.6, 6.0], "skill3": [1.4, 5.0]}}
+		QA.flag("hudpreview", not _hud_preview.is_empty())
 
 
 func _player_state() -> Dictionary:
@@ -446,7 +488,12 @@ func _framing_state() -> Dictionary:
 		"fallback": rig.fallback, "fallbacks": rig.fallbacks, "player": rig.screen_box(player, css),
 		"foe": rig.screen_box(rig.focus, css), "areas": areas, "screen": [rig.screen.x, rig.screen.y],
 		"css_per_px": snappedf(css, 0.001), "fade": fader.info(),
-		"draws": RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME)}
+		"draws": RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME),
+		"shoulder": CameraRig.shoulder, "air": CameraRig.air_framing, "assist": CameraRig.assist,
+		"lift": snappedf(rig.lift, 0.01), "air_pull": snappedf(rig.air_pull, 0.01),
+		"assist_turned": snappedf(rig.assist_turned, 0.1), "assists": rig.assists, "explore": CameraRig.explore,
+		"mode": CameraRig.Mode.keys()[rig.mode], "pitch": snappedf(rig.elevation(), 0.1),
+		"target": String((targets.current as Node).name) if targets.current else "", "target_rank": targets.rank}
 
 
 func _camera_state() -> Dictionary:
@@ -478,7 +525,7 @@ func _build_hud() -> void:
 	root.add_child(hud)
 	hud.set_player_hp(combat.hp, combat.max_hp) # (GPT's M3 numbers: 200)
 	combat.hp_changed.connect(hud.set_player_hp)
-	_show_target(dummy)
+	_show_target(automaton)
 	dummy.hp_changed.connect(func(hp: int, total: int) -> void: _on_target_hp(dummy, hp, total))
 	automaton.hp_changed.connect(func(hp: int, total: int) -> void: _on_target_hp(automaton, hp, total))
 	hud.set_note("M4 · stick: move (rim 0.25 s: sprint) · drag: camera · ATTACK ×3 · HEAVY · CHAIN (then PULL) · STEP through its sweep (then COUNTER) · RISE (then PURSUE) · DODGE · JUMP — keys WASD J H 1 2 3 K Space, 4 / 5 the conditional buttons")
@@ -494,21 +541,22 @@ func _build_hud() -> void:
 	touch.reserved = [Rect2(Vector2.ZERO, Vector2(220, 110))]
 
 
-## The target he is fighting: the one he struck in the last 4 s (while it is within the framing's range), else the
-## nearest within range; none when he is away from both.
-func _focus_target() -> Node3D:
-	if _last_hit and _t - _last_hit_t < 4.0 and _flat_dist(_last_hit) < COMBAT_RANGE:
-		return _last_hit
-	var best: Node3D = null
-	var best_d := COMBAT_RANGE
+## The current target by GPT's v2.1 rule (TargetSelector): the Legacy Chain's target while an opportunity against it is
+## open, else the one he struck or that struck him in the last seconds, else the nearest — alive and within range.
+func _pick_target(delta: float) -> Node3D:
+	var cands: Array = []
 	for t: Node3D in [dummy, automaton]:
-		if not t.visible:
-			continue # (QA: the dummy put away for a shot)
-		var d := _flat_dist(t)
-		if d < best_d:
-			best = t
-			best_d = d
-	return best
+		if not t.is_inside_tree() or not t.visible:
+			continue # (the dummy: only with ?qa=1, and put away for some shots)
+		cands.append({"node": t, "alive": bool(t.call("is_alive")), "dist": _flat_dist(t)})
+	var eng := {}
+	for t: Object in _engaged:
+		eng[t] = _t - float(_engaged[t])
+	var combo: Object = null
+	var o := combat.legacy.in_slot(0)
+	if not o.is_empty():
+		combo = instance_from_id(int(o["target"]))
+	return targets.pick(cands, combo, eng, delta) as Node3D
 
 
 func _flat_dist(t: Node3D) -> float:
@@ -529,13 +577,23 @@ func _on_target_hp(t: Node3D, hp: int, total: int) -> void:
 		_show_target(t)
 	hud.on_target_hp(hp, total)
 	if hp < total:
-		_last_hit = t
-		_last_hit_t = _t
+		_engaged[t] = _t
 
 
 ## The buttons' state from the combat (they only draw what they are told): what each conditional button holds and how
 ## much of its window is left, how many wait beyond them, and each skill's cooldown.
 func _update_buttons() -> void:
+	if not _hud_preview.is_empty():
+		# (QA, M4.2-A2's evidence) the controls held in a given state: two capsules, the chip, cooldowns
+		var pv := _hud_preview
+		for i in 2:
+			var w := String(pv["words"][i]) if i < (pv["words"] as Array).size() else ""
+			touch.set_conditional("cond%d" % (i + 1), w, w != "", float(pv["left"][i]), "preview:%s" % w)
+		touch.set_waiting(int(pv["waiting"]))
+		for key: String in ["heavy", "skill1", "skill2", "skill3"]:
+			var cd: Array = pv["cooldowns"].get(key, [0.0, 1.0])
+			touch.set_cooldown(key, float(cd[0]), float(cd[1]))
+		return
 	var cs := combat.conditionals()
 	var slots: Array = cs["slots"]
 	for i in slots.size():

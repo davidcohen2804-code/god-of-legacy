@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # (M4.2) The review's recordings, for GPT: how it plays — free movement, then the three Legacy Chain branches, at real
-# speed in the Android phone's shape (2.4 : 1) with the thumbs drawn — and the branches from the side at half speed.
+# speed in the Android phone's shape (2.4 : 1) with the thumbs drawn — and the branches from the side at half speed;
+# (A2) the exploration framings walking in to the automaton, and the columns fading as the camera passes them.
 # Each with the game's own sound (Movie Maker records its mix). Run from the repository's root; both workflows use it.
 # usage: record_review.sh <out dir> <ffmpeg>        (Godot at $G, else ~/godot/godot)
 set -u
@@ -35,7 +36,13 @@ encode() { # the .avi, the .mp4 (and its PNG pack: a page carries it through an 
 # the override, for this recording only.)
 printf '[display]\n\nwindow/size/window_width_override=1728\nwindow/size/window_height_override=720\n' > reborn/override.cfg
 record feel 1728 720 --demo --demo-feel
+# (M4.2-A2) the exploration framing A, then B, each walking in across the 9 m; the columns fading as the camera passes
+record explore 1728 720 --demo --demo-explore
+record columns 1728 720 --demo --demo-columns
+grep "\[COLUMNS\]" "$T/columns.log" | tee "$OUT/m42_columns_fades.txt" || true
 rm -f reborn/override.cfg
 record side 1280 720 --demo --demo-side
 encode "$T/feel.avi" "$OUT/m42_feel_phone.mp4"
 encode "$T/side.avi" "$OUT/m42_side_half.mp4"
+encode "$T/explore.avi" "$OUT/m42_explore_phone.mp4"
+encode "$T/columns.avi" "$OUT/m42_columns_phone.mp4"

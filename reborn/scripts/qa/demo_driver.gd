@@ -154,7 +154,9 @@ const SCRIPT_M4 := [
 
 ## M4.2 — how it plays (`-- --demo --demo-feel`, recorded at the Android phone's shape): free movement at real speed —
 ## walking, running and sprinting at the stick's rim, a second finger turning the camera, a jump, a roll, a Shadow Step
-## in open space, the three strikes on the air and Heavy — then the integrated review's three branches (SCRIPT_M4).
+## in open space, the three strikes on the air and Heavy — then (A2) a walk to the automaton's south and a side-step
+## west, so the automaton drifts toward the right-hand buttons and the camera's assist turns it clear; then the
+## integrated review's three branches (SCRIPT_M4).
 const FEEL_PRELUDE := [
 	[0.2, "spar", false],
 	[0.3, "caption", "How it plays at real speed — the white rings are the thumbs on the stick and on the buttons", 3.2],
@@ -167,9 +169,50 @@ const FEEL_PRELUDE := [
 	[10.5, "caption", "Basic 1 → 2 → 3 on the air, then HEAVY", 2.2],
 	[10.6, "mash", 3],
 	[12.6, "tap", "heavy"],
-	[14.0, "go", Vector2(0.0, 7.0), 0.85], # back to where the review starts
+	[14.0, "go", Vector2(-3.5, 2.0), 0.85], # 4.5 m south of the automaton
+	[17.0, "point", Vector2(0.0, -1.0), 0.3], # facing it
+	[17.4, "behind"], # (the camera behind him — a cut)
+	[17.6, "caption", "A side-step: the automaton drifts toward the buttons — the camera turns a little to keep it clear", 3.4],
+	[17.8, "stick", Vector2(-0.42, 0.0)], # a walk west
+	[19.6, "stick_up"],
+	[20.8, "go", Vector2(0.0, 7.0), 0.85], # back to where the review starts
 ]
-const FEEL_REVIEW_AT := 16.0 ## s: SCRIPT_M4 starts here, after the prelude
+const FEEL_REVIEW_AT := 24.0 ## s: SCRIPT_M4 starts here, after the prelude
+
+## M4.2-A2 — the exploration framing (`-- --demo --demo-explore`, the phone's shape): a walk in to the automaton from
+## 15 m with exploration A (as before), then the same with exploration B (GPT's v2.2 proposal) — each crossing the
+## 9 m at which the combat framing takes over.
+const SCRIPT_EXPLORE := [
+	[0.2, "spar", false],
+	[0.2, "expvar", "A"],
+	[0.3, "caption", "Exploration A (as before: 8 m, 36°, 55°) — a walk in; the combat framing takes over at 9 m", 4.0],
+	[0.4, "go", Vector2(4.0, 10.5), 0.85],
+	[3.6, "point", Vector2(-0.5, -0.866), 0.3],
+	[4.0, "behind"],
+	[4.2, "approach", 3.0, 0.4],
+	[11.5, "caption", "Exploration B (proposal: 7.35 m, 35°, 50°) — the same walk in", 4.0],
+	[11.5, "expvar", "B"],
+	[11.6, "go", Vector2(4.0, 10.5), 0.85],
+	[14.8, "point", Vector2(-0.5, -0.866), 0.3],
+	[15.2, "behind"],
+	[15.4, "approach", 3.0, 0.4],
+	[23.0, "end"],
+]
+
+## M4.2-A2 — the fading as the camera moves (`-- --demo --demo-columns`, the phone's shape): the two fighters near the
+## east of the courtyard, the Samurai facing its middle, so the camera behind him sweeps past two neighbouring columns
+## (one standing, one broken) as a second finger turns it one way, then slowly the other, then back. At the end the
+## log reads how often each column faded and came back, and the shortest time it held either way (a flicker shows as a
+## very short one).
+const SCRIPT_COLUMNS := [
+	[0.2, "spar", false],
+	[0.2, "place", Vector2(5.5, 0.0), -90.0, Vector2(3.0, 0.0)],
+	[0.3, "caption", "The columns fading as the camera passes behind them (25 %)", 4.0],
+	[1.0, "drag", Vector2(-130, 0), 1.6],
+	[3.2, "drag", Vector2(260, 0), 6.0],
+	[10.0, "drag", Vector2(-130, 0), 2.5],
+	[13.5, "end"],
+]
 
 var touch: TouchControls
 var combat: CombatController
@@ -177,6 +220,8 @@ var player: Fighter
 var rig: CameraRig
 var automaton: TrainingAutomaton
 var caption: Callable
+var fader: OcclusionFader ## (the columns' script: their fading's timeline)
+var _fades := {} ## column group → [fading now, times faded, times back, s since its last change, shortest hold]
 var _t := 0.0
 var _i := 0
 var _stick_down := false
@@ -213,6 +258,10 @@ func _ready() -> void:
 		_script = SCRIPT_M4
 	elif _named == "feel" or (_named == "" and "--demo-feel" in args):
 		_script = FEEL_PRELUDE + shifted(SCRIPT_M4, FEEL_REVIEW_AT)
+	elif _named == "explore" or (_named == "" and "--demo-explore" in args):
+		_script = SCRIPT_EXPLORE
+	elif _named == "columns" or (_named == "" and "--demo-columns" in args):
+		_script = SCRIPT_COLUMNS
 
 
 ## A script's steps `by` s later (their own nested steps keep their relative delays).
@@ -234,6 +283,8 @@ func _physics_process(delta: float) -> void:
 		_i += 1
 	_tick_mash(delta)
 	_tick_watch(delta)
+	if fader and _script == SCRIPT_COLUMNS:
+		_tick_fades(delta)
 	for i in range(_deferred.size() - 1, -1, -1):
 		if _t >= float(_deferred[i][0]):
 			var st: Array = _deferred[i][1]
@@ -368,7 +419,25 @@ func _run(step: Array) -> void:
 				else:
 					automaton.place(automaton.global_position + Vector3(dir.z, 0.0, -dir.x) * float(step[2]))
 				automaton.facing = atan2(-dir.x, -dir.z)
+		"behind":
+			rig.snap_behind(player.facing)
+		"expvar":
+			CameraRig.explore = String(step[2])
+		"place":
+			var at: Vector2 = step[2]
+			player.global_position = Vector3(at.x, 0.0, at.y)
+			player.velocity = Vector3.ZERO
+			player.facing = deg_to_rad(float(step[3]))
+			if automaton:
+				var au: Vector2 = step[4]
+				automaton.place(Vector3(au.x, 0.0, au.y))
+				var to := player.global_position - automaton.global_position
+				automaton.facing = atan2(to.x, to.z)
+			rig.snap_behind(player.facing)
+			rig.settle()
 		"end":
+			if not _fades.is_empty():
+				_report_fades()
 			Engine.time_scale = 1.0
 			if _loop:
 				_again()
@@ -486,3 +555,33 @@ func _window(p: Vector2) -> Vector2:
 
 func _window_delta(v: Vector2) -> Vector2:
 	return get_viewport().get_final_transform().basis_xform(v)
+
+
+## (The columns' script) each column group's fading: when it starts fading or coming back, and how long it held.
+func _tick_fades(delta: float) -> void:
+	var alphas: Array = fader.info()["alphas"]
+	for i in alphas.size():
+		var f: Array = _fades.get(i, [false, 0, 0, 0.0, INF])
+		f[3] = float(f[3]) + delta
+		var now := float(alphas[i]) < 0.999
+		if now != bool(f[0]):
+			if int(f[1]) + int(f[2]) > 0:
+				f[4] = minf(float(f[4]), float(f[3]))
+			f[0] = now
+			if now:
+				f[1] = int(f[1]) + 1
+			else:
+				f[2] = int(f[2]) + 1
+			f[3] = 0.0
+		_fades[i] = f
+
+
+func _report_fades() -> void:
+	var changed := 0
+	for i: int in _fades:
+		var f: Array = _fades[i]
+		if int(f[1]) + int(f[2]) > 0:
+			changed += 1
+			print("[COLUMNS] group %d: faded %d times, back %d times, shortest hold %s s" % [i, f[1], f[2],
+				"%.2f" % float(f[4]) if float(f[4]) < INF else "-"])
+	print("[COLUMNS] groups that changed: %d of %d" % [changed, _fades.size()])

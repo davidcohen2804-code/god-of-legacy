@@ -99,6 +99,12 @@ func set_near(near: bool) -> void:
 	_near = near
 
 
+## The target is gone (defeated): the bar fades now, without lingering (GPT's v2.1: clear when dead).
+func clear_target() -> void:
+	_near = false
+	_linger = 0.0
+
+
 func prompt(text: String, seconds: float = 2.5) -> void:
 	_prompt.text = text
 	_prompt_t = seconds

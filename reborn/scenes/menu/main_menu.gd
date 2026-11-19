@@ -37,14 +37,16 @@ func _ready() -> void:
 	QA.register("play", play)
 	QA.register("settings", settings)
 
-	var ver := UiTheme.label("Vertical slice · M1", 20, UiTheme.TEXT_DIM)
-	ver.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
-	ver.offset_left = -330
-	ver.offset_top = -56
-	ver.offset_right = -36
-	ver.offset_bottom = -24
-	ver.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	add_child(ver)
+	if QA.enabled:
+		# (the developer's label: only with ?qa=1 — GPT's v2.1)
+		var ver := UiTheme.label("Vertical slice · M1", 20, UiTheme.TEXT_DIM)
+		ver.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
+		ver.offset_left = -330
+		ver.offset_top = -56
+		ver.offset_right = -36
+		ver.offset_bottom = -24
+		ver.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		add_child(ver)
 
 	play.grab_focus()
 	QA.mark("main_menu")
