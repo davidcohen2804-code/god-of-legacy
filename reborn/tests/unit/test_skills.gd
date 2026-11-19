@@ -511,3 +511,96 @@ func test_a_late_pursuit_still_leaps() -> String:
 	if top < 0.55:
 		return "a late pursuit rose only %.2f m (want a visible jump: 0.6 m)" % top
 	return "" if hp == hp0 - 14 else "a late pursuit did not land its chop (%d → %d)" % [hp0, hp]
+
+
+## GPT's v1.3: Aerial Pursuit's confirmed blow spikes the target down — it lands sooner than its arc, and the impact
+## adds no damage.
+func test_the_pursuit_spikes_it_down() -> String:
+	var c := _samurai()
+	var a := _automaton(Vector3(0, 0, 1.3))
+	if not _rise(c, a):
+		_clear()
+		return "the automaton was not launched"
+	c.try_conditional(0)
+	var t := 0.0
+	var hp0 := a.hp
+	while t < 2.0 and a.state == "air":
+		_tick_all(c, [a], DT)
+		t += DT
+	var res := [a.hp, a.spikes, a.last_airtime, a.state]
+	_tick_all(c, [a], 0.3)
+	var after := a.hp
+	_clear()
+	if int(res[0]) != hp0 - 14 or int(res[1]) != 1:
+		return "the pursuit's blow: %s (want 14 damage and one spike)" % [res]
+	if float(res[2]) > 0.8:
+		return "spiked, it was still in the air for %.3f s (its arc lasts 0.9)" % float(res[2])
+	return "" if after == hp0 - 14 else "the impact dealt damage (%d → %d)" % [hp0 - 14, after]
+
+
+## A target that comes down before the blade does is not struck: no 14, no spike.
+func test_a_target_down_before_the_blade_is_not_struck() -> String:
+	var c := _samurai()
+	var a := _automaton(Vector3(0, 0, 1.3))
+	if not _rise(c, a):
+		_clear()
+		return "the automaton was not launched"
+	c.try_conditional(0)
+	var t := 0.0
+	while t < 1.0 and not (c.melee.action and c.melee.action.id == "aerial_pursuit"):
+		_tick_all(c, [a], DT)
+		t += DT
+	if not (c.melee.action and c.melee.action.id == "aerial_pursuit"):
+		_clear()
+		return "the pursuit did not start"
+	a.spike(30.0, 0.0, 30.0) # (something else brings it down at once, before his strike)
+	var hp0 := a.hp
+	_tick_all(c, [a], 0.8)
+	var res := [a.hp, a.spikes, c.strike_log[-1]["id"], c.strike_log[-1]["hits"]]
+	_clear()
+	return "" if res == [hp0, 1, "aerial_pursuit", 0] else "a target down before the blade: %s (want untouched)" % [res]
+
+
+## GPT's v1.3 overflow check: three opportunities while a finger holds the first button — a second finger's tap on the
+## chip asks only for the waiting one (it presses nothing beneath it), and the waiting one comes up on the free button,
+## never on the one under the finger.
+func test_the_chip_under_two_fingers_with_three_waiting() -> String:
+	var tc := TouchControls.new()
+	tc.input = PlayerInput.new()
+	_tree().root.add_child(tc)
+	tc.size = Vector2(1280, 720)
+	tc._layout()
+	var g := LegacyChain.new([
+		{"on": "launched", "unlock": "aerial_pursuit", "window": 0.7, "rank": 2},
+		{"on": "evaded", "unlock": "shadow_counter", "window": 0.6, "rank": 3},
+		{"on": "captured", "unlock": "chain_pull", "window": 0.7, "rank": 4}])
+	g.event("launched", 1)
+	g.event("evaded", 2)
+	g.event("captured", 1)
+	for i in 2:
+		tc.set_conditional("cond%d" % (i + 1), String(g.in_slot(i)["ability"]), true, 1.0)
+	tc.set_waiting(g.waiting().size())
+	var c1: Array = QA._rects.get("btn_cond1", [])
+	var m: Array = QA._rects.get("btn_more", [])
+	var err := ""
+	if c1.size() != 4 or m.size() != 4:
+		err = "the first button or the chip is not on screen"
+	else:
+		tc._down(1, Vector2(c1[0] + c1[2] * 0.5, c1[1] + c1[3] * 0.5)) # finger 1 holds the first button
+		tc.input.consume("cond1")
+		g.lock(0, tc.input.is_held("cond1"))
+		tc._down(2, Vector2(m[0] + m[2] * 0.5, m[1] + m[3] * 0.5)) # finger 2 taps the chip
+		var asked := tc.input.consume("cond_more")
+		var stray := tc.input.peek("cond1") or tc.input.peek("cond2")
+		tc._up(2)
+		if asked:
+			g.promote()
+		var shown := [String(g.in_slot(0).get("ability", "")), String(g.in_slot(1).get("ability", ""))]
+		if not asked or stray:
+			err = "the chip tap: asked %s, pressed a button beneath it %s" % [asked, stray]
+		elif shown != ["aerial_pursuit", "chain_pull"]:
+			err = "with a finger on the first button the chip brought %s (want the pull on the second button)" % [shown]
+		tc._up(1)
+	tc.input.free()
+	tc.free()
+	return err

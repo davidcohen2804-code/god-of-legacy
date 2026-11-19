@@ -3,7 +3,8 @@ extends RefCounted
 ## hand, and the runtime textures.
 
 const MOVES: Array[String] = ["Idle_Loop", "Sword_Idle", "Walk_Loop", "Jog_Fwd_Loop", "Sprint_Loop", "Roll",
-	"Jump_Start", "Jump_Loop", "Jump_Land", "Sword_Regular_A", "Sword_Regular_B", "Sword_Regular_C"]
+	"Jump_Start", "Jump_Loop", "Jump_Land", "Sword_Regular_A", "Sword_Regular_B", "Sword_Regular_C", "Sword_Attack",
+	"Sword_Heavy_Combo", "Spell_Simple_Enter", "Spell_Simple_Exit", "Air_Chop"]
 
 
 func test_body_has_its_skeleton_and_moves() -> String:

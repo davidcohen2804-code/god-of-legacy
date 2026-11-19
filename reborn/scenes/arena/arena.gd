@@ -130,6 +130,9 @@ func _build_combat() -> void:
 	vfx.name = "HitVfx"
 	add_child(vfx)
 	vfx.bind(combat)
+	automaton.impacted.connect(func(at: Vector3) -> void:
+		vfx.impact(at)
+		rig.shake(0.3))
 	var chain := PhantomChainVisual.new()
 	chain.name = "PhantomChain"
 	chain.combat = combat

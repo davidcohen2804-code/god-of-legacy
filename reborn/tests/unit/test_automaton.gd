@@ -2,6 +2,7 @@ extends RefCounted
 ## The Training Automaton's reactions (TrainingAutomaton) on its fixed tick, stepped by hand (its own physics tick is
 ## switched off; its moves are collision queries, so they stop at solid things): a launch rises 2.2 m and lands 0.9 s
 ## later at 30, 60 and 120 ticks a second; something above it ends the rise early; it lies a moment, rises and stands;
+## spiked in the air it comes down fast — accelerating, never past 10 m/s — and the impact deals nothing;
 ## blows in the air reach the juggle cap, and so does a long time in the air, and after it no launch until it is up
 ## again; the chain's capture holds it still, repeated captures hold it less, then not at all, until the run resets; a
 ## pull reaches its point — or stops where a wall blocks it, never passing through — and is refused unless it is held;
@@ -96,8 +97,8 @@ func test_it_lies_a_moment_then_rises_and_stands() -> String:
 	var st := a.state
 	var hp := a.hp
 	_clear()
-	if absf(lying - 0.8) > DT * 1.5 or absf(rising - 1.22) > DT * 1.5:
-		return "lay %.3f s and rose for %.3f s (want 0.8 and 1.22)" % [lying, rising]
+	if absf(lying - 0.45) > DT * 1.5 or absf(rising - 0.9) > DT * 1.5:
+		return "lay %.3f s and rose for %.3f s (want GPT's 0.45 and 0.9)" % [lying, rising]
 	if st != "stand" or hp != 150:
 		return "after rising: %s, %d HP" % [st, hp]
 	return ""
@@ -286,3 +287,32 @@ func test_the_data_says_what_the_pull_and_the_launch_move() -> String:
 	var while_air := a.can_capture() or a.can_launch()
 	_clear()
 	return "" if not while_air else "in the air it could be captured or launched again"
+
+
+## Aerial Pursuit's spike (GPT's v1.3): driven down from the top of its arc, accelerating to at most 10 m/s, it lands
+## much sooner than its arc would have brought it, takes no damage from the impact, and says so (impacted) once;
+## a body not in the air cannot be spiked.
+func test_a_spike_drives_it_down_fast_and_the_impact_deals_nothing() -> String:
+	var a := _auto()
+	var impacts := [0]
+	a.impacted.connect(func(_at: Vector3) -> void: impacts[0] += 1)
+	if a.spike(3.0, 45.0, 10.0):
+		_clear()
+		return "a standing automaton was spiked"
+	a.launch(2.2, 0.9)
+	_run(a, 0.45) # at the top of its arc
+	var hp := a.hp
+	var y := a.global_position.y
+	if not a.spike(3.0, 45.0, 10.0):
+		_clear()
+		return "an airborne automaton could not be spiked"
+	var t := _until_not(a, "air")
+	var res := [a.state, a.hp, a.last_spike_speed, impacts[0], a.global_position.y]
+	_clear()
+	if res[0] != "down" or int(res[1]) != hp or absf(float(res[4])) > 0.001:
+		return "spiked from %.2f m: %s (want down on the floor, no damage)" % [y, res]
+	if float(res[2]) > 10.0 + 0.001 or float(res[2]) < 9.9:
+		return "the spike's top speed was %.2f m/s (want 10)" % float(res[2])
+	if t > 0.32:
+		return "spiked from %.2f m it took %.3f s to land (its arc would take 0.45)" % [y, t]
+	return "" if int(res[3]) == 1 else "the impact was reported %d times" % int(res[3])

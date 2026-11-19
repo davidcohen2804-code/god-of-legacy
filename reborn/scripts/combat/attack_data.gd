@@ -46,6 +46,8 @@ var launch := {}
 var air := false
 var leap := {}
 var within := 0.0
+## Its confirmed blow on an airborne target drives it down: {start, accel, top} (m/s, m/s², m/s).
+var spike := {}
 ## Where the assist puts the target relative to his facing (degrees, + = his left): the middle of a cut that runs to
 ## one side.
 var aim_yaw := 0.0
@@ -113,6 +115,7 @@ static func from_dict(p_id: String, d: Dictionary) -> AttackData:
 	a.air = bool(d.get("air", false))
 	a.leap = d.get("leap", {}) as Dictionary
 	a.within = float(d.get("within", 0.0))
+	a.spike = d.get("spike", {}) as Dictionary
 	a.aim_yaw = float(d.get("aim_yaw", 0.0))
 	a.startup = float(d.get("startup", a.startup))
 	a.active = float(d.get("active", a.active))

@@ -145,6 +145,8 @@ func tick(dt: float, stick_dir: Vector3) -> void:
 			var target := t as Node3D
 			if target == null or (target.has_method("is_alive") and not target.is_alive()):
 				continue
+			if a.air and not (target.has_method("is_airborne") and target.is_airborne()):
+				continue # (an aerial strike is at an airborne target: one already down is not struck)
 			# (a target that moves itself on the tick says where it stood when the tick began: its movement through
 			# the tick is swept too)
 			var from: Variant = target.get("prev_position")
@@ -198,6 +200,8 @@ func _land(a: AttackData, target: Node3D) -> void:
 		target.take_hit(a.damage, a.reaction, a.knockback, dir, (dir * 0.55 + side * 0.85).normalized())
 	if not a.launch.is_empty():
 		_launch(a, target)
+	if not a.spike.is_empty() and target.has_method("spike") and target.is_airborne():
+		target.spike(float(a.spike.get("start", 3.0)), float(a.spike.get("accel", 45.0)), float(a.spike.get("top", 10.0)))
 	_after_hit(a, target, dir, melee.step_index)
 
 
@@ -265,9 +269,12 @@ func _face_target(a: AttackData, dt: float) -> void:
 	fighter.face_toward(fighter.global_position + d, assist_turn, dt)
 
 
-## Can `a` (an air action) reach `t` from here: within its range (flat), with nothing solid in the way?
+## Can `a` (an air action) reach `t` from here: still in the air at the strike, within its range (flat), with nothing
+## solid in the way? (A target that will be down before the blade comes is not reachable — no strike at it.)
 func _reachable(a: AttackData, t: Node3D) -> bool:
 	var tp: Vector3 = t.predict(a.startup + a.active * 0.5) if t.has_method("predict") else t.global_position
+	if t.has_method("is_airborne") and tp.y <= 0.05:
+		return false
 	if a.within > 0.0 and _flat(tp - fighter.global_position).length() > a.within:
 		return false
 	if not fighter.is_inside_tree():

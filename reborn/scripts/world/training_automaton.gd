@@ -14,7 +14,9 @@ extends CharacterBody3D
 ##     or reaches the point ("arrived");
 ##   air — launched: it rises to the launch's height and falls along the exact arc (the same at any tick rate); a
 ##     ceiling stops the rise and it falls from there. Blows in the air count toward the juggle cap (3 follow-ups or
-##     1.5 s in the air), after which it cannot be launched again until it is back on its feet;
+##     1.5 s in the air), after which it cannot be launched again until it is back on its feet. Aerial Pursuit's
+##     confirmed blow spikes it: an accelerating descent, with collision, capped at 10 m/s, onto the floor — a compact
+##     impact (dust, a jolt; no damage of its own);
 ##   down → getup — it lands on its back (Hit_Knockback), lies a moment and rises (LayToIdle);
 ##   defeated — at 0 HP it collapses (Death01) and, 2.6 s later, rises again whole.
 ## Through hit-stop it holds still, pose and all. After 4 s without a blow it walks back to its mark when it was moved
@@ -26,6 +28,8 @@ signal defeated
 signal pull_finished(result: String)
 ## It came down from a launch after `airtime` s in the air.
 signal landed(airtime: float)
+## A spiked body struck the floor at `at`.
+signal impacted(at: Vector3)
 
 const RADIUS := 0.3
 const HEIGHT := 1.8
@@ -90,6 +94,14 @@ var _arc_v0 := 0.0
 var _arc_g := 24.0
 var _juggle_hits := 0
 var _protected := false ## the juggle cap was reached: no launch until it is back on its feet
+## A spike (Aerial Pursuit): falling at `_spike_v` m/s, accelerating at `_spike_accel` up to `_spike_top`.
+var _spiked := false
+var _spike_v := 0.0
+var _spike_accel := 45.0
+var _spike_top := 10.0
+## For the tests and the report: spikes so far, and the fastest the last one fell (m/s).
+var spikes := 0
+var last_spike_speed := 0.0
 var _captures_n := 0 ## captures in the current diminishing-returns run
 var _last_capture := -1000.0
 
@@ -299,12 +311,28 @@ func launch(height: float, airtime: float) -> bool:
 	_arc_y0 = global_position.y
 	_air_t = 0.0
 	_juggle_hits = 0
+	_spiked = false
 	last_apex = global_position.y
 	launches += 1
 	_enter("air")
 	_anim_speed = 1.0
 	visual.pose("Hit_Knockback", 0.13, 0.06)
 	QA.flag("automaton_launched", launches)
+	return true
+
+
+## Aerial Pursuit's spike: its blow in the air drives it down — from `start` m/s, accelerating at `accel` m/s² up to
+## `top` m/s, straight down, with collision — onto the floor. Only while it is airborne.
+func spike(start: float, accel: float, top: float) -> bool:
+	if state != "air":
+		return false
+	_spiked = true
+	_spike_v = start
+	_spike_accel = accel
+	_spike_top = top
+	last_spike_speed = start
+	spikes += 1
+	QA.flag("automaton_spiked", spikes)
 	return true
 
 
@@ -394,6 +422,9 @@ func _do_air(dt: float) -> void:
 		if _juggle_hits >= int(j.get("max_hits", 3)) or _air_t >= float(j.get("max_time", 1.5)):
 			_protected = true
 			QA.flag("automaton_juggle_protected", _juggle_hits)
+	if _spiked:
+		_do_spike(dt)
+		return
 	var tt := _air_t - _arc_t0
 	var y_next := _arc_y0 + _arc_v0 * tt - 0.5 * _arc_g * tt * tt
 	var floor_reached := y_next <= 0.0
@@ -422,29 +453,54 @@ func _do_air(dt: float) -> void:
 	_anim_speed = 1.0
 
 
+## The spiked descent: accelerating straight down to the floor (or onto whatever is under it).
+func _do_spike(dt: float) -> void:
+	_spike_v = minf(_spike_top, _spike_v + _spike_accel * dt)
+	last_spike_speed = maxf(last_spike_speed, _spike_v)
+	var dy := -_spike_v * dt
+	var floor_reached := global_position.y + dy <= 0.0
+	if floor_reached:
+		dy = -global_position.y
+	if absf(dy) > 0.00001:
+		var c := move_and_collide(Vector3(0.0, dy, 0.0))
+		if c and c.get_normal().y > 0.7:
+			_land()
+			return
+	if floor_reached:
+		global_position.y = 0.0
+		_land()
+		return
+	visual.pose("Hit_Knockback", 0.25)
+	_anim_speed = 1.0
+
+
 func _land() -> void:
 	last_airtime = _air_t
+	var spiked := _spiked
+	_spiked = false
 	_enter("down")
-	_play("Hit_Knockback", 0.08, 1.0, 0.27) # onto its back
-	QA.flag("automaton_landed", "%.3f:%.2f" % [_air_t, last_apex])
+	_play("Hit_Knockback", 0.06 if spiked else 0.08, 1.15 if spiked else 1.0, 0.25 if spiked else 0.27) # onto its back
+	QA.flag("automaton_landed", "%.3f:%.2f%s" % [_air_t, last_apex, ":spiked" if spiked else ""])
 	landed.emit(_air_t)
+	if spiked:
+		impacted.emit(global_position)
 
 
 func _do_down() -> void:
 	if hp <= 0:
 		_defeat()
 		return
-	if _t >= float(target_data.get("down", 0.8)):
+	if _t >= float(target_data.get("down", 0.45)):
 		_rise(0.15)
 
 
 func _rise(blend: float) -> void:
 	_enter("getup")
-	_play("LayToIdle", blend, visual.duration("LayToIdle") / maxf(0.2, float(target_data.get("getup", 1.22))))
+	_play("LayToIdle", blend, visual.duration("LayToIdle") / maxf(0.2, float(target_data.get("getup", 0.9))))
 
 
 func _do_getup() -> void:
-	if _t >= float(target_data.get("getup", 1.22)):
+	if _t >= float(target_data.get("getup", 0.9)):
 		_protected = false
 		_juggle_hits = 0
 		_enter("stand")
@@ -538,6 +594,7 @@ func info() -> Dictionary:
 		"off_mark": snappedf(_flat(_home - p).length(), 0.01), "apex": snappedf(last_apex, 0.01),
 		"airtime": snappedf(last_airtime, 0.001), "juggle_hits": _juggle_hits, "protected": _protected,
 		"hold": snappedf(maxf(_hold, 0.0), 0.001), "pull": last_pull, "last_push": snappedf(last_push, 0.01),
+		"spikes": spikes, "spike_speed": snappedf(last_spike_speed, 0.01),
 		"pushes": pushes, "captures": captures, "launches": launches, "frozen": _freeze > 0.0}
 
 

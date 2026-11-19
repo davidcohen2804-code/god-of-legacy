@@ -55,6 +55,12 @@ func _on_hit(attack: AttackData, _step: int, target: Node3D, dir: Vector3) -> vo
 	bursts += 1
 
 
+## A spiked body striking the floor (Aerial Pursuit's endpoint): a compact ring of dust where it lands.
+func impact(at: Vector3) -> void:
+	_dust(at + Vector3(0, 0.06, 0), Vector3.ZERO)
+	bursts += 1
+
+
 func _burst(at: Vector3, dir: Vector3, n: int, k: float) -> void:
 	var p := _particles(n, 0.3, _spark_mat)
 	p.direction = dir
