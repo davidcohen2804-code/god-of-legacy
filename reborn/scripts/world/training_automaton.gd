@@ -432,16 +432,14 @@ func strike_check() -> void:
 	if state != "attack" or a == null or _melee.swept.x < 0.0 or foe == null or not is_instance_valid(foe):
 		return
 	var span := _melee.swept
-	_melee.swept = Vector2(-1, -1) # (once per tick)
 	var id := foe.fighter.get_instance_id()
-	if _melee.touched(id):
-		return
-	var r := foe.incoming(a, self, span)
+	var r := "" if _melee.touched(id) else foe.incoming(a, self, span)
 	match r:
 		"hit":
-			_melee.hit_confirmed(id) # (its own hit-stop: the cut holds still for a moment)
+			_melee.hit_confirmed(id) # (spent on him, and its own hit-stop: the cut holds still for a moment)
 		"evaded", "avoided":
 			_melee.spent_on(id)
+	_melee.swept = Vector2(-1, -1) # (once per tick)
 	if r != "":
 		_resolved(r)
 
