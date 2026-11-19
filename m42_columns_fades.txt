@@ -1,0 +1,7 @@
+[COLUMNS] group 0: faded 1 times, back 1 times, shortest hold 3.77 s
+[COLUMNS] group 1: faded 1 times, back 0 times, shortest hold - s
+[COLUMNS] group 2: faded 2 times, back 2 times, shortest hold 0.63 s
+[COLUMNS] group 3: faded 1 times, back 1 times, shortest hold 0.70 s
+[COLUMNS] group 4: faded 1 times, back 1 times, shortest hold 0.70 s
+[COLUMNS] group 7: faded 1 times, back 1 times, shortest hold 1.93 s
+[COLUMNS] groups that changed: 6 of 9
