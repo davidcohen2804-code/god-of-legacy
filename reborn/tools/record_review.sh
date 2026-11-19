@@ -44,14 +44,15 @@ phone() { # name, width, the game's own arguments...  (720 tall: the Android pho
 	rm -f reborn/override.cfg
 }
 
-# (M4.2-A2's close, GPT's v2.4) at both phones' shapes: two thumbs at real speed — exploration B, the walk in across
-# the 9 m, Phantom Control with Rising Slash and the aerial pursuit, the walk back out past 10.5 m — and the column pass
-# with the fading on and the camera's new rule. Their logs: the framing's changes, the camera through the column pass.
-phone accept_android 1728 --demo --demo-accept --phone
-phone accept_iphone 1588 --demo --demo-accept --iphone
+# (M4.2-A2's close, GPT's v2.4 / v2.5) at both phones' shapes: the distance between them changing continuously — the
+# walk in from 12 m across the 9 m, Rising Slash and the aerial pursuit close, a launch 7 m apart, the walk out past
+# 10.5 m and back in — and the column pass with the fading on and the camera's new rule. Their logs: the framing's
+# changes and numbers, the camera through the column pass.
+phone range_android 1728 --demo --demo-range --phone
+phone range_iphone 1588 --demo --demo-range --iphone
 phone columns_android 1728 --demo --demo-columns-on --phone
 phone columns_iphone 1588 --demo --demo-columns-on --iphone
-for n in accept_android accept_iphone columns_android columns_iphone; do
-	grep -E "\[(CAMERA|COLUMNS)\]" "$T/$n.log" | tee "$OUT/m42c_${n}_camera.txt" || true
+for n in range_android range_iphone columns_android columns_iphone; do
+	grep -E "\[(CAMERA|COLUMNS|FRAMING)\]" "$T/$n.log" | tee "$OUT/m42c_${n}_camera.txt" || true
 	encode "$T/$n.avi" "$OUT/m42c_${n}.mp4"
 done

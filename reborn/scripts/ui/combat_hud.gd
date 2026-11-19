@@ -99,6 +99,12 @@ func set_near(near: bool) -> void:
 	_near = near
 
 
+## Where the target's name and bar sit (canvas px, whether shown or not) — the camera keeps the target off it (GPT's
+## v2.5).
+func target_rect() -> Rect2:
+	return Rect2(size.x * 0.5 - BAR_W * 0.5, 10.0, BAR_W, 24.0 + BAR_H)
+
+
 ## The target is gone (defeated): the bar fades now, without lingering (GPT's v2.1: clear when dead).
 func clear_target() -> void:
 	_near = false

@@ -46,6 +46,15 @@ const AIR_SHARE := 0.4
 const AIR_LIFT_MAX := 0.8 ## m
 const AIR_PITCH := -30.0
 const AIR_EXTRA := 0.8 ## m (provisional: "a brief, modest distance increase")
+## (GPT's v2.5) B farther back as the two part: min(FAR_MAX, C_NEAR + FAR_PULL × (s − FAR_FROM)), s their distance
+## across the ground — his whole body, feet included, and the target both stay on the screen to the combat framing's
+## 10.5 m. Then, only if still needed, up to GUARD_MAX m more (never past DIST_MAX): his feet off the screen's bottom
+## edge, the target off the target's name and bar (`bar_rect`, BAR_CLEAR px round it).
+const FAR_FROM := 5.5 ## m apart
+const FAR_PULL := 0.4 ## m farther per metre apart
+const FAR_MAX := 8.6 ## m
+const GUARD_MAX := 0.4 ## m
+const BAR_CLEAR := 6.0 ## canvas px
 const ASSIST_MAX := 12.0 ## degrees each time the target comes onto the controls
 const ASSIST_RATE := 30.0 ## degrees a second at most (eased in and out; GPT's v2.4: approved)
 const ASSIST_PAUSE := 0.6 ## s after a drag before it may act again (approved)
@@ -119,6 +128,11 @@ var assist_turned := 0.0
 var assists := 0 ## how many times it has started turning
 ## (QA) m the camera stands moved out of the stone now (GPT's v2.4: its own volume — see column_rule).
 var cleared := 0.0
+## (QA) B's pull back for the distance between the two now, and the guard's few cm more (GPT's v2.5).
+var far_pull := 0.0
+var guard := 0.0
+## The target's name and bar on the screen (canvas px), told by the arena: the target is kept off it.
+var bar_rect := Rect2()
 var _pitch_offset := 0.0
 var _pos := Vector3.ZERO
 var _pitch := -36.0
@@ -141,6 +155,8 @@ var _rim_ang := 0.0 ## where on that rim (radians round its axis, from +x toward
 var _spin := 1.0 ## the way round it has been going
 var _back := Vector3.ZERO ## (phase 2) its offset from its place, easing away
 var _cam_at := Vector3.INF ## where it stood last frame
+var _lean := 0.0 ## how far its aim leans toward the target now (0..0.25) — eased in and out (GPT's v2.5)
+var _lean_at := Vector3.ZERO ## where it leans to: the target, or where it last stood
 
 
 func _ready() -> void:
@@ -366,13 +382,19 @@ func _update(delta: float, snap: bool) -> void:
 	var aim := target.global_position
 	var foe := focus and is_instance_valid(focus) and mode != Mode.EXPLORATION
 	var fixes := combat and foe and variant == "B" # (B's corrections, while it frames a target)
+	var lean_goal := 0.0
 	if foe:
 		var sep := target.global_position.distance_to(focus.global_position)
 		extra = clampf((sep - 3.0) * 0.25, 0.0, 1.5)
-		aim = aim.lerp(focus.global_position, 0.25 if sep < 12.0 else 0.0)
+		lean_goal = 0.25 if sep < 12.0 else 0.0
+		_lean_at = focus.global_position
 		if lock and _drag_quiet > 0.6:
 			var to := focus.global_position - target.global_position
 			yaw = lerp_angle(yaw, atan2(-to.x, -to.z), 1.0 if snap else 1.0 - exp(-delta * 2.6))
+	# the aim leans a quarter of the way toward the target — eased in and out with the framing's other values, so taking
+	# or letting go of the target is no jump of its own (GPT's v2.5)
+	_lean = lean_goal if snap else lerpf(_lean, lean_goal, k)
+	aim = aim.lerp(_lean_at, _lean)
 	if fixes and assist and not snap:
 		_assist(delta)
 	else:
@@ -398,11 +420,22 @@ func _update(delta: float, snap: bool) -> void:
 	var want := clampf(float(p["dist"]) + extra, DIST_MIN, DIST_MAX)
 	fallback = false
 	air_pull = 0.0
+	far_pull = 0.0
+	guard = 0.0
 	if combat and variant == "B":
 		want = C_NEAR
+		if fixes:
+			# (GPT's v2.5) farther back as they part; then, only if still needed, a few cm more
+			var s := Vector2(target.global_position.x - focus.global_position.x,
+				target.global_position.z - focus.global_position.z).length()
+			far_pull = clampf((s - FAR_FROM) * FAR_PULL, 0.0, FAR_MAX - C_NEAR)
+			want += far_pull
+			guard = _guard(b, _pos, _fov, want)
+			want += guard
 		if fixes and air_framing and lift > 0.05:
-			air_pull = _air_pull(b, _pos, _fov)
+			air_pull = _air_pull(b, _pos, _fov, want)
 			want += air_pull
+		want = minf(want, DIST_MAX)
 	elif combat and variant == "C":
 		want = fit_distance(b, _pos, _fov)
 		fallback = want > C_FAR + 0.001
@@ -449,18 +482,48 @@ func _update(delta: float, snap: bool) -> void:
 	cam.global_transform = Transform3D(b, want_pos)
 
 
-## B's pull back while the target is in the air: the least, in steps of 5 cm up to AIR_EXTRA, at which both fighters'
-## framing points fall on the screen and outside every HUD area (the target below the top band, his feet above the
-## clusters) — the aim's rise and the flatter pitch come first; AIR_EXTRA if even that cannot.
-func _air_pull(b: Basis, center: Vector3, fov: float) -> float:
+## B's pull back while the target is in the air: the least, in steps of 5 cm up to AIR_EXTRA beyond `base` (its
+## distance for the two's distance apart), at which both fighters' framing points fall on the screen and outside every
+## HUD area (the target below the top band, his feet above the clusters) — the aim's rise and the flatter pitch come
+## first; AIR_EXTRA if even that cannot.
+func _air_pull(b: Basis, center: Vector3, fov: float, base: float) -> float:
 	var pts := framing_points(target, b)
 	pts.append_array(framing_points(focus, b))
 	var e := 0.0
 	while e < AIR_EXTRA:
-		if _all_clear(pts, center, b, C_NEAR + e, fov):
+		if _all_clear(pts, center, b, base + e, fov):
 			return e
 		e += 0.05
 	return AIR_EXTRA
+
+
+## (GPT's v2.5) The guard: the least, in steps of 5 cm up to GUARD_MAX beyond `base` (never past DIST_MAX), at which his
+## framing points are all on the screen (EDGE px in: his feet above its bottom) and none of the target's falls on the
+## target's name and bar (BAR_CLEAR px round it) — 0 almost always: B's distance for the two's distance apart sees to it.
+func _guard(b: Basis, center: Vector3, fov: float, base: float) -> float:
+	var mine := framing_points(target, b)
+	var its := framing_points(focus, b)
+	var inner := Rect2(Vector2(EDGE, EDGE), screen - Vector2(EDGE, EDGE) * 2.0)
+	var bar := bar_rect.grow(BAR_CLEAR) if bar_rect.size != Vector2.ZERO else Rect2()
+	var most := minf(GUARD_MAX, DIST_MAX - base)
+	var e := 0.0
+	while e < most:
+		var ok := true
+		for p in mine:
+			var s := project(p, center, b, base + e, fov, screen)
+			if s.z <= 0.05 or not inner.has_point(Vector2(s.x, s.y)):
+				ok = false
+				break
+		if ok and bar.size != Vector2.ZERO:
+			for p in its:
+				var s := project(p, center, b, base + e, fov, screen)
+				if s.z > 0.05 and bar.has_point(Vector2(s.x, s.y)):
+					ok = false
+					break
+		if ok:
+			return e
+		e += 0.05
+	return maxf(most, 0.0)
 
 
 ## B's assist: once the target's body (feet to head, a body's width either side) has stayed on the right-hand controls —

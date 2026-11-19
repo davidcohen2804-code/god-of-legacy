@@ -261,6 +261,32 @@ const SCRIPT_ACCEPT := [
 	[19.0, "end"],
 ]
 
+## M4.2-A2's close (GPT's v2.5), recorded at both phones' shapes (`-- --demo --demo-range`): the distance between them
+## changing continuously — a walk in from 12 m (exploration B, the combat framing from 9 m, the camera drawing in as
+## they close, to B's 6.6 m from 5.5 m apart), Rising Slash and the aerial pursuit at close range; then he steps back
+## to 7 m and a test command (captioned) launches the automaton where it stands; a walk out past 10.5 m (the camera
+## drawing back, then exploration B) and back in to 5 m. The log: each change of framing and how far apart they stood;
+## through the whole clip, the camera's distance, the least room under his feet, the least between the target and its
+## bar, the largest move of the camera and of its distance in one frame.
+const SCRIPT_RANGE := [
+	[0.2, "spar", false],
+	[0.2, "place", Vector2(2.0, 8.5), -153.4, Vector2(-3.5, -2.5)], # 12.3 m from it, facing it
+	[0.3, "caption", "A walk in from 12 m: exploration B, then the combat framing from 9 m, drawing in as they close", 4.0],
+	[0.6, "approach", 2.0, 0.4],
+	[7.6, "caption", "Close: Rising Slash, then the aerial pursuit", 2.6],
+	[7.7, "tap", "skill3"],
+	[7.8, "tap_shown", "cond1", 0.1], # PURSUE (it waits for Rising Slash's 50 %)
+	[11.0, "caption", "Farther apart: he steps back to 7 m; a test command launches the automaton where it stands", 4.0],
+	[11.0, "reset"], # (the automaton back on its mark, standing)
+	[11.1, "go", Vector2(-0.01, 4.47), 0.4], # 7.8 m from it (the thumb lets go 0.8 m short: about 7 m)
+	[14.4, "point", Vector2(-0.447, -0.894), 0.3], # facing it
+	[15.2, "auto_launch"],
+	[18.0, "caption", "A walk out past 10.5 m: the camera draws back, then exploration B; and back in", 4.0],
+	[18.0, "go", Vector2(3.0, 10.5), 0.4], # away from it, to about 14 m
+	[25.4, "approach", 5.0, 0.4], # back in to 5 m
+	[32.0, "end"],
+]
+
 var touch: TouchControls
 var combat: CombatController
 var player: Fighter
@@ -273,6 +299,10 @@ var _cam_log := {} ## (the column pass) the camera's distance to him, least and 
 var _cam_last := Vector3.INF
 var _placed_t := -1.0 ## when "place" last moved him (the camera log skips the cut)
 var _mode_seen := -1 ## (the acceptance clip) the framing last logged
+var _range_log := {} ## (SCRIPT_RANGE) the camera's distance, least and most; the least room under his feet and between
+## the target and its bar (CSS px); the frames his feet were off the screen or the target on its bar; the largest move
+## of the camera and of its distance in one frame
+var _dist_last := -1.0
 var _fades := {} ## column group → [fading now, times faded, times back, s since its last change, shortest hold]
 var _fade_log: Array[String] = []
 var _t := 0.0
@@ -319,6 +349,41 @@ func _ready() -> void:
 		_script = SCRIPT_COLUMNS_ON
 	elif _named == "accept" or (_named == "" and "--demo-accept" in args):
 		_script = SCRIPT_ACCEPT
+	elif _named == "range" or (_named == "" and "--demo-range" in args):
+		_script = SCRIPT_RANGE
+
+
+## (SCRIPT_RANGE's log) one frame of the framing's numbers.
+func _track_range() -> void:
+	var css := touch.css_per_px
+	var p := rig.cam.global_position
+	var d := rig.distance()
+	if _range_log.is_empty():
+		_range_log = {"near": d, "far": d, "feet": INF, "bar": INF, "off": 0, "on_bar": 0, "move": 0.0, "dd": 0.0}
+	_range_log["near"] = minf(float(_range_log["near"]), d)
+	_range_log["far"] = maxf(float(_range_log["far"]), d)
+	var me: Dictionary = rig.screen_box(player, 1.0)
+	if not me.is_empty():
+		var b: Array = me["box"]
+		var room := (rig.screen.y - (float(b[1]) + float(b[3]))) * css
+		_range_log["feet"] = minf(float(_range_log["feet"]), room)
+		if room < 0.0:
+			_range_log["off"] = int(_range_log["off"]) + 1
+	var it: Dictionary = rig.screen_box(automaton, 1.0)
+	if not it.is_empty() and rig.bar_rect.size != Vector2.ZERO:
+		var a: Array = it["box"]
+		var box := Rect2(float(a[0]), float(a[1]), float(a[2]), float(a[3]))
+		if box.end.x > rig.bar_rect.position.x and box.position.x < rig.bar_rect.end.x:
+			var below := (box.position.y - rig.bar_rect.end.y) * css
+			_range_log["bar"] = minf(float(_range_log["bar"]), below)
+			if box.intersects(rig.bar_rect):
+				_range_log["on_bar"] = int(_range_log["on_bar"]) + 1
+	if _cam_last != Vector3.INF:
+		_range_log["move"] = maxf(float(_range_log["move"]), p.distance_to(_cam_last))
+	if _dist_last >= 0.0:
+		_range_log["dd"] = maxf(float(_range_log["dd"]), absf(d - _dist_last))
+	_cam_last = p
+	_dist_last = d
 
 
 ## (The column pass's log) the camera through the part since the last placing — then a fresh count.
@@ -335,11 +400,13 @@ func _report_camera() -> void:
 func _process(_delta: float) -> void:
 	if rig == null or rig.cam == null or player == null:
 		return
-	if _script == SCRIPT_ACCEPT and automaton and int(rig.mode) != _mode_seen:
+	if (_script == SCRIPT_ACCEPT or _script == SCRIPT_RANGE) and automaton and int(rig.mode) != _mode_seen:
 		_mode_seen = int(rig.mode)
 		var d := automaton.global_position - player.global_position
 		print("[CAMERA] %.2f s: the %s framing, %.2f m from the automaton" % [_t, CameraRig.Mode.keys()[rig.mode].to_lower(),
 			Vector2(d.x, d.z).length()])
+	if _script == SCRIPT_RANGE and automaton and _t >= 0.9 and _t - _placed_t >= 0.5:
+		_track_range()
 	if _script == SCRIPT_COLUMNS_ON and _t >= 0.9 and _t - _placed_t >= 0.5:
 		var p := rig.cam.global_position
 		var dist := p.distance_to(player.global_position)
@@ -508,6 +575,10 @@ func _run(step: Array) -> void:
 				else:
 					automaton.place(automaton.global_position + Vector3(dir.z, 0.0, -dir.x) * float(step[2]))
 				automaton.facing = atan2(-dir.x, -dir.z)
+		"auto_launch":
+			# (a test command, captioned as such: the automaton launched where it stands, as QA's "auto launch")
+			if automaton:
+				automaton.launch(2.2, 0.9)
 		"behind":
 			rig.snap_behind(player.facing)
 		"expvar":
@@ -530,6 +601,10 @@ func _run(step: Array) -> void:
 		"end":
 			print("[CAMERA] the assist started %d times" % rig.assists)
 			_report_camera()
+			if not _range_log.is_empty():
+				print("[FRAMING] the camera %.2f–%.2f m back; the least room under his feet %.1f CSS px (off the screen in %d frames); the automaton at least %.1f CSS px below its bar (on it in %d frames); the largest move in one frame %.3f m, of its distance %.3f m" % [
+					_range_log["near"], _range_log["far"], _range_log["feet"], _range_log["off"], _range_log["bar"],
+					_range_log["on_bar"], _range_log["move"], _range_log["dd"]])
 			if not _fades.is_empty():
 				_report_fades()
 			Engine.time_scale = 1.0

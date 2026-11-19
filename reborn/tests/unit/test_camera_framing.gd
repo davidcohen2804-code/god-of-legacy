@@ -394,3 +394,54 @@ func test_a_column_beside_the_camera_does_not_fade() -> String:
 		n.free()
 	_done(d)
 	return "" if a == 1.0 else "a column 1.6 m beside the camera, out of its view, faded to %.2f (want 1)" % a
+
+
+# --- B's distance as they part (M4.2-A2's close, GPT's v2.5) -----------------------------------------------------------
+
+
+func test_b_draws_back_as_they_part_and_keeps_both_whole() -> String:
+	# min(8.6, 6.6 + 0.4 × (s − 5.5)), s their distance across the ground; his feet on the screen, the target off its bar
+	var out: Array[String] = []
+	for s: float in [3.0, 7.0, 9.0, 10.5]:
+		var d := _rig("B", Vector3(0, 0, 4.0 - s))
+		var rig: CameraRig = d["rig"]
+		rig.bar_rect = Rect2(rig.screen.x * 0.5 - 180.0, 10.0, 360.0, 46.0)
+		rig.settle()
+		var want := minf(8.6, 6.6 + 0.4 * maxf(0.0, s - 5.5))
+		var got := rig.distance()
+		var me: Array = rig.screen_box(d["player"], 1.0)["box"]
+		var it: Array = rig.screen_box(d["foe"], 1.0)["box"]
+		var feet := rig.screen.y - (float(me[1]) + float(me[3]))
+		var below := float(it[1]) - rig.bar_rect.end.y
+		_done(d)
+		if got < want - 0.01 or got > want + CameraRig.GUARD_MAX + 0.01:
+			out.append("%.1f m apart: %.2f m back (want %.2f, a guard of %.1f m at most on top)" % [s, got, want, CameraRig.GUARD_MAX])
+		elif feet < CameraRig.EDGE - 0.5:
+			out.append("%.1f m apart: his feet %.1f px from the bottom (want ≥ %.0f)" % [s, feet, CameraRig.EDGE])
+		elif below < 0.0:
+			out.append("%.1f m apart: the target %.1f px into its bar (want below it)" % [s, -below])
+	return "" if out.is_empty() else "; ".join(out)
+
+
+func test_letting_the_target_go_eases_the_aim_home() -> String:
+	# (GPT's v2.5: no second jump where exploration resumes) the aim's lean toward the target eases out with the framing
+	var d := _rig("B", Vector3(0, 0, -6.5)) # 10.5 m apart
+	var rig: CameraRig = d["rig"]
+	var lean0 := rig._lean
+	rig.focus = null
+	rig.mode = CameraRig.Mode.EXPLORATION
+	rig._update(1.0 / 30.0, false)
+	var one := rig._lean
+	var biggest := 0.0
+	var last := rig.cam.global_position
+	for i in 60:
+		rig._update(1.0 / 30.0, false)
+		biggest = maxf(biggest, rig.cam.global_position.distance_to(last))
+		last = rig.cam.global_position
+	var home := rig._lean
+	_done(d)
+	if absf(lean0 - 0.25) > 0.001 or one < 0.2:
+		return "the lean was %.3f framing it and %.3f a frame after letting it go (want 0.25, then still above 0.2)" % [lean0, one]
+	if biggest > 0.3:
+		return "the camera moved %.3f m in one frame going back to exploration (want no jump: 0.3 m at most)" % biggest
+	return "" if home < 0.01 else "2 s later the lean is still %.3f (want home)" % home

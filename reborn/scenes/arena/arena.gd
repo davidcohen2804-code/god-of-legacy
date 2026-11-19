@@ -142,6 +142,7 @@ func _process(delta: float) -> void:
 	rig.exclusions = touch.exclusion_rects()
 	var area := touch.control_areas("R")
 	rig.set_controls(area["circles"], area["rects"], float(area["css"]))
+	rig.bar_rect = hud.target_rect()
 	var focus := _pick_target(delta)
 	var frame := focus
 	if frame == null and _shown and _shown.is_inside_tree() and not bool(_shown.call("is_alive")) \
@@ -519,6 +520,7 @@ func _framing_state() -> Dictionary:
 		"lift": snappedf(rig.lift, 0.01), "air_pull": snappedf(rig.air_pull, 0.01),
 		"assist_turned": snappedf(rig.assist_turned, 0.1), "assists": rig.assists, "assisting": rig.is_assisting(),
 		"explore": CameraRig.explore, "column_rule": CameraRig.column_rule, "cleared": snappedf(rig.cleared, 0.01),
+		"far_pull": snappedf(rig.far_pull, 0.01), "guard": snappedf(rig.guard, 0.01),
 		"mode": CameraRig.Mode.keys()[rig.mode], "pitch": snappedf(rig.elevation(), 0.1),
 		"target": String((targets.current as Node).name) if targets.current else "", "target_rank": targets.rank}
 
