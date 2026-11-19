@@ -439,9 +439,11 @@ func _step_body(a: AttackData, dt: float, frozen: bool) -> void:
 	fighter.action_velocity = _step_dir * dist * (_smooth(m1) - _smooth(m0)) / maxf(dt, 0.0001)
 
 
-## Shadow Counter's dash through startup: toward its target as it stands now (following it), `dash.max` m at most in
-## all and stopping `dash.stop` m short of its centre, easing out; his body moves it with collision — nothing solid
-## is passed through, and he never ends up behind the target. Nothing after startup.
+## A dash through startup (Shadow Counter, Phantom Execution): toward its target as it stands now (following it),
+## `dash.max` m at most in all and stopping `dash.stop` m short of its centre — easing out, or (dash.curve "in") speeding
+## up into the cut the way the move's own planted foot does (Phantom Execution's stride: GPT's v1.6, the move's root
+## movement compensated); his body moves it with collision — nothing solid is passed through, and he never ends up
+## behind the target. Nothing after startup.
 func _dash_velocity(a: AttackData, dt: float) -> Vector3:
 	if _target == null or not is_instance_valid(_target) or _span_e.x < 0.0:
 		return Vector3.ZERO
@@ -453,7 +455,10 @@ func _dash_velocity(a: AttackData, dt: float) -> Vector3:
 	var room := to.length() - float(a.dash.get("stop", STOP_SHORT))
 	if room <= 0.0:
 		return Vector3.ZERO
-	var d := minf(_dash_len * (_ease_out(k1) - _ease_out(k0)), room)
+	var speeding := String(a.dash.get("curve", "out")) == "in"
+	var e0 := _ease_in(k0) if speeding else _ease_out(k0)
+	var e1 := _ease_in(k1) if speeding else _ease_out(k1)
+	var d := minf(_dash_len * (e1 - e0), room)
 	_dash_moved += d
 	return to.normalized() * d / maxf(dt, 0.0001)
 
@@ -1034,6 +1039,10 @@ static func _smooth(k: float) -> float:
 
 static func _ease_out(k: float) -> float:
 	return 1.0 - (1.0 - k) * (1.0 - k)
+
+
+static func _ease_in(k: float) -> float:
+	return k * k
 
 
 static func _ease3(k: float) -> float:

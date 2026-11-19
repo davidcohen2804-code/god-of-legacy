@@ -208,8 +208,9 @@ func test_the_branch_is_gpts() -> String:
 	if got != want:
 		return "Explosive Seal: %s (want %s)" % [got, want]
 	got = [e.startup, e.active, e.recovery, e.damage, e.hit_stop, e.reaction, e.knockback, e.within,
-		float(e.dash.get("stop", 0.0)), float(e.dash.get("max", 0.0)), e.anim, e.anim_from, e.anim_speed, e.blade_tip.size()]
-	want = [0.2, 0.12, 0.4, 45, 0.1, 0.6, 0.8, 3.0, 1.1, 1.9, "Sword_Heavy_Combo", 2.33, 1.0, 13]
+		float(e.dash.get("stop", 0.0)), float(e.dash.get("max", 0.0)), String(e.dash.get("curve", "")), e.anim, e.anim_from,
+		e.anim_speed, e.blade_tip.size()]
+	want = [0.2, 0.12, 0.4, 45, 0.1, 0.6, 0.8, 3.0, 1.1, 1.9, "in", "Sword_Heavy_Combo", 2.33, 1.0, 13]
 	if got != want:
 		return "Phantom Execution: %s (want %s)" % [got, want]
 	var g := LegacyChain.new(AttackData.graph())
