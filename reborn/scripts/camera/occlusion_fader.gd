@@ -84,6 +84,15 @@ func _process(delta: float) -> void:
 		_show(g, a)
 
 
+## Whether a column or the arch (any group's box) stands across the line from `from` to `to` — the review's side view
+## uses it to keep a clear line to the fighters.
+func blocks(from: Vector3, to: Vector3) -> bool:
+	for g in _groups:
+		if (g["box"] as AABB).intersects_segment(from, to) != null:
+			return true
+	return false
+
+
 ## (QA) how many groups are faded now, and each one's opacity.
 func info() -> Dictionary:
 	var faded := 0

@@ -1,0 +1,51 @@
+name: REBORN review recordings (a run artifact only)
+
+# The review's recordings by themselves (reborn/tools/record_review.sh): how it plays in the Android phone's shape with
+# the thumbs drawn, and the branches from the side — without the web export, the browser test or publishing, so they
+# come back in minutes instead of an hour. Run it by pushing the commit to record to the reborn-rec branch (or by hand);
+# the videos are the run's artifact. The full build (reborn-pages.yml) records them too, on every push to reborn.
+on:
+  push:
+    branches: [reborn-rec]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: reborn-recordings
+  cancel-in-progress: true
+
+jobs:
+  record:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      V: 4.7.2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        id: godot
+        with:
+          path: ~/godot
+          key: godot-${{ env.V }}-linux-editor
+      - name: Godot (official release, the editor only)
+        if: steps.godot.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/godot && cd ~/godot
+          curl -fsSL -O "https://github.com/godotengine/godot/releases/download/${V}-stable/Godot_v${V}-stable_linux.x86_64.zip"
+          unzip -q Godot_v${V}-stable_linux.x86_64.zip && mv Godot_v${V}-stable_linux.x86_64 godot && rm -f ./*.zip
+      - name: Import
+        run: ~/godot/godot --headless --path reborn --import
+      - name: The recordings (Movie Maker at a fixed 30 fps, software OpenGL under Xvfb)
+        run: |
+          python3 -m venv "$RUNNER_TEMP/ff" && "$RUNNER_TEMP/ff/bin/pip" install -q imageio-ffmpeg==0.6.0
+          FF=$("$RUNNER_TEMP/ff/bin/python" -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())")
+          bash reborn/tools/record_review.sh out "$FF"
+          ls -la out
+          test -s out/m42_feel_phone.mp4
+      - uses: actions/upload-artifact@v4
+        with:
+          name: review-recordings
+          path: out/
+          retention-days: 7

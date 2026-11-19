@@ -255,16 +255,24 @@ func _place_camera() -> void:
 			_look(Vector3(1.5, 1.6, 11.5), Vector3(0, 4.2, -14.0), 55.0)
 		"fight_side":
 			# (the review's side view, M4.2: across the line between him and the automaton, both in frame, up with them in
-			# the air; it keeps to the side it is on — it never swaps when one passes the other)
+			# the air; it keeps to the side it is on — it never swaps when one passes the other. Drawn in to stay inside
+			# the ring of columns, where nothing stands between it and them; a column or the arch in the way all the same:
+			# it cuts to the other side if that one is clear, and keeps to it)
 			var a := automaton.global_position
 			var mid := (p + a) * 0.5
 			var line := a - p
 			line.y = 0.0
 			var across := line.cross(Vector3.UP).normalized() if line.length() > 0.2 else right
 			var dist := clampf(line.length() * 0.9 + 3.8, 4.4, 8.0)
-			if (mid + across * dist).distance_to(_cam.global_position) > (mid - across * dist).distance_to(_cam.global_position):
-				across = -across
-			_look(mid + across * dist + Vector3(0, 1.5, 0), mid + Vector3(0, 1.0, 0), 45.0)
+			var here := _side_spot(mid, across, dist)
+			var there := _side_spot(mid, -across, dist)
+			if here.distance_to(_cam.global_position) > there.distance_to(_cam.global_position):
+				var t := here
+				here = there
+				there = t
+			if _sight_blocked(here, p, a) and not _sight_blocked(there, p, a):
+				here = there
+			_look(here, mid + Vector3(0, 1.0, 0), 45.0)
 		"auto_front", "auto_side", "auto_back", "auto_face":
 			# the automaton (following it up in the air and down on the floor)
 			var a := automaton.global_position
@@ -284,6 +292,25 @@ func _place_camera() -> void:
 					if sk and sk.find_bone("Head") >= 0:
 						head = (sk.global_transform * sk.get_bone_global_pose(sk.find_bone("Head"))).origin + Vector3(0, 0.08, 0)
 					_look(head + af * 0.8 + ar * 0.22 + Vector3(0, 0.05, 0), head, 40.0)
+
+
+## (the review's side view) its spot `dist` from `mid` along `dir` (flat, of unit length), 1.5 m up — drawn in to stay
+## inside the ring of columns, though never nearer than 4.4 m.
+func _side_spot(mid: Vector3, dir: Vector3, dist: float) -> Vector3:
+	var flat := Vector3(mid.x, 0.0, mid.z)
+	var ring := FallenMoonCourtyard.COLUMN_R - 1.2
+	var b := flat.dot(dir)
+	var disc := b * b - (flat.length_squared() - ring * ring)
+	var d := minf(dist, -b + sqrt(disc)) if disc >= 0.0 else dist
+	return mid + dir * maxf(d, 4.4) + Vector3(0, 1.5, 0)
+
+
+## (the review's side view) whether a column or the arch stands between `from` and either fighter's waist or head.
+func _sight_blocked(from: Vector3, p: Vector3, a: Vector3) -> bool:
+	for at: Vector3 in [p + Vector3(0, 0.9, 0), p + Vector3(0, 1.7, 0), a + Vector3(0, 0.9, 0), a + Vector3(0, 1.7, 0)]:
+		if fader.blocks(from, at):
+			return true
+	return false
 
 
 func _look(from: Vector3, at: Vector3, fov: float) -> void:

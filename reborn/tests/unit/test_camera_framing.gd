@@ -136,6 +136,19 @@ func test_a_foreground_column_fades_and_one_behind_does_not() -> String:
 	return "" if back_mat == own and float(b[0]) == 1.0 else "switched off, the column is at %s with %s (want 1, its own material)" % [b[0], back_mat]
 
 
+func test_a_column_stands_across_a_line_through_it_only() -> String:
+	# (the review's side view keeps a clear line to the fighters with it)
+	var fader := OcclusionFader.new()
+	_tree().root.add_child(fader)
+	var col := _column(Vector3.ZERO)
+	fader.add_group([col])
+	var through := fader.blocks(Vector3(-3, 1, 0), Vector3(3, 1, 0))
+	var past := fader.blocks(Vector3(-3, 1, 2), Vector3(3, 1, 2))
+	col.free()
+	fader.free()
+	return "" if through and not past else "a line through the column: %s, one 2 m past it: %s (want true, false)" % [through, past]
+
+
 func _column(at: Vector3) -> MeshInstance3D:
 	var m := MeshInstance3D.new()
 	var c := CylinderMesh.new()
