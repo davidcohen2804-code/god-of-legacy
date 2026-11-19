@@ -39,8 +39,8 @@ const SCRIPT := [
 	[7.1, "tap_on_attack", "skill2", 0.53],
 	[10.2, "caption", "Failed evasion 2 — a plain roll: no shadow, no COUNTER", 2.2],
 	[10.2, "attack"],
-	[10.2, "stick_on_attack", Vector2(1, 0), 0.44], # the thumb pushes right (east, along the cut's sweep)...
-	[10.2, "tap_on_attack", "dodge", 0.5], # ...and DODGE rolls that way as the blade comes
+	[10.2, "stick_on_attack", Vector2(1, 0), 0.48], # the thumb pushes right (east, along the cut's sweep)...
+	[10.2, "tap_on_attack", "dodge", 0.54], # ...and DODGE rolls that way as the blade comes
 	[11.3, "stick_up"],
 	[11.5, "approach", 1.75, 0.35],
 	[13.3, "caption", "Failed evasion 3 — too early: his shadow fades before the blade arrives", 2.2],

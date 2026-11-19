@@ -33,9 +33,9 @@ func _tree() -> SceneTree:
 func _samurai(at: Vector3 = Vector3(0, 0, D), facing: float = PI) -> CombatController:
 	var f := Fighter.new()
 	f.setup(CharacterVisual.create())
+	f.position = at # (placed before it joins the physics space: no stale entry where it was made)
 	_tree().root.add_child(f)
 	f.set_physics_process(false)
-	f.global_position = at
 	f.prev_position = at
 	f.facing = facing
 	var c := CombatController.new()
@@ -51,6 +51,7 @@ func _samurai(at: Vector3 = Vector3(0, 0, D), facing: float = PI) -> CombatContr
 ## asked (the tests start its attacks).
 func _automaton(c: CombatController, at: Vector3 = Vector3.ZERO, facing: float = 0.0, spar: bool = false) -> TrainingAutomaton:
 	var a := TrainingAutomaton.create()
+	a.position = at
 	_tree().root.add_child(a)
 	a.set_physics_process(false)
 	a.place(at)
@@ -96,7 +97,8 @@ func _clear() -> void:
 			n.free()
 
 
-## His body by its velocity, no collision (as the Fighter moves it while an action drives it).
+## His body by its velocity, no collision (as the Fighter moves it while an action drives it). (No physics frame runs
+## meanwhile: bodies are placed where they belong before they join the physics space, or a frame is let run.)
 func _body(f: Fighter, dt: float) -> void:
 	f.prev_position = f.global_position
 	if f.frozen:
@@ -151,41 +153,6 @@ func _opened(c: CombatController, a: TrainingAutomaton) -> bool:
 
 
 # --- the automaton's sweep -------------------------------------------------------------------------------------------
-
-
-## (diagnostic, always passes) the sweep's active window against a Samurai standing 1.7 m in front, tick by tick, with
-## his body stepped straight and by its own physics.
-func test_aaa_diagnostic_the_sweep_against_him() -> String:
-	for real: bool in [false, true]:
-		var c := _samurai()
-		var a := _automaton(c)
-		if real:
-			await _floor(c, [a])
-		a.attack()
-		var rows: Array[String] = []
-		for i in 45:
-			for x in [a]:
-				(x as TrainingAutomaton).step(DT)
-			var span := a._melee.swept
-			c.tick(DT, Vector3.ZERO)
-			if real:
-				c.fighter._physics_process(DT)
-			else:
-				_body(c.fighter, DT)
-			if span.x >= 0.0:
-				var f := c.fighter
-				var fc := SwordSweep.first_contact(a.attack_data, a.global_position, a.facing, span, f.global_position,
-					f.hurt_radius, f.hurt_height, f.prev_position)
-				var r := HitResolver.resolve(a.attack_data, a.global_position, a.facing, span, f.prev_position,
-					f.global_position, f.hurt_radius, f.hurt_height, c.evasion_span(), f.iframe_span())
-				rows.append("t%.3f span(%.2f,%.2f) auto(%.2f,%.2f,%.2f f%.2f %s) him(%.2f,%.2f,%.2f) fc %.2f %s" % [
-					a.attack_time(), span.x, span.y, a.global_position.x, a.global_position.y, a.global_position.z,
-					a.facing, a.state, f.global_position.x, f.global_position.y, f.global_position.z, fc, r])
-			a.strike_check()
-		print("[DIAG] real=%s last %s hp %d | %s" % [real, a.last_attack, c.hp, " | ".join(rows)])
-		_clear()
-	return ""
-
 
 
 func test_the_sweep_is_gpts() -> String:
