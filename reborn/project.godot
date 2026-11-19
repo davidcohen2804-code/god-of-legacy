@@ -29,6 +29,10 @@ window/energy_saving/keep_screen_on=true
 
 pointing/emulate_touch_from_mouse=true
 
+[internationalization]
+
+rendering/root_node_layout_direction=1
+
 [rendering]
 
 renderer/rendering_method="gl_compatibility"

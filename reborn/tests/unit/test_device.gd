@@ -1,6 +1,7 @@
 extends RefCounted
 ## M4.1 (GPT's v1.7): the device test's frame times, the graphics presets, the camera's first frame, the damage numbers
-## kept apart, the Seal glyph's contrast, the conditional buttons' cue and chime, the engine's errors counted.
+## kept apart, the Seal glyph's contrast, the conditional buttons' cue and chime, the engine's errors counted; the layout
+## left to right in any language.
 
 func _tree() -> SceneTree:
 	return Engine.get_main_loop() as SceneTree
@@ -275,3 +276,22 @@ func test_a_hit_burst_starts_where_the_blade_bit() -> String:
 	vfx.free()
 	return "" if str(res) == str([1, true, true, true, true]) else \
 		"a burst joined the tree %s (want once, already where the blade bit, not yet emitting; then emitting, its sparks keeping their size): %s" % [res, seen]
+
+
+# --- the layout in any language ----------------------------------------------------------------------------------------
+
+
+func test_the_layout_stays_left_to_right_in_any_language() -> String:
+	# (Godot lays the interface out by the application's language by default: on a phone set to Hebrew every anchored
+	# control swapped sides — MENU, the health bars, the device test's panel — while the touch controls, drawn by code,
+	# did not)
+	var setting := int(ProjectSettings.get_setting("internationalization/rendering/root_node_layout_direction", 0))
+	var was := TranslationServer.get_locale()
+	TranslationServer.set_locale("he")
+	var c := Control.new()
+	_tree().root.add_child(c)
+	var rtl := c.is_layout_rtl()
+	c.free()
+	TranslationServer.set_locale(was)
+	return "" if setting == 1 and not rtl else \
+		"the root layout: setting %d, right to left in Hebrew: %s (want 1 — left to right — and false)" % [setting, rtl]

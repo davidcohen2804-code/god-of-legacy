@@ -1,6 +1,7 @@
 // GOD OF LEGACY — REBORN: browser smoke test of the web build, run in CI against a local static server.
 // It drives the real touch interface (taps on the controls the game reports through window.__gol with ?qa=1) in two
-// emulated phones held in landscape — Chromium as an Android phone (required) and WebKit as an iPhone (advisory —
+// emulated phones held in landscape — Chromium as an Android phone set to Hebrew (required: a right-to-left language
+// must not mirror the layout) and WebKit as an iPhone (advisory —
 // Playwright's WebKit on Linux is close to Safari but is not iOS Safari) — and the keyboard in desktop Chromium at
 // 16:9 (required). M3: the katana chain against the training dummy (each strike's damage once, the third's push), a
 // deliberate miss, and moving, dodging and attacking again; on the phones, attacking while the stick is held. M4: the
@@ -25,7 +26,8 @@ fs.mkdirSync(OUT, { recursive: true });
 
 const SWIFTSHADER = ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'];
 const PROFILES = [
-  { name: 'android-chromium', kind: 'phone', required: true, type: chromium, device: devices['Pixel 7 landscape'], args: SWIFTSHADER },
+  // (the Android phone in Hebrew, a right-to-left language — the layout must not mirror)
+  { name: 'android-chromium', kind: 'phone', required: true, type: chromium, device: devices['Pixel 7 landscape'], args: SWIFTSHADER, locale: 'he-IL' },
   { name: 'iphone-webkit', kind: 'phone', required: false, type: webkit, device: devices['iPhone 14 landscape'] },
   { name: 'chromium-16x9', kind: 'desktop', required: true, type: chromium, args: SWIFTSHADER,
     device: { viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1, hasTouch: true, isMobile: false } },
@@ -41,7 +43,7 @@ async function runProfile(p) {
   const browser = await p.type.launch({ args: p.args || [] });
   let page = null;
   try {
-    const ctx = await browser.newContext({ ...p.device });
+    const ctx = await browser.newContext({ ...p.device, ...(p.locale ? { locale: p.locale } : {}) });
     // Diagnostic for WebKit's "glBlitFramebuffer: Read and write color attachments cannot be the same image": count the
     // page's own blitFramebuffer calls (Godot's), so an error with no call behind it points at the browser itself
     // (for instance its read-back of the canvas for a screenshot).
@@ -124,8 +126,14 @@ async function runProfile(p) {
       st = await state();
       const lines = dv(st).lines.split('\n');
       if (lines.length !== 3 || !st.rects.device_test) throw new Error('the overlay: ' + JSON.stringify(dv(st)));
+      // (left to right in any language: MENU at the top left, TEST at the top right)
+      const lang = await page.evaluate(() => navigator.language);
+      const tr = st.rects.device_test, mr = st.rects.arena_menu;
+      if (!tr || !mr || tr[0] < st.vp[0] / 2 || mr[0] + mr[2] > st.vp[0] / 2) {
+        throw new Error(`the layout mirrored in ${lang}: ` + JSON.stringify({ device_test: tr, arena_menu: mr, vp: st.vp }));
+      }
       await shot('d1_overlay');
-      step(`device test (?device=1): straight into the arena, no menu; the overlay reads "${lines.join(' | ')}"`);
+      step(`device test (?device=1): straight into the arena, no menu; the overlay reads "${lines.join(' | ')}"; the page's language ${lang} — MENU top left, TEST top right (not mirrored)`);
 
       await tap('device_test');
       st = await waitFor((s) => dv(s) && dv(s).open && dv(s).paused, 'the panel open, the game paused', 30000);
