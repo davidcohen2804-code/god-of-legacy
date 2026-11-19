@@ -702,7 +702,8 @@ async function runProfile(p) {
         foe_css: f.foe ? f.foe.h_css : null, foe_in_hud: f.foe ? f.foe.in_hud : null, foe_off: f.foe ? f.foe.off_screen : null,
         player_box: f.player.box, foe_box: f.foe ? f.foe.box : null, areas: f.areas, css_per_px: f.css_per_px,
         faded: f.fade.faded, draws: f.draws, lift: f.lift, air_pull: f.air_pull, pitch: f.pitch,
-        assist_turned: f.assist_turned, assists: f.assists, shoulder: f.shoulder, air: f.air, assist: f.assist, mode: f.mode, explore: f.explore });
+        assist_turned: f.assist_turned, assists: f.assists, shoulder: f.shoulder, air: f.air, assist: f.assist, mode: f.mode, explore: f.explore,
+        cleared: f.cleared, column_rule: f.column_rule });
       const one = async (sc, fixed, sh = 0.35) => {
         const tag = `a2_${sc.tag}_${fixed ? 'fixed' : 'plain'}${fixed && sh !== 0.35 ? Math.round(sh * 100) : ''}`;
         await cmd('camfx', fixed ? sh : 0, fixed ? 1 : 0, fixed ? 1 : 0);
@@ -713,7 +714,8 @@ async function runProfile(p) {
         if (fixed && sc.settle) {
           // (the assist acts over time: until it has started and stopped — its 12° turned, or the automaton out of the
           // cluster's box)
-          await waitFor((s) => fr(s) && fr(s).assists > n0 && !fr(s).assisting, 'the assist to turn for ' + tag, 60000).catch(() => null);
+          // (GPT's v2.4: it acts only once the automaton's body stays on a button or a word — it may not here)
+          await waitFor((s) => fr(s) && fr(s).assists > n0 && !fr(s).assisting, 'the assist to turn for ' + tag, 20000).catch(() => null);
         }
         await frames(4);
         const f = fr(await state());
@@ -769,7 +771,7 @@ async function runProfile(p) {
         await shot('a2_explore_' + v);
         rows.push(row('a2_explore_' + v, fr(await state())));
       }
-      await cmd('expvar', 'A');
+      await cmd('expvar', 'B'); // (the game's since GPT's v2.4)
       await cmd('auto', 'heal');
       await cmd('auto', 'place', -3.5, -2.5, 20.2);
       await cmd('dummy', 'on');

@@ -108,6 +108,7 @@ jobs:
             build/web/qa/m4_review.mp4
             build/web/qa/m4_review_frames.jpg
             build/web/qa/m42_*.mp4
+            build/web/qa/m42c_*.mp4
           retention-days: 7
       - name: Browser smoke test in Playwright's own image (Chromium as an Android phone and at 16:9, WebKit as an iPhone, all in landscape)
         # Playwright's image carries its browsers and their system libraries: no apt install on the runner (a slow

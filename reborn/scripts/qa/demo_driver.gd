@@ -222,6 +222,45 @@ const SCRIPT_COLUMNS := [
 	[19.0, "end"],
 ]
 
+## M4.2-A2's close (GPT's v2.4), each recorded at both phones' shapes — the column pass again (`-- --demo
+## --demo-columns-on`): the same move, the fading on, with the camera's new rule (the column fades and the camera keeps
+## its distance); then a drag that takes the camera's own place through the north-east column (a standing one, its
+## capital included): it goes round the stone. For each part the log gives the camera's distance to him, its largest
+## move in one frame and how far it stood off its place at most (out of the stone).
+const SCRIPT_COLUMNS_ON := [
+	[0.2, "spar", false],
+	[0.2, "fade", true],
+	[0.2, "place", Vector2(8.19, 4.8), -112.5, Vector2(5.88, 3.84)],
+	[0.3, "caption", "The camera passing the columns, the fading on — the column fades, the camera keeps its distance", 3.4],
+	[1.0, "drag", Vector2(-130, 0), 1.4],
+	[2.8, "drag", Vector2(260, 0), 4.6],
+	[7.8, "drag", Vector2(-130, 0), 1.2],
+	[9.6, "place", Vector2(6.17, 2.27), -87.5, Vector2(3.67, 2.38)], # (the camera 25° short of the column, 5.6 m out)
+	[9.7, "caption", "A turn that takes the camera's own place through a column: it goes round the stone", 4.0],
+	[10.6, "drag", Vector2(130, 0), 2.3],
+	[13.4, "drag", Vector2(-130, 0), 2.3],
+	[16.4, "end"],
+]
+
+## Two thumbs at real speed (`-- --demo --demo-accept`): from 13 m in exploration B a walk in to the automaton — the
+## combat framing takes over at 9 m — then Phantom Control (CHAIN → PULL → Rising Slash → PURSUE, the aerial pursuit),
+## then a walk back out: the combat framing holds to 10.5 m, then exploration B returns. The log gives each change of
+## framing and how far from the automaton he stood then.
+const SCRIPT_ACCEPT := [
+	[0.2, "spar", false],
+	[0.2, "place", Vector2(2.0, 9.3), -155.0, Vector2(-3.5, -2.5)], # 13 m from it, facing it
+	[0.3, "caption", "Exploration B — a walk in; the combat framing takes over at 9 m", 3.4],
+	[0.6, "approach", 6.0, 0.4], # walk in to 6 m from it
+	[5.6, "caption", "PHANTOM CONTROL — chain → pull → rising slash → aerial pursuit", 3.6],
+	[5.7, "tap", "skill1"],
+	[6.1, "tap_shown", "cond1", 0.25], # PULL
+	[7.3, "tap", "skill3"],
+	[7.4, "tap_shown", "cond1", 0.1], # PURSUE (it waits for Rising Slash's 50 %)
+	[11.4, "caption", "A walk back out: the combat framing holds to 10.5 m, then exploration B returns", 4.4],
+	[11.4, "go", Vector2(2.0, 9.3), 0.45], # back where he started
+	[19.0, "end"],
+]
+
 var touch: TouchControls
 var combat: CombatController
 var player: Fighter
@@ -229,6 +268,11 @@ var rig: CameraRig
 var automaton: TrainingAutomaton
 var caption: Callable
 var fader: OcclusionFader ## (the columns' script: their fading's timeline)
+var _cam_log := {} ## (the column pass) the camera's distance to him, least and most; its largest move in a frame; its
+## most moved out of the stone — from the moment the move begins
+var _cam_last := Vector3.INF
+var _placed_t := -1.0 ## when "place" last moved him (the camera log skips the cut)
+var _mode_seen := -1 ## (the acceptance clip) the framing last logged
 var _fades := {} ## column group → [fading now, times faded, times back, s since its last change, shortest hold]
 var _fade_log: Array[String] = []
 var _t := 0.0
@@ -271,6 +315,42 @@ func _ready() -> void:
 		_script = SCRIPT_EXPLORE
 	elif _named == "columns" or (_named == "" and "--demo-columns" in args):
 		_script = SCRIPT_COLUMNS
+	elif _named == "columns_on" or (_named == "" and "--demo-columns-on" in args):
+		_script = SCRIPT_COLUMNS_ON
+	elif _named == "accept" or (_named == "" and "--demo-accept" in args):
+		_script = SCRIPT_ACCEPT
+
+
+## (The column pass's log) the camera through the part since the last placing — then a fresh count.
+func _report_camera() -> void:
+	_placed_t = _t
+	if not _cam_log.is_empty():
+		print("[CAMERA] %.1f s: the camera %.2f–%.2f m from him; its largest move in one frame %.3f m; off its place %.2f m at most" % [
+			_t, _cam_log["least"], _cam_log["most"], _cam_log["move"], _cam_log["out"]])
+	_cam_log = {}
+	_cam_last = Vector3.INF
+
+
+## (The acceptance clips' logs, GPT's v2.4) the framing's changes, and the camera through the column pass.
+func _process(_delta: float) -> void:
+	if rig == null or rig.cam == null or player == null:
+		return
+	if _script == SCRIPT_ACCEPT and automaton and int(rig.mode) != _mode_seen:
+		_mode_seen = int(rig.mode)
+		var d := automaton.global_position - player.global_position
+		print("[CAMERA] %.2f s: the %s framing, %.2f m from the automaton" % [_t, CameraRig.Mode.keys()[rig.mode].to_lower(),
+			Vector2(d.x, d.z).length()])
+	if _script == SCRIPT_COLUMNS_ON and _t >= 0.9 and _t - _placed_t >= 0.5:
+		var p := rig.cam.global_position
+		var dist := p.distance_to(player.global_position)
+		if _cam_log.is_empty():
+			_cam_log = {"least": dist, "most": dist, "move": 0.0, "out": 0.0}
+		_cam_log["least"] = minf(float(_cam_log["least"]), dist)
+		_cam_log["most"] = maxf(float(_cam_log["most"]), dist)
+		if _cam_last != Vector3.INF:
+			_cam_log["move"] = maxf(float(_cam_log["move"]), p.distance_to(_cam_last))
+		_cam_log["out"] = maxf(float(_cam_log["out"]), rig.cleared)
+		_cam_last = p
 
 
 ## A script's steps `by` s later (their own nested steps keep their relative delays).
@@ -292,7 +372,7 @@ func _physics_process(delta: float) -> void:
 		_i += 1
 	_tick_mash(delta)
 	_tick_watch(delta)
-	if fader and _script == SCRIPT_COLUMNS:
+	if fader and (_script == SCRIPT_COLUMNS or _script == SCRIPT_COLUMNS_ON):
 		_tick_fades(delta)
 	for i in range(_deferred.size() - 1, -1, -1):
 		if _t >= float(_deferred[i][0]):
@@ -435,6 +515,7 @@ func _run(step: Array) -> void:
 		"fade":
 			OcclusionFader.enabled = bool(step[2])
 		"place":
+			_report_camera()
 			var at: Vector2 = step[2]
 			player.global_position = Vector3(at.x, 0.0, at.y)
 			player.velocity = Vector3.ZERO
@@ -448,6 +529,7 @@ func _run(step: Array) -> void:
 			rig.settle()
 		"end":
 			print("[CAMERA] the assist started %d times" % rig.assists)
+			_report_camera()
 			if not _fades.is_empty():
 				_report_fades()
 			Engine.time_scale = 1.0

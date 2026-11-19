@@ -12,6 +12,9 @@ extends Node3D
 
 ## Within this distance of a target the camera takes its combat framing and the target's bar shows.
 const COMBAT_RANGE := 9.0
+## (GPT's v2.4) The combat framing, once taken (within the selector's 9 m), holds its target until it is beyond this —
+## and he is not attacking it: no back and forth between the framings at the threshold. (The bar keeps its own rule.)
+const FRAME_RELEASE := 10.5
 ## The automaton's mark: north-west of the dummy, in view from the start, clear of the runs the tests make.
 const AUTOMATON_HOME := Vector3(-3.5, 0.0, -2.5)
 
@@ -38,6 +41,7 @@ var _armed := {}
 var _t := 0.0
 var _view := "game"
 var _shown: Node3D ## the target on the HUD's bar
+var _framed: Node3D ## the target the camera frames now
 var _engaged := {} ## target → when the last blow between him and it fell (his on it, or its on him)
 var _dead_for := 0.0 ## s the target on the bar has been defeated
 var _hud_preview := {} ## (QA) the controls held in a given state, while set
@@ -98,6 +102,10 @@ func _ready() -> void:
 			# a canvas px — not as on a desktop screen, where they come out smaller)
 			touch.css_override = 360.0 / 720.0
 			touch._layout()
+		elif "--iphone" in OS.get_cmdline_user_args():
+			# (likewise as on the iPhone: 340 CSS px tall)
+			touch.css_override = 340.0 / 720.0
+			touch._layout()
 		if "--demo-side" in OS.get_cmdline_user_args():
 			# (the review's side view at half speed: across the line between him and the automaton)
 			_view = "fight_side"
@@ -132,12 +140,16 @@ func _process(delta: float) -> void:
 	# (the camera's framing keeps the fighters clear of the HUD: its areas, from the controls' layout — M4.2-A)
 	rig.screen = get_viewport().get_visible_rect().size
 	rig.exclusions = touch.exclusion_rects()
-	rig.assist_zone = touch.cluster_box("R")
+	var area := touch.control_areas("R")
+	rig.set_controls(area["circles"], area["rects"], float(area["css"]))
 	var focus := _pick_target(delta)
 	var frame := focus
 	if frame == null and _shown and _shown.is_inside_tree() and not bool(_shown.call("is_alive")) \
 			and _flat_dist(_shown) < TargetSelector.RANGE:
 		frame = _shown # (a defeated target keeps the camera's framing while it lies there: it rises again)
+	if frame == null and _keeps_framing(_framed):
+		frame = _framed # (GPT's v2.4: the framing's hysteresis)
+	_framed = frame
 	rig.focus = frame
 	rig.mode = CameraRig.Mode.COMBAT if frame else CameraRig.Mode.EXPLORATION
 	hud.set_near(focus != null)
@@ -192,6 +204,7 @@ func _build_camera() -> void:
 	# (the framing it starts in — combat when a target is within range — at once: the first frame drawn is the game view)
 	rig.focus = _pick_target(1.0)
 	rig.mode = CameraRig.Mode.COMBAT if rig.focus else CameraRig.Mode.EXPLORATION
+	_framed = rig.focus
 	rig.settle()
 	_cam = rig.cam
 	controller.rig = rig
@@ -201,6 +214,7 @@ func _build_camera() -> void:
 	add_child(fader)
 	for g: Array in FallenMoonCourtyard.occluders:
 		fader.add_group(g)
+	rig.set_solids(FallenMoonCourtyard.occluders) # (GPT's v2.4: the stone the camera's own volume keeps out of)
 
 
 func _build_combat() -> void:
@@ -416,6 +430,11 @@ func _on_qa_command(cmd: String, args: Array) -> void:
 		# (M4.2-A2) the exploration framing: A as before, B GPT's v2.2 proposal
 		CameraRig.explore = str(args[0])
 		QA.flag("expvar", CameraRig.explore)
+	elif cmd == "camcol" and not args.is_empty() and str(args[0]) in ["volume", "sight"]:
+		# (GPT's v2.4's comparison) the camera and the columns: "volume" (the game's: the column fades, only the camera's
+		# own volume keeps out of the stone, eased) or "sight" (the earlier rule: pulled in at once in front of it)
+		CameraRig.column_rule = str(args[0])
+		QA.flag("camcol", CameraRig.column_rule)
 	elif cmd == "hudstyle" and not args.is_empty() and str(args[0]) in ["icons", "words"]:
 		# (M4.2-A2) the controls: GPT's v2.3 icons, labels and capsules, or the earlier words
 		TouchControls.style = str(args[0])
@@ -432,6 +451,7 @@ func _on_qa_command(cmd: String, args: Array) -> void:
 		# ("facing"), settled at once in its framing
 		rig.focus = _pick_target(1.0)
 		rig.mode = CameraRig.Mode.COMBAT if rig.focus else CameraRig.Mode.EXPLORATION
+		_framed = rig.focus
 		rig.reset_view() # (the framing as it starts: no pitch left from an earlier drag)
 		if (args.is_empty() or str(args[0]) == "foe") and rig.focus:
 			var to := rig.focus.global_position - player.global_position
@@ -498,7 +518,7 @@ func _framing_state() -> Dictionary:
 		"shoulder": CameraRig.shoulder, "air": CameraRig.air_framing, "assist": CameraRig.assist,
 		"lift": snappedf(rig.lift, 0.01), "air_pull": snappedf(rig.air_pull, 0.01),
 		"assist_turned": snappedf(rig.assist_turned, 0.1), "assists": rig.assists, "assisting": rig.is_assisting(),
-		"explore": CameraRig.explore,
+		"explore": CameraRig.explore, "column_rule": CameraRig.column_rule, "cleared": snappedf(rig.cleared, 0.01),
 		"mode": CameraRig.Mode.keys()[rig.mode], "pitch": snappedf(rig.elevation(), 0.1),
 		"target": String((targets.current as Node).name) if targets.current else "", "target_rank": targets.rank}
 
@@ -564,6 +584,14 @@ func _pick_target(delta: float) -> Node3D:
 	if not o.is_empty():
 		combo = instance_from_id(int(o["target"]))
 	return targets.pick(cands, combo, eng, delta) as Node3D
+
+
+## Whether the camera keeps framing `t`, which the selector has let go (beyond its 9 m): still there and standing, and
+## within FRAME_RELEASE — or he is attacking it (GPT's v2.4).
+func _keeps_framing(t: Node3D) -> bool:
+	if t == null or not is_instance_valid(t) or not t.is_inside_tree() or not t.visible or not bool(t.call("is_alive")):
+		return false
+	return _flat_dist(t) < FRAME_RELEASE or combat.current_target() == t
 
 
 func _flat_dist(t: Node3D) -> float:

@@ -209,15 +209,17 @@ func test_b_rises_and_flattens_for_a_target_in_the_air() -> String:
 	return "" if head > head0 + 10.0 else "its head at %.1f px from the top (without the correction %.1f): want it lower on the screen" % [head, head0]
 
 
-func test_b_turns_a_little_when_the_target_enters_the_cluster() -> String:
+func test_b_turns_a_little_when_the_target_comes_onto_the_controls() -> String:
 	var d := _rig("B", Vector3(0, 0, 1.5))
 	var rig: CameraRig = d["rig"]
 	rig.yaw += deg_to_rad(18.0) # (the camera turned left: the target sits right of the middle)
 	rig.settle()
-	rig.assist_zone = Rect2(rig.screen.x * 0.56, 0.0, rig.screen.x * 0.44, rig.screen.y)
+	var sx := rig.screen.x
+	var controls: Array[Rect2] = [Rect2(sx * 0.56, 0.0, sx * 0.44, rig.screen.y)]
+	var none: Array[Vector3] = []
+	rig.set_controls(none, controls, 1.0)
 	var yaw0 := rig.yaw
-	var in0: bool = Rect2(rig.screen_box(d["foe"], 1.0)["box"][0], rig.screen_box(d["foe"], 1.0)["box"][1],
-		rig.screen_box(d["foe"], 1.0)["box"][2], rig.screen_box(d["foe"], 1.0)["box"][3]).intersects(rig.assist_zone)
+	var in0 := rig.on_controls(_foe_box(rig, d), 0.0)
 	for i in 90:
 		rig._update(1.0 / 30.0, false)
 	var turned := rad_to_deg(yaw0 - rig.yaw)
@@ -231,10 +233,144 @@ func test_b_turns_a_little_when_the_target_enters_the_cluster() -> String:
 	var during := absf(rad_to_deg(rig.yaw - y1))
 	_done(d)
 	if not in0:
-		return "the setup did not put the target in the zone"
+		return "the setup did not put the target on the controls"
 	if count < 1 or turned <= 1.0 or turned > CameraRig.ASSIST_MAX + 0.01:
-		return "it turned %.2f° (%d times) with the target in the cluster (want some, %.0f° at most)" % [turned, count, CameraRig.ASSIST_MAX]
+		return "it turned %.2f° (%d times) with the target on the controls (want some, %.0f° at most)" % [turned, count, CameraRig.ASSIST_MAX]
 	return "" if during < 0.01 else "it turned %.2f° within its pause after a drag (want none)" % during
+
+
+func test_the_assist_leaves_a_target_on_no_control_alone() -> String:
+	# (GPT's v2.4: the controls' own areas, not the cluster's box) the target right of the middle, inside the box round
+	# two buttons far below it and to its right — but on neither
+	var d := _rig("B", Vector3(0, 0, 1.5))
+	var rig: CameraRig = d["rig"]
+	rig.yaw += deg_to_rad(18.0)
+	rig.settle()
+	var fb := _foe_box(rig, d)
+	var buttons: Array[Vector3] = [Vector3(fb.end.x + 140.0, fb.end.y + 120.0, 60.0), Vector3(fb.position.x - 20.0, fb.end.y + 160.0, 50.0)]
+	var none: Array[Rect2] = []
+	rig.set_controls(buttons, none, 1.0)
+	var box := Rect2(Vector2(buttons[1].x - 50.0, fb.position.y), Vector2.ZERO).expand(Vector2(buttons[0].x + 60.0, buttons[0].y + 60.0))
+	var in_box := box.intersects(fb)
+	var yaw0 := rig.yaw
+	for i in 60:
+		rig._update(1.0 / 30.0, false)
+	var turned := absf(rad_to_deg(rig.yaw - yaw0))
+	var count := rig.assists
+	_done(d)
+	if not in_box:
+		return "the setup did not put the target inside the buttons' box"
+	return "" if count == 0 and turned < 0.01 else "it turned %.2f° (%d times) for a target on no control (want none)" % [turned, count]
+
+
+func test_the_assist_waits_for_the_target_to_stay_on_a_control() -> String:
+	# (GPT's v2.4) a moment on a control (under ASSIST_HOLD) does not start it; staying on one does
+	var d := _rig("B", Vector3(0, 0, 1.5))
+	var rig: CameraRig = d["rig"]
+	rig.yaw += deg_to_rad(18.0)
+	rig.settle()
+	var fb := _foe_box(rig, d)
+	var on: Array[Rect2] = [fb.grow(-4.0)]
+	var off: Array[Rect2] = [Rect2(fb.end + Vector2(300, 300), Vector2(10, 10))]
+	var none: Array[Vector3] = []
+	rig.set_controls(none, on, 1.0)
+	for i in 3: # 0.1 s
+		rig._update(1.0 / 30.0, false)
+	rig.set_controls(none, off, 1.0)
+	for i in 6:
+		rig._update(1.0 / 30.0, false)
+	var brief := rig.assists
+	rig.set_controls(none, on, 1.0)
+	for i in 9: # 0.3 s
+		rig._update(1.0 / 30.0, false)
+	var held := rig.assists
+	_done(d)
+	return "" if brief == 0 and held == 1 else "started %d times after a moment on a control, %d after staying (want 0, then 1)" % [brief, held]
+
+
+## (the target's box on the screen now)
+func _foe_box(rig: CameraRig, d: Dictionary) -> Rect2:
+	var b: Array = rig.screen_box(d["foe"], 1.0)["box"]
+	return Rect2(float(b[0]), float(b[1]), float(b[2]), float(b[3]))
+
+
+# --- The camera and the columns (M4.2-A2's close, GPT's v2.4) ---------------------------------------------------------
+
+
+func test_with_the_fading_on_a_column_across_the_line_leaves_the_distance() -> String:
+	# a column (on the camera's layer, 16) halfway between the camera and him: with the fading on the camera keeps its
+	# distance (the column fades); the earlier rule — QA's "sight" — pulled it in at once
+	var d := _rig("B", Vector3(0, 0, 1.5))
+	var rig: CameraRig = d["rig"]
+	var mid := (rig.cam.global_position + Vector3(0, 0, 4)) * 0.5
+	var body := StaticBody3D.new()
+	body.collision_layer = 16
+	var shape := CollisionShape3D.new()
+	var cyl := CylinderShape3D.new()
+	cyl.radius = 0.5
+	cyl.height = 6.0
+	shape.shape = cyl
+	body.add_child(shape)
+	_tree().root.add_child(body)
+	body.global_position = Vector3(mid.x, 3.0, mid.z)
+	await _tree().physics_frame # (the physics server takes in the new body)
+	await _tree().physics_frame
+	var was := OcclusionFader.enabled
+	OcclusionFader.enabled = true
+	for i in 15:
+		rig._update(1.0 / 30.0, false)
+	var kept := rig.cam.global_position.distance_to((d["player"] as Node3D).global_position)
+	CameraRig.column_rule = "sight"
+	for i in 15:
+		rig._update(1.0 / 30.0, false)
+	var pulled := rig.cam.global_position.distance_to((d["player"] as Node3D).global_position)
+	CameraRig.column_rule = "volume"
+	OcclusionFader.enabled = was
+	body.free()
+	_done(d)
+	if kept < 6.4:
+		return "with the fading on, the camera came to %.2f m from him (want its framing's distance, about 6.8 m)" % kept
+	return "" if pulled < 5.0 else "the earlier rule left it %.2f m from him (want it pulled in front of the column)" % pulled
+
+
+func test_the_cameras_volume_goes_round_a_column_never_through_it() -> String:
+	# (GPT's v2.4) a column standing where the camera's turn takes it: the camera turns past it at a drag's pace — its own
+	# place goes straight through the column — and must stay out of the stone (its rim: the column and BODY_R) without
+	# a jump, then come back to its place
+	var d := _rig("B", Vector3(0, 0, 1.5))
+	var rig: CameraRig = d["rig"]
+	var start_yaw := rig.yaw
+	# where the camera will stand 0.6 rad into the turn: the column there, on its path
+	rig.yaw = start_yaw + 0.6
+	rig.settle()
+	var col_at := rig.cam.global_position
+	rig.yaw = start_yaw
+	rig.settle()
+	var col := _column(Vector3(col_at.x, 0, col_at.z))
+	var groups: Array = [[col]]
+	rig.set_solids(groups)
+	var rim := 0.45 + CameraRig.BODY_R
+	var c := Vector2(col_at.x, col_at.z)
+	var nearest := INF
+	var biggest := 0.0
+	var last := rig.cam.global_position
+	for i in 75: # 2.5 s at 0.48 rad/s: through and past it
+		rig.yaw += 0.48 / 30.0
+		rig._update(1.0 / 30.0, false)
+		var p := rig.cam.global_position
+		nearest = minf(nearest, Vector2(p.x, p.z).distance_to(c))
+		biggest = maxf(biggest, p.distance_to(last))
+		last = p
+	for i in 30: # resting: back to its place
+		rig._update(1.0 / 30.0, false)
+	var home := rig.cleared
+	col.free()
+	_done(d)
+	if nearest < rim - 0.01:
+		return "the camera came %.3f m from the column's axis (its rim: %.2f m — want never inside it)" % [nearest, rim]
+	if biggest > 0.35:
+		return "it moved %.3f m in one frame going round the column (want no jump: 0.35 m at most)" % biggest
+	return "" if home < 0.01 else "at rest past the column it still stands %.3f m off its place (want back on it)" % home
 
 
 func test_a_column_beside_the_camera_does_not_fade() -> String:

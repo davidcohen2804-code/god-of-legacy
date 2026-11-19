@@ -48,7 +48,7 @@ jobs:
           FF=$("$RUNNER_TEMP/ff/bin/python" -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())")
           bash reborn/tools/record_review.sh out "$FF"
           ls -la out
-          test -s out/m42_feel_phone.mp4
+          test -s out/m42c_accept_android.mp4
       - name: The videos onto the reborn-rec-out branch (each run's set replaces the last; the history keeps them)
         run: |
           git config --global user.name "github-actions[bot]"

@@ -420,6 +420,25 @@ func cluster_box(side: String) -> Rect2:
 	return box.grow(12.0) if not first else Rect2()
 
 
+## (GPT's v2.4) The controls' own areas on one side, in canvas px — what the camera's assist keeps the target off, not
+## the cluster's whole box: each shown button's hit circle (x, y, its hit radius) and each word under a disc; the
+## conditional buttons and the chip, which come and go, are left out as in cluster_box.
+func control_areas(side: String) -> Dictionary:
+	var circles: Array[Vector3] = []
+	var rects: Array[Rect2] = []
+	var lay: Dictionary = LAYOUT_ICONS if style == "icons" else LAYOUT
+	for key: String in lay:
+		if lay[key][2] != side or key.begins_with("cond") or key == "more" or not is_shown(key):
+			continue
+		var b: Dictionary = _btn[key]
+		var c: Vector2 = b["c"]
+		circles.append(Vector3(c.x, c.y, float(b["r_hit"])))
+		var lr := label_rect(key)
+		if lr.size != Vector2.ZERO:
+			rects.append(lr)
+	return {"circles": circles, "rects": rects, "css": css_per_px}
+
+
 ## For the tests and the report: the sizing on this screen and the live touch state.
 func layout_info() -> Dictionary:
 	var cds := {}
