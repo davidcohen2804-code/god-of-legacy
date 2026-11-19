@@ -1,16 +1,21 @@
 class_name AttackData
 extends RefCounted
-## One attack's definition, read from res://data/abilities/samurai.json (GPT's numbers): frame data, damage, hit-stop,
-## what it does to the target, the move that shows it — and the blade's path through its active window, baked from
-## that move (samurai_blades.json, by tools/bake_blades.mjs). The hit test sweeps that path (SwordSweep), so the hit
-## follows the visible swing (GPT's M3 review), and the combat logic never reads the animation player.
+## One action's definition, read from res://data/abilities/samurai.json (GPT's numbers): frame data, damage, hit-stop,
+## what it does to the target, the move that shows it — and, for a sword action, the blade's path through its active
+## window, baked from that move (samurai_blades.json, by tools/bake_blades.mjs). The hit test sweeps that path
+## (SwordSweep), so the hit follows the visible swing (GPT's M3 review), and the combat logic never reads the
+## animation player. Other kinds: "projectile" (the Phantom Chain: thrown at its release event, its flight and
+## capture in `projectile` / `capture`) and "pull" (Chain Pull: its drag in `pull`).
 
 const DATA := "res://data/abilities/samurai.json"
 const BLADES := "res://data/abilities/samurai_blades.json"
 
 var id := ""
 var name := ""
-var button := "" ## the input that starts it ("attack", "heavy"…)
+var label := "" ## the short word on its button
+var button := "" ## the input that starts it ("attack", "heavy", "skill1"…; "cond": a Legacy Chain opportunity)
+## melee (a blade) | projectile | pull
+var kind := "melee"
 var startup := 0.1
 var active := 0.08
 var recovery := 0.17
@@ -26,6 +31,14 @@ var lunge := 0.25
 var needs_target_within := 0.0
 ## Moments of the action the controller acts on (a projectile's release…): [{at: s from its start, name}].
 var events: Array = []
+## Aim assist through startup: the nearest target within this range and the assist's cone (m; 0: the melee assist's).
+var aim_range := 0.0
+## A projectile's flight: {speed m/s, radius m, range m, height m (above his feet), ahead m (in front of him)}.
+var projectile := {}
+## How long a hit captures a target that can be captured (s).
+var capture := 0.0
+## A pull: {ahead: the endpoint, m in front of him; speed: m/s over the target's travel; min, max: s}.
+var pull := {}
 ## The move, where to start it and how fast to play it so its swing fills the active window.
 var anim := ""
 var anim_from := 0.0
@@ -79,7 +92,13 @@ static func from_dict(p_id: String, d: Dictionary) -> AttackData:
 	var a := AttackData.new()
 	a.id = p_id
 	a.name = String(d.get("name", p_id))
+	a.label = String(d.get("label", a.name.to_upper()))
 	a.button = String(d.get("button", ""))
+	a.kind = String(d.get("kind", "melee"))
+	a.aim_range = float(d.get("aim_range", 0.0))
+	a.projectile = d.get("projectile", {}) as Dictionary
+	a.capture = float(d.get("capture", 0.0))
+	a.pull = d.get("pull", {}) as Dictionary
 	a.startup = float(d.get("startup", a.startup))
 	a.active = float(d.get("active", a.active))
 	a.recovery = float(d.get("recovery", a.recovery))
@@ -113,10 +132,11 @@ static func load_set(path: String = DATA, blades: String = BLADES) -> Dictionary
 		var a := from_dict(String(k), attacks[k])
 		if paths.has(k):
 			a.set_blade(_points(paths[k].get("base", [])), _points(paths[k].get("tip", [])))
-		else:
+		elif a.kind == "melee":
 			push_error("AttackData: no baked blade for %s (run tools/bake_blades.mjs)" % k)
 		out[String(k)] = a
 	out["_chains"] = data.get("chains", {})
+	out["_graph"] = data.get("graph", [])
 	_sets[path] = out
 	return out
 
@@ -129,9 +149,14 @@ static func get_attack(p_id: String) -> AttackData:
 static func for_button(button: String) -> AttackData:
 	var all := load_set()
 	for k in all:
-		if all[k] is AttackData and (all[k] as AttackData).button == button and button != "attack":
+		if all[k] is AttackData and (all[k] as AttackData).button == button and button != "attack" and button != "cond":
 			return all[k]
 	return null
+
+
+## The Legacy Chain's graph (its edges) from the data.
+static func graph() -> Array:
+	return load_set().get("_graph", []) as Array
 
 
 ## The Samurai's three basic strikes, in chain order.

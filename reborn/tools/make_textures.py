@@ -116,16 +116,20 @@ def earth(n=512):
 
 
 def lacquer_wood(n=512):
-    """Dark lacquered wood for the Training Automaton (GPT v1.2): a deep red-brown with fine, slightly wavy grain
-    along the texture's vertical, tileable."""
+    """Dark lacquered wood for the Training Automaton (GPT v1.2): a mahogany red-brown, dark but readable under the
+    courtyard's moonlight, with clear wavy grain along the texture's vertical (darker late-wood lines, paler streaks)
+    and a few knots; tileable. (M4 first pass was too dark to read as wood: its grain vanished.)"""
     yy, xx = np.meshgrid(np.arange(n) / n, np.arange(n) / n, indexing='ij')
     warp = fbm(n, 3, 3, 81) - 0.5
-    rings = 0.5 + 0.5 * np.sin(2 * np.pi * (xx * 18 + warp * 2.4 + (fbm(n, 6, 2, 83) - 0.5) * 0.8))
-    grain = rings ** 3
-    fine = fbm(n, 32, 3, 85)
-    knots = np.clip((fbm(n, 5, 3, 87) - 0.62) * 4, 0, 1)
-    base = np.array([0.17, 0.085, 0.06])
-    col = base * (0.78 + 0.32 * grain[..., None] + 0.12 * fine[..., None]) * (1 - 0.35 * knots[..., None])
+    rings = 0.5 + 0.5 * np.sin(2 * np.pi * (xx * 14 + warp * 2.2 + (fbm(n, 6, 2, 83) - 0.5) * 0.7))
+    late = rings ** 4 # the dark late-wood lines
+    streak = np.clip((fbm(n, 4, 3, 89) - 0.45) * 2.0, 0, 1)
+    fine = fbm(n, 40, 2, 85)
+    knots = np.clip((fbm(n, 5, 3, 87) - 0.66) * 4, 0, 1)
+    pale = np.array([0.50, 0.27, 0.16])
+    dark = np.array([0.20, 0.09, 0.055])
+    k = np.clip(0.55 * late + 0.25 * (1 - streak) + 0.2 * fine + 0.45 * knots, 0, 1)[..., None]
+    col = pale * (1 - k) + dark * k
     return Image.fromarray((np.clip(col, 0, 1) * 255).astype(np.uint8))
 
 

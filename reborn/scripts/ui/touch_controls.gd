@@ -3,14 +3,17 @@ extends Control
 ## On-screen controls for a phone held in landscape (GPT's M2 layout, 1280×720 reference, centres and diameters):
 ## a fixed-base joystick bottom-left — it takes a touch that starts within 1.5× its radius, never one that began
 ## elsewhere, and pushed to its rim for 250 ms it sprints; on the right Basic Attack, three skills on an arc, Heavy,
-## Dodge and Jump; up to two conditional buttons above the arc (only while valid, with an expiry ring — M4). Dragging
-## anywhere else turns the camera. Several fingers at once, each followed by its own id.
+## Dodge and Jump; up to two conditional buttons above the arc (only while valid, with a ring that runs out with the
+## opportunity's window — M4), and between them, when more opportunities wait than the two buttons hold, a small chip
+## with their count: tapping it brings the best waiting one onto a button (GPT's v1.2). Dragging anywhere else turns
+## the camera. Several fingers at once, each followed by its own id.
 ## Sizes: every hit target is at least 44 CSS px, 48 where it fits. Each side's cluster is scaled about its corner
 ## (spacing and hit sizes together) as far as the right cluster still fits under the top bar; a hit circle grown past
 ## its drawn button never reaches a neighbour's. The drawn buttons grow less than their hit areas, to keep the screen
 ## clean.
-## It only produces intents (PlayerInput); it knows nothing of the rules. Basic Attack (the katana chain), Heavy,
-## Dodge and Jump take presses; the skills are drawn dimmed and take none until theirs is built (M4).
+## It only produces intents (PlayerInput); it knows nothing of the rules — what the conditional buttons show, and each
+## skill's cooldown, it is told. Basic Attack (the katana chain), Heavy, Phantom Chain, Dodge and Jump take presses;
+## the skills not built yet are drawn dimmed and take none.
 
 const REF := Vector2(1280, 720)
 ## name → [centre in the reference, diameter, cluster ("L" bottom-left, "R" bottom-right)]
@@ -25,6 +28,7 @@ const LAYOUT := {
 	"jump": [Vector2(820, 555), 58.0, "R"],
 	"cond1": [Vector2(975, 300), 64.0, "R"],
 	"cond2": [Vector2(1125, 280), 64.0, "R"],
+	"more": [Vector2(1050, 268), 40.0, "R"], # (its top level with cond2's: the cluster's height is unchanged)
 }
 const LABELS := {
 	"attack": "ATTACK", "skill1": "CHAIN", "skill2": "STEP", "skill3": "RISE", "heavy": "HEAVY", "dodge": "DODGE",
@@ -39,7 +43,7 @@ const DEAD := 0.12
 
 var input: PlayerInput
 ## Buttons that take presses; the rest are drawn dimmed.
-var enabled_actions := {"attack": true, "heavy": true, "dodge": true, "jump": true}
+var enabled_actions := {"attack": true, "heavy": true, "skill1": true, "dodge": true, "jump": true}
 ## Areas left to the interface's own buttons (pause...): touches there are not taken.
 var reserved: Array[Rect2] = []
 
@@ -48,6 +52,7 @@ var hit_scale := 1.0
 var art_scale := 1.0
 var _btn := {} ## name → {c, r_hit, r_min, r_art}
 var _cond := {}
+var _waiting := 0 ## opportunities waiting beyond the two buttons
 var _cooldown := {} ## name → [seconds left, total]
 var _touch := {} ## touch index → {role, key}
 var _stick_index := -1
@@ -65,11 +70,21 @@ func _ready() -> void:
 	_layout()
 
 
-## A Legacy Chain conditional slot ("cond1", "cond2"): shown with `label` while `on`, its ring running out over
-## `seconds` (M4).
-func set_conditional(key: String, label: String, on: bool, seconds: float = 0.0) -> void:
-	_cond[key] = {"label": label, "on": on, "since": _t, "life": seconds}
-	_publish_rects()
+## A Legacy Chain conditional button ("cond1", "cond2"): shown with `label` while `on`, its ring at `left` (the part
+## of its window still open, 1..0). Told every frame.
+func set_conditional(key: String, label: String, on: bool, left: float = 1.0) -> void:
+	var was: bool = _cond.has(key) and bool(_cond[key]["on"])
+	_cond[key] = {"label": label, "on": on, "left": clampf(left, 0.0, 1.0)}
+	if was != on:
+		_publish_rects()
+
+
+## How many opportunities wait beyond the two buttons (the chip shows while there are any).
+func set_waiting(n: int) -> void:
+	if (n > 0) != (_waiting > 0):
+		_waiting = n
+		_publish_rects()
+	_waiting = n
 
 
 ## A button's cooldown (told by the combat state each frame): a dark sweep over it and the seconds left while `left`
@@ -84,11 +99,13 @@ func set_cooldown(key: String, left: float, total: float) -> void:
 func is_shown(key: String) -> bool:
 	if key.begins_with("cond"):
 		return _cond.has(key) and bool(_cond[key]["on"])
+	if key == "more":
+		return _waiting > 0
 	return _btn.has(key)
 
 
 func is_enabled(key: String) -> bool:
-	return key.begins_with("cond") or bool(enabled_actions.get(key, false))
+	return key.begins_with("cond") or key == "more" or bool(enabled_actions.get(key, false))
 
 
 func _layout() -> void:
@@ -99,8 +116,10 @@ func _layout() -> void:
 	var inset := _safe_insets() # left, top, right, bottom in canvas px
 	var want_r := WANT_CSS / css_per_px * 0.5
 	var min_r := MIN_CSS / css_per_px * 0.5
-	var top: Vector2 = LAYOUT["cond2"][0]
-	var reach := REF.y - top.y + float(LAYOUT["cond2"][1]) * 0.5
+	var reach := 0.0 # (the right cluster's height above the bottom edge, to its highest button)
+	for key in LAYOUT:
+		if LAYOUT[key][2] == "R":
+			reach = maxf(reach, REF.y - (LAYOUT[key][0] as Vector2).y + float(LAYOUT[key][1]) * 0.5)
 	var room := s.y - inset.w - inset.y - TOP_BAR
 	hit_scale = clampf(minf(want_r / 29.0, room / reach), 1.0, 3.0)
 	art_scale = 1.0 + (hit_scale - 1.0) * 0.7
@@ -232,7 +251,7 @@ func _down(index: int, p: Vector2) -> bool:
 		_touch[index] = {"role": "button", "key": best}
 		if is_enabled(best):
 			_flash[best] = 0.18
-			input.press(best)
+			input.press("cond_more" if best == "more" else best)
 			QA.flag("pressed", best)
 		else:
 			QA.flag("dimmed_tap", best)
@@ -278,7 +297,8 @@ func _up(index: int) -> void:
 		input.touch_move = Vector2.ZERO
 		input.touch_rim = false
 	elif role == "button":
-		input.release(String(_touch[index]["key"]))
+		var k := String(_touch[index]["key"])
+		input.release("cond_more" if k == "more" else k)
 	_touch.erase(index)
 
 
@@ -312,6 +332,9 @@ func _draw() -> void:
 		var c: Vector2 = b["c"]
 		var r: float = b["r_art"]
 		var cond := String(key).begins_with("cond")
+		if key == "more":
+			_draw_more(b)
+			continue
 		var a := 1.0 if is_enabled(key) else 0.38
 		var lit: bool = _flash.has(key)
 		var ring := UiTheme.ACCENT if cond else (UiTheme.GOLD if key == "attack" else UiTheme.GOLD_DIM)
@@ -320,10 +343,8 @@ func _draw() -> void:
 			draw_circle(c, r * 0.94, _alpha(UiTheme.GOLD, 0.32))
 		draw_arc(c, r, 0.0, TAU, 72, _alpha(ring, a), 3.5 if key == "attack" else 2.5, true)
 		if cond:
-			var cd: Dictionary = _cond[key]
-			var life := float(cd["life"])
-			if life > 0.0:
-				var left := clampf(1.0 - (_t - float(cd["since"])) / life, 0.0, 1.0)
+			var left := float(_cond[key]["left"])
+			if left > 0.0:
 				draw_arc(c, r + 6.0, -PI * 0.5, -PI * 0.5 + TAU * left, 64, UiTheme.ACCENT, 3.0, true)
 		var label := String(_cond[key]["label"]) if cond else String(LABELS.get(key, key))
 		if _cooldown.has(key):
@@ -331,6 +352,24 @@ func _draw() -> void:
 			_pie(c, r * 0.97, clampf(float(cdv[0]) / float(cdv[1]), 0.0, 1.0), _alpha(UiTheme.MIDNIGHT, 0.72))
 			label = "%.1f" % float(cdv[0]) if float(cdv[0]) < 10.0 else "%d" % int(cdv[0])
 		_text(c, label, int(clampf(r * 0.42, 13.0, 22.0)), _alpha(UiTheme.TEXT, 0.95 * a))
+
+
+## The overflow chip: a small pill with the count of opportunities waiting (the text well inside its edge).
+func _draw_more(b: Dictionary) -> void:
+	var c: Vector2 = b["c"]
+	var h := float(b["r_art"]) * 0.7 # half the pill's height
+	var half := h * 1.05 # half the distance between its end circles
+	var fill := _alpha(UiTheme.PLUM, 0.92 if _flash.has("more") else 0.74)
+	var l := c - Vector2(half, 0)
+	var rr := c + Vector2(half, 0)
+	draw_rect(Rect2(l - Vector2(0, h), Vector2(half * 2.0, h * 2.0)), fill)
+	draw_circle(l, h, fill)
+	draw_circle(rr, h, fill)
+	draw_line(l - Vector2(0, h), rr - Vector2(0, h), UiTheme.ACCENT, 2.0, true)
+	draw_line(l + Vector2(0, h), rr + Vector2(0, h), UiTheme.ACCENT, 2.0, true)
+	draw_arc(l, h, PI * 0.5, PI * 1.5, 20, UiTheme.ACCENT, 2.0, true)
+	draw_arc(rr, h, -PI * 0.5, PI * 0.5, 20, UiTheme.ACCENT, 2.0, true)
+	_text(c, "+%d" % _waiting, int(clampf(h * 1.05, 13.0, 18.0)), _alpha(UiTheme.TEXT, 0.95))
 
 
 ## A filled sweep of `frac` of a full turn, clockwise from the top (a cooldown's remaining part).

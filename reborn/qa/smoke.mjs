@@ -321,6 +321,78 @@ async function runProfile(p) {
       await waitFor((s) => dm(s) && dm(s).off_mark < 0.05, 'the dummy back on its mark', 30000);
       return `${tag}: HEAVY — one hit for 30 (dummy ${hp0} → ${dm(done).hp}), pushed ${pushed} m`;
     };
+    // M4 Stage B: Phantom Chain → capture → Chain Pull, on the Training Automaton. He stands 6 m north of it facing it
+    // (the dummy beyond the chain's 9 m); the chain is thrown and the automaton held (8 damage); the PULL button
+    // appears and is pressed — by touch, the page itself taps it the moment it shows, as a quick thumb would — and the
+    // automaton is dragged to 1.6 m in front of him (6 more).
+    const ready = (s) => au(s) && au(s).state === 'stand' && cb(s) && cb(s).phase === 'FREE' && !((cb(s).cooldowns || {}).phantom_chain > 0);
+    const chainPullTest = async (throwIt, startPull, stopPull, tag) => {
+      await cmd('auto', 'place', -3.5, -2.5, 180);
+      await place(-3.5, -8.5, 0);
+      await waitFor(ready, tag + ': ready to throw (the automaton standing, the chain off cooldown)', 120000);
+      const hp0 = au(await state()).hp;
+      await throwIt();
+      const held = await waitFor((s) => au(s) && au(s).state === 'captured' && cb(s).conds[0] === 'chain_pull', tag + ': the automaton held and PULL on its button', 60000);
+      if (hp0 - au(held).hp !== 8) throw new Error(`${tag}: the chain dealt ${hp0 - au(held).hp} (want 8)`);
+      await startPull();
+      let done;
+      try {
+        done = await waitFor((s) => cb(s) && cb(s).pull && cb(s).pull.result, tag + ': the pull to end', 60000);
+      } finally {
+        await stopPull();
+      }
+      const r = cb(done).pull;
+      if (r.result !== 'arrived') throw new Error(`${tag}: the pull ended ${JSON.stringify(r)}`);
+      const a = au(await waitFor((s) => au(s) && hp0 - au(s).hp === 14, tag + ': the pull\'s 6 damage on arrival', 30000));
+      if (Math.abs(a.pos[0] + 3.5) > 0.15 || Math.abs(a.pos[2] + 6.9) > 0.15) throw new Error(`${tag}: the automaton ended at ${a.pos} (want 1.6 m in front of him: -3.5, -6.9)`);
+      await shot('9_' + tag + '_pulled');
+      return `${tag}: CHAIN from 6 m → the automaton held (8), PULL on its button → dragged ${r.dist} m in ${r.time} s to 1.6 m in front of him (6): ${hp0} → ${a.hp} HP`;
+    };
+    // A throw at the empty courtyard: it flies its 9 m and misses — nothing is held, nothing opens, no damage.
+    const chainMissTest = async (throwIt, tag) => {
+      await place(-8, 8, 90); // facing east along the courtyard's south side: no target within 9 m of his aim
+      await waitFor(ready, tag + ': ready to throw again', 120000);
+      const s0 = await state();
+      await throwIt();
+      const m = await waitFor((s) => s.flags.chain_miss, tag + ': the chain to miss', 60000);
+      if (m.flags.chain_miss !== 'range') throw new Error(`${tag}: the chain ended ${m.flags.chain_miss} (want: its full 9 m, nothing touched)`);
+      const s1 = await state();
+      if (au(s1).hp !== au(s0).hp || dm(s1).hp !== dm(s0).hp || au(s1).state === 'captured' || cb(s1).conds.some((c) => c)) throw new Error(`${tag}: a missed chain did something: ${JSON.stringify({ auto: au(s1), conds: cb(s1).conds })}`);
+      return `${tag}: CHAIN at the empty courtyard — flew its 9 m and missed: nothing held, no PULL, no damage`;
+    };
+    // The page taps a button the moment it is on screen, every 60 ms, until told to stop (a quick thumb).
+    const tapWhenShown = (key) => () => page.evaluate((k) => {
+      const c = document.querySelector('canvas');
+      window.__condTap = setInterval(() => {
+        const st = window.__gol, r = st && st.rects && st.rects[k];
+        if (!r) return;
+        const b = c.getBoundingClientRect();
+        const x = b.left + ((r[0] + r[2] / 2) / st.vp[0]) * b.width, y = b.top + ((r[1] + r[3] / 2) / st.vp[1]) * b.height;
+        const mk = () => ({ identifier: 78, target: c, clientX: x, clientY: y, pageX: x, pageY: y, screenX: x, screenY: y, radiusX: 4, radiusY: 4, force: 1 });
+        const fire = (type, down) => {
+          const ev = new Event(type, { bubbles: true, cancelable: true });
+          Object.defineProperty(ev, 'touches', { value: down ? [mk()] : [] });
+          Object.defineProperty(ev, 'targetTouches', { value: down ? [mk()] : [] });
+          Object.defineProperty(ev, 'changedTouches', { value: [mk()] });
+          c.dispatchEvent(ev);
+        };
+        fire('touchstart', true);
+        fire('touchend', false);
+      }, 60);
+    }, key);
+    const stopTaps = () => page.evaluate(() => clearInterval(window.__condTap));
+    // The keyboard's 4 (the first conditional button), pressed again and again until the pull has begun.
+    const pullByKey = async () => {
+      const end = Date.now() + 30000;
+      for (;;) {
+        await page.keyboard.press('Digit4');
+        const s = await state();
+        if ((cb(s).pull && cb(s).pull.result) || (au(s) && au(s).state === 'pulled')) return;
+        if (Date.now() > end) throw new Error('the key 4 did not start the pull: ' + JSON.stringify(cb(s)));
+        await page.waitForTimeout(60);
+      }
+    };
+
     // A strike at the empty air: no damage, and the next strike is the first again.
     const missTest = async (mash, tag) => {
       await place(6, 6, 0); // 8 m from the dummy, facing away from it
@@ -412,14 +484,15 @@ async function runProfile(p) {
       step('DODGE: rolled');
 
       const yawA = cs(await state()).yaw;
-      await tapAt('btn_skill1');
-      const dim = await waitFor((s) => s.flags.dimmed_tap === 'skill1', 'the dimmed CHAIN tap', 30000);
-      if (angle(cs(dim).yaw, yawA) > 1 || pl(dim).state !== 'ground' || cb(dim).phase !== 'FREE') throw new Error('the dimmed CHAIN button did something');
-      step('CHAIN (a skill, dimmed until it is built): the tap is taken and does nothing');
+      await tapAt('btn_skill2');
+      const dim = await waitFor((s) => s.flags.dimmed_tap === 'skill2', 'the dimmed STEP tap', 30000);
+      if (angle(cs(dim).yaw, yawA) > 1 || pl(dim).state !== 'ground' || cb(dim).phase !== 'FREE') throw new Error('the dimmed STEP button did something');
+      step('STEP (a skill, dimmed until it is built): the tap is taken and does nothing');
 
       // M3: ATTACK taps — the chain on the dummy, a deliberate miss, and a strike while the stick is held.
       step(await chainTest(mashInPage('btn_attack'), 'touch'));
       step(await heavyTest(() => tapAt('btn_heavy'), 'touch'));
+      step(await chainPullTest(() => tapAt('btn_skill1'), tapWhenShown('btn_cond1'), stopTaps, 'touch'));
       step(await missTest(mashInPage('btn_attack'), 'touch'));
       await place(-8, 8, 90);
       const atk = st0.rects.btn_attack;
@@ -506,6 +579,8 @@ async function runProfile(p) {
       // M3: the chain from J, a deliberate miss, then move, dodge and attack again.
       step(await chainTest(mashBy(() => page.keyboard.press('KeyJ')), 'keyboard'));
       step(await heavyTest(() => page.keyboard.press('KeyH'), 'keyboard'));
+      step(await chainPullTest(() => page.keyboard.press('Digit1'), pullByKey, async () => {}, 'keyboard'));
+      step(await chainMissTest(() => page.keyboard.press('Digit1'), 'keyboard'));
       step(await missTest(mashBy(() => page.keyboard.press('KeyJ')), 'keyboard'));
       await place(-8, 8, 90);
       const n0 = cb(await state()).strikes;

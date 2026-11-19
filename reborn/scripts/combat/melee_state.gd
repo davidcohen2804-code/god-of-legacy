@@ -16,7 +16,10 @@ extends RefCounted
 ## the chain's, an interruption, a dodge, another action or the chain's expiry start it over.
 ## Other actions start only from FREE (a press made earlier waits in the input buffer) and only when off cooldown; an
 ## Attack press during one is held, and the chain's first strike follows it. An action may name moments of its own
-## ("events": the controller acts on them — a projectile's release, a mark's placing…), each reported once.
+## ("events": the controller acts on them — a projectile's release, a mark's placing…), each reported once, and its
+## active window may be set while it runs (a pull lasts as long as the target takes to arrive).
+## Conditional abilities (the Legacy Chain's) start from FREE too, and — only where the graph's edge allows it — by
+## cutting the recovery of the action that opened them from a set fraction on (GPT's v1.2: Chain → Pull from 50 %).
 
 enum Phase { FREE, STARTUP, ACTIVE, RECOVERY, HITSTUN }
 
@@ -49,6 +52,7 @@ var swept := Vector2(-1, -1)
 
 var _hit_ids := {}
 var _fired := {}
+var _active_time := -1.0 ## the running action's active window when set while it runs (-1: its data's)
 
 
 func _init(p_attacks: Array[AttackData] = []) -> void:
@@ -83,8 +87,20 @@ func elapsed() -> float:
 		Phase.ACTIVE:
 			return action.startup + t
 		Phase.RECOVERY:
-			return action.startup + action.active + t
+			return action.startup + active_length() + t
 	return 0.0
+
+
+## The running action's active window (s): its data's, unless set while it runs.
+func active_length() -> float:
+	return _active_time if _active_time >= 0.0 else (action.active if action else 0.0)
+
+
+## Set the running action's active window to `seconds` (from its start) — before it ends; once it is past, its
+## window ends now.
+func set_active(seconds: float) -> void:
+	if phase == Phase.STARTUP or phase == Phase.ACTIVE:
+		_active_time = maxf(seconds, t if phase == Phase.ACTIVE else 0.0)
 
 
 ## An Attack press. True when it was taken (a strike started, or held as the next one's request); false when it
@@ -104,6 +120,22 @@ func attack_pressed() -> bool:
 ## when it cannot start now (busy, or cooling down) — the caller may keep it buffered.
 func action_pressed(a: AttackData) -> bool:
 	if a == null or phase != Phase.FREE or cooldown_left(a.id) > 0.0:
+		return false
+	_reset_chain("action")
+	_start_action(a, -1)
+	return true
+
+
+## A conditional ability's press (the Legacy Chain resolver chose it): it starts from FREE; or, when `cancel` allows it
+## ({from: an action id, at: a fraction}), by cutting that action's recovery from that fraction on. False when it
+## cannot start yet (the caller keeps it queued until it can, or until the opportunity closes).
+func conditional_pressed(a: AttackData, cancel: Dictionary = {}) -> bool:
+	if a == null:
+		return false
+	var legal := phase == Phase.FREE
+	if not legal and phase == Phase.RECOVERY and action and action.id == String(cancel.get("from", "")):
+		legal = t >= action.recovery * float(cancel.get("at", 1.0))
+	if not legal:
 		return false
 	_reset_chain("action")
 	_start_action(a, -1)
@@ -180,9 +212,10 @@ func step(dt: float) -> void:
 		before = 0.0
 		_set_phase(Phase.ACTIVE)
 	if phase == Phase.ACTIVE:
-		swept = Vector2(clampf(before / a.active, 0.0, 1.0), clampf(t / a.active, 0.0, 1.0))
-		if t >= a.active:
-			t -= a.active
+		var act := maxf(active_length(), 0.0001)
+		swept = Vector2(clampf(before / act, 0.0, 1.0), clampf(t / act, 0.0, 1.0))
+		if t >= act:
+			t -= act
 			_set_phase(Phase.RECOVERY)
 		return
 	# RECOVERY
@@ -206,6 +239,7 @@ func _start_action(a: AttackData, k: int) -> void:
 	queued = false
 	_hit_ids.clear()
 	_fired.clear()
+	_active_time = -1.0
 	chain_open = 0.0
 	if k <= 0:
 		chain_target = 0

@@ -1,5 +1,5 @@
 {
-  "_doc": "The Samurai's attacks (GPT's REBORN direction v1.1 and M3/M4 reviews). Times in seconds, distances in metres. anim / anim_from / anim_speed: the move, where to start it and how fast to play it so its swing fills the active window. reaction: how long the target reels; knockback: how far it is pushed; lunge: his step into the cut. The blade's path through each active window is baked into samurai_blades.json by tools/bake_blades.mjs (re-run it after changing any timing or move here).",
+  "_doc": "The Samurai's attacks and skills (GPT's REBORN direction v1.1, M3/M4 reviews and the v1.2 decisions). Times in seconds, distances in metres. kind: melee (a blade; its path baked) | projectile (thrown at its release event: speed, radius, range, height and ahead of his feet; capture: the hold a hit gives a target that can be captured) | pull (Chain Pull: the endpoint ahead of him; the drag takes the target's distance / speed, within min..max). button: the input that starts it; cond = a Legacy Chain opportunity (graph). aim_range: the aim assist's reach through startup. graph: the Legacy Chain's edges — on an authoritative event, unlock an ability against the event's target for window s; rank: GPT's priority (1 first); requires: the target state it needs; cancel: the action whose recovery it may cut, from that fraction on. anim / anim_from / anim_speed: the move, where to start it and how fast to play it so its swing fills the active window. reaction: how long the target reels; knockback: how far it is pushed; lunge: his step into the cut. The blade's path through each active window is baked into samurai_blades.json by tools/bake_blades.mjs (re-run it after changing any timing or move here).",
   "attacks": {
     "basic1": {
       "name": "Basic 1", "button": "attack",
@@ -24,9 +24,30 @@
       "startup": 0.33, "active": 0.11, "recovery": 0.35, "damage": 30, "cooldown": 0.0,
       "hit_stop": 0.065, "reaction": 0.20, "knockback": 0.5, "lunge": 0.3,
       "anim": "Sword_Attack", "anim_from": 0.11, "anim_speed": 0.818
+    },
+    "phantom_chain": {
+      "name": "Phantom Chain", "label": "CHAIN", "button": "skill1", "kind": "projectile",
+      "startup": 0.22, "active": 0.02, "recovery": 0.23, "damage": 8, "cooldown": 6.0,
+      "hit_stop": 0.04, "reaction": 0.1, "knockback": 0.0, "lunge": 0.0, "aim_range": 9.0,
+      "projectile": {"speed": 24.0, "radius": 0.25, "range": 9.0, "height": 1.25, "ahead": 0.45},
+      "capture": 0.7,
+      "events": [{"at": 0.22, "name": "release"}],
+      "anim": "Spell_Simple_Enter", "anim_from": 0.05, "anim_speed": 1.91
+    },
+    "chain_pull": {
+      "name": "Chain Pull", "label": "PULL", "button": "cond", "kind": "pull",
+      "startup": 0.08, "active": 0.25, "recovery": 0.2, "damage": 6, "cooldown": 0.0,
+      "hit_stop": 0.05, "reaction": 0.3, "knockback": 0.0, "lunge": 0.0,
+      "pull": {"ahead": 1.6, "speed": 14.0, "min": 0.25, "max": 0.6},
+      "events": [{"at": 0.08, "name": "pull"}],
+      "anim": "Spell_Simple_Exit", "anim_from": 0.05, "anim_speed": 0.9
     }
   },
   "chains": {
     "attack": ["basic1", "basic2", "basic3"]
-  }
+  },
+  "graph": [
+    {"on": "captured", "unlock": "chain_pull", "window": 0.7, "rank": 4, "requires": "captured",
+     "cancel": {"from": "phantom_chain", "at": 0.5}}
+  ]
 }

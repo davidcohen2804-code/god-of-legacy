@@ -137,6 +137,10 @@ func is_airborne() -> bool:
 	return state == "air"
 
 
+func is_captured() -> bool:
+	return state == "captured"
+
+
 func juggle_protected() -> bool:
 	return _protected
 

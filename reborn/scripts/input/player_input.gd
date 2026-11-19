@@ -6,7 +6,8 @@ extends Node
 ## can use it. The buffer runs on the fixed physics tick, like the combat it feeds, and stands still while `paused`
 ## (hit-stop: a press made during the freeze is kept for after it). It knows nothing of the rules.
 
-const ACTIONS: Array[String] = ["attack", "heavy", "skill1", "skill2", "skill3", "dodge", "jump", "cond1", "cond2"]
+const ACTIONS: Array[String] = ["attack", "heavy", "skill1", "skill2", "skill3", "dodge", "jump", "cond1", "cond2",
+	"cond_more"]
 ## Sprint from the stick: held at its rim this long (GPT: 250 ms).
 const SPRINT_HOLD := 0.25
 
@@ -139,3 +140,4 @@ func _ensure_actions() -> void:
 	_add("kb_jump", [KEY_SPACE], [JOY_BUTTON_A])
 	_add("kb_cond1", [KEY_4, KEY_Z], [JOY_BUTTON_DPAD_LEFT])
 	_add("kb_cond2", [KEY_5, KEY_X], [JOY_BUTTON_DPAD_RIGHT])
+	_add("kb_cond_more", [KEY_6, KEY_C], [JOY_BUTTON_DPAD_DOWN])

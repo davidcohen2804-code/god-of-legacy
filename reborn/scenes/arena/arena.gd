@@ -65,6 +65,7 @@ func _process(delta: float) -> void:
 	hud.set_near(focus != null)
 	if focus and focus != _shown:
 		_show_target(focus)
+	_update_buttons()
 	for i in FallenMoonCourtyard.flames.size():
 		var f := FallenMoonCourtyard.flames[i]
 		f.light_energy = 1.25 + 0.18 * sin(_t * 7.3 + i * 1.7) + 0.1 * sin(_t * 13.1 + i * 2.9)
@@ -129,6 +130,11 @@ func _build_combat() -> void:
 	vfx.name = "HitVfx"
 	add_child(vfx)
 	vfx.bind(combat)
+	var chain := PhantomChainVisual.new()
+	chain.name = "PhantomChain"
+	chain.combat = combat
+	chain.fighter = player
+	add_child(chain)
 
 
 ## (QA) an inspection viewpoint; the rig holds the camera in the game view.
@@ -164,7 +170,12 @@ func _place_camera() -> void:
 				"auto_back":
 					_look(a - af * 2.8 + Vector3(0, 1.5, 0), a + Vector3(0, 0.95, 0), 45.0)
 				"auto_face":
-					_look(a + af * 0.95 + ar * 0.2 + Vector3(0, 1.74, 0), a + Vector3(0, 1.62, 0), 40.0)
+					# (at its head as the pose holds it: its guard stance crouches)
+					var head := a + Vector3(0, 1.62, 0)
+					var sk := automaton.visual.skeleton
+					if sk and sk.find_bone("Head") >= 0:
+						head = (sk.global_transform * sk.get_bone_global_pose(sk.find_bone("Head"))).origin + Vector3(0, 0.08, 0)
+					_look(head + af * 0.8 + ar * 0.22 + Vector3(0, 0.05, 0), head, 40.0)
 
 
 func _look(from: Vector3, at: Vector3, fov: float) -> void:
@@ -277,7 +288,8 @@ func _build_hud() -> void:
 	_show_target(dummy)
 	dummy.hp_changed.connect(func(hp: int, total: int) -> void: _on_target_hp(dummy, hp, total))
 	automaton.hp_changed.connect(func(hp: int, total: int) -> void: _on_target_hp(automaton, hp, total))
-	hud.set_note("M4 · stick: move (rim 0.25 s: sprint) · drag: camera · ATTACK ×3 · HEAVY · DODGE · JUMP — keys WASD J H K Space")
+	hud.set_note("M4 · stick: move (rim 0.25 s: sprint) · drag: camera · ATTACK ×3 · HEAVY · CHAIN (then PULL) · DODGE · JUMP — keys WASD J H 1 K Space, 4 / 5 the conditional buttons")
+	combat.notice.connect(func(text: String) -> void: hud.prompt(text, 1.6))
 
 	var back := Button.new()
 	back.text = "MENU"
@@ -324,3 +336,20 @@ func _on_target_hp(t: Node3D, hp: int, total: int) -> void:
 	if hp < total:
 		_last_hit = t
 		_last_hit_t = _t
+
+
+## The buttons' state from the combat (they only draw what they are told): what each conditional button holds and how
+## much of its window is left, how many wait beyond them, and each skill's cooldown.
+func _update_buttons() -> void:
+	var cs := combat.conditionals()
+	var slots: Array = cs["slots"]
+	for i in slots.size():
+		var o: Dictionary = slots[i]
+		var a: AttackData = AttackData.get_attack(String(o.get("ability", ""))) if not o.is_empty() else null
+		touch.set_conditional("cond%d" % (i + 1), a.label if a else "", not o.is_empty(),
+			float(o.get("left", 0.0)) / maxf(float(o.get("window", 1.0)), 0.001))
+	touch.set_waiting(int(cs["waiting"]))
+	for key: String in ["heavy", "skill1", "skill2", "skill3"]:
+		var s := AttackData.for_button(key)
+		if s and s.cooldown > 0.0:
+			touch.set_cooldown(key, combat.melee.cooldown_left(s.id), s.cooldown)

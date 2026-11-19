@@ -2,26 +2,33 @@ class_name CombatController
 extends Node
 ## Binds the combat state machine (MeleeState) to the Samurai's body, moves and targets, one fixed physics tick at a
 ## time (the player controller hands it the tick's presses, then calls tick()):
-##   1. the state machine steps (startup → active → recovery, hit-stop, the chain, cooldowns);
-##   2. the blade's baked path over the slice of the active window this tick covered is tested against every target in
-##      the "hurtbox" group (SwordSweep) — each target is damaged at most once per action, and a confirmed hit starts
-##      hit-stop and the target's reaction;
-##   3. its events start the moves; through startup he turns toward the target the action picked (assist: the nearest
-##      within 3.6 m and 60° of the stick, or of his facing when the stick is idle — never a full turn-around) or else
-##      toward the stick, steps into the cut (stopping short of the target), and through hit-stop body, move, blade
+##   1. a conditional press waiting for its moment starts when the graph allows it; the state machine steps (startup →
+##      active → recovery, hit-stop, the chain, cooldowns);
+##   2. a sword action's blade — its baked path over the slice of the active window this tick covered — is tested
+##      against every target in the "hurtbox" group (SwordSweep), each target at most once per action; a confirmed hit
+##      starts hit-stop and the target's reaction;
+##   3. the Phantom Chain in flight moves on (ChainShot: swept against the targets and the world); a pull under way is
+##      watched to its end; the Legacy Chain's windows age (not through hit-stop) and close when their target no longer
+##      qualifies;
+##   4. its events start the moves; through startup he turns toward the target the action picked (assist: the nearest
+##      within its range and 60° of the stick, or of his facing when the stick is idle — never a full turn-around) or
+##      else toward the stick, steps into a cut (stopping short of the target), and through hit-stop body, move, blade
 ##      trail and target all hold still; a landed blow jolts the camera, a pushing blow harder (restrained: mobile).
-## Every action is data (AttackData): Attack runs the chain; other buttons (Heavy…) start the action bound to them.
-## Animation, camera, sound and effects only follow what the state machine decided — they listen to the signals;
-## nothing here reads the animation back.
+## Every action is data (AttackData): Attack runs the chain; Heavy and the skills start the action bound to their
+## button; the Legacy Chain's conditional abilities start from its two buttons — the resolver (LegacyChain), fed only
+## by confirmed combat events, decides what each button holds. Animation, camera, sound and effects only follow what
+## the state machine decided — they listen to the signals; nothing here reads the animation back.
 
 ## An action began (`step`: its place in the Attack chain, 0..2, or -1).
 signal strike_started(a: AttackData, step: int)
-## Its active window opened (the blade is cutting).
+## Its active window opened (the blade is cutting, the chain is thrown…).
 signal strike_active(a: AttackData, step: int)
 ## It landed on `target` (`dir`: flat, from the attacker to the target).
 signal strike_hit(a: AttackData, step: int, target: Node3D, dir: Vector3)
 ## It ended without a hit.
 signal strike_missed(a: AttackData, step: int)
+## An outcome the player should read (the chain missed or was blocked, a target resisted, a pull was blocked…).
+signal notice(text: String)
 
 const STOP_SHORT := 1.1 ## the step into a cut stops this close to the target's centre, m
 const STANCE_TIME := 4.0 ## the drawn-sword stance after an action, s
@@ -35,14 +42,27 @@ var fighter: Fighter
 var rig: CameraRig
 var trail: BladeTrail
 var melee := MeleeState.new()
+## The Legacy Chain resolver (its graph from the data).
+var legacy := LegacyChain.new(AttackData.graph())
+## The Phantom Chain thrown (flying, holding its capture, or drawn back); null when none.
+var shot: ChainShot
 ## Totals and the last actions, for the tests and the report: strike_log = [{step (1..3, 0 off the chain), id, hits,
 ## damage}], newest last.
 var stats := {"strikes": 0, "hits": 0, "misses": 0, "damage": 0, "chains": 0}
 var strike_log: Array[Dictionary] = []
+## The last pull, for the tests and the report: {result: arrived | blocked | escaped | interrupted, dist, time}.
+var last_pull := {}
 
 var _target: Node3D
 var _aim := Vector3.ZERO
 var _stance := 0.0
+## A conditional press waiting for its earliest legal moment: {ability, target}.
+var _queued := {}
+## The target of the conditional ability starting now.
+var _cond_target: Node3D
+## The target being pulled, and the pull action.
+var _pulling: Node3D
+var _pull_action: AttackData
 
 
 ## Dodging is allowed from free movement, or in the later part of an action's recovery (cancelling it and the chain).
@@ -67,7 +87,8 @@ func try_attack() -> bool:
 
 
 ## A press of `button` from the input buffer: Attack runs the chain; another button starts the action bound to it in
-## the data (Heavy…) when the state machine allows it (free, off cooldown) and its range check passes. True when taken.
+## the data (Heavy, the skills) when the state machine allows it (free, off cooldown) and its range check passes. True
+## when taken. (A refused press starts nothing — no cooldown.)
 func try_press(button: String) -> bool:
 	if fighter.state != "ground":
 		return false
@@ -82,15 +103,41 @@ func try_press(button: String) -> bool:
 	return melee.action_pressed(a)
 
 
+## A press on conditional button `slot` (0, 1): the opportunity that button shows now is the one asked for. It starts
+## at once when it may; otherwise it waits (queued) for its earliest legal moment — the cancel point the graph allows,
+## or the end of the action — as long as the opportunity stays open. False when the button holds nothing.
+func try_conditional(slot: int) -> bool:
+	var o := legacy.in_slot(slot)
+	if o.is_empty():
+		return false
+	_queued = {"ability": String(o["ability"]), "target": int(o["target"])}
+	QA.flag("cond_pressed", String(o["ability"]))
+	_try_queued()
+	return true
+
+
+## The overflow's choice: bring the best waiting opportunity onto a button.
+func promote_waiting() -> bool:
+	return legacy.promote()
+
+
+## The fighter was hit (M5) or otherwise interrupted: his opportunities close and the chain lets go.
+func interrupted(why: String = "interrupted") -> void:
+	legacy.interrupt(why)
+	_queued = {}
+	_let_go()
+
+
 func is_frozen() -> bool:
 	return melee.hitstop > 0.0
 
 
 func tick(dt: float, stick_dir: Vector3) -> void:
+	_try_queued()
 	melee.step(dt)
 	_events(stick_dir) # (an action's start and its active window before its hits: the swing sounds before the impact)
 	var a := melee.current()
-	if melee.swept.x >= 0.0:
+	if a and a.kind == "melee" and melee.swept.x >= 0.0:
 		for t in get_tree().get_nodes_in_group("hurtbox"):
 			var target := t as Node3D
 			if target == null or (target.has_method("is_alive") and not target.is_alive()):
@@ -104,6 +151,11 @@ func tick(dt: float, stick_dir: Vector3) -> void:
 				if melee.hit_confirmed(target.get_instance_id()):
 					_land(a, target)
 	_events(stick_dir)
+	_tick_shot(dt)
+	_tick_pull()
+	if melee.hitstop <= 0.0:
+		legacy.step(dt) # (the windows hold through hit-stop)
+	_check_opportunities()
 	# the body: held still through hit-stop, driven by the action while it lasts
 	var frozen := melee.hitstop > 0.0
 	fighter.frozen = frozen
@@ -124,10 +176,11 @@ func tick(dt: float, stick_dir: Vector3) -> void:
 	_stance = maxf(0.0, _stance - dt)
 	fighter.combat_ready = _stance > 0.0
 	if trail:
+		var sword := a != null and a.kind == "melee"
 		var cutting := melee.phase == MeleeState.Phase.ACTIVE
 		var near_cut := (melee.phase == MeleeState.Phase.STARTUP and melee.t > a.startup - 0.05) \
 			or (melee.phase == MeleeState.Phase.RECOVERY and melee.t < 0.07)
-		trail.emitting = cutting or near_cut
+		trail.emitting = sword and (cutting or near_cut)
 		trail.frozen = frozen
 
 
@@ -137,16 +190,24 @@ func _land(a: AttackData, target: Node3D) -> void:
 	var side := Vector3(dir.z, 0.0, -dir.x) * signf(a.arc_to - a.arc_from)
 	if target.has_method("take_hit"):
 		target.take_hit(a.damage, a.reaction, a.knockback, dir, (dir * 0.55 + side * 0.85).normalized())
+	_after_hit(a, target, dir, melee.step_index)
+
+
+## What every confirmed hit shares: the target's hit-stop, the totals and log, the camera's jolt, the signal.
+func _after_hit(a: AttackData, target: Node3D, dir: Vector3, step: int, damage: int = -1) -> void:
 	if target.has_method("freeze_for"):
 		target.freeze_for(a.hit_stop)
+	var dmg := a.damage if damage < 0 else damage
 	stats["hits"] += 1
-	stats["damage"] += a.damage
-	if not strike_log.is_empty():
-		strike_log[-1]["hits"] += 1
-		strike_log[-1]["damage"] += a.damage
+	stats["damage"] += dmg
+	for i in range(strike_log.size() - 1, -1, -1):
+		if strike_log[i]["id"] == a.id:
+			strike_log[i]["hits"] += 1
+			strike_log[i]["damage"] += dmg
+			break
 	if rig:
 		rig.shake(0.6 if a.knockback > 0.0 else 0.22)
-	strike_hit.emit(a, melee.step_index, target, dir)
+	strike_hit.emit(a, step, target, dir)
 
 
 func _events(stick_dir: Vector3) -> void:
@@ -155,8 +216,12 @@ func _events(stick_dir: Vector3) -> void:
 		match String(e["type"]):
 			"start":
 				var a := melee.current()
-				_target = _pick_target(stick_dir)
-				_aim = _flat(stick_dir).normalized() if stick_dir.length() > 0.2 else Vector3.ZERO
+				if a.button == "cond":
+					_target = _cond_target
+					_aim = Vector3.ZERO
+				else:
+					_target = _pick_target(stick_dir, a.aim_range if a.aim_range > 0.0 else assist_range)
+					_aim = _flat(stick_dir).normalized() if stick_dir.length() > 0.2 else Vector3.ZERO
 				fighter.visual.play(a.anim, 0.05, a.anim_speed, true, a.anim_from)
 				_stance = STANCE_TIME
 				stats["strikes"] += 1
@@ -168,12 +233,20 @@ func _events(stick_dir: Vector3) -> void:
 			"phase":
 				if String(e["phase"]) == "ACTIVE":
 					strike_active.emit(melee.current(), step)
+			"event":
+				match String(e["name"]):
+					"release":
+						_release(melee.current())
+					"pull":
+						_begin_pull(melee.current())
 			"hit":
 				QA.flag("strike_hit", "%s:%d" % [String(e["id"]), int(e["damage"])])
 			"miss":
-				stats["misses"] += 1
-				QA.flag("strike_miss", String(e["id"]))
-				strike_missed.emit(melee.current(), step)
+				var m := AttackData.get_attack(String(e["id"]))
+				if m == null or m.kind == "melee": # (a thrown chain or a pull lands on its own, later)
+					stats["misses"] += 1
+					QA.flag("strike_miss", String(e["id"]))
+					strike_missed.emit(melee.current(), step)
 			"chain_done":
 				stats["chains"] += 1
 				QA.flag("chain_done", stats["chains"])
@@ -184,17 +257,198 @@ func _events(stick_dir: Vector3) -> void:
 	melee.events.clear()
 
 
-## The target an action turns to: the nearest living one within the assist's range and cone around the stick's
+## The Phantom Chain leaves his hand: straight along his facing now — locked from here on.
+func _release(a: AttackData) -> void:
+	_let_go()
+	var p := a.projectile
+	var origin := fighter.global_position + fighter.forward() * float(p.get("ahead", 0.45)) \
+		+ Vector3(0, float(p.get("height", 1.25)), 0)
+	shot = ChainShot.new(a, origin, fighter.forward())
+	QA.flag("chain_thrown", snappedf(rad_to_deg(fighter.facing), 0.1))
+
+
+func _tick_shot(dt: float) -> void:
+	if shot == null:
+		return
+	if shot.state != "flying":
+		shot.advance(dt, [])
+		if shot.state == "hit" and not _holds(shot.target):
+			shot.let_go() # the capture ended (or the pull did): the chain lets go
+		elif shot.since > 1.0:
+			shot = null
+		return
+	var space: PhysicsDirectSpaceState3D = fighter.get_world_3d().direct_space_state if fighter.is_inside_tree() else null
+	match shot.advance(dt, _living_targets(), space):
+		"hit":
+			_chain_hit(shot.action, shot.target)
+		"blocked":
+			QA.flag("chain_miss", "blocked")
+			notice.emit("Chain blocked")
+		"spent":
+			QA.flag("chain_miss", "range")
+			notice.emit("Chain missed")
+
+
+## The chain struck `target`: its damage; a target that can be captured is held (less when captured again soon —
+## or not at all while immune), which opens Chain Pull against it; one that resists takes the damage and a short
+## stagger (at most 0.3 s), and nothing opens.
+func _chain_hit(a: AttackData, target: Node3D) -> void:
+	var dir := _flat(target.global_position - fighter.global_position).normalized()
+	var data: Variant = target.get("target_data")
+	var td: Dictionary = data if data is Dictionary else {}
+	var dmg := a.damage
+	if bool(td.get("pullable", false)) and target.has_method("capture"):
+		target.take_hit(dmg, a.reaction, 0.0, dir)
+		var hold := 0.0
+		if target.is_alive():
+			hold = float(target.capture(a.capture))
+			if hold > 0.0:
+				legacy.event("captured", target.get_instance_id())
+				QA.flag("chain_capture", "%s:%.3f" % [target.name, hold])
+			else:
+				notice.emit("Immune to the chain")
+				QA.flag("chain_capture", "immune")
+		if hold <= 0.0:
+			shot.let_go()
+	else:
+		target.take_hit(dmg, minf(float(td.get("stagger", 0.3)), 0.3), 0.0, dir)
+		notice.emit("Resists the chain")
+		QA.flag("chain_capture", "resisted")
+		shot.let_go()
+	_after_hit(a, target, dir, -1, dmg)
+
+
+## Chain Pull's yank: the held target is dragged to the point 1.6 m ahead of him, taking clamp(d / 14, 0.25, 0.6) s
+## for its d metres; his action lasts as long. A target no longer held is not pulled (escaped).
+func _begin_pull(a: AttackData) -> void:
+	var t := _target
+	if t == null or not is_instance_valid(t) or not t.has_method("pull_to") or not _holds(t):
+		_finish_pull({"result": "escaped"})
+		melee.set_active(0.0)
+		return
+	var p := a.pull
+	var end := fighter.global_position + fighter.forward() * float(p.get("ahead", 1.6))
+	var d := _flat(end - t.global_position).length()
+	var dur := clampf(d / float(p.get("speed", 14.0)), float(p.get("min", 0.25)), float(p.get("max", 0.6)))
+	t.set("last_pull", {})
+	if t.pull_to(end, dur):
+		_pulling = t
+		_pull_action = a
+		melee.set_active(dur)
+		QA.flag("pull_started", "%.2f:%.3f" % [d, dur])
+	else:
+		_finish_pull({"result": "escaped"})
+		melee.set_active(0.0)
+
+
+## Watch the pull to its end: on arrival the target takes the pull's damage; blocked, it takes none.
+func _tick_pull() -> void:
+	if _pulling == null:
+		return
+	if not is_instance_valid(_pulling):
+		_finish_pull({"result": "interrupted"})
+		return
+	if String(_pulling.get("state")) == "pulled":
+		return
+	var r: Dictionary = _pulling.get("last_pull")
+	var result := String(r.get("result", "interrupted"))
+	if result == "arrived" and _pulling.is_alive():
+		var dir := _flat(_pulling.global_position - fighter.global_position).normalized()
+		_pulling.take_hit(_pull_action.damage, _pull_action.reaction, 0.0, dir)
+		_after_hit(_pull_action, _pulling, dir, -1)
+	elif result == "blocked":
+		notice.emit("Pull blocked")
+	if melee.action == _pull_action and melee.phase == MeleeState.Phase.ACTIVE:
+		melee.set_active(0.0) # (his part ends with the drag)
+	_finish_pull(r if not r.is_empty() else {"result": result})
+
+
+func _finish_pull(r: Dictionary) -> void:
+	last_pull = r.duplicate()
+	QA.flag("pull", String(r.get("result", "")))
+	if String(r.get("result", "")) == "escaped":
+		notice.emit("Escaped")
+	_pulling = null
+	if shot and shot.state == "hit":
+		shot.let_go()
+
+
+## The waiting conditional press starts as soon as the graph allows it; it is dropped when its opportunity closed.
+func _try_queued() -> void:
+	if _queued.is_empty():
+		return
+	var ability := String(_queued["ability"])
+	var target_id := int(_queued["target"])
+	if not legacy.has(ability, target_id):
+		QA.flag("cond_dropped", ability)
+		_queued = {}
+		return
+	if fighter.state != "ground":
+		return
+	var a := AttackData.get_attack(ability)
+	if a == null:
+		_queued = {}
+		return
+	var edge := legacy.edge_for(ability)
+	var cancel: Variant = edge.get("cancel", {})
+	_cond_target = instance_from_id(target_id) as Node3D
+	if melee.conditional_pressed(a, cancel if cancel is Dictionary else {}):
+		legacy.consume(ability, target_id)
+		_queued = {}
+		_events(Vector3.ZERO) # (its start, now: the target is set before the state machine steps it)
+
+
+## Close each opportunity whose target no longer qualifies: gone, defeated, or out of the state its edge requires.
+func _check_opportunities() -> void:
+	for o in legacy.open.duplicate():
+		var t := instance_from_id(int(o["target"])) as Node3D
+		if t == null or not is_instance_valid(t) or (t.has_method("is_alive") and not t.is_alive()):
+			legacy.close(String(o["ability"]), int(o["target"]), "defeated")
+			continue
+		match String(o["requires"]):
+			"captured":
+				if not _holds(t):
+					legacy.close(String(o["ability"]), int(o["target"]), "released")
+			"airborne":
+				if not (t.has_method("is_airborne") and t.is_airborne()) or \
+						(t.has_method("juggle_protected") and t.juggle_protected()):
+					legacy.close(String(o["ability"]), int(o["target"]), "landed")
+
+
+## Does the chain still hold `t` (captured, or being pulled in)?
+func _holds(t: Node3D) -> bool:
+	if t == null or not is_instance_valid(t):
+		return false
+	if t.has_method("is_captured") and t.is_captured():
+		return true
+	return t == _pulling
+
+
+## The chain lets go of what it holds (a captured target is released; a pull already under way runs on).
+func _let_go() -> void:
+	if shot:
+		if shot.state == "hit" and shot.target and is_instance_valid(shot.target) and shot.target.has_method("release"):
+			shot.target.release()
+		shot.let_go()
+
+
+func _living_targets() -> Array:
+	var out := []
+	for t in get_tree().get_nodes_in_group("hurtbox"):
+		var n := t as Node3D
+		if n and not (n.has_method("is_alive") and not n.is_alive()):
+			out.append(n)
+	return out
+
+
+## The target an action turns to: the nearest living one within `limit` m and the assist's cone around the stick's
 ## direction (or the facing when the stick is idle).
-func _pick_target(stick_dir: Vector3) -> Node3D:
+func _pick_target(stick_dir: Vector3, limit: float = -1.0) -> Node3D:
 	var aim := stick_dir if stick_dir.length() > 0.2 else fighter.forward()
 	var aim_yaw := atan2(aim.x, aim.z)
 	var best: Node3D = null
-	var best_d := assist_range
-	for t in get_tree().get_nodes_in_group("hurtbox"):
-		var n := t as Node3D
-		if n == null or (n.has_method("is_alive") and not n.is_alive()):
-			continue
+	var best_d := assist_range if limit < 0.0 else limit
+	for n: Node3D in _living_targets():
 		var to := _flat(n.global_position - fighter.global_position)
 		var d := to.length()
 		if d > best_d:
@@ -210,10 +464,7 @@ func _pick_target(stick_dir: Vector3) -> Node3D:
 func _nearest_alive(limit: float) -> Node3D:
 	var best: Node3D = null
 	var best_d := limit
-	for t in get_tree().get_nodes_in_group("hurtbox"):
-		var n := t as Node3D
-		if n == null or (n.has_method("is_alive") and not n.is_alive()):
-			continue
+	for n: Node3D in _living_targets():
 		var d := _flat(n.global_position - fighter.global_position).length()
 		if d <= best_d:
 			best = n
@@ -221,11 +472,29 @@ func _nearest_alive(limit: float) -> Node3D:
 	return best
 
 
+## The conditional buttons as they stand: [{ability, name, left, window}] per button (empty when it holds nothing),
+## and how many wait.
+func conditionals() -> Dictionary:
+	var slots := []
+	for i in legacy.slots:
+		var o := legacy.in_slot(i)
+		if o.is_empty():
+			slots.append({})
+		else:
+			var a := AttackData.get_attack(String(o["ability"]))
+			slots.append({"ability": o["ability"], "name": a.name if a else String(o["ability"]),
+				"left": float(o["left"]), "window": float(o["window"])})
+	return {"slots": slots, "waiting": legacy.waiting().size(), "queued": String(_queued.get("ability", ""))}
+
+
 ## For the QA bridge.
 func state() -> Dictionary:
 	var cd := {}
 	for k in melee.cooldowns:
 		cd[k] = snappedf(float(melee.cooldowns[k]), 0.01)
+	var conds := []
+	for i in legacy.slots:
+		conds.append(String(legacy.in_slot(i).get("ability", "")))
 	return {
 		"phase": MeleeState.Phase.keys()[melee.phase],
 		"action": melee.action.id if melee.action else "",
@@ -236,6 +505,12 @@ func state() -> Dictionary:
 		"strikes": stats["strikes"], "hits": stats["hits"], "misses": stats["misses"], "damage": stats["damage"],
 		"chains": stats["chains"],
 		"log": strike_log.duplicate(true),
+		"shot": {} if shot == null else {"state": shot.state, "travelled": snappedf(shot.travelled, 0.01),
+			"target": String(shot.target.name) if shot.target and is_instance_valid(shot.target) else ""},
+		"conds": conds,
+		"waiting": legacy.waiting().size(),
+		"queued": String(_queued.get("ability", "")),
+		"pull": last_pull.duplicate(),
 	}
 
 

@@ -1,18 +1,20 @@
 extends RefCounted
 ## The Legacy Chain graph (LegacyChain): only its events open opportunities; windows expire; a used opportunity is
-## consumed; an invalid target or an interruption closes them; two are shown at once by priority and the rest wait —
-## never silently dropped; a repeated event renews a window instead of doubling it.
+## consumed; an invalid target or an interruption closes them; two are shown at once — the two of best rank, each
+## keeping its button while it stays among them — and the rest wait, never silently dropped; a finger on a button keeps
+## what it shows; the overflow's choice brings a waiting one up; a repeated event renews a window instead of doubling it.
 
 const T1 := 101
 const T2 := 202
 const DT := 1.0 / 60.0
 
+## GPT's ranks (v1.2): 1 Phantom Execution, 2 Aerial Pursuit, 3 Shadow Counter, 4 Chain Pull, 5 Explosive Seal.
 const GRAPH := [
-	{"on": "captured", "unlock": "chain_pull", "window": 0.7, "priority": 2},
-	{"on": "launched", "unlock": "aerial_pursuit", "window": 0.7, "priority": 4},
-	{"on": "evaded", "unlock": "shadow_counter", "window": 0.6, "priority": 3},
-	{"on": "chain_complete", "unlock": "explosive_seal", "window": 1.2, "priority": 1},
-	{"on": "detonated", "unlock": "phantom_execution", "window": 1.0, "priority": 5},
+	{"on": "captured", "unlock": "chain_pull", "window": 0.7, "rank": 4},
+	{"on": "launched", "unlock": "aerial_pursuit", "window": 0.7, "rank": 2},
+	{"on": "evaded", "unlock": "shadow_counter", "window": 0.6, "rank": 3},
+	{"on": "chain_complete", "unlock": "explosive_seal", "window": 1.2, "rank": 5},
+	{"on": "detonated", "unlock": "phantom_execution", "window": 1.0, "rank": 1},
 ]
 
 
@@ -70,18 +72,45 @@ func test_an_invalid_target_or_an_interruption_closes_them() -> String:
 	return "" if g.open.is_empty() else "an interruption left %s" % [_shown(g)]
 
 
-func test_two_shown_by_priority_and_the_rest_wait() -> String:
+func test_two_shown_by_rank_and_the_rest_wait() -> String:
 	var g := LegacyChain.new(GRAPH)
-	g.event("chain_complete", T1) # priority 1
-	g.event("captured", T1) # 2
-	g.event("evaded", T2) # 3
+	g.event("chain_complete", T1) # rank 5
+	g.event("captured", T1) # 4
+	g.event("evaded", T2) # 3: it takes the seal's button; the pull keeps its own
 	if _shown(g) != ["shadow_counter", "chain_pull"]:
 		return "three eligible showed %s (want counter, pull)" % [_shown(g)]
-	if not g.has("explosive_seal"):
+	if not g.has("explosive_seal") or g.waiting().size() != 1:
 		return "the third opportunity was dropped"
-	g.take(0) # the counter is used: the seal surfaces
-	if _shown(g) != ["chain_pull", "explosive_seal"]:
-		return "after using one: %s (want pull, seal)" % [_shown(g)]
+	g.take(0) # the counter is used: the seal surfaces on the freed button, the pull stays where it was
+	if _shown(g) != ["explosive_seal", "chain_pull"]:
+		return "after using one: %s (want seal, pull)" % [_shown(g)]
+	return ""
+
+
+func test_a_finger_on_a_button_keeps_what_it_shows() -> String:
+	var g := LegacyChain.new(GRAPH)
+	g.event("evaded", T2) # counter, button 0
+	g.event("captured", T1) # pull, button 1
+	g.lock(1, true) # a finger on the pull
+	g.event("launched", T1) # rank 2 — better than the pull, but the pull is under a finger
+	if _shown(g) != ["shadow_counter", "chain_pull"]:
+		return "under a finger the buttons became %s" % [_shown(g)]
+	g.lock(1, false) # the finger lifts: the pursuit takes that button, the pull waits
+	if _shown(g) != ["shadow_counter", "aerial_pursuit"] or g.waiting().size() != 1:
+		return "after the finger lifted: %s, %d waiting" % [_shown(g), g.waiting().size()]
+	return ""
+
+
+func test_the_overflow_brings_a_waiting_one_up() -> String:
+	var g := LegacyChain.new(GRAPH)
+	g.event("launched", T1) # pursuit (2)
+	g.event("evaded", T2) # counter (3)
+	g.event("captured", T1) # pull (4): waits
+	if not g.promote():
+		return "the waiting pull could not be brought up"
+	# it replaces the lesser of the two shown (the counter, on button 1); the pursuit keeps button 0
+	if _shown(g) != ["aerial_pursuit", "chain_pull"] or String(g.waiting()[0]["ability"]) != "shadow_counter":
+		return "after bringing the pull up: %s, waiting %s" % [_shown(g), g.waiting()]
 	return ""
 
 

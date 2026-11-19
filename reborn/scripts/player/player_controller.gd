@@ -4,8 +4,10 @@ extends Node
 ## stick moves it along the camera's ground plane; jump, dodge and attack presses are taken from the buffer — and turns
 ## the camera with the drag. Every physics tick, before the body moves: the presses go to whoever may take them (the
 ## combat controller decides about attacks and when a dodge may cancel a strike), then the combat ticks, then the body
-## (Fighter, later in the same tick) follows the stick or the strike. Attack and Heavy go to the combat controller;
-## the skills and the conditional buttons are not built yet: their presses are dropped.
+## (Fighter, later in the same tick) follows the stick or the strike. Attack, Heavy and the skills go to the combat
+## controller; so do the two conditional buttons — a press asks for whatever that button shows, and a finger held on
+## one keeps what it shows — and the overflow's chip, which brings a waiting opportunity onto a button. A skill not
+## built yet takes no press (it ages out of the buffer).
 
 var fighter: Fighter
 var input: PlayerInput
@@ -37,11 +39,19 @@ func _physics_process(delta: float) -> void:
 			combat.on_dodge()
 			if fighter.dodge(dir):
 				input.consume("dodge")
-	for b in ["attack", "heavy"]:
+	for b in ["attack", "heavy", "skill1", "skill2", "skill3"]:
 		if input.peek(b) and combat != null and combat.try_press(b):
 			input.consume(b)
-	for a in ["skill1", "skill2", "skill3", "cond1", "cond2"]:
-		input.consume(a)
+	for i in 2:
+		var c := "cond%d" % (i + 1)
+		if combat == null:
+			input.consume(c)
+			continue
+		combat.legacy.lock(i, input.is_held(c))
+		if input.peek(c) and combat.try_conditional(i):
+			input.consume(c)
+	if input.consume("cond_more") and combat != null:
+		combat.promote_waiting()
 	if combat:
 		combat.tick(delta, dir)
 		input.paused = combat.is_frozen()
