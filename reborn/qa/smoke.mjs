@@ -575,9 +575,13 @@ async function runProfile(p) {
       // M3: ATTACK taps — the chain on the dummy, a deliberate miss, and a strike while the stick is held.
       step(await chainTest(mashInPage('btn_attack'), 'touch'));
       step(await heavyTest(() => tapAt('btn_heavy'), 'touch'));
+      // (the phones render about a frame a second here: at half speed a tap the moment a button shows still lands inside
+      // its window — PURSUE's target must still be in the air when the press is taken)
+      await cmd('speed', 0.5);
       step(await chainPullTest(() => tapAt('btn_skill1'), tapWhenShown('btn_cond1'), stopTaps, 'touch'));
       step(await risePursueTest(() => tapAt('btn_skill3'), tapWhenShown('btn_cond1'), stopTaps, 'touch'));
       step(await counterTest(tapWhenShown('btn_cond1'), stopTaps, 'touch'));
+      await cmd('speed', 1);
       step(await missTest(mashInPage('btn_attack'), 'touch'));
       await place(-8, 8, 90);
       const atk = st0.rects.btn_attack;
