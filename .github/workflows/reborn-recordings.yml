@@ -1,16 +1,17 @@
-name: REBORN review recordings (a run artifact only)
+name: REBORN review recordings (onto the reborn-rec-out branch)
 
 # The review's recordings by themselves (reborn/tools/record_review.sh): how it plays in the Android phone's shape with
-# the thumbs drawn, and the branches from the side — without the web export, the browser test or publishing, so they
-# come back in minutes instead of an hour. Run it by pushing the commit to record to the reborn-rec branch (or by hand);
-# the videos are the run's artifact. The full build (reborn-pages.yml) records them too, on every push to reborn.
+# the thumbs drawn, and the branches from the side — without the web export or the browser test, so they come back in
+# minutes instead of an hour. Run it by pushing the commit to record to the reborn-rec branch (or by hand); the videos
+# land on the reborn-rec-out branch (fetched with git: a run's artifact is not reachable from everywhere). The full build
+# (reborn-pages.yml) records them too, on every push to reborn.
 on:
   push:
     branches: [reborn-rec]
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: reborn-recordings
@@ -44,8 +45,12 @@ jobs:
           bash reborn/tools/record_review.sh out "$FF"
           ls -la out
           test -s out/m42_feel_phone.mp4
-      - uses: actions/upload-artifact@v4
-        with:
-          name: review-recordings
-          path: out/
-          retention-days: 7
+      - name: The videos onto the reborn-rec-out branch (each run's set replaces the last; the history keeps them)
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898+github-actions[bot]@users.noreply.github.com"
+          P="$RUNNER_TEMP/pub" && mkdir -p "$P" && cd "$P" && git init -q
+          git remote add origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git"
+          if git fetch -q --depth=1 origin reborn-rec-out; then git checkout -q -b out FETCH_HEAD; else git checkout -q --orphan out; fi
+          git rm -rq --ignore-unmatch . && cp "$GITHUB_WORKSPACE"/out/* .
+          git add -A && git commit -qm "REBORN review recordings of ${GITHUB_SHA::7}" && git push -q origin HEAD:reborn-rec-out
