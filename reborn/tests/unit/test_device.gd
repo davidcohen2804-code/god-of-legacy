@@ -23,8 +23,8 @@ func test_frame_times_and_their_percentiles() -> String:
 		f.frame(float((i * 37) % 100 + 1), true)
 	var s := f.summary("play:Low")
 	var got := [s["frames"], s["p50"], s["p95"], s["p99"], s["worst"], snappedf(float(s["over33"]), 0.1),
-		snappedf(float(s["over50"]), 0.1), snappedf(float(s["seconds"]), 0.001)]
-	var want := [100, 50.0, 95.0, 99.0, 100.0, 67.0, 50.0, 5.05]
+		snappedf(float(s["over50"]), 0.1), snappedf(float(s["seconds"]), 0.001), snappedf(float(s["fps"]), 0.1)]
+	var want := [100, 50.0, 95.0, 99.0, 100.0, 67.0, 50.0, 5.05, 19.8] # (the average: 100 frames in 5.05 s)
 	if str(got) != str(want):
 		return "the summary: %s (want %s)" % [got, want]
 	var r := f.recent() # (only the last 10 s: 5.05 s of frames, all of them)
@@ -38,15 +38,17 @@ func test_frame_times_leave_out_what_they_must() -> String:
 		f.frame(16.0, true)
 	var before := int(f.summary("play:High")["frames"])
 	f.frame(16.0, false) # (paused, hidden or loading)
-	f.frame(2500.0, true) # (the app put away: a suspension, not a frame)
+	f.frame(30000.0, false) # (the tab hidden: left out, however long)
+	f.frame(2500.0, true) # (the game running and shown: a severe stall — measured, and counted apart — GPT's v1.8)
 	f.frame(16.0, true)
 	f.begin("play:Medium") # (a new preset: its own set, after a warm-up)
 	f.frame(16.0, true)
 	var a := f.summary("play:High")
 	var b := f.summary("play:Medium")
-	var got := [int(a["frames"]) - before, f.stalls, b["frames"], b["excluded"], int(a["excluded"]) >= 124]
-	if str(got) != str([1, 1, 0, 1, true]):
-		return "left out: %s (want High 1 more frame, 1 suspension, Medium 0 frames and 1 warm-up frame)" % [got]
+	var got := [int(a["frames"]) - before, f.stalls, a["stalls"], snappedf(float(a["stall_s"]), 0.01), a["worst"],
+		b["frames"], b["excluded"], int(a["excluded"]) >= 124]
+	if str(got) != str([2, 1, 1, 2.5, 2500.0, 0, 1, true]):
+		return "left out / counted: %s (want High 2 more frames with its severe stall of 2.5 s as the worst, Medium 0 frames and 1 warm-up frame)" % [got]
 	for i in 12 * 60 + 130: # (past Medium's warm-up, then 12 s: the rolling view keeps 10 s)
 		f.frame(16.0, true)
 	var r := f.recent()
@@ -302,3 +304,37 @@ func test_the_layout_stays_left_to_right_in_any_language() -> String:
 	TranslationServer.set_locale(was)
 	return "" if setting == 1 and not rtl else \
 		"the root layout: setting %d, right to left in Hebrew: %s (want 1 — left to right — and false)" % [setting, rtl]
+
+
+# --- the benchmark's watchdog and its rows ---------------------------------------------------------------------------
+
+
+func test_the_benchmark_cuts_a_slow_preset_short() -> String:
+	# (GPT's v1.8: on after 60 valid s, or after 180 s of active time — then INCOMPLETE — TIMEOUT, never a complete test)
+	var g := preload("res://scripts/game/game.gd") # (its static step, not called through the autoload)
+	var steps := [g.bench_step(60.0, 75.0, 60.0), g.bench_step(59.9, 179.9, 60.0), g.bench_step(41.0, 180.0, 60.0)]
+	if str(steps) != str(["done", "", "timeout"]):
+		return "the benchmark's steps: %s (want done, on, timeout)" % [steps]
+	var f := FrameStats.new()
+	f.begin("bench:Low")
+	f.frame(16.0, true) # (the interval spanning the build)
+	while f.warming():
+		f.frame(16.0, true)
+	for i in 50:
+		f.frame(20.0, true)
+	f.frame(2500.0, true)
+	f.end("bench:Low", "timeout")
+	var cut := DevicePanel.row(f.summary("bench:Low"), "LOW", 180.0)
+	f.begin("bench:Medium")
+	f.end("bench:Medium", "stopped")
+	var stopped := DevicePanel.row(f.summary("bench:Medium"), "MEDIUM", 180.0)
+	f.begin("bench:High")
+	while f.warming():
+		f.frame(16.0, true)
+	for i in 12:
+		f.frame(25.0, true)
+	var whole := DevicePanel.row(f.summary("bench:High"), "HIGH", 180.0)
+	var ok := cut.begins_with("LOW — INCOMPLETE — TIMEOUT after 180 s · 3.5 s, 51 frames, avg 14.6 FPS") \
+		and cut.contains("severe stalls 1 (2.5 s)") and stopped == "MEDIUM — INCOMPLETE — STOPPED — nothing measured" \
+		and whole.begins_with("HIGH · 0.3 s, 12 frames, avg 40.0 FPS") and whole.contains("severe stalls 0 (0.0 s)")
+	return "" if ok else "the rows:\n%s\n%s\n%s" % [cut, stopped, whole]

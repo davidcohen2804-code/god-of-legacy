@@ -10,10 +10,13 @@ extends Control
 
 const REFRESH := 0.25 ## s between two updates of the small lines
 const EDGE := 24.0 ## px from the screen's top-right corner
+const MARGIN := 24.0 ## px kept clear around the panel
 
 var _lines: Label
 var _test: Button
 var _panel: Control
+var _box: Control
+var _scroll: ScrollContainer
 var _report: Label
 var _presets: Array[Button] = []
 var _bench: Button
@@ -47,7 +50,7 @@ func open() -> void:
 	_open = true
 	_panel.visible = true
 	_refresh_buttons()
-	_report.text = report()
+	_show_report()
 	_pause()
 	QA.flag("device_panel", true)
 
@@ -84,7 +87,7 @@ func _process(delta: float) -> void:
 	_refresh = REFRESH
 	_lines.text = overlay()
 	if _open:
-		_report.text = report()
+		_show_report()
 		_refresh_buttons()
 
 
@@ -137,24 +140,35 @@ func report() -> String:
 		out.append("  JS: " + String(e).left(130))
 	for e in (eng.get("last", []) as Array):
 		out.append("  engine: " + String(e).left(130))
-	out.append("Frame times: the actual intervals between rendered frames, in ms. Left out: %d s of warm-up after each start, restart and preset change; paused, hidden-tab and loading time; %d suspensions over %s s." % [
-		int(FrameStats.WARMUP), Game.stats.stalls, String.num(Game.stats.stall / 1000.0)])
+	out.append("Frame times: the actual intervals between rendered frames, in ms. Left out: %d s of warm-up after each start, restart and preset change; paused, hidden-tab and loading time. Severe stalls (a frame over %d s, the game running and shown) are measured with the rest and counted: %d, %.1f s in all." % [
+		int(FrameStats.WARMUP), int(FrameStats.STALL / 1000.0), Game.stats.stalls, Game.stats.stall_ms / 1000.0])
+	var limit := Game.bench_seconds * Game.BENCH_LIMIT
 	for group: String in ["play", "bench"]:
-		var title := "PLAY" if group == "play" else "BENCHMARK — the same scripted encounter, %d s per preset" % int(Game.bench_seconds)
+		var title := "PLAY" if group == "play" else "BENCHMARK — the same scripted encounter, %d s per preset (at most %d s each)" % [
+			int(Game.bench_seconds), int(limit)]
 		if group == "bench" and not Game.bench.is_empty():
 			title += " (running)"
 		out.append(title)
 		for q in Game.QUALITY_NAMES:
-			out.append("  " + _row(Game.stats.summary("%s:%s" % [group, q]), q.to_upper()))
+			out.append("  " + row(Game.stats.summary("%s:%s" % [group, q]), q.to_upper(), limit))
 	return "\n".join(out)
 
 
-func _row(s: Dictionary, label: String) -> String:
+## One set's row: its valid time, frames and average FPS, the percentiles and the worst, the shares over 33 and 50 ms,
+## its severe stalls; a benchmark preset cut short says so first — INCOMPLETE — TIMEOUT or STOPPED (GPT's v1.8: never
+## shown as a complete test).
+static func row(s: Dictionary, label: String, limit: float = 0.0) -> String:
+	var head := label
+	match String(s.get("end", "")):
+		"timeout":
+			head += " — INCOMPLETE — TIMEOUT after %d s" % int(limit)
+		"stopped":
+			head += " — INCOMPLETE — STOPPED"
 	if int(s.get("frames", 0)) == 0:
-		return "%s — not measured" % label
-	return "%s · %.1f s, %d frames · p50 %.1f · p95 %.1f · p99 %.1f · worst %.1f ms · over 33 ms %.1f %% · over 50 ms %.1f %% · %d warm-up frames left out" % [
-		label, float(s["seconds"]), int(s["frames"]), float(s["p50"]), float(s["p95"]), float(s["p99"]), float(s["worst"]),
-		float(s["over33"]), float(s["over50"]), int(s["excluded"])]
+		return head + (" — not measured" if head == label else " — nothing measured")
+	return "%s · %.1f s, %d frames, avg %.1f FPS · p50 %.1f · p95 %.1f · p99 %.1f · worst %.1f ms · over 33 ms %.1f %% · over 50 ms %.1f %% · severe stalls %d (%.1f s) · %d warm-up frames left out" % [
+		head, float(s["seconds"]), int(s["frames"]), float(s["fps"]), float(s["p50"]), float(s["p95"]), float(s["p99"]),
+		float(s["worst"]), float(s["over33"]), float(s["over50"]), int(s["stalls"]), float(s["stall_s"]), int(s["excluded"])]
 
 
 ## A value the page or the engine gave, or Unavailable.
@@ -172,6 +186,9 @@ func qa_state() -> Dictionary:
 	return {"open": _open, "paused": get_tree().paused, "portrait": _sideways, "lines": _lines.text,
 		"report_lines": _report.text.count("\n") + 1 if _report.text != "" else 0, "report": _report.text if _open else "",
 		"fullscreen_offered": _full.visible,
+		"box": [_box.get_global_rect().position.x, _box.get_global_rect().position.y, _box.get_global_rect().size.x,
+			_box.get_global_rect().size.y] if _open else [],
+		"scroll": [_scroll.size.y, _report.size.y] if _open else [],
 		"render": Game.render_state(), "keys": Game.stats.keys(), "bench": Game.bench.duplicate()}
 
 
@@ -216,6 +233,7 @@ func _build_panel() -> void:
 	var box := PanelContainer.new()
 	box.add_theme_stylebox_override("panel", UiTheme.box(UiTheme.PANEL, UiTheme.GOLD_DIM, 16, 2, 28.0, 20.0))
 	center.add_child(box)
+	_box = box
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 12)
 	box.add_child(col)
@@ -232,7 +250,7 @@ func _build_panel() -> void:
 		b.pressed.connect(func() -> void:
 			Game.set_setting("quality", q)
 			_refresh_buttons()
-			_report.text = report())
+			_show_report())
 		row1.add_child(b)
 		_presets.append(b)
 		QA.register("device_" + Game.QUALITY_NAMES[i].to_lower(), b)
@@ -263,10 +281,13 @@ func _build_panel() -> void:
 	shut.pressed.connect(close)
 	row2.add_child(shut)
 	QA.register("device_close", shut)
+	_scroll = ScrollContainer.new() # (a long report scrolls inside the panel: never clipped — GPT's v1.8)
+	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	col.add_child(_scroll)
 	_report = UiTheme.label("", 14, UiTheme.TEXT, false)
-	_report.custom_minimum_size = Vector2(1080, 0)
 	_report.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	col.add_child(_report)
+	_report.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_scroll.add_child(_report)
 
 
 func _build_portrait() -> void:
@@ -285,6 +306,21 @@ func _build_portrait() -> void:
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	l.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_portrait.add_child(l)
+
+
+## The report, as wide as the screen allows (1080 to 1400 px, a margin kept) and, when longer than the height the
+## screen leaves, scrolled inside the panel rather than clipped (GPT's v1.8: fully viewable at 750 × 340 CSS px).
+func _show_report() -> void:
+	_report.text = report()
+	var view := get_viewport().get_visible_rect().size
+	var w := clampf(view.x - 2.0 * (MARGIN + 28.0) - 48.0, 1080.0, 1400.0)
+	var font := _report.get_theme_font("font")
+	var fs := _report.get_theme_font_size("font_size")
+	var text_h := font.get_multiline_string_size(_report.text, HORIZONTAL_ALIGNMENT_LEFT, w - 16.0, fs).y
+	var lines := ceilf(text_h / maxf(font.get_height(fs), 1.0))
+	var need := text_h + lines * _report.get_theme_constant("line_spacing") + 8.0
+	var room := view.y - 2.0 * MARGIN - 2.0 * 20.0 - 2.0 * (76.0 + 12.0) # (the screen less the panel's frame and two rows)
+	_scroll.custom_minimum_size = Vector2(w, clampf(need, 60.0, maxf(room, 60.0)))
 
 
 func _button(text: String, w: float) -> Button:

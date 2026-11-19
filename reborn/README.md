@@ -11,9 +11,11 @@ the old Phaser / three.js game is used by it), developed on the `reborn` branch.
 - **Device test (M4.1):** https://davidcohen2804-code.github.io/god-of-legacy/reborn/?device=1 — straight into the
   training arena with frame times on screen (FPS, this frame, the last 10 s's p50 / p95); TEST opens a panel (the game
   paused): the Low / Medium / High presets, RESTART ENCOUNTER, BENCHMARK (the same scripted encounter at each preset,
-  60 s measured each), FULLSCREEN where the browser allows it, and a report to photograph — per preset p50, p95, p99,
-  worst, shares over 33 and 50 ms, the device, the GPU, the build, and JavaScript errors, engine errors and WebGL
-  context losses counted apart. Nothing leaves the device.
+  60 s measured each — a preset that cannot get them in 180 s of active time is cut short and marked INCOMPLETE —
+  TIMEOUT), FULLSCREEN where the browser allows it, and a report to photograph (it scrolls inside the panel) — per
+  preset the average FPS, p50, p95, p99, worst, shares over 33 and 50 ms and the severe stalls (frames over 1 s while
+  the game ran and showed — measured with the rest and counted), the device, the GPU, the build, and JavaScript errors,
+  engine errors and WebGL context losses counted apart. Nothing leaves the device.
 
 ## Build, test, deploy
 
@@ -38,7 +40,7 @@ close to Safari but is not iOS Safari; no physical phone is in the loop.
 | Part | Where | Notes |
 |---|---|---|
 | Game state | `scripts/game/game.gd` (autoload `Game`) | screen flow, chosen character, settings; the graphics presets (M4.1: Low 50 % 3D, no moon shadows · Medium 75 %, one split, 2048 map · High 100 %, two splits, 4096 — the HUD always at full resolution; Medium by default on touch screens, High otherwise); the device test's frame times and benchmark |
-| Device test | `scripts/ui/device_panel.gd`, `scripts/qa/frame_stats.gd`, `device_probe.gd`, `device_logger.gd` | `?device=1`: the overlay, the panel and its report; actual rendered-frame intervals per preset, 2 s warm-ups and paused / hidden / loading time left out; the page's errors and context losses; the engine's errors through `OS.add_logger` |
+| Device test | `scripts/ui/device_panel.gd`, `scripts/qa/frame_stats.gd`, `device_probe.gd`, `device_logger.gd` | `?device=1`: the overlay, the panel and its report; actual rendered-frame intervals per preset, 2 s warm-ups and paused / hidden / loading time left out, severe stalls measured and counted; the benchmark's 180 s watchdog; the page's errors and context losses; the engine's errors through `OS.add_logger` |
 | Character data | `data/characters.json`, `scripts/game/roster.gd` | data-driven roster; locking decided here |
 | User interface | `scenes/menu/*`, `scripts/ui/*` | theme, backdrop, settings; no game rules inside |
 | QA bridge | `scripts/qa/qa_bridge.gd` (autoload `QA`) | `window.__gol` with `?qa=1` only |

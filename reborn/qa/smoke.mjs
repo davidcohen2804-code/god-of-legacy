@@ -11,8 +11,8 @@
 // graphics preset (the reviewed look); then the device-test page (?device=1): straight into the arena, its overlay,
 // the panel pausing the game, the three presets changing the 3D image and the shadow map for real (the page's own
 // WebGL allocations), the video memory back where it was, RESTART bringing both fighters back — and, on desktop, the
-// benchmark (shortened to 12 s a preset here, a suspension only past 10 s: software rendering draws about a frame a
-// second at High).
+// benchmark (shortened to 12 s a preset here; at about a frame a second in software rendering most of its frames are
+// severe stalls, measured and counted as on a struggling phone).
 // The phones' Legacy Chain checks run at half game speed and are labelled so: they exercise the touch interface under
 // software rendering at about a frame a second — not full-speed gameplay, whose windows the headless unit tests verify
 // at 30, 60 and 120 Hz.
@@ -112,9 +112,8 @@ async function runProfile(p) {
       const pl0 = (s) => (s && s.live && s.live.player) || null;
       const mark = () => page.evaluate(() => (window.__glAllocs || []).length);
       const allocs = (from) => page.evaluate((f) => (window.__glAllocs || []).slice(f), from);
-      // (the desktop runs the benchmark: 12 s a preset, and a suspension only past 10 s — software rendering draws about
-      // a frame a second at High, which a phone's 1 s threshold would leave out frame after frame, never finishing)
-      await page.goto(BASE + '&device=1' + (p.kind === 'desktop' ? '&bench=12&stall=10000' : ''), { waitUntil: 'load', timeout: 120000 });
+      // (the desktop runs the benchmark: 12 s a preset)
+      await page.goto(BASE + '&device=1' + (p.kind === 'desktop' ? '&bench=12' : ''), { waitUntil: 'load', timeout: 120000 });
       const s0 = await waitFor((s) => s.scene === 'arena' && dv(s) && pl0(s), 'the device test in the arena', 300000);
       if ((s0.events || []).some((e) => e.startsWith('entered=') || e.startsWith('pressed='))) {
         throw new Error('the device test went through the menus: ' + s0.events.join(' '));
@@ -141,7 +140,13 @@ async function runProfile(p) {
       st = await state();
       await shot('d2_panel');
       res.device = { report: dv(st).report, fullscreen: dv(st).fullscreen_offered };
-      step(`device test: the panel opens and pauses the game; its report has ${dv(st).report_lines} lines; fullscreen ${dv(st).fullscreen_offered ? 'offered' : 'not offered (the browser cannot)'}`);
+      // (the whole panel on the screen — its report scrolls inside it when longer than the room left: GPT's v1.8)
+      const bx = dv(st).box || [];
+      if (bx.length !== 4 || bx[0] < 0 || bx[1] < 0 || bx[0] + bx[2] > st.vp[0] + 1 || bx[1] + bx[3] > st.vp[1] + 1) {
+        throw new Error('the panel runs off the screen: ' + JSON.stringify({ box: bx, vp: st.vp }));
+      }
+      const sc = dv(st).scroll || [0, 0];
+      step(`device test: the panel opens and pauses the game, all of it on the screen (${Math.round(bx[2])}×${Math.round(bx[3])} of ${st.vp[0]}×${st.vp[1]}); its report has ${dv(st).report_lines} lines${sc[1] > sc[0] + 1 ? ', scrolling inside the panel' : ', all shown'}; fullscreen ${dv(st).fullscreen_offered ? 'offered' : 'not offered (the browser cannot)'}`);
 
       // the presets: the 3D image's size and the shadow map, as the page's WebGL calls show them; the video memory
       const seen = [];
@@ -197,7 +202,7 @@ async function runProfile(p) {
         }, 'the benchmark to finish and show its report', 900000);
         const rep = dv(fin).report || '';
         const benchPart = rep.split('BENCHMARK')[1] || '';
-        const measured = (benchPart.match(/ frames · p50/g) || []).length;
+        const measured = (benchPart.match(/ frames, avg /g) || []).length;
         await shot('d5_benchmark');
         res.device.benchmark = rep;
         if (measured !== 3 || most < 1) throw new Error(`the benchmark: ${measured} presets measured, ${most} strikes seen: ${benchPart}`);

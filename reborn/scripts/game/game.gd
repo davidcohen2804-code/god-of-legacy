@@ -27,6 +27,7 @@ const QUALITY: Array[Dictionary] = [
 	{"scale": 1.0, "splits": 2, "map": 4096},
 ]
 const BENCH_SECONDS := 60.0 ## valid seconds measured at each preset in the benchmark (GPT's v1.7: at least 60)
+const BENCH_LIMIT := 3.0 ## × those: the most active time a preset may take before it is cut short (GPT's v1.8: 180 s)
 
 var roster: Roster
 var selected_character := "samurai"
@@ -46,9 +47,10 @@ var probe := {}
 var logger: DeviceLogger
 ## The benchmark while it runs: {i: the preset measured now, back: the player's own preset}; {} otherwise.
 var bench := {}
-## Its valid seconds per preset: BENCH_SECONDS (a browser test run with ?qa=1 may shorten it: &bench=N, and raise
-## the suspension threshold: &stall=N ms).
+## Its valid seconds per preset: BENCH_SECONDS (a browser test run with ?qa=1 may shorten it: &bench=N).
 var bench_seconds := BENCH_SECONDS
+## The benchmark's active time at the preset it is on (s): paused and hidden time not counted.
+var bench_active := 0.0
 ## The benchmark's results are to be shown when the arena is back.
 var report_due := false
 
@@ -91,8 +93,6 @@ func _ready() -> void:
 		device_test = q.contains("device=1")
 		if q.contains("qa=1") and q.contains("bench="):
 			bench_seconds = clampf(float(q.get_slice("bench=", 1).get_slice("&", 0)), 3.0, BENCH_SECONDS)
-		if q.contains("qa=1") and q.contains("stall="):
-			stats.stall = clampf(float(q.get_slice("stall=", 1).get_slice("&", 0)), FrameStats.STALL, 60000.0)
 	apply_quality()
 	if device_test:
 		DeviceProbe.install()
@@ -216,6 +216,8 @@ func start_benchmark() -> void:
 func stop_benchmark(finished: bool = false) -> void:
 	if bench.is_empty():
 		return
+	if not finished and stats.valid_seconds(stats_key()) < bench_seconds:
+		stats.end(stats_key(), "stopped") # (its row never reads as a complete test)
 	quality = int(bench["back"])
 	bench = {}
 	report_due = finished
@@ -225,6 +227,7 @@ func stop_benchmark(finished: bool = false) -> void:
 
 
 func _bench_preset() -> void:
+	bench_active = 0.0
 	quality = int(bench["i"])
 	apply_quality()
 	bench_changed.emit()
@@ -237,6 +240,7 @@ func _process(_delta: float) -> void:
 	var now := Time.get_ticks_usec()
 	var ms := (now - _last_us) / 1000.0 if _last_us > 0 else 0.0
 	_last_us = now
+	var flipped := false
 	_probe_left -= ms / 1000.0
 	if _probe_left <= 0.0:
 		_probe_left = 0.25
@@ -245,15 +249,35 @@ func _process(_delta: float) -> void:
 		var flips := int(probe.get("flips", 0))
 		if (_hidden and not hidden) or flips != _flips:
 			stats.hold(0.5) # (back from a hidden tab: its first frames are left out)
+			flipped = true # (and this interval, which spans the hidden time)
 		_hidden = hidden
 		_flips = flips
-	stats.frame(ms, _measure and not get_tree().paused and not _hidden)
-	if not bench.is_empty() and _measure and stats.valid_seconds(stats_key()) >= bench_seconds:
-		bench["i"] = int(bench["i"]) + 1
-		if int(bench["i"]) >= QUALITY.size():
-			stop_benchmark(true)
-		else:
-			_bench_preset()
+	var active := not get_tree().paused and not _hidden and not flipped
+	stats.frame(ms, _measure and active)
+	if bench.is_empty():
+		return
+	if active:
+		bench_active += ms / 1000.0
+	var step := bench_step(stats.valid_seconds(stats_key()), bench_active, bench_seconds) if _measure else ""
+	if step == "":
+		return
+	if step == "timeout":
+		stats.end(stats_key(), "timeout") # (INCOMPLETE — TIMEOUT: never shown as a complete test)
+	bench["i"] = int(bench["i"]) + 1
+	if int(bench["i"]) >= QUALITY.size():
+		stop_benchmark(true)
+	else:
+		_bench_preset()
+
+
+## The benchmark at a preset (GPT's v1.8): on to the next once it has `target_s` valid seconds — "done" — or, the device
+## too slow for that, once it has been active BENCH_LIMIT × as long (paused or hidden time not counted) — "timeout".
+static func bench_step(valid_s: float, active_s: float, target_s: float) -> String:
+	if valid_s >= target_s:
+		return "done"
+	if active_s >= target_s * BENCH_LIMIT:
+		return "timeout"
+	return ""
 
 
 func _on_qa_command(cmd: String, args: Array) -> void:
