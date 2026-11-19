@@ -270,7 +270,8 @@ func test_a_hit_burst_starts_where_the_blade_bit() -> String:
 		if c is CPUParticles3D:
 			p = c
 	var res := [seen.size(), seen[0][0].distance_to(at) < 1e-4 if seen.size() > 0 else false,
-		not bool(seen[0][1]) if seen.size() > 0 else false, p != null and p.emitting]
+		not bool(seen[0][1]) if seen.size() > 0 else false, p != null and p.emitting,
+		p != null and (p.material_override as BaseMaterial3D).billboard_keep_scale] # (each spark its own size)
 	vfx.free()
-	return "" if str(res) == str([1, true, true, true]) else \
-		"a burst joined the tree %s (want once, already where the blade bit, not yet emitting; then emitting): %s" % [res, seen]
+	return "" if str(res) == str([1, true, true, true, true]) else \
+		"a burst joined the tree %s (want once, already where the blade bit, not yet emitting; then emitting, its sparks keeping their size): %s" % [res, seen]

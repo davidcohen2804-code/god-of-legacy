@@ -23,6 +23,7 @@ func _ready() -> void:
 		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		m.vertex_color_use_as_albedo = true
 		m.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+		m.billboard_keep_scale = true # (each spark at its own size: without it every one is drawn a full metre wide)
 		m.albedo_texture = soft
 		m.cull_mode = BaseMaterial3D.CULL_DISABLED
 	_spark_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
