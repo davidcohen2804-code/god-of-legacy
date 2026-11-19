@@ -11,8 +11,8 @@ extends RefCounted
 ## The evasion (rule B): the blade crossing his Shadow Origin inside the window — and only then — is a genuine evasion:
 ## attack_evaded once, Shadow Counter open 600 ms against that attacker; the window of presses that earn it is about
 ## 120 ms wide at every tick rate. A step too early (the window over before the blade comes) or too late (struck in the
-## startup), a step with no attack, an attack out of reach of where he stood, a roll (it avoids: nothing opens) and a
-## step blocked at once by a wall earn nothing.
+## startup), a step with no attack, an attack out of reach of where he stood, an attack cut off before its blade came,
+## a roll (it avoids: nothing opens) and a step blocked at once by a wall earn nothing.
 ## Shadow Counter: it waits for the step's cancel point, dashes at most 4 m toward its attacker (stopping short, never
 ## behind it), and its blade must connect (14); the opportunity closes when it runs out, when he is struck, or when its
 ## attacker is defeated; a wall stops the dash and the strike then misses.
@@ -153,6 +153,41 @@ func _opened(c: CombatController, a: TrainingAutomaton) -> bool:
 # --- the automaton's sweep -------------------------------------------------------------------------------------------
 
 
+## (diagnostic, always passes) the sweep's active window against a Samurai standing 1.7 m in front, tick by tick, with
+## his body stepped straight and by its own physics.
+func test_aaa_diagnostic_the_sweep_against_him() -> String:
+	for real: bool in [false, true]:
+		var c := _samurai()
+		var a := _automaton(c)
+		if real:
+			await _floor(c, [a])
+		a.attack()
+		var rows: Array[String] = []
+		for i in 45:
+			for x in [a]:
+				(x as TrainingAutomaton).step(DT)
+			var span := a._melee.swept
+			c.tick(DT, Vector3.ZERO)
+			if real:
+				c.fighter._physics_process(DT)
+			else:
+				_body(c.fighter, DT)
+			if span.x >= 0.0:
+				var f := c.fighter
+				var fc := SwordSweep.first_contact(a.attack_data, a.global_position, a.facing, span, f.global_position,
+					f.hurt_radius, f.hurt_height, f.prev_position)
+				var r := HitResolver.resolve(a.attack_data, a.global_position, a.facing, span, f.prev_position,
+					f.global_position, f.hurt_radius, f.hurt_height, c.evasion_span(), f.iframe_span())
+				rows.append("t%.3f span(%.2f,%.2f) auto(%.2f,%.2f,%.2f f%.2f %s) him(%.2f,%.2f,%.2f) fc %.2f %s" % [
+					a.attack_time(), span.x, span.y, a.global_position.x, a.global_position.y, a.global_position.z,
+					a.facing, a.state, f.global_position.x, f.global_position.y, f.global_position.z, fc, r])
+			a.strike_check()
+		print("[DIAG] real=%s last %s hp %d | %s" % [real, a.last_attack, c.hp, " | ".join(rows)])
+		_clear()
+	return ""
+
+
+
 func test_the_sweep_is_gpts() -> String:
 	var a := AttackData.automaton_attack("sweep")
 	if a == null:
@@ -181,7 +216,7 @@ func test_the_sweep_runs_its_phases_and_locks_its_direction() -> String:
 		if t >= 0.31 and at_lock == 0.0:
 			at_lock = a.facing
 			c.fighter.global_position = Vector3(-2.5, 0, 2.0) # he moves to its right (out of reach): it must not follow now
-		if at_lock != 0.0:
+		if at_lock != 0.0 and a.state == "attack":
 			moved_after_lock = maxf(moved_after_lock, absf(a.facing - at_lock))
 		var ph := String(a.info()["state"])
 		if phases.is_empty() or String(phases[-1]) != ph:
@@ -387,12 +422,12 @@ func test_the_evasion_window_is_120_ms_at_any_tick_rate() -> String:
 func test_a_step_too_early_or_too_late_earns_nothing() -> String:
 	var c := _samurai()
 	var a := _automaton(c)
-	var early := _exchange(c, a, 0.30, Vector3.ZERO, DT, "skill2", false, 1.0)
+	var early := _exchange(c, a, 0.30, Vector3.ZERO, DT, "skill2", false, 1.2)
 	var e := [early, c.hp, _opened(c, a), c.evasions]
 	_clear()
 	c = _samurai()
 	a = _automaton(c)
-	var late := _exchange(c, a, 0.57, Vector3.ZERO, DT, "skill2", false, 1.0)
+	var late := _exchange(c, a, 0.57, Vector3.ZERO, DT, "skill2", false, 1.2)
 	var l := [late, c.hp, _opened(c, a), c.evasions]
 	_clear()
 	if e != ["missed", 200, false, 0]:
@@ -411,12 +446,35 @@ func test_a_step_with_no_attack_or_out_of_reach_earns_nothing() -> String:
 	_clear()
 	c = _samurai(Vector3(0, 0, 2.5)) # beyond the cut's reach where he stands
 	a = _automaton(c)
-	var r := _exchange(c, a, 0.467, Vector3.ZERO, DT, "skill2", false, 1.0)
+	var r := _exchange(c, a, 0.467, Vector3.ZERO, DT, "skill2", false, 1.2)
 	var far := [r, c.evasions, c.legacy.open.size(), c.hp]
 	_clear()
 	if alone != [0, 0]:
 		return "a step with no attack coming: %s (want nothing)" % [alone]
 	return "" if far == ["missed", 0, 0, 200] else "a step against a cut that could not reach him: %s (want missed, nothing)" % [far]
+
+
+func test_an_attack_cut_off_before_the_shadow_earns_nothing() -> String:
+	var c := _samurai()
+	var a := _automaton(c)
+	a.attack()
+	var t := 0.0
+	var stepped := false
+	var cut := false
+	while t < 1.0:
+		var now := ""
+		if not stepped and a.attack_time() + DT >= 0.467 - 1e-6:
+			stepped = true
+			now = "skill2"
+		_frame(c, [a], DT, Vector3.ZERO, false, now)
+		t += DT
+		if not cut and a.attack_time() >= 0.52:
+			cut = true
+			a.take_hit(10, 0.2, 0.0, Vector3(0, 0, -1)) # (a blow from elsewhere, before its cut reaches his shadow)
+	var res := [a.last_attack, c.evasions, c.legacy.open.size(), c.hp]
+	_clear()
+	return "" if res == ["interrupted", 0, 0, 200] else \
+		"a step timed into an attack cut off before its blade came: %s (want interrupted, nothing opened)" % [res]
 
 
 func test_one_evasion_per_attack() -> String:
