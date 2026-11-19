@@ -300,7 +300,7 @@ func test_a_press_while_he_is_busy_waits_for_the_cancel_point() -> String:
 	var c := _samurai()
 	c.try_press("skill1")
 	_resolve(c, [a])
-	var phase := MeleeState.Phase.keys()[c.melee.phase]
+	var phase := String(MeleeState.Phase.keys()[c.melee.phase])
 	var rec_t := c.melee.t
 	var queued := c.try_conditional(0)
 	var waiting := String(c.conditionals()["queued"])
@@ -374,3 +374,113 @@ func test_three_at_once_show_two_buttons_and_the_overflow() -> String:
 	if err == "" and not gone:
 		err = "the overflow chip stayed with nothing waiting"
 	return err
+
+
+## The body through an air action, as its physics tick would move it here (no obstacles in these tests): the leap's
+## commanded velocity, then gravity down to the floor.
+func _body(f: Fighter, dt: float) -> void:
+	if f.frozen:
+		return
+	if f.action_lock and f.action_air:
+		f.velocity = f.action_velocity
+	elif f.global_position.y > 0.0:
+		f.velocity.y -= f.gravity * dt
+	else:
+		f.velocity = Vector3.ZERO
+	f.global_position += f.velocity * dt
+	f.global_position.y = maxf(0.0, f.global_position.y)
+
+
+func _tick_all(c: CombatController, autos: Array, seconds: float) -> void:
+	for i in int(round(seconds / DT)):
+		for a in autos:
+			(a as TrainingAutomaton).step(DT)
+		c.tick(DT, Vector3.ZERO)
+		_body(c.fighter, DT)
+
+
+## Rising Slash at an automaton just ahead: tick until it is in the air (at most 1 s).
+func _rise(c: CombatController, a: TrainingAutomaton) -> bool:
+	if not c.try_press("skill3"):
+		return false
+	var t := 0.0
+	while t < 1.0 and a.state != "air":
+		_tick_all(c, [a], DT)
+		t += DT
+	return a.state == "air"
+
+
+func test_rising_slash_launches_and_opens_the_pursuit() -> String:
+	var c := _samurai()
+	var a := _automaton(Vector3(0, 0, 1.3))
+	var up := _rise(c, a)
+	var res := [up, a.hp, c.legacy.has("aerial_pursuit", a.get_instance_id()),
+		String(c.conditionals()["slots"][0].get("ability", "")), c.melee.cooldown_left("rising_slash") > 4.0]
+	_clear()
+	return "" if res == [true, 134, true, "aerial_pursuit", true] else \
+		"Rising Slash on an automaton 1.3 m ahead: %s (want launched, 134 HP, PURSUE on the first button, cooldown 5 s)" % [res]
+
+
+func test_the_pursuit_leaps_and_strikes_it_in_the_air() -> String:
+	var c := _samurai()
+	var a := _automaton(Vector3(0, 0, 1.3))
+	if not _rise(c, a):
+		_clear()
+		return "the automaton was not launched"
+	c.try_conditional(0) # (pressed at once: it waits for half the Rising Slash's recovery)
+	var t := 0.0
+	var top := 0.0
+	var hit_in_air := false
+	var hp0 := a.hp
+	while t < 1.5 and a.hp == hp0:
+		_tick_all(c, [a], DT)
+		t += DT
+		top = maxf(top, c.fighter.global_position.y)
+		hit_in_air = a.hp < hp0 and a.state == "air"
+	var res := [a.hp, hit_in_air, a.info()["juggle_hits"], c.fighter.state]
+	_tick_all(c, [a], 1.0)
+	var landed := c.fighter.global_position.y
+	_clear()
+	if res[0] != 120 or not res[1] or int(res[2]) != 1:
+		return "the pursuit: %s (want 120 HP, struck in the air, one aerial follow-up)" % [res]
+	if top < 0.9:
+		return "he struck from %.2f m up (want a visible leap: at least 0.9 m)" % top
+	return "" if landed < 0.01 else "he did not come down (%.2f m)" % landed
+
+
+func test_a_missed_rising_slash_opens_nothing() -> String:
+	var c := _samurai()
+	var a := _automaton(Vector3(0, 0, 3.0)) # beyond the cut
+	c.try_press("skill3")
+	_tick_all(c, [a], 0.8)
+	var res := [a.state, a.hp, c.legacy.open.size()]
+	_clear()
+	return "" if res == ["stand", 150, 0] else "a Rising Slash that missed: %s" % [res]
+
+
+func test_the_dummy_resists_the_launch() -> String:
+	var c := _samurai()
+	var d := _dummy(Vector3(0, 0, 1.3))
+	c.try_press("skill3")
+	var t := 0.0
+	while t < 1.0 and d.hp == 150:
+		c.tick(DT, Vector3.ZERO)
+		t += DT
+	var res := [d.hp, c.legacy.open.size(), _notices.has("Resists the launch")]
+	_clear()
+	return "" if res == [134, 0, true] else "Rising Slash on the dummy: %s (want 134 HP, nothing opened, 'Resists the launch')" % [res]
+
+
+func test_the_pursuit_is_refused_out_of_reach() -> String:
+	var c := _samurai()
+	var a := _automaton(Vector3(0, 0, 1.3))
+	if not _rise(c, a):
+		_clear()
+		return "the automaton was not launched"
+	var y := a.global_position.y
+	a.place(Vector3(0, y, 5.5)) # 5.5 m away in the air (beyond 4 m)
+	c.try_conditional(0)
+	_tick_all(c, [a], 0.4)
+	var res := [c.melee.action.id if c.melee.action else "", c.fighter.state, _notices.has("Out of reach"), a.hp]
+	_clear()
+	return "" if res == ["rising_slash", "ground", true, 134] else "a pursuit 5.5 m away: %s (want refused, still on the ground)" % [res]

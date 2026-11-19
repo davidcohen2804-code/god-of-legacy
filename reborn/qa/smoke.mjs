@@ -348,6 +348,39 @@ async function runProfile(p) {
       await shot('9_' + tag + '_pulled');
       return `${tag}: CHAIN from 6 m → the automaton held (8), PULL on its button → dragged ${r.dist} m in ${r.time} s to 1.6 m in front of him (6): ${hp0} → ${a.hp} HP`;
     };
+    // ...then Rising Slash throws it up (16) and Aerial Pursuit — its button pressed the moment it shows — leaps after it
+    // and strikes it in the air (14); both come back down.
+    const risePursueTest = async (riseIt, startPursue, stopPursue, tag) => {
+      const s0 = await waitFor((s) => cb(s) && cb(s).phase === 'FREE' && au(s) && au(s).state !== 'pulled' && au(s).state !== 'air', tag + ': ready to rise', 60000);
+      const hp0 = au(s0).hp;
+      await riseIt();
+      const up = await waitFor((s) => au(s) && au(s).state === 'air' && cb(s).conds[0] === 'aerial_pursuit', tag + ': launched, PURSUE on its button', 60000);
+      if (hp0 - au(up).hp !== 16) throw new Error(`${tag}: Rising Slash dealt ${hp0 - au(up).hp} (want 16)`);
+      await startPursue();
+      let hit;
+      try {
+        hit = await waitFor((s) => cb(s) && cb(s).log.some((e) => e.id === 'aerial_pursuit' && e.hits === 1), tag + ': the pursuit\'s strike', 60000);
+      } finally {
+        await stopPursue();
+      }
+      await shot('9_' + tag + '_pursuit');
+      const down = await waitFor((s) => cb(s) && cb(s).body === 'ground' && cb(s).phase === 'FREE' && au(s) && au(s).state !== 'air', tag + ': both back on the ground', 60000);
+      if (hp0 - au(down).hp !== 30) throw new Error(`${tag}: rise + pursuit dealt ${hp0 - au(down).hp} (want 16 + 14)`);
+      return `${tag}: RISE launched it (16) → PURSUE leapt (${hit.flags.leap} m: forward, height) and struck it in the air (14) → ${hp0} → ${au(down).hp} HP; both landed`;
+    };
+    // Keys pressed again and again until something has happened (the keyboard's way to press a button the moment it
+    // shows).
+    const pressUntil = (key, done) => async () => {
+      const end = Date.now() + 30000;
+      for (;;) {
+        await page.keyboard.press(key);
+        const s = await state();
+        if (done(s)) return;
+        if (Date.now() > end) throw new Error(`the key ${key} did nothing: ` + JSON.stringify(cb(s)));
+        await page.waitForTimeout(60);
+      }
+    };
+
     // A throw at the empty courtyard: it flies its 9 m and misses — nothing is held, nothing opens, no damage.
     const chainMissTest = async (throwIt, tag) => {
       await place(-8, 8, 90); // facing east along the courtyard's south side: no target within 9 m of his aim
@@ -493,6 +526,7 @@ async function runProfile(p) {
       step(await chainTest(mashInPage('btn_attack'), 'touch'));
       step(await heavyTest(() => tapAt('btn_heavy'), 'touch'));
       step(await chainPullTest(() => tapAt('btn_skill1'), tapWhenShown('btn_cond1'), stopTaps, 'touch'));
+      step(await risePursueTest(() => tapAt('btn_skill3'), tapWhenShown('btn_cond1'), stopTaps, 'touch'));
       step(await missTest(mashInPage('btn_attack'), 'touch'));
       await place(-8, 8, 90);
       const atk = st0.rects.btn_attack;
@@ -580,6 +614,8 @@ async function runProfile(p) {
       step(await chainTest(mashBy(() => page.keyboard.press('KeyJ')), 'keyboard'));
       step(await heavyTest(() => page.keyboard.press('KeyH'), 'keyboard'));
       step(await chainPullTest(() => page.keyboard.press('Digit1'), pullByKey, async () => {}, 'keyboard'));
+      step(await risePursueTest(() => page.keyboard.press('Digit3'),
+        pressUntil('Digit4', (s) => cb(s).action === 'aerial_pursuit' || cb(s).log.some((e) => e.id === 'aerial_pursuit')), async () => {}, 'keyboard'));
       step(await chainMissTest(() => page.keyboard.press('Digit1'), 'keyboard'));
       step(await missTest(mashBy(() => page.keyboard.press('KeyJ')), 'keyboard'));
       await place(-8, 8, 90);

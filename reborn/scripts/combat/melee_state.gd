@@ -130,16 +130,21 @@ func action_pressed(a: AttackData) -> bool:
 ## ({from: an action id, at: a fraction}), by cutting that action's recovery from that fraction on. False when it
 ## cannot start yet (the caller keeps it queued until it can, or until the opportunity closes).
 func conditional_pressed(a: AttackData, cancel: Dictionary = {}) -> bool:
-	if a == null:
-		return false
-	var legal := phase == Phase.FREE
-	if not legal and phase == Phase.RECOVERY and action and action.id == String(cancel.get("from", "")):
-		legal = t >= action.recovery * float(cancel.get("at", 1.0))
-	if not legal:
+	if a == null or not may_start_conditional(cancel):
 		return false
 	_reset_chain("action")
 	_start_action(a, -1)
 	return true
+
+
+## Could a conditional ability with these cancel rights start now (free, or past the allowed point of the recovery
+## it may cut)?
+func may_start_conditional(cancel: Dictionary = {}) -> bool:
+	if phase == Phase.FREE:
+		return true
+	if phase == Phase.RECOVERY and action and action.id == String(cancel.get("from", "")):
+		return t >= action.recovery * float(cancel.get("at", 1.0))
+	return false
 
 
 ## A dodge has started (the caller checked can_dodge): it cancels what is left of the action and the chain.

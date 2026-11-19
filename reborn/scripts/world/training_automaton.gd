@@ -141,6 +141,16 @@ func is_captured() -> bool:
 	return state == "captured"
 
 
+## Where it will be `t` s from now if nothing stops it (its launch arc while in the air; where it stands otherwise).
+func predict(t: float) -> Vector3:
+	var p := global_position
+	if state != "air":
+		return p
+	var tt := _air_t + t - _arc_t0
+	p.y = maxf(0.0, _arc_y0 + _arc_v0 * tt - 0.5 * _arc_g * tt * tt)
+	return p
+
+
 func juggle_protected() -> bool:
 	return _protected
 

@@ -63,6 +63,9 @@ var _cond_target: Node3D
 ## The target being pulled, and the pull action.
 var _pulling: Node3D
 var _pull_action: AttackData
+## A leap's path (Aerial Pursuit): from where he left the ground to where he strikes.
+var _leap_from := Vector3.ZERO
+var _leap_to := Vector3.ZERO
 
 
 ## Dodging is allowed from free movement, or in the later part of an action's recovery (cancelling it and the chain).
@@ -163,13 +166,16 @@ func tick(dt: float, stick_dir: Vector3) -> void:
 	if melee.is_attacking() and fighter.visual.anim and fighter.visual.current == a.anim:
 		fighter.visual.anim.speed_scale = 0.0 if frozen else a.anim_speed
 	fighter.action_velocity = Vector3.ZERO
-	if not frozen and (melee.phase == MeleeState.Phase.STARTUP or melee.phase == MeleeState.Phase.ACTIVE):
+	fighter.action_air = false
+	if a and a.air and melee.is_attacking():
+		_air_body(a, dt, frozen)
+	elif not frozen and (melee.phase == MeleeState.Phase.STARTUP or melee.phase == MeleeState.Phase.ACTIVE):
 		var step := fighter.forward() * a.lunge / (a.startup + a.active)
 		if _target and is_instance_valid(_target):
 			if _flat(_target.global_position - fighter.global_position).length() < STOP_SHORT:
 				step = Vector3.ZERO
 			if melee.phase == MeleeState.Phase.STARTUP:
-				fighter.face_toward(_target.global_position, assist_turn, dt)
+				_face_target(a, dt)
 		elif melee.phase == MeleeState.Phase.STARTUP and _aim != Vector3.ZERO:
 			fighter.face_toward(fighter.global_position + _aim, assist_turn, dt)
 		fighter.action_velocity = step
@@ -190,7 +196,84 @@ func _land(a: AttackData, target: Node3D) -> void:
 	var side := Vector3(dir.z, 0.0, -dir.x) * signf(a.arc_to - a.arc_from)
 	if target.has_method("take_hit"):
 		target.take_hit(a.damage, a.reaction, a.knockback, dir, (dir * 0.55 + side * 0.85).normalized())
+	if not a.launch.is_empty():
+		_launch(a, target)
 	_after_hit(a, target, dir, melee.step_index)
+
+
+## A launching blow landed: a launchable target is thrown up (its arc is its own), which opens Aerial Pursuit against
+## it; a target that resists, or one still protected by the juggle cap, stays down — nothing opens.
+func _launch(a: AttackData, target: Node3D) -> void:
+	var data: Variant = target.get("target_data")
+	var td: Dictionary = data if data is Dictionary else {}
+	if not bool(td.get("launchable", false)) or not target.has_method("launch"):
+		notice.emit("Resists the launch")
+		QA.flag("launch", "resisted")
+		return
+	if not target.is_alive():
+		return
+	if target.launch(float(a.launch.get("height", 2.2)), float(a.launch.get("airtime", 0.9))):
+		legacy.event("launched", target.get_instance_id())
+		QA.flag("launch", String(target.name))
+	else:
+		notice.emit("Cannot be launched now")
+		QA.flag("launch", "protected")
+
+
+## Aerial Pursuit's leap: toward where the airborne target will be at the strike — he ends `leap.ahead` m short of it,
+## `leap.below` m under its height — a visible jump, with collision; he is in the air from here.
+func _begin_leap(a: AttackData) -> void:
+	var at := fighter.global_position
+	var tp := at + fighter.forward() * 2.0
+	if _target and is_instance_valid(_target):
+		tp = _target.predict(a.startup + a.active * 0.5) if _target.has_method("predict") else _target.global_position
+	var flat := _flat(tp - at)
+	var dir := flat.normalized() if flat.length() > 0.01 else fighter.forward()
+	var dist := maxf(0.0, flat.length() - float(a.leap.get("ahead", 0.95)))
+	_leap_from = at
+	_leap_to = at + dir * dist
+	_leap_to.y = maxf(at.y, tp.y - float(a.leap.get("below", 0.6)))
+	fighter.begin_air_action()
+	QA.flag("leap", "%.2f:%.2f" % [dist, _leap_to.y])
+
+
+## The body through an air action: the leap through startup, a hang through the strike, then a fall (gravity) through
+## recovery — he lands on his own afterwards if still in the air.
+func _air_body(a: AttackData, dt: float, frozen: bool) -> void:
+	if frozen:
+		fighter.action_air = true
+		return
+	match melee.phase:
+		MeleeState.Phase.STARTUP:
+			var k := clampf(melee.t / maxf(a.startup, 0.001), 0.0, 1.0)
+			var want := _leap_from.lerp(_leap_to, 1.0 - (1.0 - k) * (1.0 - k))
+			fighter.action_air = true
+			fighter.action_velocity = (want - fighter.global_position) / maxf(dt, 0.0001)
+			if _target and is_instance_valid(_target):
+				_face_target(a, dt)
+		MeleeState.Phase.ACTIVE:
+			fighter.action_air = true
+
+
+## Turn toward the action's target through its startup (the assist), leaving it at the action's aim yaw.
+func _face_target(a: AttackData, dt: float) -> void:
+	var d := _target.global_position - fighter.global_position
+	d.y = 0.0
+	if a.aim_yaw != 0.0:
+		d = d.rotated(Vector3.UP, -deg_to_rad(a.aim_yaw))
+	fighter.face_toward(fighter.global_position + d, assist_turn, dt)
+
+
+## Can `a` (an air action) reach `t` from here: within its range (flat), with nothing solid in the way?
+func _reachable(a: AttackData, t: Node3D) -> bool:
+	var tp: Vector3 = t.predict(a.startup + a.active * 0.5) if t.has_method("predict") else t.global_position
+	if a.within > 0.0 and _flat(tp - fighter.global_position).length() > a.within:
+		return false
+	if not fighter.is_inside_tree():
+		return true
+	var q := PhysicsRayQueryParameters3D.create(fighter.global_position + Vector3(0, 1.0, 0), tp + Vector3(0, 0.6, 0),
+		ChainShot.WORLD_MASK)
+	return fighter.get_world_3d().direct_space_state.intersect_ray(q).is_empty()
 
 
 ## What every confirmed hit shares: the target's hit-stop, the totals and log, the camera's jolt, the signal.
@@ -223,6 +306,8 @@ func _events(stick_dir: Vector3) -> void:
 					_target = _pick_target(stick_dir, a.aim_range if a.aim_range > 0.0 else assist_range)
 					_aim = _flat(stick_dir).normalized() if stick_dir.length() > 0.2 else Vector3.ZERO
 				fighter.visual.play(a.anim, 0.05, a.anim_speed, true, a.anim_from)
+				if a.air:
+					_begin_leap(a)
 				_stance = STANCE_TIME
 				stats["strikes"] += 1
 				strike_log.append({"step": step + 1, "id": a.id, "hits": 0, "damage": 0})
@@ -390,9 +475,17 @@ func _try_queued() -> void:
 		_queued = {}
 		return
 	var edge := legacy.edge_for(ability)
-	var cancel: Variant = edge.get("cancel", {})
+	var cancel_v: Variant = edge.get("cancel", {})
+	var cancel: Dictionary = cancel_v if cancel_v is Dictionary else {}
 	_cond_target = instance_from_id(target_id) as Node3D
-	if melee.conditional_pressed(a, cancel if cancel is Dictionary else {}):
+	if not melee.may_start_conditional(cancel):
+		return # (not yet: it waits for its moment)
+	if a.air and (_cond_target == null or not _reachable(a, _cond_target)):
+		notice.emit("Out of reach")
+		QA.flag("cond_refused", ability)
+		_queued = {}
+		return
+	if melee.conditional_pressed(a, cancel):
 		legacy.consume(ability, target_id)
 		_queued = {}
 		_events(Vector3.ZERO) # (its start, now: the target is set before the state machine steps it)
@@ -511,6 +604,8 @@ func state() -> Dictionary:
 		"waiting": legacy.waiting().size(),
 		"queued": String(_queued.get("ability", "")),
 		"pull": last_pull.duplicate(),
+		"body": fighter.state,
+		"y": snappedf(fighter.global_position.y, 0.01),
 	}
 
 

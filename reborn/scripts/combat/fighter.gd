@@ -30,6 +30,8 @@ var combat_ready := false
 ## Set by the combat controller: the body follows `action_velocity` instead of the stick (a strike's step forward).
 var action_lock := false
 var action_velocity := Vector3.ZERO
+## A leap (Aerial Pursuit): the body follows `action_velocity` up and down too, without gravity.
+var action_air := false
 ## Hit-stop: no movement, no gravity, no animation advance.
 var frozen := false
 ## Rolls so far (for the tests and the report).
@@ -102,6 +104,12 @@ func _set_state(s: String) -> void:
 		state_changed.emit(s)
 
 
+## An action leaves the ground (a leap): from here he is in the air — no ground action starts until he lands.
+func begin_air_action() -> void:
+	_air_t = 0.0
+	_set_state("air")
+
+
 ## Turn toward a point at up to `rate` radians per second (a strike's target assist).
 func face_toward(point: Vector3, rate: float, delta: float) -> void:
 	var to := point - global_position
@@ -117,10 +125,13 @@ func _physics_process(delta: float) -> void:
 		return
 	var on_floor := is_on_floor()
 	if action_lock:
-		velocity.x = action_velocity.x
-		velocity.z = action_velocity.z
-		if not on_floor:
-			velocity.y -= gravity * delta
+		if action_air:
+			velocity = action_velocity
+		else:
+			velocity.x = action_velocity.x
+			velocity.z = action_velocity.z
+			if not on_floor:
+				velocity.y -= gravity * delta
 		move_and_slide()
 		return
 	if state == "dodge":

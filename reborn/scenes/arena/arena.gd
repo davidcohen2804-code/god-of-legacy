@@ -288,7 +288,7 @@ func _build_hud() -> void:
 	_show_target(dummy)
 	dummy.hp_changed.connect(func(hp: int, total: int) -> void: _on_target_hp(dummy, hp, total))
 	automaton.hp_changed.connect(func(hp: int, total: int) -> void: _on_target_hp(automaton, hp, total))
-	hud.set_note("M4 · stick: move (rim 0.25 s: sprint) · drag: camera · ATTACK ×3 · HEAVY · CHAIN (then PULL) · DODGE · JUMP — keys WASD J H 1 K Space, 4 / 5 the conditional buttons")
+	hud.set_note("M4 · stick: move (rim 0.25 s: sprint) · drag: camera · ATTACK ×3 · HEAVY · CHAIN (then PULL) · RISE (then PURSUE) · DODGE · JUMP — keys WASD J H 1 3 K Space, 4 / 5 the conditional buttons")
 	combat.notice.connect(func(text: String) -> void: hud.prompt(text, 1.6))
 
 	var back := Button.new()

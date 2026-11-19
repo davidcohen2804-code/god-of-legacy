@@ -39,6 +39,16 @@ var projectile := {}
 var capture := 0.0
 ## A pull: {ahead: the endpoint, m in front of him; speed: m/s over the target's travel; min, max: s}.
 var pull := {}
+## A confirmed hit throws a launchable target up: {height m, airtime s} (Rising Slash).
+var launch := {}
+## A leap at an airborne target (Aerial Pursuit): he ends `leap.ahead` m short of where the target will be at the
+## strike, `leap.below` m under its height; it starts only within `within` m (flat).
+var air := false
+var leap := {}
+var within := 0.0
+## Where the assist puts the target relative to his facing (degrees, + = his left): the middle of a cut that runs to
+## one side.
+var aim_yaw := 0.0
 ## The move, where to start it and how fast to play it so its swing fills the active window.
 var anim := ""
 var anim_from := 0.0
@@ -99,6 +109,11 @@ static func from_dict(p_id: String, d: Dictionary) -> AttackData:
 	a.projectile = d.get("projectile", {}) as Dictionary
 	a.capture = float(d.get("capture", 0.0))
 	a.pull = d.get("pull", {}) as Dictionary
+	a.launch = d.get("launch", {}) as Dictionary
+	a.air = bool(d.get("air", false))
+	a.leap = d.get("leap", {}) as Dictionary
+	a.within = float(d.get("within", 0.0))
+	a.aim_yaw = float(d.get("aim_yaw", 0.0))
 	a.startup = float(d.get("startup", a.startup))
 	a.active = float(d.get("active", a.active))
 	a.recovery = float(d.get("recovery", a.recovery))

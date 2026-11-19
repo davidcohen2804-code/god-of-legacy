@@ -1,5 +1,5 @@
 {
-  "_doc": "The Samurai's attacks and skills (GPT's REBORN direction v1.1, M3/M4 reviews and the v1.2 decisions). Times in seconds, distances in metres. kind: melee (a blade; its path baked) | projectile (thrown at its release event: speed, radius, range, height and ahead of his feet; capture: the hold a hit gives a target that can be captured) | pull (Chain Pull: the endpoint ahead of him; the drag takes the target's distance / speed, within min..max). button: the input that starts it; cond = a Legacy Chain opportunity (graph). aim_range: the aim assist's reach through startup. graph: the Legacy Chain's edges — on an authoritative event, unlock an ability against the event's target for window s; rank: GPT's priority (1 first); requires: the target state it needs; cancel: the action whose recovery it may cut, from that fraction on. anim / anim_from / anim_speed: the move, where to start it and how fast to play it so its swing fills the active window. reaction: how long the target reels; knockback: how far it is pushed; lunge: his step into the cut. The blade's path through each active window is baked into samurai_blades.json by tools/bake_blades.mjs (re-run it after changing any timing or move here).",
+  "_doc": "The Samurai's attacks and skills (GPT's REBORN direction v1.1, M3/M4 reviews and the v1.2 decisions). Times in seconds, distances in metres. kind: melee (a blade; its path baked) | projectile (thrown at its release event: speed, radius, range, height and ahead of his feet; capture: the hold a hit gives a target that can be captured) | pull (Chain Pull: the endpoint ahead of him; the drag takes the target's distance / speed, within min..max). button: the input that starts it; cond = a Legacy Chain opportunity (graph). aim_range: the aim assist's reach through startup. launch: a confirmed hit throws a launchable target up (height m, airtime s). air: the action is a leap at an airborne target (leap: he ends ahead m short of where the target will be at the strike, below m under its height); within: the farthest (m, flat) it may start from. aim_yaw: where the assist puts the target relative to his facing (degrees, + = his left) — the middle of a cut that runs to one side (Rising Slash's rising cut sweeps up his left, from 56° to 11°). graph: the Legacy Chain's edges — on an authoritative event, unlock an ability against the event's target for window s; rank: GPT's priority (1 first); requires: the target state it needs; cancel: the action whose recovery it may cut, from that fraction on. anim / anim_from / anim_speed: the move, where to start it and how fast to play it so its swing fills the active window. reaction: how long the target reels; knockback: how far it is pushed; lunge: his step into the cut. The blade's path through each active window is baked into samurai_blades.json by tools/bake_blades.mjs (re-run it after changing any timing or move here).",
   "attacks": {
     "basic1": {
       "name": "Basic 1", "button": "attack",
@@ -34,6 +34,20 @@
       "events": [{"at": 0.22, "name": "release"}],
       "anim": "Spell_Simple_Enter", "anim_from": 0.05, "anim_speed": 1.91
     },
+    "rising_slash": {
+      "name": "Rising Slash", "label": "RISE", "button": "skill3",
+      "startup": 0.18, "active": 0.11, "recovery": 0.25, "damage": 16, "cooldown": 5.0,
+      "hit_stop": 0.06, "reaction": 0.2, "knockback": 0.0, "lunge": 0.25, "aim_yaw": 30.0,
+      "launch": {"height": 2.2, "airtime": 0.9},
+      "anim": "Sword_Attack", "anim_from": 0.60, "anim_speed": 1.0
+    },
+    "aerial_pursuit": {
+      "name": "Aerial Pursuit", "label": "PURSUE", "button": "cond", "air": true, "within": 4.0,
+      "startup": 0.25, "active": 0.1, "recovery": 0.3, "damage": 14, "cooldown": 0.0,
+      "hit_stop": 0.06, "reaction": 0.2, "knockback": 0.0, "lunge": 0.0,
+      "leap": {"ahead": 0.95, "below": 0.6},
+      "anim": "Sword_Heavy_Combo", "anim_from": 2.32, "anim_speed": 1.0
+    },
     "chain_pull": {
       "name": "Chain Pull", "label": "PULL", "button": "cond", "kind": "pull",
       "startup": 0.08, "active": 0.25, "recovery": 0.2, "damage": 6, "cooldown": 0.0,
@@ -48,6 +62,8 @@
   },
   "graph": [
     {"on": "captured", "unlock": "chain_pull", "window": 0.7, "rank": 4, "requires": "captured",
-     "cancel": {"from": "phantom_chain", "at": 0.5}}
+     "cancel": {"from": "phantom_chain", "at": 0.5}},
+    {"on": "launched", "unlock": "aerial_pursuit", "window": 0.7, "rank": 2, "requires": "airborne",
+     "cancel": {"from": "rising_slash", "at": 0.5}}
   ]
 }

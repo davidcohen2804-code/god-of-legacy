@@ -169,7 +169,7 @@ func test_each_attacks_hit_path_is_its_visible_blade() -> String:
 	var hand := v.skeleton.find_bone("hand_r")
 	var err := ""
 	var all := AttackData.load_set()
-	for id in ["basic1", "basic2", "basic3", "heavy"]:
+	for id in ["basic1", "basic2", "basic3", "heavy", "rising_slash", "aerial_pursuit"]:
 		var a: AttackData = all[id]
 		if a.blade_tip.size() != 13:
 			err = "%s has no baked blade" % id
