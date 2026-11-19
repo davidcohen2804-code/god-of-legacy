@@ -289,7 +289,7 @@ func _capsule(key: String) -> void:
 	var half := maxf(0.0, (tw + 2.0 * CAPSULE_PAD + 1.2 * h - 2.0 * h) * 0.5)
 	var r_hit := maxf(_want_r, h)
 	var cc: Vector2 = chip["c"]
-	var cr := float(chip["r_hit"])
+	var cr := float(chip["r_hit"]) + float(chip["half"]) # (the chip's hit area: its pill's straight part and round it)
 	if key == "cond1":
 		b["c"] = Vector2(cc.x - cr - ROW_GAP - r_hit - half, cc.y)
 	else:

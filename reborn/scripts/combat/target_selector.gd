@@ -34,9 +34,9 @@ func pick(candidates: Array, combo: Object, engaged: Dictionary, delta: float) -
 			best_rank = r
 			best_d = float(c["dist"])
 	if best == null:
-		_set(null, 0)
+		_take(null, 0)
 	elif current == null or cur_rank == 0 or best_rank > cur_rank:
-		_set(best, best_rank)
+		_take(best, best_rank)
 	elif best != current:
 		# the same rank: it takes over only once it has stayed the better RETAIN s
 		if _pending != best:
@@ -44,7 +44,7 @@ func pick(candidates: Array, combo: Object, engaged: Dictionary, delta: float) -
 			_pending_t = 0.0
 		_pending_t += delta
 		if _pending_t >= RETAIN:
-			_set(best, best_rank)
+			_take(best, best_rank)
 		else:
 			rank = cur_rank
 	else:
@@ -65,7 +65,7 @@ static func rank_of(c: Dictionary, combo: Object, engaged: Dictionary) -> int:
 	return 1
 
 
-func _set(node: Object, r: int) -> void:
+func _take(node: Object, r: int) -> void:
 	current = node
 	rank = r
 	_pending = null
