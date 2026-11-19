@@ -154,9 +154,9 @@ const SCRIPT_M4 := [
 
 ## M4.2 — how it plays (`-- --demo --demo-feel`, recorded at the Android phone's shape): free movement at real speed —
 ## walking, running and sprinting at the stick's rim, a second finger turning the camera, a jump, a roll, a Shadow Step
-## in open space, the three strikes on the air and Heavy — then (A2) a walk to the automaton's south and a side-step
-## west, so the automaton drifts toward the right-hand buttons and the camera's assist turns it clear; then the
-## integrated review's three branches (SCRIPT_M4).
+## in open space, the three strikes on the air and Heavy — then (A2) a run in to 2.6 m from the automaton and a
+## side-step to his left, so the automaton drifts into the right-hand buttons and the camera's assist turns it clear;
+## then the integrated review's three branches (SCRIPT_M4).
 const FEEL_PRELUDE := [
 	[0.2, "spar", false],
 	[0.3, "caption", "How it plays at real speed — the white rings are the thumbs on the stick and on the buttons", 3.2],
@@ -169,13 +169,12 @@ const FEEL_PRELUDE := [
 	[10.5, "caption", "Basic 1 → 2 → 3 on the air, then HEAVY", 2.2],
 	[10.6, "mash", 3],
 	[12.6, "tap", "heavy"],
-	[14.0, "go", Vector2(-3.5, 2.0), 0.85], # 4.5 m south of the automaton
-	[17.0, "point", Vector2(0.0, -1.0), 0.3], # facing it
-	[17.4, "behind"], # (the camera behind him — a cut)
-	[17.6, "caption", "A side-step: the automaton drifts toward the buttons — the camera turns a little to keep it clear", 3.4],
-	[17.8, "stick", Vector2(-0.42, 0.0)], # a walk west
-	[19.6, "stick_up"],
-	[20.8, "go", Vector2(0.0, 7.0), 0.85], # back to where the review starts
+	[14.0, "approach", 2.6, 0.85], # a run in to 2.6 m from the automaton
+	[16.6, "behind"], # (the camera behind him — a cut)
+	[16.8, "caption", "A side-step: the automaton drifts into the buttons — the camera turns a little to keep it clear", 3.4],
+	[17.0, "stick", Vector2(-0.42, 0.0)], # a walk to his left
+	[18.5, "stick_up"],
+	[20.2, "go", Vector2(0.0, 7.0), 0.85], # back to where the review starts
 ]
 const FEEL_REVIEW_AT := 24.0 ## s: SCRIPT_M4 starts here, after the prelude
 
@@ -200,18 +199,25 @@ const SCRIPT_EXPLORE := [
 ]
 
 ## M4.2-A2 — the fading as the camera moves (`-- --demo --demo-columns`, the phone's shape): the two fighters near the
-## east of the courtyard, the Samurai facing its middle, so the camera behind him sweeps past two neighbouring columns
-## (one standing, one broken) as a second finger turns it one way, then slowly the other, then back. At the end the
-## log reads how often each column faded and came back, and the shortest time it held either way (a flicker shows as a
-## very short one).
+## east of the courtyard, the Samurai facing its middle, so the camera behind him sweeps past the neighbouring columns
+## as a second finger turns it one way, then slowly the other, then back — first with the fading off, then the same
+## move with it on. At the end the log lists each column's fading and return (when) and the shortest time it held
+## either way (a flicker shows as a very short one).
 const SCRIPT_COLUMNS := [
 	[0.2, "spar", false],
+	[0.2, "fade", false],
 	[0.2, "place", Vector2(5.5, 0.0), -90.0, Vector2(3.0, 0.0)],
-	[0.3, "caption", "The columns fading as the camera passes behind them (25 %)", 4.0],
-	[1.0, "drag", Vector2(-130, 0), 1.6],
-	[3.2, "drag", Vector2(260, 0), 6.0],
-	[10.0, "drag", Vector2(-130, 0), 2.5],
-	[13.5, "end"],
+	[0.3, "caption", "The camera passing the columns — the fading OFF", 3.0],
+	[1.0, "drag", Vector2(-130, 0), 1.4],
+	[2.8, "drag", Vector2(260, 0), 4.6],
+	[7.8, "drag", Vector2(-130, 0), 1.2],
+	[9.6, "fade", true],
+	[9.6, "place", Vector2(5.5, 0.0), -90.0, Vector2(3.0, 0.0)],
+	[9.7, "caption", "The same move — the fading ON (25 %)", 3.0],
+	[10.4, "drag", Vector2(-130, 0), 1.4],
+	[12.2, "drag", Vector2(260, 0), 4.6],
+	[17.2, "drag", Vector2(-130, 0), 1.2],
+	[19.0, "end"],
 ]
 
 var touch: TouchControls
@@ -222,6 +228,7 @@ var automaton: TrainingAutomaton
 var caption: Callable
 var fader: OcclusionFader ## (the columns' script: their fading's timeline)
 var _fades := {} ## column group → [fading now, times faded, times back, s since its last change, shortest hold]
+var _fade_log: Array[String] = []
 var _t := 0.0
 var _i := 0
 var _stick_down := false
@@ -423,6 +430,8 @@ func _run(step: Array) -> void:
 			rig.snap_behind(player.facing)
 		"expvar":
 			CameraRig.explore = String(step[2])
+		"fade":
+			OcclusionFader.enabled = bool(step[2])
 		"place":
 			var at: Vector2 = step[2]
 			player.global_position = Vector3(at.x, 0.0, at.y)
@@ -565,6 +574,7 @@ func _tick_fades(delta: float) -> void:
 		f[3] = float(f[3]) + delta
 		var now := float(alphas[i]) < 0.999
 		if now != bool(f[0]):
+			_fade_log.append("%.2f s: group %d %s" % [_t, i, "fades" if now else "comes back"])
 			if int(f[1]) + int(f[2]) > 0:
 				f[4] = minf(float(f[4]), float(f[3]))
 			f[0] = now
@@ -585,3 +595,5 @@ func _report_fades() -> void:
 			print("[COLUMNS] group %d: faded %d times, back %d times, shortest hold %s s" % [i, f[1], f[2],
 				"%.2f" % float(f[4]) if float(f[4]) < INF else "-"])
 	print("[COLUMNS] groups that changed: %d of %d" % [changed, _fades.size()])
+	for line in _fade_log:
+		print("[COLUMNS] " + line)
