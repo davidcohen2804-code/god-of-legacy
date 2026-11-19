@@ -36,6 +36,7 @@ encode() { # the .avi, the .mp4 (and its PNG pack: a page carries it through an 
 # the override, for this recording only.)
 printf '[display]\n\nwindow/size/window_width_override=1728\nwindow/size/window_height_override=720\n' > reborn/override.cfg
 record feel 1728 720 --demo --demo-feel
+grep "\[CAMERA\]" "$T/feel.log" | tee "$OUT/m42_feel_camera.txt" || true
 # (M4.2-A2) the exploration framing A, then B, each walking in across the 9 m; the columns fading as the camera passes
 record explore 1728 720 --demo --demo-explore
 record columns 1728 720 --demo --demo-columns

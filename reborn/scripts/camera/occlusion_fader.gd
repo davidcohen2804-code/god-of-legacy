@@ -2,7 +2,7 @@ class_name OcclusionFader
 extends Node
 ## Foreground columns and the broken arch fade while they would hide the fight (M4.2-A, GPT's v2.1). Each column, and
 ## the arch, is one group: all its pieces fade together. A group fades — to `opacity` in OUT s, back in BACK s — while
-## it is nearer to the camera than a fighter and its box on the screen overlaps that fighter's (feet to head, a body's
+## one of its pieces is nearer to the camera than a fighter and its box on the screen overlaps that fighter's (feet to head, a body's
 ## width either side), or while it is nearer than the player and overlaps the screen's middle (a column filling the
 ## side of the frame without crossing the line to him). Never one behind both fighters. Its screen box is grown a
 ## little while it is faded, and it stays faded HOLD s after it stops obstructing (hysteresis: no flicker at a
@@ -31,12 +31,14 @@ func _ready() -> void:
 ## A group of pieces that fade as one; their transparent copies made here, once.
 func add_group(meshes: Array) -> void:
 	var box := AABB()
+	var boxes: Array[AABB] = []
 	var first := true
 	var own: Array[Material] = []
 	var faded: Array[Material] = []
 	var copies := {}
 	for m: MeshInstance3D in meshes:
 		var a := m.global_transform * m.get_aabb()
+		boxes.append(a)
 		box = a if first else box.merge(a)
 		first = false
 		var mat := m.material_override
@@ -47,7 +49,7 @@ func add_group(meshes: Array) -> void:
 			copies[mat] = t
 		faded.append(copies[mat])
 	_groups.append({"meshes": meshes, "own": own, "faded": faded, "copies": copies.values(), "box": box,
-		"alpha": 1.0, "hold": 0.0, "shown": 1.0})
+		"boxes": boxes, "alpha": 1.0, "hold": 0.0, "shown": 1.0})
 
 
 func _process(delta: float) -> void:
@@ -63,8 +65,11 @@ func _process(delta: float) -> void:
 	for g in _groups:
 		var hides := false
 		if on and not fighters.is_empty():
-			var s := _project(cam, g["box"], view)
-			if not s.is_empty():
+			# (piece by piece: the arch's one box round its piers, its ring and its fallen stones is mostly empty air)
+			for bx: AABB in g["boxes"]:
+				var s := _project(cam, bx, view)
+				if s.is_empty():
+					continue
 				var r: Rect2 = s["rect"]
 				if float(g["alpha"]) < 1.0:
 					r = r.grow_individual(r.size.x * GROW, r.size.y * GROW, r.size.x * GROW, r.size.y * GROW)

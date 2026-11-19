@@ -154,9 +154,9 @@ const SCRIPT_M4 := [
 
 ## M4.2 — how it plays (`-- --demo --demo-feel`, recorded at the Android phone's shape): free movement at real speed —
 ## walking, running and sprinting at the stick's rim, a second finger turning the camera, a jump, a roll, a Shadow Step
-## in open space, the three strikes on the air and Heavy — then (A2) a walk past the automaton 2.6 m to its left, the
-## camera behind him: it comes down into the right-hand buttons and the camera's assist turns it clear; then the
-## integrated review's three branches (SCRIPT_M4).
+## in open space, the three strikes on the air and Heavy — then (A2) a walk past the automaton 3.5 m to its left, the
+## camera behind him, stopping with it beside him: it comes down into the right-hand buttons and the camera's assist
+## turns it clear; then the integrated review's three branches (SCRIPT_M4).
 const FEEL_PRELUDE := [
 	[0.2, "spar", false],
 	[0.3, "caption", "How it plays at real speed — the white rings are the thumbs on the stick and on the buttons", 3.2],
@@ -169,15 +169,15 @@ const FEEL_PRELUDE := [
 	[10.5, "caption", "Basic 1 → 2 → 3 on the air, then HEAVY", 2.2],
 	[10.6, "mash", 3],
 	[12.6, "tap", "heavy"],
-	[14.0, "go", Vector2(-6.1, 4.5), 0.85], # 7 m south of the automaton, 2.6 m to its west
+	[14.0, "go", Vector2(-7.0, 4.5), 0.85], # 7 m south of the automaton, 3.5 m to its west
 	[16.8, "point", Vector2(0.0, -1.0), 0.3], # facing north
 	[17.2, "behind"], # (the camera behind him — a cut)
-	[17.4, "caption", "Walking past the automaton: it comes into the buttons — the camera turns a little to keep it clear", 3.6],
-	[17.4, "stick", Vector2(0.0, 0.42)], # a walk north, past it
-	[19.9, "stick_up"],
-	[21.4, "go", Vector2(0.0, 7.0), 0.85], # back to where the review starts
+	[17.4, "caption", "Walking past the automaton: it comes into the buttons — the camera turns a little to keep it clear", 4.4],
+	[17.4, "stick", Vector2(0.0, 0.42)], # a walk north, until it is beside him
+	[20.6, "stick_up"],
+	[22.2, "go", Vector2(0.0, 7.0), 0.85], # back to where the review starts
 ]
-const FEEL_REVIEW_AT := 25.0 ## s: SCRIPT_M4 starts here, after the prelude
+const FEEL_REVIEW_AT := 26.0 ## s: SCRIPT_M4 starts here, after the prelude
 
 ## M4.2-A2 — the exploration framing (`-- --demo --demo-explore`, the phone's shape): a walk in to the automaton from
 ## 15 m with exploration A (as before), then the same with exploration B (GPT's v2.2 proposal) — each crossing the
@@ -446,6 +446,7 @@ func _run(step: Array) -> void:
 			rig.snap_behind(player.facing)
 			rig.settle()
 		"end":
+			print("[CAMERA] the assist started %d times" % rig.assists)
 			if not _fades.is_empty():
 				_report_fades()
 			Engine.time_scale = 1.0
