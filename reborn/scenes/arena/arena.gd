@@ -24,6 +24,8 @@ var hud: CombatHud
 var dummy: TrainingDummy
 var automaton: TrainingAutomaton
 var vfx: HitVfx
+## Foreground columns and the arch fading out of the fight's way (M4.2-A; off until a camera is chosen).
+var fader: OcclusionFader
 ## The device test's screen (?device=1), when it runs.
 var device: DevicePanel
 var _cam: Camera3D
@@ -52,6 +54,7 @@ func _ready() -> void:
 	QA.track("dummy", dummy.state)
 	QA.track("automaton", automaton.info)
 	QA.track("render", Game.render_state)
+	QA.track("framing", _framing_state)
 	QA.command.connect(_on_qa_command)
 	# the graphics preset's shadows on the moon, now and whenever the preset changes (GPT's v1.7)
 	FallenMoonCourtyard.apply_quality(Game.preset())
@@ -104,6 +107,9 @@ func _process(delta: float) -> void:
 	_player_numbers.advance(delta)
 	if _view != "game":
 		_place_camera()
+	# (the camera's framing keeps the fighters clear of the HUD: its areas, from the controls' layout — M4.2-A)
+	rig.screen = get_viewport().get_visible_rect().size
+	rig.exclusions = touch.exclusion_rects()
 	# (a target keeps the framing while it is down: it stands up again)
 	var focus := _focus_target()
 	rig.focus = focus
@@ -158,6 +164,12 @@ func _build_camera() -> void:
 	rig.settle()
 	_cam = rig.cam
 	controller.rig = rig
+	fader = OcclusionFader.new()
+	fader.name = "OcclusionFader"
+	fader.rig = rig
+	add_child(fader)
+	for g: Array in FallenMoonCourtyard.occluders:
+		fader.add_group(g)
 
 
 func _build_combat() -> void:
@@ -318,6 +330,32 @@ func _on_qa_command(cmd: String, args: Array) -> void:
 		if _view != "game":
 			_place_camera()
 		QA.flag("view", _view)
+	elif cmd == "camvar" and not args.is_empty() and CameraRig.VARIANTS.has(str(args[0])):
+		# (M4.2-A's comparison) the combat framing A, B or C — the player's default stays A
+		CameraRig.variant = str(args[0])
+		QA.flag("camvar", CameraRig.variant)
+	elif cmd == "fade" and not args.is_empty():
+		# (M4.2-A's comparison) the foreground columns' fading on or off, and its opacity
+		OcclusionFader.enabled = str(args[0]) != "0"
+		if args.size() > 1:
+			OcclusionFader.opacity = clampf(float(args[1]), 0.05, 1.0)
+		QA.flag("fade", "%s:%s" % [OcclusionFader.enabled, OcclusionFader.opacity])
+	elif cmd == "frame":
+		# (M4.2-A's comparison: identical shots) the camera behind him toward his foe ("foe") or along his facing
+		# ("facing"), settled at once in its framing
+		rig.focus = _focus_target()
+		rig.mode = CameraRig.Mode.COMBAT if rig.focus else CameraRig.Mode.EXPLORATION
+		if (args.is_empty() or str(args[0]) == "foe") and rig.focus:
+			var to := rig.focus.global_position - player.global_position
+			rig.yaw = atan2(-to.x, -to.z)
+		else:
+			rig.snap_behind(player.facing)
+		rig.settle()
+		QA.flag("framed", "%s:%s" % [CameraRig.variant, args[0] if not args.is_empty() else "foe"])
+	elif cmd == "dummy" and not args.is_empty():
+		# (M4.2-A's comparison) the straw dummy out of the shot, or back
+		dummy.visible = str(args[0]) != "off"
+		QA.flag("dummy", dummy.visible)
 
 
 func _player_state() -> Dictionary:
@@ -338,6 +376,23 @@ func _player_state() -> Dictionary:
 		"dodges": player.dodges,
 		"view": _view,
 	}
+
+
+## (QA, M4.2-A's comparison) the framing now: the variant, the camera's distance (and whether C is past its preferred
+## band), each fighter's box on the screen — its height in CSS px, in a HUD area or off the screen — the HUD's areas,
+## the fading and the frame's draw calls.
+func _framing_state() -> Dictionary:
+	var css := touch.css_per_px
+	var areas: Array = []
+	for r: Rect2 in rig.exclusions:
+		areas.append([snappedf(r.position.x, 0.1), snappedf(r.position.y, 0.1), snappedf(r.size.x, 0.1),
+			snappedf(r.size.y, 0.1)])
+	return {"variant": CameraRig.variant, "distance": snappedf(rig.distance(), 0.01),
+		"camera_to_player": snappedf(_cam.global_position.distance_to(rig.target.global_position), 0.01),
+		"fallback": rig.fallback, "fallbacks": rig.fallbacks, "player": rig.screen_box(player, css),
+		"foe": rig.screen_box(rig.focus, css), "areas": areas, "screen": [rig.screen.x, rig.screen.y],
+		"css_per_px": snappedf(css, 0.001), "fade": fader.info(),
+		"draws": RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME)}
 
 
 func _camera_state() -> Dictionary:
@@ -393,6 +448,8 @@ func _focus_target() -> Node3D:
 	var best: Node3D = null
 	var best_d := COMBAT_RANGE
 	for t: Node3D in [dummy, automaton]:
+		if not t.visible:
+			continue # (QA: the dummy put away for a shot)
 		var d := _flat_dist(t)
 		if d < best_d:
 			best = t

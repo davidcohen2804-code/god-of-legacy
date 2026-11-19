@@ -241,6 +241,26 @@ func _publish_rects() -> void:
 	QA.set_rect("camera_zone", Rect2(Vector2(size.x * 0.3, size.y * 0.2), Vector2(size.x * 0.22, size.y * 0.22)))
 
 
+## The screen the fighters are kept clear of (canvas px — M4.2-A's camera framing and its numbers): the HUD's top band,
+## and a box round each cluster's always-shown controls (not the conditional buttons, which come and go), 12 px wider.
+func exclusion_rects() -> Array[Rect2]:
+	var out: Array[Rect2] = [Rect2(0.0, 0.0, size.x, TOP_BAR)]
+	for side: String in ["L", "R"]:
+		var box := Rect2()
+		var first := true
+		for key: String in LAYOUT:
+			if LAYOUT[key][2] != side or key.begins_with("cond") or key == "more" or not _btn.has(key):
+				continue
+			var b: Dictionary = _btn[key]
+			var r := float(b["r_art"])
+			var one := Rect2((b["c"] as Vector2) - Vector2(r, r), Vector2(r, r) * 2.0)
+			box = one if first else box.merge(one)
+			first = false
+		if not first:
+			out.append(box.grow(12.0))
+	return out
+
+
 ## For the tests and the report: the sizing on this screen and the live touch state.
 func layout_info() -> Dictionary:
 	var cds := {}

@@ -662,6 +662,131 @@ async function runProfile(p) {
       return `${tag}: a deliberate miss dealt nothing (dummy stays ${hp0} HP) and the next strike was the first again`;
     };
 
+    // M4.2-A (GPT's v2.1): the camera comparison — A (the current framing), B (closer) and C (adaptive) from identical
+    // positions, the HUD at its real size: the open floor; beside a column (no fading, 25 %, 15 %); the automaton
+    // launched; 5.5 m apart; the automaton off to one side; the Samurai backing toward the south wall. For each shot:
+    // the camera's distance (C past its preferred band?), each fighter's height in CSS px and whether its box enters a
+    // HUD area. The straw dummy is put away for it and back after.
+    const fr = (s) => (s && s.live && s.live.framing) || null;
+    const blits = () => page.evaluate(() => window.__blits || 0);
+    const frames = async (n) => {
+      const b0 = await blits();
+      const end = Date.now() + 30000;
+      while ((await blits()) < b0 + n && Date.now() < end) await page.waitForTimeout(150);
+    };
+    const cameraComparison = async () => {
+      await cmd('dummy', 'off');
+      await cmd('auto', 'spar', 0);
+      await cmd('speed', 1);
+      await waitFor((s) => s.flags.dummy === false, 'the dummy put away', 15000);
+      const rows = [];
+      // (the east column, standing 5 m: the Samurai 2.2 m inside it and 1.3 m to its side, facing the middle, the
+      // automaton 2.5 m further in — the camera behind him sees the column in the foreground)
+      const a = Math.PI * 2 * 0.5 / 8, R = 11.6;
+      const u = [-Math.cos(a), -Math.sin(a)], t = [-Math.sin(a), Math.cos(a)];
+      const cp = [Math.cos(a) * R + u[0] * 2.2 + t[0] * 1.3, Math.sin(a) * R + u[1] * 2.2 + t[1] * 1.3];
+      const r2 = (v) => Math.round(v * 100) / 100;
+      const face = (dx, dz) => r2(Math.atan2(dx, dz) * 180 / Math.PI);
+      const scenes = [
+        { tag: 'open', pl: [0, 4, 180], au: [0, 1.5, 0], how: 'foe' },
+        { tag: 'column', pl: [r2(cp[0]), r2(cp[1]), face(u[0], u[1])], au: [r2(cp[0] + u[0] * 2.5), r2(cp[1] + u[1] * 2.5), face(-u[0], -u[1])], how: 'foe', fades: [0.25, 0.15] },
+        { tag: 'launch', pl: [0, 4, 180], au: [0, 1.5, 0], how: 'foe', launch: true },
+        { tag: 'far', pl: [0, 4.5, 180], au: [0, -1, 0], how: 'foe' },
+        { tag: 'side', pl: [0, 4, 180], au: [2.6, 2, face(-2.6, 2)], how: 'facing' },
+        { tag: 'wall', pl: [0, 12, 180], au: [0, 9.5, 0], how: 'foe' },
+      ];
+      const one = async (sc, v, fade) => {
+        const tag = `c_${sc.tag}_${v}${fade ? '_fade' + Math.round(fade * 100) : ''}`;
+        await cmd('fade', fade ? 1 : 0, fade || 0.25);
+        await cmd('frame', sc.how);
+        await waitFor((s) => s.flags.framed === `${v}:${sc.how}`, 'the framing ' + tag, 15000);
+        await frames(fade ? 4 : 3);
+        const f = fr(await state());
+        await shot(tag);
+        rows.push({ shot: tag, variant: v, distance: f.distance, camera_to_player: f.camera_to_player, fallback: f.fallback,
+          samurai_css: f.player.h_css, samurai_in_hud: f.player.in_hud, samurai_off: f.player.off_screen,
+          foe_css: f.foe ? f.foe.h_css : null, foe_in_hud: f.foe ? f.foe.in_hud : null, foe_off: f.foe ? f.foe.off_screen : null,
+          faded: f.fade.faded, draws: f.draws });
+      };
+      for (const sc of scenes) {
+        await place(sc.pl[0], sc.pl[1], sc.pl[2]);
+        await cmd('auto', 'thaw');
+        await cmd('auto', 'heal');
+        await cmd('auto', 'place', sc.au[0], sc.au[1], sc.au[2]);
+        await waitFor((s) => au(s) && Math.abs(au(s).pos[0] - sc.au[0]) < 0.05 && Math.abs(au(s).pos[2] - sc.au[1]) < 0.05, 'the automaton on its mark for ' + sc.tag, 15000);
+        if (sc.launch) {
+          await cmd('speed', 0.25);
+          await cmd('auto', 'launch');
+          await waitFor((s) => au(s) && au(s).pos[1] > 1.2, 'the automaton high in its arc', 40000);
+          await cmd('auto', 'freeze', 120);
+          await waitFor((s) => au(s) && au(s).frozen, 'the automaton held in the air', 15000);
+          await cmd('speed', 1);
+        } else {
+          await cmd('auto', 'freeze', 120);
+          await waitFor((s) => au(s) && au(s).frozen, 'the automaton held still', 15000);
+        }
+        for (const v of ['A', 'B', 'C']) {
+          await cmd('camvar', v);
+          await one(sc, v, 0);
+          for (const fd of sc.fades || []) await one(sc, v, fd);
+        }
+        await cmd('auto', 'thaw');
+      }
+      await cmd('fade', 0, 0.25);
+      await cmd('camvar', 'A');
+      await cmd('auto', 'heal');
+      await cmd('auto', 'place', -3.5, -2.5, 20.2);
+      await cmd('dummy', 'on');
+      await cmd('frame', 'facing');
+      res.camera = rows;
+      const fb = rows.filter((r) => r.fallback).map((r) => r.shot);
+      step(`camera comparison (M4.2-A): ${rows.length} shots — A, B and C on the open floor, beside a column (fading off, 25 %, 15 %), the automaton launched, 5.5 m apart, off to one side, backing to the south wall; Samurai ${rows.map((r) => r.shot.replace('c_', '') + ' ' + r.samurai_css).join(' · ')} CSS px; C's emergency extension in: ${fb.length ? fb.join(', ') : 'none'}`);
+    };
+
+    // M4.2-A (GPT's v2.1): what the fading costs — beside the column, A, at Low and at High, without and with it: the
+    // browser's frame intervals over 8 s each and the frame's draw calls (software rendering: only the comparison
+    // between the four counts).
+    const fadeCost = async () => {
+      const raf = (ms) => page.evaluate((dur) => new Promise((done) => {
+        const t = [];
+        let last = performance.now();
+        const end = last + dur;
+        const f = (now) => { t.push(now - last); last = now; if (now < end) requestAnimationFrame(f); else { t.sort((x, y) => x - y); done({ n: t.length, p50: Math.round(t[Math.floor(t.length / 2)] * 10) / 10, mean: Math.round(t.reduce((x, y) => x + y, 0) / t.length * 10) / 10 }); } };
+        requestAnimationFrame(f);
+      }), ms);
+      const a = Math.PI * 2 * 0.5 / 8, R = 11.6;
+      const u = [-Math.cos(a), -Math.sin(a)], t = [-Math.sin(a), Math.cos(a)];
+      const cp = [Math.cos(a) * R + u[0] * 2.2 + t[0] * 1.3, Math.sin(a) * R + u[1] * 2.2 + t[1] * 1.3];
+      const r2 = (v) => Math.round(v * 100) / 100;
+      await cmd('dummy', 'off');
+      await cmd('auto', 'spar', 0);
+      await place(r2(cp[0]), r2(cp[1]), r2(Math.atan2(u[0], u[1]) * 180 / Math.PI));
+      await cmd('auto', 'place', r2(cp[0] + u[0] * 2.5), r2(cp[1] + u[1] * 2.5), r2(Math.atan2(-u[0], -u[1]) * 180 / Math.PI));
+      await cmd('auto', 'freeze', 120);
+      await cmd('camvar', 'A');
+      const out = [];
+      for (const q of [0, 2]) {
+        await cmd('quality', q);
+        await waitFor((s) => s.flags.quality === q, 'the preset ' + q, 30000);
+        for (const on of [0, 1]) {
+          await cmd('fade', on, 0.25);
+          await cmd('frame', 'foe');
+          await frames(4);
+          const m = await raf(8000);
+          const f = fr(await state());
+          out.push({ preset: q === 0 ? 'LOW' : 'HIGH', fade: on ? '25 %' : 'off', frames: m.n, p50_ms: m.p50, mean_ms: m.mean, faded: f.fade.faded, draws: f.draws });
+        }
+      }
+      await cmd('fade', 0, 0.25);
+      await cmd('quality', 2);
+      await waitFor((s) => s.flags.quality === 2, 'back to High', 30000);
+      await cmd('auto', 'thaw');
+      await cmd('auto', 'place', -3.5, -2.5, 20.2);
+      await cmd('dummy', 'on');
+      res.fadeCost = out;
+      step('the fading\'s cost beside the column (A; software rendering — compare only): ' + out.map((o) => `${o.preset} ${o.fade}: p50 ${o.p50_ms} ms, mean ${o.mean_ms} ms over ${o.frames} frames, ${o.faded} faded, ${o.draws} draws`).join(' · '));
+    };
+
     const touchTests = async () => {
       const st0 = await state();
       const box = await page.locator('canvas').first().boundingBox();
@@ -879,7 +1004,9 @@ async function runProfile(p) {
       // M2.3 (phone profiles): the touch controls — layout and sizes, the joystick with sprint at its rim, two fingers
       // at once (stick + camera), a camera drag that crosses the stick, Jump, Dodge and Shadow Step in open space.
       await touchTests();
+      await cameraComparison();
     }
+    if (p.kind === 'desktop') await fadeCost();
 
     await tap('arena_menu');
     await waitFor((s) => s.scene === 'main_menu', 'back to the menu', 60000);

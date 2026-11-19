@@ -19,10 +19,14 @@ const ENV := "res://assets/env/"
 static var flames: Array[OmniLight3D] = []
 ## The moon (its shadows follow the graphics preset).
 static var moon: DirectionalLight3D
+## What may stand between the camera and the fight (M4.2-A): each column and the broken arch, every piece of one listed
+## together, to fade as one (OcclusionFader).
+static var occluders: Array = []
 
 
 static func build(root: Node3D) -> void:
 	flames.clear()
+	occluders.clear()
 	var stone := TexLoader.material(ENV + "wall_blocks.webp.bin", Vector2(0.6, 0.6), Color(0.74, 0.73, 0.78), 0.95, true)
 	var dark := TexLoader.material(ENV + "wall_blocks.webp.bin", Vector2(0.6, 0.6), Color(0.46, 0.45, 0.52), 0.95, true)
 	_environment(root)
@@ -135,10 +139,11 @@ static func _walls(root: Node3D, stone: Material, dark: Material) -> void:
 ## The damaged arch in the north wall: two piers, a ring of voussoirs with its keystone and a neighbour fallen.
 static func _arch(root: Node3D, stone: Material, dark: Material) -> void:
 	var z := -HALF - 0.45
+	var group: Array[MeshInstance3D] = []
 	for x: float in [-2.9, 2.9]:
-		_mesh(root, _box(Vector3(1.3, 5.2, 1.3)), stone, Vector3(x, 2.6, z))
-		_mesh(root, _box(Vector3(1.6, 0.35, 1.6)), dark, Vector3(x, 5.35, z))
-		_mesh(root, _box(Vector3(1.6, 0.4, 1.6)), dark, Vector3(x, 0.2, z))
+		group.append(_mesh(root, _box(Vector3(1.3, 5.2, 1.3)), stone, Vector3(x, 2.6, z)))
+		group.append(_mesh(root, _box(Vector3(1.6, 0.35, 1.6)), dark, Vector3(x, 5.35, z)))
+		group.append(_mesh(root, _box(Vector3(1.6, 0.4, 1.6)), dark, Vector3(x, 0.2, z)))
 	var centre := Vector3(0, 5.5, z)
 	var r := 2.9
 	var n := 11
@@ -149,11 +154,14 @@ static func _arch(root: Node3D, stone: Material, dark: Material) -> void:
 		var p := centre + Vector3(cos(a) * r, sin(a) * r, 0)
 		var v := _mesh(root, _box(Vector3(0.8, 0.95, 1.2)), stone, p)
 		v.rotation.z = a - PI * 0.5
+		group.append(v)
 	# The fallen keystone and its neighbour on the ground inside the arch.
 	var k1 := _mesh(root, _box(Vector3(0.55, 0.95, 1.2)), dark, Vector3(0.4, 0.3, z + 1.6))
 	k1.rotation = Vector3(0.3, 0.8, 1.35)
 	var k2 := _mesh(root, _box(Vector3(0.5, 0.9, 1.1)), dark, Vector3(-0.9, 0.26, z + 2.3))
 	k2.rotation = Vector3(-0.2, 2.2, 1.5)
+	group.append_array([k1, k2])
+	occluders.append(group)
 
 
 ## Eight columns on a ring round the open middle: standing (with capitals), broken off, and one fallen.
@@ -163,23 +171,26 @@ static func _columns(root: Node3D, stone: Material, dark: Material) -> void:
 	for i in 8:
 		var a := TAU * (float(i) + 0.5) / 8.0
 		var pos := Vector3(cos(a) * COLUMN_R, 0.0, sin(a) * COLUMN_R)
-		_mesh(root, _cyl(0.62, 0.62, 0.4), dark, pos + Vector3(0, 0.2, 0))
+		var group: Array[MeshInstance3D] = [_mesh(root, _cyl(0.62, 0.62, 0.4), dark, pos + Vector3(0, 0.2, 0))]
+		occluders.append(group)
 		if i == 2:
 			# fallen: its stump left standing, the shaft lying along the ring (outside the open middle)
-			_mesh(root, _cyl(0.42, 0.45, 0.9), stone, pos + Vector3(0, 0.85, 0))
+			group.append(_mesh(root, _cyl(0.42, 0.45, 0.9), stone, pos + Vector3(0, 0.85, 0)))
 			var tangent := Vector3(-sin(a), 0.0, cos(a))
 			var drum := _mesh(root, _cyl(0.4, 0.4, 3.6), stone, pos + tangent * 2.4 + Vector3(0, 0.4, 0))
 			drum.rotation = Vector3(PI * 0.5, atan2(tangent.x, tangent.z), 0.0)
+			group.append(drum)
 			_collider_cyl(root, 0.5, 1.3, pos + Vector3(0, 0.65, 0))
 			continue
 		var broken := i % 3 != 0
 		var h := rng.randf_range(1.8, 3.4) if broken else 5.0
-		_mesh(root, _cyl(0.38, 0.45, h), stone, pos + Vector3(0, 0.4 + h * 0.5, 0))
+		group.append(_mesh(root, _cyl(0.38, 0.45, h), stone, pos + Vector3(0, 0.4 + h * 0.5, 0)))
 		if broken:
 			var chunk := _mesh(root, _cyl(0.3, 0.38, 0.5), stone, pos + Vector3(0.08, 0.4 + h + 0.12, 0.05))
 			chunk.rotation = Vector3(rng.randf_range(-0.4, 0.4), 0.0, rng.randf_range(-0.5, 0.5))
+			group.append(chunk)
 		else:
-			_mesh(root, _box(Vector3(1.15, 0.38, 1.15)), dark, pos + Vector3(0, 0.4 + h + 0.19, 0))
+			group.append(_mesh(root, _box(Vector3(1.15, 0.38, 1.15)), dark, pos + Vector3(0, 0.4 + h + 0.19, 0)))
 		_collider_cyl(root, 0.5, 0.4 + h, pos + Vector3(0, (0.4 + h) * 0.5, 0), 1 | 16)
 
 
