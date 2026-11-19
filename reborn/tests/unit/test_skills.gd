@@ -484,3 +484,30 @@ func test_the_pursuit_is_refused_out_of_reach() -> String:
 	var res := [c.melee.action.id if c.melee.action else "", c.fighter.state, _notices.has("Out of reach"), a.hp]
 	_clear()
 	return "" if res == ["rising_slash", "ground", true, 134] else "a pursuit 5.5 m away: %s (want refused, still on the ground)" % [res]
+
+
+## A pursuit pressed late, when the target has fallen low: still a visible jump (at least 0.6 m), and the chop still
+## reaches it before it lands.
+func test_a_late_pursuit_still_leaps() -> String:
+	var c := _samurai()
+	var a := _automaton(Vector3(0, 0, 1.3))
+	if not _rise(c, a):
+		_clear()
+		return "the automaton was not launched"
+	var t := 0.0
+	while t < 1.0 and float(a.info()["airtime"]) == 0.0 and a.state == "air" and a.predict(0.3).y > 0.95:
+		_tick_all(c, [a], DT)
+		t += DT
+	var hp0 := a.hp
+	c.try_conditional(0)
+	var top := 0.0
+	t = 0.0
+	while t < 1.0 and a.hp == hp0:
+		_tick_all(c, [a], DT)
+		t += DT
+		top = maxf(top, c.fighter.global_position.y)
+	var hp := a.hp
+	_clear()
+	if top < 0.55:
+		return "a late pursuit rose only %.2f m (want a visible jump: 0.6 m)" % top
+	return "" if hp == hp0 - 14 else "a late pursuit did not land its chop (%d → %d)" % [hp0, hp]

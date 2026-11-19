@@ -221,7 +221,8 @@ func _launch(a: AttackData, target: Node3D) -> void:
 
 
 ## Aerial Pursuit's leap: toward where the airborne target will be at the strike — he ends `leap.ahead` m short of it,
-## `leap.below` m under its height — a visible jump, with collision; he is in the air from here.
+## `leap.below` m under its height (at least `leap.min_hop` m up: always a visible jump) — with collision; he is in the
+## air from here.
 func _begin_leap(a: AttackData) -> void:
 	var at := fighter.global_position
 	var tp := at + fighter.forward() * 2.0
@@ -232,7 +233,7 @@ func _begin_leap(a: AttackData) -> void:
 	var dist := maxf(0.0, flat.length() - float(a.leap.get("ahead", 0.95)))
 	_leap_from = at
 	_leap_to = at + dir * dist
-	_leap_to.y = maxf(at.y, tp.y - float(a.leap.get("below", 0.6)))
+	_leap_to.y = maxf(at.y + float(a.leap.get("min_hop", 0.0)), tp.y - float(a.leap.get("below", 0.6)))
 	fighter.begin_air_action()
 	QA.flag("leap", "%.2f:%.2f" % [dist, _leap_to.y])
 
