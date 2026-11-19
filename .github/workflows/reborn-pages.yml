@@ -77,6 +77,8 @@ jobs:
           "$FF" -y -loglevel error -ss 10.0 -t 8.4 -i $MP4 -vf "fps=3,scale=480:-1,tile=6x5" -frames:v 1 build/web/qa/m4d_failed_a_frames.jpg
           "$FF" -y -loglevel error -ss 20.5 -t 9.6 -i $MP4 -vf "fps=3,scale=480:-1,tile=6x5" -frames:v 1 build/web/qa/m4d_failed_b_frames.jpg
           "$FF" -y -loglevel error -ss 33.4 -t 6.4 -i $MP4 -vf "fps=5.5,scale=480:-1,tile=6x6" -frames:v 1 build/web/qa/m4d_slow_frames.jpg
+          # (M4.1, GPT's v1.7) the first 16 frames, one by one: the camera's first frame is the game view
+          "$FF" -y -loglevel error -i $MP4 -vf "select='lt(n\,16)',scale=480:-1,tile=4x4" -vsync 0 -frames:v 1 build/web/qa/m41_first_frames.jpg
           python3 reborn/tools/pack_png.py $MP4 $MP4.png
           # the integrated M4 review: the three Legacy Chain branches one after another at real speed (overview at 2 fps)
           xvfb-run -a -s "-screen 0 1280x720x24" ~/godot/godot --path reborn --rendering-method gl_compatibility \

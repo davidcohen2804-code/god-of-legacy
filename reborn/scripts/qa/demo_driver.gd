@@ -21,7 +21,9 @@ extends Node
 ## timed against the sweep are made when its attack has run a set time, a frame or two of input latency included, as a
 ## practised thumb would. Captions in the HUD's prompt line name each part. Recorded with Godot's Movie Maker
 ## (--write-movie, fixed frame rate), so the clip is smooth however slowly the machine renders; the script runs in game
-## time. It quits when the script ends.
+## time. It quits when the script ends — or, looped (the device test's benchmark, GPT's v1.7: the same encounter at each
+## graphics preset), starts it again, the automaton back on its mark once it has risen. Its touches go through the
+## window's own coordinates (the canvas's stretched to the screen), so they land on the buttons on any screen.
 
 ## [time (s), action, args...]. "go": the thumb steers the stick toward a point of the courtyard (x, z) at a push
 ## (0..1; 1 = the rim, which sprints after 0.25 s) until he is there; "approach": he walks at a push toward the
@@ -174,12 +176,21 @@ var _after: Array = [] ## the mash's after-steps: [delay, step]
 var _deferred: Array = [] ## [time, step]
 var _watch: Array[Dictionary] = [] ## when_cond / when_action: kind, id, at, step, since, limit
 var _home := Vector3.INF ## the automaton's mark
+var _loop := false
+var _named := "" ## the script chosen by use() (else the command line's)
+
+
+## Run the script `name` ("m4", "c", "d"), looped when `loop` (before it joins the tree).
+func use(name_: String, loop: bool = false) -> void:
+	_named = name_
+	_loop = loop
 
 
 func _ready() -> void:
-	if "--demo-c" in OS.get_cmdline_user_args():
+	var args := OS.get_cmdline_user_args()
+	if _named == "c" or (_named == "" and "--demo-c" in args):
 		_script = SCRIPT_C
-	elif "--demo-m4" in OS.get_cmdline_user_args():
+	elif _named == "m4" or (_named == "" and "--demo-m4" in args):
 		_script = SCRIPT_M4
 
 
@@ -251,8 +262,8 @@ func _physics_process(delta: float) -> void:
 		var p: Vector2 = (_drag["from"] as Vector2).lerp(_drag["to"], k)
 		var d := InputEventScreenDrag.new()
 		d.index = 1
-		d.position = p
-		d.relative = p - (_drag["last"] as Vector2)
+		d.position = _window(p)
+		d.relative = _window_delta(p - (_drag["last"] as Vector2))
 		_drag["last"] = p
 		Input.parse_input_event(d)
 		if k >= 1.0:
@@ -328,7 +339,28 @@ func _run(step: Array) -> void:
 				automaton.facing = atan2(-dir.x, -dir.z)
 		"end":
 			Engine.time_scale = 1.0
-			get_tree().quit()
+			if _loop:
+				_again()
+			else:
+				get_tree().quit()
+
+
+## (Looped) the script from its start, wherever he stands now; the automaton put back on its mark, whole, once it has
+## risen from its defeat (it rises 2.6 s after it).
+func _again() -> void:
+	_t = 0.0
+	_i = 0
+	_goal = Vector3.INF
+	_point_left = 0.0
+	_wait = {}
+	_on_attack.clear()
+	_attack_left = 0.0
+	_approach = {}
+	_mash = {}
+	_after = []
+	_watch.clear()
+	_deferred = [[3.0, [3.0, "reset"]]]
+	_stick(Vector2.ZERO, false)
 
 
 ## The mash: Attack tapped when a strike would take it — free (it starts one) or while one cuts or recovers with none
@@ -403,14 +435,23 @@ func _stick(v: Vector2, down: bool) -> void:
 	var p := c + Vector2(v.x, -v.y) * r
 	var d := InputEventScreenDrag.new()
 	d.index = 0
-	d.position = p
-	d.relative = p - c
+	d.position = _window(p)
+	d.relative = _window_delta(p - c)
 	Input.parse_input_event(d)
 
 
 func _touch(index: int, p: Vector2, pressed: bool) -> void:
 	var e := InputEventScreenTouch.new()
 	e.index = index
-	e.position = p
+	e.position = _window(p)
 	e.pressed = pressed
 	Input.parse_input_event(e)
+
+
+## A point of the canvas (the touch controls' coordinates) in the window's, where input events arrive.
+func _window(p: Vector2) -> Vector2:
+	return get_viewport().get_final_transform() * p
+
+
+func _window_delta(v: Vector2) -> Vector2:
+	return get_viewport().get_final_transform().basis_xform(v)

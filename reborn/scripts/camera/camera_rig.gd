@@ -6,7 +6,8 @@ extends Node3D
 ##   phone's small screen through the strikes and the foe's reactions);
 ##   COMBO: a little closer, for aerial chains and finishers — still inside the same band, so a change of mode never
 ##   jumps the framing.
-## Every change is damped (no snapping, no cuts). A touch drag turns it at any time; easing toward a locked foe never
+## Every change is damped (no snapping, no cuts) — after the start, where settle() places it at once in the framing it
+## starts in (GPT's v1.7: its first frame is the game view). A touch drag turns it at any time; easing toward a locked foe never
 ## overrides a drag. It pulls in (never closer than 3 m) in front of columns; it looks over the low walls. A landed
 ## blow gives it a brief jolt (shake), stronger for a finisher; a finisher may also narrow its view a little
 ## (`fov_push`: degrees, eased in and out, never turning it — GPT's v1.6: at most 2° for Phantom Execution).
@@ -66,6 +67,14 @@ func snap_behind(facing: float) -> void:
 		_pos = target.global_position + Vector3(0, _height, 0)
 
 
+## Put the camera at once where it settles for its mode, target and focus — distance, pitch, height, field of view and
+## position, no easing (GPT's v1.7): when the arena is built, so the very first frame drawn is the game view (never
+## the floor-level view of a camera not yet placed, nor a framing still easing in). Its smoothing takes over from there.
+func settle() -> void:
+	if target and cam:
+		_update(0.0, true)
+
+
 ## Pixels of drag from the input system.
 func turn(drag: Vector2) -> void:
 	if drag == Vector2.ZERO:
@@ -96,9 +105,14 @@ func distance() -> float:
 func _process(delta: float) -> void:
 	if target == null or not active:
 		return
+	_update(delta, false)
+
+
+## One step of the camera toward its framing — eased over `delta`, or there at once (`snap`: settle()).
+func _update(delta: float, snap: bool) -> void:
 	_drag_quiet += delta
 	var p: Dictionary = PRESETS[mode]
-	var k := 1.0 - exp(-delta * 4.0)
+	var k := 1.0 if snap else 1.0 - exp(-delta * 4.0)
 	var extra := 0.0
 	var aim := target.global_position
 	if focus and is_instance_valid(focus) and mode != Mode.EXPLORATION:
@@ -107,14 +121,14 @@ func _process(delta: float) -> void:
 		aim = aim.lerp(focus.global_position, 0.25 if sep < 12.0 else 0.0)
 		if lock and _drag_quiet > 0.6:
 			var to := focus.global_position - target.global_position
-			yaw = lerp_angle(yaw, atan2(-to.x, -to.z), 1.0 - exp(-delta * 2.6))
+			yaw = lerp_angle(yaw, atan2(-to.x, -to.z), 1.0 if snap else 1.0 - exp(-delta * 2.6))
 	_dist = lerpf(_dist, clampf(float(p["dist"]) + extra, DIST_MIN, DIST_MAX), k)
 	_pitch = lerpf(_pitch, clampf(float(p["pitch"]) + _pitch_offset, PITCH_MIN, PITCH_MAX), k)
 	_height = lerpf(_height, float(p["height"]), k)
 	_fov = lerpf(_fov, float(p["fov"]), k)
-	_push = lerpf(_push, fov_push, 1.0 - exp(-delta * 14.0))
+	_push = lerpf(_push, fov_push, 1.0 if snap else 1.0 - exp(-delta * 14.0))
 	cam.fov = _fov - _push
-	_pos = _pos.lerp(aim + Vector3(0, _height, 0), 1.0 - exp(-delta * 9.0))
+	_pos = _pos.lerp(aim + Vector3(0, _height, 0), 1.0 if snap else 1.0 - exp(-delta * 9.0))
 
 	var b := Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, deg_to_rad(_pitch))
 	var want_pos := _pos + b.z * _dist

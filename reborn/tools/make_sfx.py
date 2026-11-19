@@ -12,6 +12,8 @@ WAV, which Godot imports). M3 review (GPT): three distinct sword swings and impa
   seal_tick   — the mark's pulses: a short bright tick over a low hum (pitched up for each later pulse).
   detonation  — the mark bursting: a sharp crack, a noise burst and a deep falling boom with a crackling tail.
   execution_swing / execution_impact — Phantom Execution: a long, heavy whoosh; a deeper impact than any basic strike.
+  cue         — a Legacy Chain opportunity earned (M4.1, GPT's v1.7: a short, subtle chime): two soft bell partials a
+                fifth apart (about 1050 and 1575 Hz) and a faint octave, 0.15 s, ringing out quickly.
 Placeholder quality (synthesized, not recorded): to be replaced or layered in the audio pass.
 Usage: python3 make_sfx.py <out dir>"""
 import struct
@@ -168,3 +170,15 @@ save('seal_tick', seal_tick(0.14), 0.55)
 save('detonation', detonation(0.9), 0.95)
 save('execution_swing', swing(0.42, 150, 760, 0.55, 0.3, whistle=0.015, body=1.1), 0.9)
 save('execution_impact', impact(0.85, 120, 36, 0.2, 470, 1.5, boom=2.4), 0.97)
+
+
+def cue(dur):
+    n = int(SR * dur)
+    t = np.arange(n) / SR
+    x = np.zeros(n)
+    for fr, a, d in [(1050, 0.6, 0.06), (1575, 0.45, 0.045), (2100, 0.12, 0.03)]:
+        x += a * np.sin(2 * np.pi * fr * t) * np.exp(-t / d) * np.clip(t / 0.004, 0, 1)
+    return x * np.clip((dur - t) / 0.02, 0, 1)
+
+
+save('cue', cue(0.15), 0.5)

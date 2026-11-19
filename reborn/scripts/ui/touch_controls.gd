@@ -14,6 +14,10 @@ extends Control
 ## It only produces intents (PlayerInput); it knows nothing of the rules — what the conditional buttons show, and each
 ## skill's cooldown, it is told. Basic Attack (the katana chain), Heavy, Phantom Chain, Shadow Step, Rising Slash,
 ## Dodge and Jump take presses (a button not built yet would be drawn dimmed and take none).
+## A conditional button that starts showing an opportunity (a new one, or one brought on from the waiting chip) gives a
+## brief cue (GPT's v1.7): a 3 px ring bursting from its edge to CUE_GROW × its radius over CUE s, gold turning to violet
+## as it fades — never so wide that it reaches a neighbouring button — and its fill lit for CUE_FILL s. Drawn only: the
+## touch targets never change and the cue takes no input.
 
 const REF := Vector2(1280, 720)
 ## name → [centre in the reference, diameter, cluster ("L" bottom-left, "R" bottom-right)]
@@ -40,6 +44,10 @@ const TOP_BAR := 110.0 ## canvas px kept free at the top for the HUD
 const STICK_CAPTURE := 1.5 ## a touch starting within this many base radii takes the stick
 const RIM := 0.95 ## the stick's push (0..1) that counts as its rim
 const DEAD := 0.12
+const CUE := 0.3 ## s, a conditional button's activation ring
+const CUE_FILL := 0.15 ## s its fill stays lit
+const CUE_GROW := 1.4 ## the ring's widest, as a multiple of the button's drawn radius
+const CUE_CLEAR := 4.0 ## px the ring keeps clear of any other button
 
 var input: PlayerInput
 ## Buttons that take presses; the rest are drawn dimmed.
@@ -47,6 +55,8 @@ var enabled_actions := {"attack": true, "heavy": true, "skill1": true, "skill2":
 	"jump": true}
 ## Areas left to the interface's own buttons (pause...): touches there are not taken.
 var reserved: Array[Rect2] = []
+## Controls whose own areas are left to them, wherever they are laid out (the device test's TEST button).
+var reserved_controls: Array[Control] = []
 
 var css_per_px := 1.0 ## CSS pixels per canvas pixel on this screen
 var hit_scale := 1.0
@@ -59,6 +69,7 @@ var _touch := {} ## touch index → {role, key}
 var _stick_index := -1
 var _stick_knob := Vector2.ZERO
 var _flash := {}
+var _cue := {} ## cond key → s since its opportunity came onto it
 var _t := 0.0
 var _font: Font
 
@@ -72,12 +83,43 @@ func _ready() -> void:
 
 
 ## A Legacy Chain conditional button ("cond1", "cond2"): shown with `label` while `on`, its ring at `left` (the part
-## of its window still open, 1..0). Told every frame.
-func set_conditional(key: String, label: String, on: bool, left: float = 1.0) -> void:
-	var was: bool = _cond.has(key) and bool(_cond[key]["on"])
-	_cond[key] = {"label": label, "on": on, "left": clampf(left, 0.0, 1.0)}
+## of its window still open, 1..0); `ident` names the opportunity (ability and target) so a new one on the button cues
+## (the label when not given). Told every frame.
+func set_conditional(key: String, label: String, on: bool, left: float = 1.0, ident: String = "") -> void:
+	var before: Dictionary = _cond.get(key, {})
+	var was := bool(before.get("on", false))
+	var id := ident if ident != "" else label
+	if on and (not was or String(before.get("ident", "")) != id):
+		_cue[key] = 0.0
+		QA.flag("cue", "%s:%s" % [key, label])
+	elif not on:
+		_cue.erase(key)
+	_cond[key] = {"label": label, "on": on, "left": clampf(left, 0.0, 1.0), "ident": id}
 	if was != on:
 		_publish_rects()
+
+
+## How far a conditional button's activation ring may open (px from its centre): CUE_GROW × its drawn radius, less
+## where another button shown now is closer (it keeps CUE_CLEAR px clear of it) — never inside the button itself.
+func cue_reach(key: String) -> float:
+	var b: Dictionary = _btn.get(key, {})
+	if b.is_empty():
+		return 0.0
+	var c: Vector2 = b["c"]
+	var r: float = b["r_art"]
+	var reach := r * CUE_GROW
+	for other in _btn:
+		if other == key or other == "stick" or not is_shown(other):
+			continue
+		var o: Dictionary = _btn[other]
+		var extent: float = float(o["r_art"]) * (1.5 if other == "more" else 1.0) # (the chip: a pill, half as long again)
+		reach = minf(reach, c.distance_to(o["c"]) - extent - CUE_CLEAR)
+	return maxf(reach, r + 2.0)
+
+
+## (Tests and QA) the cue running on a conditional button: s since it began (-1: none).
+func cue_age(key: String) -> float:
+	return float(_cue.get(key, -1.0))
 
 
 ## How many opportunities wait beyond the two buttons (the chip shows while there are any).
@@ -237,6 +279,9 @@ func _down(index: int, p: Vector2) -> bool:
 	for r in reserved:
 		if r.has_point(p):
 			return false
+	for c in reserved_controls:
+		if is_instance_valid(c) and c.is_visible_in_tree() and c.get_global_rect().has_point(p):
+			return false
 	# Buttons first: the nearest one whose hit circle holds the touch.
 	var best := ""
 	var best_d := INF
@@ -309,6 +354,10 @@ func _process(delta: float) -> void:
 		_flash[k] -= delta
 		if _flash[k] <= 0.0:
 			_flash.erase(k)
+	for k in _cue.keys():
+		_cue[k] = float(_cue[k]) + delta
+		if float(_cue[k]) >= CUE:
+			_cue.erase(k)
 	queue_redraw()
 
 
@@ -342,6 +391,9 @@ func _draw() -> void:
 		draw_circle(c, r, _alpha(UiTheme.PLUM, (0.9 if lit else 0.62) * a))
 		if lit:
 			draw_circle(c, r * 0.94, _alpha(UiTheme.GOLD, 0.32))
+		var cue := float(_cue.get(key, -1.0)) if cond else -1.0
+		if cue >= 0.0 and cue < CUE_FILL:
+			draw_circle(c, r * 0.94, _alpha(UiTheme.GOLD, 0.34 * (1.0 - cue / CUE_FILL)))
 		draw_arc(c, r, 0.0, TAU, 72, _alpha(ring, a), 3.5 if key == "attack" else 2.5, true)
 		if cond:
 			var left := float(_cond[key]["left"])
@@ -353,6 +405,12 @@ func _draw() -> void:
 			_pie(c, r * 0.97, clampf(float(cdv[0]) / float(cdv[1]), 0.0, 1.0), _alpha(UiTheme.MIDNIGHT, 0.72))
 			label = "%.1f" % float(cdv[0]) if float(cdv[0]) < 10.0 else "%d" % int(cdv[0])
 		_text(c, label, int(clampf(r * 0.42, 13.0, 22.0)), _alpha(UiTheme.TEXT, 0.95 * a))
+		if cue >= 0.0:
+			# the activation ring: from the button's edge outward, easing out, gold turning violet as it fades
+			var k := clampf(cue / CUE, 0.0, 1.0)
+			var rr := lerpf(r + 1.5, cue_reach(key), 1.0 - (1.0 - k) * (1.0 - k))
+			var col := UiTheme.GOLD.lerp(UiTheme.ACCENT, k)
+			draw_arc(c, rr, 0.0, TAU, 72, Color(col.r, col.g, col.b, 1.0 - k), 3.0, true)
 
 
 ## The overflow chip: a small pill with the count of opportunities waiting (the text well inside its edge).

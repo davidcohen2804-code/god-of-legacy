@@ -17,6 +17,8 @@ const ENV := "res://assets/env/"
 
 ## The braziers' lights, for their flicker.
 static var flames: Array[OmniLight3D] = []
+## The moon (its shadows follow the graphics preset).
+static var moon: DirectionalLight3D
 
 
 static func build(root: Node3D) -> void:
@@ -72,6 +74,17 @@ static func _environment(root: Node3D) -> void:
 	moon.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
 	moon.directional_shadow_max_distance = 34.0
 	root.add_child(moon)
+	FallenMoonCourtyard.moon = moon
+
+
+## The preset's shadows on the moon (GPT's v1.7): none on Low, one split on Medium, two on High.
+static func apply_quality(q: Dictionary) -> void:
+	if not is_instance_valid(moon):
+		return
+	var splits := int(q.get("splits", 2))
+	moon.shadow_enabled = splits > 0
+	moon.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL if splits == 1 \
+		else DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
 
 
 static func _ground(root: Node3D, dark: Material) -> void:

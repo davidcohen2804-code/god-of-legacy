@@ -12,8 +12,15 @@ extends RefCounted
 ##
 ## The chain (Attack): only a confirmed hit opens the next strike. A press from the active window on is held as the
 ## next strike's request; after a hit it fires once half the recovery is past (or as soon as the chain resumes from
-## FREE within CHAIN_GRACE); after a miss the chain starts again from the first strike. A hit on another target than
-## the chain's, an interruption, a dodge, another action or the chain's expiry start it over.
+## FREE within CHAIN_GRACE); after a miss the chain starts again from the first strike. An interruption, a dodge,
+## another action or the chain's expiry start it over.
+## The primary target (GPT's v1.7 — one authority, shared with Explosive Execution's strike sequence): Basic 1 sets it —
+## the target it turned toward (aim_target, told by the controller) the moment its blade strikes it; otherwise, once
+## its active window has closed, the nearest target it struck (equal distances: the lower id). Basic 2 and 3 go on only
+## if their blade struck the primary in their active window; other targets struck by the same sweep, before or after
+## it, take their damage and change nothing. A strike that struck only others is a target switch: the chain starts
+## over (the next strike is Basic 1). Decided once the window has closed and every hit of its last tick is in, so the
+## order inside one sweep never matters.
 ## Other actions start only from FREE (a press made earlier waits in the input buffer) and only when off cooldown; an
 ## Attack press during one is held, and the chain's first strike follows it. An action may name moments of its own
 ## ("events": the controller acts on them — a projectile's release, a mark's placing…), each reported once, and its
@@ -37,7 +44,10 @@ var t := 0.0 ## time in the current phase
 var hitstop := 0.0
 var hitstun := 0.0
 var confirmed := false ## the running action has hit
-var chain_target := 0 ## the instance id the chain is on (0: none)
+var chain_target := 0 ## the chain's primary target: its instance id (0: none)
+## The target the running chain strike turned toward (the controller's aim assist; 0: none) — Basic 1's primary when
+## its blade strikes it.
+var aim_target := 0
 var next_step := 0
 var chain_open := 0.0
 var queued := false
@@ -51,8 +61,11 @@ var events: Array[Dictionary] = []
 var swept := Vector2(-1, -1)
 
 var _hit_ids := {}
+var _hit_dist := {} ## target id → how far from him it stood when this activation struck it (Basic 1's choice)
 var _fired := {}
 var _active_time := -1.0 ## the running action's active window when set while it runs (-1: its data's)
+var _settle := false ## a chain strike's active window has closed; its outcome for the chain is still to decide
+var _decided := false ## the running chain strike's outcome for the chain is decided
 
 
 func _init(p_attacks: Array[AttackData] = []) -> void:
@@ -163,24 +176,61 @@ func take_hit(stun: float) -> void:
 	_set_phase(Phase.HITSTUN)
 
 
-## The sweep found `target_id` in the span this tick swept. True when this is a new hit for this activation (damage
-## it); false for a target already hit by this swing (once per target per activation) or when nothing was swept.
-func hit_confirmed(target_id: int) -> bool:
+## The sweep found `target_id` (`dist` m from him) in the span this tick swept. True when this is a new hit for this
+## activation (damage it); false for a target already hit by this swing (once per target per activation) or when
+## nothing was swept. What it means for the chain is decided by the primary-target rule (above).
+func hit_confirmed(target_id: int, dist: float = 0.0) -> bool:
 	if swept.x < 0.0 or _hit_ids.has(target_id):
 		return false
 	_hit_ids[target_id] = true
-	if not confirmed:
-		confirmed = true
-		if step_index >= 0:
-			if step_index > 0 and chain_target != 0 and chain_target != target_id:
-				next_step = 0 # another target: the chain starts over after this strike
-				events.append({"type": "chain_reset", "why": "target"})
-			else:
-				next_step = (step_index + 1) % attacks.size()
-			chain_target = target_id
+	_hit_dist[target_id] = dist
+	confirmed = true
 	hitstop = maxf(hitstop, action.hit_stop)
 	events.append({"type": "hit", "step": step_index, "id": action.id, "target": target_id, "damage": action.damage})
+	if step_index == 0 and not _decided and target_id == aim_target:
+		_set_primary(target_id) # (Basic 1 struck the target it turned toward: the primary, at once)
 	return true
+
+
+## Did the running (or last) strike strike the chain's primary target?
+func struck_primary() -> bool:
+	return chain_target != 0 and _hit_ids.has(chain_target)
+
+
+## Basic 1's primary target is `id`: the chain goes on against it.
+func _set_primary(id: int) -> void:
+	_decided = true
+	chain_target = id
+	next_step = 1 % attacks.size()
+	events.append({"type": "primary", "target": id})
+
+
+## A chain strike's active window has closed and every hit it swept is in (run at the next tick's start): its outcome
+## for the chain — Basic 1 without its aimed target struck takes the nearest target it struck (equal distances: the lower
+## id); Basic 2 or 3 goes on when it struck the primary, and is a target switch when it struck only others (the chain
+## starts over); a strike that struck nothing is a miss (its end starts the chain over).
+func _settle_chain() -> void:
+	_settle = false
+	if _decided or step_index < 0:
+		return
+	_decided = true
+	if _hit_ids.is_empty():
+		return
+	if step_index == 0:
+		var best := 0
+		var best_d := INF
+		for id: int in _hit_ids:
+			var d := float(_hit_dist.get(id, 0.0))
+			if d < best_d - 1e-6 or (absf(d - best_d) <= 1e-6 and id < best):
+				best = id
+				best_d = d
+		_set_primary(best)
+	elif _hit_ids.has(chain_target):
+		next_step = (step_index + 1) % attacks.size()
+	else:
+		next_step = 0
+		chain_target = 0
+		events.append({"type": "chain_reset", "why": "target"})
 
 
 ## Has this activation already been resolved against `target_id` (a hit, or a blow evaded or avoided)?
@@ -197,6 +247,8 @@ func spent_on(target_id: int) -> void:
 ## One fixed tick. Afterwards `swept` holds the part of the active window covered by it.
 func step(dt: float) -> void:
 	swept = Vector2(-1, -1)
+	if _settle:
+		_settle_chain() # (the window closed last tick; the controller has reported all its hits since)
 	for k in cooldowns.keys():
 		cooldowns[k] = maxf(0.0, float(cooldowns[k]) - dt)
 		if cooldowns[k] == 0.0:
@@ -232,6 +284,7 @@ func step(dt: float) -> void:
 		swept = Vector2(clampf(before / act, 0.0, 1.0), clampf(t / act, 0.0, 1.0))
 		if t >= act:
 			t -= act
+			_settle = step_index >= 0
 			_set_phase(Phase.RECOVERY)
 		return
 	# RECOVERY
@@ -253,9 +306,13 @@ func _start_action(a: AttackData, k: int) -> void:
 	step_index = k
 	confirmed = false
 	queued = false
+	aim_target = 0
 	_hit_ids.clear()
+	_hit_dist.clear()
 	_fired.clear()
 	_active_time = -1.0
+	_settle = false
+	_decided = false
 	chain_open = 0.0
 	if k <= 0:
 		chain_target = 0
@@ -277,16 +334,19 @@ func _fire_events() -> void:
 
 func _end_strike() -> void:
 	queued = false
+	if _settle:
+		_settle_chain()
 	if not confirmed:
 		events.append({"type": "miss", "step": step_index, "id": action.id})
-	if step_index >= 0 and confirmed and step_index < attacks.size() - 1:
-		chain_open = CHAIN_GRACE
+	var last := attacks.size() - 1
+	if step_index >= 0 and step_index < last and confirmed and next_step == step_index + 1:
+		chain_open = CHAIN_GRACE # (it struck the primary: the next strike may still follow)
 	else:
-		if not confirmed or step_index < 0 or step_index == attacks.size() - 1:
-			next_step = 0
-			if step_index == attacks.size() - 1 and confirmed:
-				events.append({"type": "chain_done"})
-		chain_target = 0 if (not confirmed or step_index < 0) else chain_target
+		if step_index == last and struck_primary():
+			events.append({"type": "chain_done"})
+		next_step = 0
+		if not confirmed or step_index < 0:
+			chain_target = 0
 	_set_phase(Phase.FREE)
 
 
@@ -297,6 +357,8 @@ func _reset_chain(why: String) -> void:
 	chain_open = 0.0
 	chain_target = 0
 	queued = false
+	_settle = false
+	_decided = true # (whatever the running strike strikes now, the chain has let go)
 
 
 func _set_phase(p: Phase) -> void:

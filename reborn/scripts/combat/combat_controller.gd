@@ -91,7 +91,7 @@ var blows := 0
 ## The combat clock: game time held through his hit-stop — the Legacy Chain's windows and the strike sequence's gaps
 ## run on it. (A mark's fuse runs on its target's own time instead: it is the target's, whatever he does — GPT's v1.6.)
 var clock := 0.0
-## Explosive Execution's entry: the basic strikes confirmed in order on one target (data: "sequence").
+## Explosive Execution's entry: the basic strikes confirmed in order on the chain's primary target (data: "sequence").
 var sequence := StrikeSequence.from_data()
 ## Explosive Seal's marks not yet detonated: target instance id → {target, left: s to its detonation, action}.
 var marks := {}
@@ -99,6 +99,8 @@ var marks := {}
 var _target: Node3D
 var _aim := Vector3.ZERO
 var _stance := 0.0
+## The running chain strike's hits: target instance id → the combat clock at its hit (the sequence begins from it).
+var _hit_clock := {}
 ## A conditional press waiting for its earliest legal moment: {ability, target}.
 var _queued := {}
 ## The target of the conditional ability starting now.
@@ -220,11 +222,15 @@ func tick(dt: float, stick_dir: Vector3) -> void:
 			if SwordSweep.hits(a, fighter.global_position, fighter.facing, melee.swept, target.global_position,
 					float(target.get("hurt_radius")), float(target.get("hurt_height")),
 					from if from is Vector3 else Vector3.INF):
-				if melee.hit_confirmed(target.get_instance_id()):
+				var tid := target.get_instance_id()
+				if melee.hit_confirmed(tid, _flat(target.global_position - fighter.global_position).length()):
 					_land(a, target)
-					if a.button == "attack" and sequence.confirm(a.id, target.get_instance_id(), clock):
-						legacy.event("sequence", target.get_instance_id()) # (Basic 3 completed it: Explosive Seal)
-						QA.flag("sequence", String(target.name))
+					if a.button == "attack":
+						_hit_clock[tid] = clock
+						# (Basic 2 and 3 count on the chain's primary only; Basic 1 begins it once the chain names it)
+						if melee.step_index > 0 and sequence.confirm(a.id, tid, clock):
+							legacy.event("sequence", tid) # (Basic 3 completed it: Explosive Seal)
+							QA.flag("sequence", String(target.name))
 	_events(stick_dir)
 	_tick_shot(dt)
 	_tick_pull()
@@ -664,8 +670,14 @@ func _events(stick_dir: Vector3) -> void:
 					_target = _cond_target
 					_aim = Vector3.ZERO
 				else:
-					_target = _pick_target(stick_dir, a.aim_range if a.aim_range > 0.0 else assist_range)
+					# (Basic 2 and 3 keep to the chain's primary target while it stays in the assist's range and cone)
+					var keep: Node3D = instance_from_id(melee.chain_target) as Node3D \
+						if a.button == "attack" and step > 0 and melee.chain_target != 0 else null
+					_target = _pick_target(stick_dir, a.aim_range if a.aim_range > 0.0 else assist_range, keep)
 					_aim = _flat(stick_dir).normalized() if stick_dir.length() > 0.2 else Vector3.ZERO
+					if a.button == "attack":
+						melee.aim_target = _target.get_instance_id() if _target else 0
+						_hit_clock.clear()
 				fighter.visual.play(a.anim, a.blend, a.startup_speed(), true, a.anim_from)
 				if a.air:
 					_begin_leap(a)
@@ -704,16 +716,24 @@ func _events(stick_dir: Vector3) -> void:
 						_plant_seal(melee.current())
 			"hit":
 				QA.flag("strike_hit", "%s:%d" % [String(e["id"]), int(e["damage"])])
+			"primary":
+				# (Basic 1 named the chain's primary target: the strike sequence begins on it, from its hit's moment)
+				var pid := int(e["target"])
+				sequence.begin(pid, float(_hit_clock.get(pid, clock)))
+				QA.flag("primary", pid)
 			"miss":
 				var m := AttackData.get_attack(String(e["id"]))
 				if m == null or m.kind == "melee": # (a thrown chain or a pull lands on its own, later)
 					stats["misses"] += 1
 					QA.flag("strike_miss", String(e["id"]))
 					strike_missed.emit(melee.current(), step)
+				if step >= 0:
+					sequence.reset()
 			"chain_done":
 				stats["chains"] += 1
 				QA.flag("chain_done", stats["chains"])
 			"chain_reset":
+				sequence.reset() # (a target switch, the chain's expiry, a dodge, another action: it starts over)
 				QA.flag("chain_reset", String(e["why"]))
 			"ready":
 				QA.flag("ready", String(e["id"]))
@@ -938,21 +958,23 @@ func _living_targets() -> Array:
 
 
 ## The target an action turns to: the nearest living one within `limit` m and the assist's cone around the stick's
-## direction (or the facing when the stick is idle).
-func _pick_target(stick_dir: Vector3, limit: float = -1.0) -> Node3D:
+## direction (or the facing when the stick is idle) — `prefer` (the chain's primary target) whenever it is among them.
+func _pick_target(stick_dir: Vector3, limit: float = -1.0, prefer: Node3D = null) -> Node3D:
 	var aim := stick_dir if stick_dir.length() > 0.2 else fighter.forward()
 	var aim_yaw := atan2(aim.x, aim.z)
 	var best: Node3D = null
 	var best_d := assist_range if limit < 0.0 else limit
+	var reach := best_d
 	for n: Node3D in _living_targets():
 		var to := _flat(n.global_position - fighter.global_position)
 		var d := to.length()
-		if d > best_d:
+		if d > reach or absf(rad_to_deg(wrapf(atan2(to.x, to.z) - aim_yaw, -PI, PI))) > assist_cone:
 			continue
-		if absf(rad_to_deg(wrapf(atan2(to.x, to.z) - aim_yaw, -PI, PI))) > assist_cone:
-			continue
-		best = n
-		best_d = d
+		if n == prefer:
+			return n
+		if d <= best_d:
+			best = n
+			best_d = d
 	return best
 
 
@@ -968,8 +990,8 @@ func _nearest_alive(limit: float) -> Node3D:
 	return best
 
 
-## The conditional buttons as they stand: [{ability, name, left, window}] per button (empty when it holds nothing),
-## and how many wait.
+## The conditional buttons as they stand: [{ability, target, name, left, window}] per button (empty when it holds
+## nothing), and how many wait.
 func conditionals() -> Dictionary:
 	var slots := []
 	for i in legacy.slots:
@@ -978,7 +1000,7 @@ func conditionals() -> Dictionary:
 			slots.append({})
 		else:
 			var a := AttackData.get_attack(String(o["ability"]))
-			slots.append({"ability": o["ability"], "name": a.name if a else String(o["ability"]),
+			slots.append({"ability": o["ability"], "target": int(o["target"]), "name": a.name if a else String(o["ability"]),
 				"left": float(o["left"]), "window": float(o["window"])})
 	return {"slots": slots, "waiting": legacy.waiting().size(), "queued": String(_queued.get("ability", ""))}
 

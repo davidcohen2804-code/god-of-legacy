@@ -239,15 +239,24 @@ func test_the_strike_sequence() -> String:
 	q.reset()
 	rows.append([q.confirm("basic3", 7, 6.6)])
 	rows.append([q.confirm("basic1", 7, 7.0), q.confirm("basic2", 7, 7.9), q.confirm("basic3", 7, 8.8)])
-	q.confirm("basic1", 7, 9.0)
-	q.confirm("basic1", 8, 9.0)
-	q.confirm("basic2", 7, 9.3)
-	q.confirm("basic2", 8, 9.3)
-	rows.append([q.confirm("basic3", 7, 9.6), q.confirm("basic3", 8, 9.6)])
+	# (one record, on the primary: the chain named 7; 8 struck by the same sweeps changes nothing, in either order)
+	q.begin(7, 9.0)
+	rows.append([q.confirm("basic2", 8, 9.3), q.confirm("basic2", 7, 9.3), q.confirm("basic3", 7, 9.6),
+		q.confirm("basic3", 8, 9.6)])
 	rows.append([q.confirm("heavy", 7, 10.0), q.progress(7)])
 	var want := [[false, false, true], [false, false, false, 0], [false, false, false], [false, false], [false],
-		[false, false, true], [true, true], [false, 0]]
-	return "" if rows == want else "the sequence: %s (want %s: in order, the same target, each within 0.9 s)" % [rows, want]
+		[false, false, true], [false, false, true, false], [false, 0]]
+	return "" if rows == want else "the sequence: %s (want %s: in order, on the primary, each within 0.9 s)" % [rows, want]
+
+
+## GPT's v1.7 case, in the pure logic: Basic 1 on A, Basic 1 on B (B is now the primary), Basic 2 on A, Basic 3 on A —
+## no Seal: the sequence keeps one record, on the primary, never one per target.
+func test_a_switched_primary_leaves_nothing_behind() -> String:
+	var q := StrikeSequence.new(["basic1", "basic2", "basic3"], 0.9)
+	var rows := [q.confirm("basic1", 7, 0.0), q.confirm("basic1", 8, 0.4), q.confirm("basic2", 7, 0.7),
+		q.confirm("basic3", 7, 1.0), q.progress(7), q.progress(8)]
+	var want := [false, false, false, false, 0, 1]
+	return "" if rows == want else "B1 A, B1 B, B2 A, B3 A: %s (want no Seal; progress A 0, B 1)" % [rows]
 
 
 # --- the whole branch --------------------------------------------------------------------------------------------
@@ -365,6 +374,129 @@ func test_no_seal_after_a_blow_cuts_the_sequence() -> String:
 	_clear()
 	return "" if res == [2, false, true, [1, 2, 1]] else \
 		"a blow after Basic 2: %s (want the sequence at 2, then over: no SEAL, the next strike Basic 1 again)" % [res]
+
+
+# --- the primary target (GPT's v1.7) -------------------------------------------------------------------------------
+
+
+## GPT's v1.7 case through the game: Basic 1 on A; the chain lapses; Basic 1 on B (the primary now); Basic 2 can reach
+## A alone — a target switch: the chain starts over (the next strike is Basic 1), no Seal opens, nothing is kept on A.
+func test_a_target_switch_opens_no_seal() -> String:
+	var c := _samurai()
+	var a := _automaton(c)
+	var b := _automaton(c, Vector3(6, 0, 0))
+	var autos := [a, b]
+	var aid := a.get_instance_id()
+	var bid := b.get_instance_id()
+	var from := int(c.stats["strikes"])
+	var rec := {}
+	var stage := 0
+	var t := 0.0
+	while t < 5.0 and stage < 4:
+		var n := int(c.stats["strikes"]) - from
+		match stage:
+			0: # Basic 1 on A, then the chain lapses
+				if n < 1:
+					c.try_press("attack")
+				elif not rec.has("b1_a") and int(c.strike_log[-1]["hits"]) > 0:
+					rec["b1_a"] = [c.melee.chain_target == aid, c.sequence.progress(aid)]
+				elif rec.has("b1_a") and c.melee.phase == MeleeState.Phase.FREE and c.melee.next_step == 0 \
+						and c.melee.chain_open == 0.0:
+					rec["lapsed"] = [c.sequence.progress(aid), c.sequence.progress(bid)]
+					a.place(Vector3(-6, 0, 0))
+					b.place(Vector3.ZERO)
+					stage = 1
+			1: # Basic 1 on B
+				if n < 2:
+					c.try_press("attack")
+				elif int(c.strike_log[-1]["hits"]) > 0:
+					rec["b1_b"] = [c.melee.chain_target == bid, c.sequence.progress(bid)]
+					b.place(Vector3(6, 0, 0)) # (B leaves; A stands where it was for Basic 2)
+					a.place(Vector3.ZERO)
+					stage = 2
+			2: # Basic 2 on A alone, and the strike after it
+				if n < 4:
+					c.try_press("attack")
+				if n == 3 and not rec.has("third"):
+					rec["third"] = int(c.strike_log[-1]["step"])
+				if n >= 4:
+					rec["fourth"] = [int(c.strike_log[-1]["step"]), c.sequence.progress(aid), c.sequence.progress(bid),
+						c.legacy.open.size(), int(c.strike_log[-2]["hits"])]
+					stage = 4
+		_frame(c, autos, DT)
+		t += DT
+	_clear()
+	var want := {"b1_a": [true, 1], "lapsed": [0, 0], "b1_b": [true, 1], "third": 2, "fourth": [1, 0, 0, 0, 1]}
+	for k in want:
+		if not rec.has(k) or str(rec[k]) != str(want[k]):
+			return "B1 on A, lapse, B1 on B, B2 on A: %s (want %s — Basic 2 on A alone a switch: no Seal, Basic 1 next)" % [rec, want]
+	return ""
+
+
+## Incidental hits (GPT's v1.7): a bystander beside the primary, struck by the same sweeps — before it and after it —
+## changes nothing: Basic 1 → 2 → 3 on the target he turned toward still opens SEAL on it, never on the bystander.
+func test_a_bystander_in_the_sweeps_keeps_the_chain() -> String:
+	var orders := {}
+	var runs: Array[String] = []
+	for side: float in [1.0, -1.0]:
+		for ang: float in [25.0, 40.0]:
+			var c := _samurai()
+			var a := _automaton(c)
+			var r := deg_to_rad(ang) * side
+			var d := D + 0.15 # (a little farther than the primary: Basic 1 turns toward the primary)
+			var b := _automaton(c, Vector3(sin(r) * d, 0, D - cos(r) * d))
+			var aid := a.get_instance_id()
+			var bid := b.get_instance_id()
+			var hits: Array = [] # [strike step, target id], in the order they landed
+			c.strike_hit.connect(func(_x: AttackData, step: int, target: Node3D, _dir: Vector3) -> void:
+				hits.append([step, target.get_instance_id()]))
+			var res := _branch(c, a, DT, 1.6, false, false)
+			var on_b := c.legacy.has(SEAL, bid)
+			var b_hp := b.hp
+			_clear()
+			for step: int in [1, 2]:
+				var seq := hits.filter(func(h: Array) -> bool: return int(h[0]) == step).map(func(h: Array) -> int: return int(h[1]))
+				if seq.has(aid) and seq.has(bid):
+					orders["bystander first" if seq.find(bid) < seq.find(aid) else "primary first"] = true
+			runs.append("%+.0f°: SEAL on A %s, on B %s, B %d HP, hits %s" % [ang * side, res.has("sequence"), on_b, b_hp,
+				hits.map(func(h: Array) -> String: return "%d%s" % [int(h[0]) + 1, "A" if int(h[1]) == aid else "B"])])
+			if not res.has("sequence") or on_b:
+				return "a bystander at %+.0f°: %s (want SEAL on the primary only)" % [ang * side, runs[-1]]
+	if not (orders.has("bystander first") and orders.has("primary first")):
+		return "both orders within one sweep of Basic 2 or 3 were not produced: %s | %s" % [orders.keys(), " | ".join(runs)]
+	print("[PRIMARY] ", " | ".join(runs))
+	return ""
+
+
+## Basic 2 and 3 keep to the primary while it stays inside the assist's range and cone, even with another target nearer;
+## once it has left them, they turn to the nearest as before (they never chase it).
+func test_basic_2_and_3_keep_to_the_primary() -> String:
+	var rows := []
+	for away: bool in [false, true]:
+		var c := _samurai()
+		var a := _automaton(c)
+		var b := _automaton(c, Vector3(8, 0, 0))
+		var autos := [a, b]
+		var from := int(c.stats["strikes"])
+		var got := {}
+		var t := 0.0
+		while t < 2.0 and not got.has("second"):
+			if int(c.stats["strikes"]) - from < 2:
+				c.try_press("attack")
+			_frame(c, autos, DT)
+			t += DT
+			var n := int(c.stats["strikes"]) - from
+			if n == 1 and not got.has("moved") and int(c.strike_log[-1]["hits"]) > 0:
+				got["moved"] = true
+				b.place(c.fighter.global_position + Vector3(0.45, 0, -0.75)) # (nearer, inside the cone)
+				if away:
+					a.place(Vector3(0, 0, -5.0)) # (the primary beyond the assist's range)
+			if n == 2:
+				got["second"] = c._target
+		rows.append(got.get("second") == (b if away else a))
+		_clear()
+	return "" if rows == [true, true] else \
+		"Basic 2 kept to the primary in range %s, turned to the nearest once it left %s (want both)" % rows
 
 
 # --- the Seal ------------------------------------------------------------------------------------------------------

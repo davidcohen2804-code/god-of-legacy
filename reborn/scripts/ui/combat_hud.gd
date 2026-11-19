@@ -59,7 +59,7 @@ func _ready() -> void:
 	_fps.offset_top = 40
 	_fps.offset_right = -32
 	_fps.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_fps.visible = Game.show_fps or QA.enabled
+	_fps.visible = (Game.show_fps or QA.enabled) and not Game.device_test # (the device test shows its own)
 	add_child(_fps)
 
 

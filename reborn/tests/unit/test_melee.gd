@@ -267,3 +267,93 @@ func test_action_events_fire_once_in_order() -> String:
 				fired.append(String(e["name"]))
 		s.events.clear()
 	return "" if fired == ["release", "mark"] else "the action's events fired as %s" % [fired]
+
+
+# --- the primary target (GPT's v1.7: one authority for the chain and Explosive Execution's strike sequence) ---------
+
+
+func _of_type(s: MeleeState, type: String) -> Array:
+	return s.events.filter(func(e: Dictionary) -> bool: return e["type"] == type)
+
+
+func test_basic_1_takes_the_target_it_turned_toward() -> String:
+	var s := MeleeState.new()
+	s.attack_pressed()
+	s.aim_target = T1 # (the controller's aim assist turned it toward T1)
+	_until_swept(s)
+	s.hit_confirmed(T2, 1.0) # (a nearer bystander struck first)
+	s.hit_confirmed(T1, 1.5)
+	_until_phase(s, MeleeState.Phase.FREE)
+	var named := _of_type(s, "primary").map(func(e: Dictionary) -> int: return int(e["target"]))
+	return "" if s.chain_target == T1 and named == [T1] else \
+		"Basic 1 aimed at T1, a nearer T2 struck first: primary %d, named %s (want T1)" % [s.chain_target, named]
+
+
+func test_basic_1_without_its_aim_takes_the_nearest_it_struck() -> String:
+	var rows := []
+	for d2: float in [1.0, 1.5]: # (T2 nearer; then as near as T1: the lower id)
+		var s := MeleeState.new()
+		s.attack_pressed()
+		_until_swept(s)
+		s.hit_confirmed(T1, 1.5)
+		if not _of_type(s, "primary").is_empty():
+			return "Basic 1 named a primary before its active window closed"
+		_until_swept(s, 0.3)
+		s.hit_confirmed(T2, d2)
+		_until_phase(s, MeleeState.Phase.FREE)
+		rows.append(s.chain_target)
+	return "" if rows == [T2, T1] else \
+		"Basic 1's primary with its aim struck by neither: %s (want the nearest it struck, T2; equally near: the lower id, T1)" % [rows]
+
+
+## Basic 2 and 3 with a bystander struck in the same sweep — before the primary, then after it: the chain goes on and
+## finishes; nothing resets it.
+func test_an_incidental_hit_keeps_the_chain() -> String:
+	for first: int in [T2, T1]:
+		var other := T1 if first == T2 else T2
+		var s := MeleeState.new()
+		s.attack_pressed()
+		s.aim_target = T1
+		_until_swept(s)
+		s.hit_confirmed(T1, 1.5)
+		for k in [1, 2]:
+			_until_phase(s, MeleeState.Phase.RECOVERY)
+			s.attack_pressed()
+			if not _until_phase(s, MeleeState.Phase.STARTUP, 0.5) or s.step_index != k:
+				return "%s struck first: strike %d did not follow (strike %d running)" % [
+					"the bystander" if first == T2 else "the primary", k + 1, s.step_index + 1]
+			_until_swept(s)
+			s.hit_confirmed(first, 1.2)
+			if not _until_swept(s, 0.3):
+				return "strike %d's window ended before its second hit" % (k + 1)
+			s.hit_confirmed(other, 1.2)
+		_until_phase(s, MeleeState.Phase.FREE)
+		if not _of_type(s, "chain_reset").is_empty() or _of_type(s, "chain_done").is_empty():
+			return "%s struck first in each sweep: the chain %s" % ["the bystander" if first == T2 else "the primary",
+				"was reset" if not _of_type(s, "chain_reset").is_empty() else "never finished"]
+	return ""
+
+
+## Basic 2 (then, in a second run, Basic 3) striking only another target: a target switch — the chain starts over at
+## Basic 1, and Basic 3 on it is no finished chain.
+func test_a_strike_on_another_target_alone_is_a_switch() -> String:
+	for at: int in [1, 2]:
+		var s := MeleeState.new()
+		s.attack_pressed()
+		s.aim_target = T1
+		_until_swept(s)
+		s.hit_confirmed(T1, 1.5)
+		for k in range(1, at + 1):
+			_until_phase(s, MeleeState.Phase.RECOVERY)
+			s.attack_pressed()
+			_until_phase(s, MeleeState.Phase.STARTUP, 0.5)
+			_until_swept(s)
+			s.hit_confirmed(T2 if k == at else T1, 1.2)
+		_until_phase(s, MeleeState.Phase.FREE)
+		var why := _of_type(s, "chain_reset").map(func(e: Dictionary) -> String: return String(e["why"]))
+		var done := not _of_type(s, "chain_done").is_empty()
+		s.attack_pressed()
+		if why != ["target"] or done or s.step_index != 0 or s.chain_target != 0:
+			return "Basic %d on another target alone: resets %s, finished %s, then strike %d (want a target switch, Basic 1 next)" % [
+				at + 1, why, done, s.step_index + 1]
+	return ""

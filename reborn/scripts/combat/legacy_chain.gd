@@ -19,6 +19,9 @@ extends RefCounted
 ## dropped — and surface as soon as a button frees; `promote` lets the player bring the best waiting one onto the
 ## buttons in place of the lesser one shown. The same ability against the same target is one opportunity (a repeat event renews its window).
 
+## A new opportunity was earned (not a renewal of one already open): the interface's cue (GPT's v1.7: the chime).
+signal opened(ability: String, target: int)
+
 var edges: Array[Dictionary] = []
 ## Open opportunities: [{ability, target, left, window, rank, on, requires, cancel, pinned}].
 var open: Array[Dictionary] = []
@@ -61,6 +64,7 @@ func event(name: String, target: int) -> void:
 		open.append({"ability": e["unlock"], "target": target, "left": e["window"], "window": e["window"],
 			"rank": e["rank"], "on": name, "requires": e["requires"], "cancel": e["cancel"], "pinned": false})
 		events.append({"type": "opened", "ability": e["unlock"], "target": target})
+		opened.emit(String(e["unlock"]), target)
 	_reslot()
 
 

@@ -1,15 +1,19 @@
 class_name StrikeSequence
 extends RefCounted
-## Explosive Execution's entry (GPT's v1.2): the Attack chain's strikes in order — Basic 1, 2, 3 — each a confirmed hit
-## on the same target, each no more than `gap` s after the previous confirmed hit, measured on the combat clock (held
-## through hit-stop, like the Legacy Chain's windows). The controller reports each confirmed basic hit; the one that
-## completes the sequence is the authoritative event that opens Explosive Seal. Kept per target: a hit out of order, a
-## pause too long or a blow on him (reset) starts it over. Pure logic; the tests drive it directly.
+## Explosive Execution's entry (GPT's v1.2, v1.7): the Attack chain's strikes in order — Basic 1, 2, 3 — each a confirmed
+## hit on the chain's primary target, each no more than `gap` s after the previous one, measured on the combat clock
+## (held through hit-stop, like the Legacy Chain's windows). One record — the primary target and how far the sequence
+## has gone on it — never one per target: the primary is the chain's (MeleeState's primary-target rule, the one
+## authority), begun by Basic 1 on it; Basic 2 and 3 count only on it; a hit on any other target changes nothing here
+## (the chain decides whether it was a switch, and then this starts over). The hit that completes it is the
+## authoritative event that opens Explosive Seal. A hit out of order, a pause too long, a target switch or a blow on
+## him (reset) starts it over. Pure logic; the tests drive it directly.
 
 var strikes: Array[String] = []
 var gap := 0.9
-## target id → {done: strikes confirmed in order, at: the clock at the last one}
-var _on := {}
+var primary := 0 ## the primary target's instance id (0: none)
+var done := 0 ## strikes confirmed in order on it
+var at := 0.0 ## the clock at the last of them
 
 
 func _init(p_strikes: Array = [], p_gap: float = 0.9) -> void:
@@ -24,31 +28,42 @@ static func from_data() -> StrikeSequence:
 	return StrikeSequence.new(d.get("strikes", ["basic1", "basic2", "basic3"]), float(d.get("gap", 0.9)))
 
 
-## Strike `id` confirmed a hit on `target` at clock `now`: true when that completes the sequence on it.
+## Basic 1 confirmed its hit on `target`, the chain's primary, at clock `now`: the sequence begins on it.
+func begin(target: int, now: float) -> void:
+	primary = target
+	done = 1
+	at = now
+
+
+## Strike `id` confirmed a hit on `target` at clock `now`: true when that completes the sequence. Basic 1 begins it on
+## `target` (the primary); a later strike counts only on the primary — in order and in time, or it starts over.
 func confirm(id: String, target: int, now: float) -> bool:
 	var k := strikes.find(id)
 	if k < 0:
 		return false
 	if k == 0:
-		_on[target] = {"done": 1, "at": now}
-	else:
-		var s: Dictionary = _on.get(target, {})
-		if s.is_empty() or int(s["done"]) != k or now - float(s["at"]) > gap + 1e-6:
-			_on.erase(target) # (out of order, another target's sequence, or too slow: it starts over)
-			return false
-		s["done"] = k + 1
-		s["at"] = now
-	if int(_on[target]["done"]) >= strikes.size():
-		_on.erase(target)
+		begin(target, now)
+		return false
+	if primary == 0 or target != primary:
+		return false # (not the primary: an incidental hit changes nothing)
+	if done != k or now - at > gap + 1e-6:
+		reset() # (out of order or too slow: it starts over)
+		return false
+	done = k + 1
+	at = now
+	if done >= strikes.size():
+		reset()
 		return true
 	return false
 
 
-## How many strikes stand confirmed in order on `target`.
+## How many strikes stand confirmed in order on `target` (0 unless it is the primary).
 func progress(target: int) -> int:
-	return int((_on.get(target, {}) as Dictionary).get("done", 0))
+	return done if target != 0 and target == primary else 0
 
 
-## Everything starts over (a blow on him).
+## Everything starts over (a target switch, a miss, the chain let go, a blow on him).
 func reset() -> void:
-	_on.clear()
+	primary = 0
+	done = 0
+	at = 0.0

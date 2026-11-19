@@ -5,11 +5,14 @@ extends Node
 ## thuds low; the automaton's sweep swings low; a genuine evasion has its own glassy rush (GPT's v1.4: a distinctive
 ## sound). An action may name its own (data: sounds) — Phantom Execution's heavy whoosh and impact, Explosive Seal's
 ## detonation; a planted mark sounds as it is planted (never for a Seal that missed) and ticks with its pulses (the
-## fuse the combat logic keeps). Synthesized placeholders (tools/make_sfx.py). It only listens; it never decides anything.
+## fuse the combat logic keeps). A newly earned Legacy Chain opportunity chimes, softly (GPT's v1.7: never a renewal, a
+## waiting one brought onto a button or a tap). Synthesized placeholders (tools/make_sfx.py). It only listens; it never
+## decides anything.
 ## Non-positional (the camera is always close to the fight); the Settings sound level applies (the master bus).
 
 const DIR := "res://assets/audio/"
 const VOICES := 6
+const CUE_DB := -11.0 ## the opportunity chime: under the swings and impacts (-5 / -1 dB)
 
 var _swing: Array[AudioStream] = []
 var _impact: Array[AudioStream] = []
@@ -39,6 +42,7 @@ func bind(c: CombatController) -> void:
 	c.blow_taken.connect(func(_a: AttackData, _by: Node3D, _dir: Vector3) -> void: _play(_impact[2], -1.0, 0.7))
 	c.attack_evaded.connect(func(_a: int, _d: int, _id: String) -> void: _play(_evade, -2.0, 1.0))
 	c.seal_planted.connect(func(_t: Node3D, _f: float) -> void: _play(_sound("seal"), -3.0, 1.0))
+	c.legacy.opened.connect(func(_ability: String, _target: int) -> void: _play(_sound("cue"), CUE_DB, 1.0))
 	_combat = c
 
 

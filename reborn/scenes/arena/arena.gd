@@ -24,6 +24,8 @@ var hud: CombatHud
 var dummy: TrainingDummy
 var automaton: TrainingAutomaton
 var vfx: HitVfx
+## The device test's screen (?device=1), when it runs.
+var device: DevicePanel
 var _cam: Camera3D
 var _player_numbers := DamageNumbers.new()
 ## (QA) a press armed for a moment of the automaton's attack: {action, at (s into the attack), sent}.
@@ -49,8 +51,22 @@ func _ready() -> void:
 	QA.track("combat", combat.state)
 	QA.track("dummy", dummy.state)
 	QA.track("automaton", automaton.info)
+	QA.track("render", Game.render_state)
 	QA.command.connect(_on_qa_command)
-	if Game.demo:
+	# the graphics preset's shadows on the moon, now and whenever the preset changes (GPT's v1.7)
+	FallenMoonCourtyard.apply_quality(Game.preset())
+	Game.settings_changed.connect(_on_settings_changed)
+	if Game.device_test:
+		var layer := CanvasLayer.new()
+		layer.layer = 20
+		add_child(layer)
+		device = DevicePanel.new()
+		device.name = "DeviceTest"
+		layer.add_child(device)
+		touch.reserved_controls.append(device.test_button())
+		QA.track("device", device.qa_state)
+	if Game.demo or not Game.bench.is_empty():
+		# (the recordings; or the device test's benchmark: the integrated review, looped, at each preset in turn)
 		var d := DemoDriver.new()
 		d.name = "DemoDriver"
 		d.touch = touch
@@ -59,7 +75,14 @@ func _ready() -> void:
 		d.automaton = automaton
 		d.combat = combat
 		d.caption = hud.prompt
+		if not Game.bench.is_empty():
+			d.use("m4", true)
 		add_child(d)
+	Game.arena_ready()
+
+
+func _on_settings_changed() -> void:
+	FallenMoonCourtyard.apply_quality(Game.preset())
 
 
 func _physics_process(_delta: float) -> void:
@@ -129,6 +152,10 @@ func _build_camera() -> void:
 	rig.target = player
 	add_child(rig)
 	rig.snap_behind(player.facing)
+	# (the framing it starts in — combat when a target is within range — at once: the first frame drawn is the game view)
+	rig.focus = _focus_target()
+	rig.mode = CameraRig.Mode.COMBAT if rig.focus else CameraRig.Mode.EXPLORATION
+	rig.settle()
 	_cam = rig.cam
 	controller.rig = rig
 
@@ -404,7 +431,8 @@ func _update_buttons() -> void:
 		var o: Dictionary = slots[i]
 		var a: AttackData = AttackData.get_attack(String(o.get("ability", ""))) if not o.is_empty() else null
 		touch.set_conditional("cond%d" % (i + 1), a.label if a else "", not o.is_empty(),
-			float(o.get("left", 0.0)) / maxf(float(o.get("window", 1.0)), 0.001))
+			float(o.get("left", 0.0)) / maxf(float(o.get("window", 1.0)), 0.001),
+			"%s:%d" % [String(o.get("ability", "")), int(o.get("target", 0))])
 	touch.set_waiting(int(cs["waiting"]))
 	for key: String in ["heavy", "skill1", "skill2", "skill3"]:
 		var s := AttackData.for_button(key)

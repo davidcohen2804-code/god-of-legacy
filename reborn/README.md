@@ -8,6 +8,12 @@ the old Phaser / three.js game is used by it), developed on the `reborn` branch.
 - **Web build:** single-threaded (no SharedArrayBuffer, so no cross-origin-isolation headers are needed): it runs
   from plain static hosting and on mobile Safari.
 - **Play:** https://davidcohen2804-code.github.io/god-of-legacy/reborn/ (`?qa=1` exposes the state for tests).
+- **Device test (M4.1):** https://davidcohen2804-code.github.io/god-of-legacy/reborn/?device=1 — straight into the
+  training arena with frame times on screen (FPS, this frame, the last 10 s's p50 / p95); TEST opens a panel (the game
+  paused): the Low / Medium / High presets, RESTART ENCOUNTER, BENCHMARK (the same scripted encounter at each preset,
+  60 s measured each), FULLSCREEN where the browser allows it, and a report to photograph — per preset p50, p95, p99,
+  worst, shares over 33 and 50 ms, the device, the GPU, the build, and JavaScript errors, engine errors and WebGL
+  context losses counted apart. Nothing leaves the device.
 
 ## Build, test, deploy
 
@@ -31,7 +37,8 @@ close to Safari but is not iOS Safari; no physical phone is in the loop.
 
 | Part | Where | Notes |
 |---|---|---|
-| Game state | `scripts/game/game.gd` (autoload `Game`) | screen flow, chosen character, settings |
+| Game state | `scripts/game/game.gd` (autoload `Game`) | screen flow, chosen character, settings; the graphics presets (M4.1: Low 50 % 3D, no moon shadows · Medium 75 %, one split, 2048 map · High 100 %, two splits, 4096 — the HUD always at full resolution; Medium by default on touch screens, High otherwise); the device test's frame times and benchmark |
+| Device test | `scripts/ui/device_panel.gd`, `scripts/qa/frame_stats.gd`, `device_probe.gd`, `device_logger.gd` | `?device=1`: the overlay, the panel and its report; actual rendered-frame intervals per preset, 2 s warm-ups and paused / hidden / loading time left out; the page's errors and context losses; the engine's errors through `OS.add_logger` |
 | Character data | `data/characters.json`, `scripts/game/roster.gd` | data-driven roster; locking decided here |
 | User interface | `scenes/menu/*`, `scripts/ui/*` | theme, backdrop, settings; no game rules inside |
 | QA bridge | `scripts/qa/qa_bridge.gd` (autoload `QA`) | `window.__gol` with `?qa=1` only |
@@ -40,16 +47,16 @@ close to Safari but is not iOS Safari; no physical phone is in the loop.
 | Player controller | `scripts/player/player_controller.gd` | camera-relative movement; jump, dodge and attack presses from the buffer, each tick before the body moves |
 | Body | `scripts/combat/fighter.gd` | walk / run / sprint, jump, dodge (ground only, 120 ms defensive window), gravity, facing; held by a strike (`action_lock`) or hit-stop (`frozen`) |
 | Character look and moves | `scripts/characters/character_visual.gd`, `automaton_visual.gd` | the Samurai, his katana on `hand_r`, the moves; the automaton dressed from its measurements (lacquered wood, bronze, stone, a practice sword) |
-| Camera controller | `scripts/camera/camera_rig.gd` | exploration / combat / combo, always 30–45° and 7–9 m, damped, drag, wall pull-in |
+| Camera controller | `scripts/camera/camera_rig.gd` | exploration / combat / combo, always 30–45° and 7–9 m, damped, drag, wall pull-in; placed at once in its starting framing when the arena is built (M4.1: the first frame is the game view) |
 | Arena | `scenes/arena/arena.gd`, `scripts/world/*` | the Fallen Moon Courtyard; the training dummy (150 HP, a fixed diagnostic target: sways, falls and stands up); the Training Automaton (M4: 150 HP, a humanoid target — flinches, pushes, the chain's capture with diminishing returns, pulls stopped by solid things, launches on an exact arc, the juggle cap, knockdown and getting up; `data/targets.json` says what each target resists; from Stage C a scripted sparring partner — its telegraphed sweep from `data/abilities/automaton.json`, an amber arc on the floor where the cut will pass) |
 | HUD | `scripts/ui/combat_hud.gd` | player health, target health with a damage chip, a prompt line; developer notes only with `?qa=1` |
 | Combat demo | `scripts/qa/demo_driver.gd` (`-- --demo`) | scripted touches, recorded in CI with Godot's Movie Maker |
-| Combat state machine | `scripts/combat/melee_state.gd`, `attack_data.gd` | pure logic on the physics tick — every action from data (`data/abilities/samurai.json`): startup / active / recovery, hit-stop, the three-strike chain (only confirmed hits advance it), other actions (Heavy) from free and off cooldown, timed action events, cancel and interrupt rules |
+| Combat state machine | `scripts/combat/melee_state.gd`, `attack_data.gd` | pure logic on the physics tick — every action from data (`data/abilities/samurai.json`): startup / active / recovery, hit-stop, the three-strike chain (only confirmed hits advance it; M4.1's primary target — set by Basic 1, required of Basic 2 and 3, bystanders struck on the way change nothing, a strike on others alone restarts the chain), other actions (Heavy) from free and off cooldown, timed action events, cancel and interrupt rules |
 | Enemy blows, evasion | `scripts/combat/hit_resolver.gd`, `combat_controller.gd` | an enemy's blade swept against the Samurai along his movement through the same tick: hit, avoided (a roll's window) or evaded (GPT's v1.4 rule B: the blade crossing his Shadow Origin inside Shadow Step's 120 ms window — `attack_evaded`, which opens Shadow Counter; a step blocked at once by a wall protects nothing, GPT's v1.5) |
 | Hit detection, targeting | `scripts/combat/sword_sweep.gd`, `combat_controller.gd` | the blade's own path through each active window (baked from its move by `tools/bake_blades.mjs` into `data/abilities/samurai_blades.json`, checked against Godot's pose by a test) swept between ticks against each target's capsule — no tunnelling, once per target per action; target assist (3.6 m, ±60°); drives body, moves, trail and camera from the state machine |
 | Blade trail | `scripts/combat/blade_trail.gd` | the swing's ribbon; shows, never decides |
 | Combat sound, hit effects | `scripts/audio/combat_sfx.gd`, `scripts/vfx/hit_vfx.gd` | listen to the combat controller's signals (swing on the active window, impact and sparks on a hit, dust on the finisher) |
-| Legacy Chain graph, ability definitions | `scripts/combat/legacy_chain.gd`, `data/abilities/` (M4) | data-driven combo graph: captured → Chain Pull, launched → Aerial Pursuit, evaded → Shadow Counter, sequence (Basic 1 → 2 → 3 confirmed on one target, each within 900 ms: `scripts/combat/strike_sequence.gd`) → Explosive Seal, detonated (the Seal's mark bursting 650 ms after it was planted, on a target that survives) → Phantom Execution |
+| Legacy Chain graph, ability definitions | `scripts/combat/legacy_chain.gd`, `data/abilities/` (M4) | data-driven combo graph: captured → Chain Pull, launched → Aerial Pursuit, evaded → Shadow Counter, sequence (Basic 1 → 2 → 3 confirmed on the chain's primary target, each within 900 ms: `scripts/combat/strike_sequence.gd`) → Explosive Seal, detonated (the Seal's mark bursting 650 ms after it was planted, on a target that survives) → Phantom Execution |
 | Explosive Seal, Phantom Execution (M4 Stage D) | `scripts/combat/combat_controller.gd`, `scripts/vfx/seal_visual.gd`, `execution_visual.gd` | the mark planted at the Seal's 120 ms only on a target alive, within 2.2 m, in clear line and sealable (a press that could not succeed is refused, its opportunity kept); its fuse on the target's own time; the glyph, its three pulses and its compact burst; the Execution's dash afterimages, its 2° push-in and its cleave's streak |
 | Animation controller, VFX | `scripts/animation/`, `scripts/vfx/` | read combat state, never decide it |
 | Enemy AI | `scripts/ai/` (M5) | training enemy, boss |

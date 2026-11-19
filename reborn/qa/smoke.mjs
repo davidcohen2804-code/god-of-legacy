@@ -6,7 +6,11 @@
 // deliberate miss, and moving, dodging and attacking again; on the phones, attacking while the stick is held. M4: the
 // Training Automaton's reactions, Phantom Chain → Chain Pull, Rising Slash → Aerial Pursuit, (Stage C) its
 // telegraphed sweep evaded with Shadow Step → Shadow Counter and a plain roll that opens nothing, and (Stage D) Basic
-// 1 → 2 → 3 on it → Explosive Seal → its detonation → Phantom Execution.
+// 1 → 2 → 3 on it → Explosive Seal → its detonation → Phantom Execution. M4.1: every profile runs at the High
+// graphics preset (the reviewed look); then the device-test page (?device=1): straight into the arena, its overlay,
+// the panel pausing the game, the three presets changing the 3D image and the shadow map for real (the page's own
+// WebGL allocations), the video memory back where it was, RESTART bringing both fighters back — and, on desktop, the
+// benchmark (shortened to 12 s a preset here).
 // The phones' Legacy Chain checks run at half game speed and are labelled so: they exercise the touch interface under
 // software rendering at about a frame a second — not full-speed gameplay, whose windows the headless unit tests verify
 // at 30, 60 and 120 Hz.
@@ -53,6 +57,20 @@ async function runProfile(p) {
         }
         return orig.apply(this, a);
       };
+      // M4.1: the textures and renderbuffers the page allocates, with their sizes (the presets' 3D image, the shadow map)
+      window.__glAllocs = [];
+      const DEPTH = new Set([0x81A5, 0x81A6, 0x8CAC, 0x88F0, 0x8CAD, 0x1902, 0x84F9]);
+      const note = (fmt, w, h) => {
+        if (window.__glAllocs.length < 6000) window.__glAllocs.push({ kind: DEPTH.has(fmt) ? 'depth' : 'color', fmt, w, h });
+      };
+      const ti = proto.texImage2D;
+      proto.texImage2D = function (...a) { if (a.length >= 8 && typeof a[3] === 'number') note(a[2], a[3], a[4]); return ti.apply(this, a); };
+      const ts = proto.texStorage2D;
+      proto.texStorage2D = function (...a) { note(a[2], a[3], a[4]); return ts.apply(this, a); };
+      const rb = proto.renderbufferStorage;
+      proto.renderbufferStorage = function (...a) { note(a[1], a[2], a[3]); return rb.apply(this, a); };
+      const rbm = proto.renderbufferStorageMultisample;
+      proto.renderbufferStorageMultisample = function (...a) { note(a[2], a[3], a[4]); return rbm.apply(this, a); };
     });
     page = await ctx.newPage();
     page.on('console', (m) => { res.log.push(`[${m.type()}] ${m.text()}`); if (m.type() === 'error') res.errors.push(m.text()); });
@@ -85,11 +103,103 @@ async function runProfile(p) {
     };
     const step = (s) => { res.steps.push(s); say(p.name, '✓', s); };
 
+    // M4.1 (GPT's v1.7): the device-test page.
+    const deviceTest = async () => {
+      const dv = (s) => (s && s.live && s.live.device) || null;
+      const pl0 = (s) => (s && s.live && s.live.player) || null;
+      const mark = () => page.evaluate(() => (window.__glAllocs || []).length);
+      const allocs = (from) => page.evaluate((f) => (window.__glAllocs || []).slice(f), from);
+      await page.goto(BASE + '&device=1' + (p.kind === 'desktop' ? '&bench=12' : ''), { waitUntil: 'load', timeout: 120000 });
+      const s0 = await waitFor((s) => s.scene === 'arena' && dv(s) && pl0(s), 'the device test in the arena', 300000);
+      if ((s0.events || []).some((e) => e.startsWith('entered=') || e.startsWith('pressed='))) {
+        throw new Error('the device test went through the menus: ' + s0.events.join(' '));
+      }
+      await page.waitForTimeout(3500);
+      let st = await state();
+      const lines = dv(st).lines.split('\n');
+      if (lines.length !== 3 || !st.rects.device_test) throw new Error('the overlay: ' + JSON.stringify(dv(st)));
+      await shot('d1_overlay');
+      step(`device test (?device=1): straight into the arena, no menu; the overlay reads "${lines.join(' | ')}"`);
+
+      await tap('device_test');
+      st = await waitFor((s) => dv(s) && dv(s).open && dv(s).paused, 'the panel open, the game paused', 30000);
+      await page.waitForTimeout(800);
+      st = await state();
+      await shot('d2_panel');
+      res.device = { report: dv(st).report, fullscreen: dv(st).fullscreen_offered };
+      step(`device test: the panel opens and pauses the game; its report has ${dv(st).report_lines} lines; fullscreen ${dv(st).fullscreen_offered ? 'offered' : 'not offered (the browser cannot)'}`);
+
+      // the presets: the 3D image's size and the shadow map, as the page's WebGL calls show them; the video memory
+      const seen = [];
+      for (const [key, q, scale, map] of [['device_low', 0, 0.5, 0], ['device_medium', 1, 0.75, 2048], ['device_high', 2, 1.0, 4096],
+        ['device_low', 0, 0.5, 0], ['device_high', 2, 1.0, 4096]]) {
+        const m0 = await mark();
+        await tap(key);
+        await waitFor((s) => s.live.render && s.live.render.quality === q, `the ${key} preset`, 30000);
+        await page.waitForTimeout(2500); // (frames drawn at the new size)
+        const r = (await state()).live.render;
+        const got = await allocs(m0);
+        const near = (a, w, h) => Math.abs(a.w - w) <= 2 && Math.abs(a.h - h) <= 2;
+        const color = got.filter((a) => a.kind === 'color' && near(a, Math.round(r.window[0] * scale), Math.round(r.window[1] * scale)));
+        const shadow = got.filter((a) => a.kind === 'depth' && a.w === map && a.h === map);
+        seen.push({ key, q, scale: r.scale, w3d: r.w3d, h3d: r.h3d, window: r.window, texMB: +(r.tex_mem / 1048576).toFixed(1), color: color.length, shadow: shadow.length });
+        if (q === 0 && seen.filter((x) => x.q === 0).length === 1) await shot('d3_low');
+        if (q === 2 && seen.filter((x) => x.q === 2).length === 1) await shot('d4_high');
+      }
+      res.presets = seen;
+      const first = (q) => seen.find((x) => x.q === q);
+      const last = (q) => seen.filter((x) => x.q === q).slice(-1)[0];
+      if (first(0).color < 1 || first(1).color < 1) throw new Error('a scaled preset drew no 3D image at its size: ' + JSON.stringify(seen));
+      if (first(1).shadow < 1 || first(2).shadow < 1) throw new Error('the shadow map was not made at the preset\'s size: ' + JSON.stringify(seen));
+      if (Math.abs(last(2).texMB - first(2).texMB) > 2 || Math.abs(last(0).texMB - first(0).texMB) > 2) {
+        throw new Error('the video memory grew across preset changes: ' + JSON.stringify(seen));
+      }
+      step('device test presets ' + seen.map((x) => `${x.key.slice(7).toUpperCase()}: 3D ${x.w3d}×${x.h3d} of ${x.window[0]}×${x.window[1]} (scale ${x.scale}), ${x.color} image buffer(s) at that size, ${x.shadow} shadow map(s) of the preset's size, textures ${x.texMB} MB`).join(' · ') +
+        ' — the same memory at a preset again (no growth)');
+
+      // RESTART: the encounter from the start, both fighters whole at their marks
+      await tap('device_close');
+      await waitFor((s) => dv(s) && !dv(s).open && !dv(s).paused, 'the panel closed, the game running', 30000);
+      await page.evaluate(() => { window.__golCmd('place', 3, 3, 90); window.__golCmd('auto', 'hit', 30); });
+      await waitFor((s) => s.live.automaton && s.live.automaton.hp <= 120 && pl0(s) && Math.abs(pl0(s).pos[0] - 3) < 0.3, 'the fight under way (the automaton struck, he moved)', 60000);
+      await tap('device_test');
+      await waitFor((s) => dv(s) && dv(s).open, 'the panel', 30000);
+      await tap('device_restart');
+      const rs = await waitFor((s) => s.flags.device_restart && dv(s) && !dv(s).open && s.live.automaton && s.live.automaton.hp === 150
+        && pl0(s) && Math.abs(pl0(s).pos[0]) < 0.05 && Math.abs(pl0(s).pos[2] - 7) < 0.05, 'the encounter restarted', 300000);
+      step(`device test RESTART: the arena rebuilt — the automaton whole (${rs.live.automaton.hp}), the Samurai back on his mark ${JSON.stringify(pl0(rs).pos)}, the preset kept (${rs.live.render.quality})`);
+
+      if (p.kind === 'desktop') {
+        // the benchmark: the same scripted encounter at each preset (12 s a preset here, at a few frames a second in
+        // software rendering; 60 s on a phone)
+        await tap('device_test');
+        await waitFor((s) => dv(s) && dv(s).open, 'the panel', 30000);
+        await tap('device_bench');
+        await waitFor((s) => dv(s) && Object.keys(dv(s).bench || {}).length > 0, 'the benchmark to start', 60000);
+        let most = 0;
+        const fin = await waitFor((s) => {
+          if (s.live && s.live.combat) most = Math.max(most, s.live.combat.strikes || 0);
+          return dv(s) && Object.keys(dv(s).bench || {}).length === 0 && dv(s).open;
+        }, 'the benchmark to finish and show its report', 900000);
+        const rep = dv(fin).report || '';
+        const benchPart = rep.split('BENCHMARK')[1] || '';
+        const measured = (benchPart.match(/ frames · p50/g) || []).length;
+        await shot('d5_benchmark');
+        res.device.benchmark = rep;
+        if (measured !== 3 || most < 1) throw new Error(`the benchmark: ${measured} presets measured, ${most} strikes seen: ${benchPart}`);
+        step(`device test BENCHMARK: the scripted encounter played itself at Low, Medium and High (up to ${most} strikes a run), each measured; the report: ${benchPart.split('\n').slice(1, 4).map((l) => l.trim()).join(' | ')}`);
+        await tap('device_close');
+      }
+    };
+
     await waitFor((s) => s.scene === 'main_menu', 'the main menu');
     res.loadMs = Date.now() - t0;
     await page.waitForTimeout(1200);
     await shot('1_menu');
     step('main menu loaded in ' + res.loadMs + ' ms');
+    // (M4.1: the High preset in every profile — the look the reviews have seen; touch screens would start at Medium)
+    await page.evaluate(() => window.__golCmd('quality', 2));
+    await waitFor((s) => s.flags.quality === 2, 'the High graphics preset', 15000);
 
     await tap('settings');
     await waitFor((s) => s.flags.settings_open === true, 'settings to open', 15000);
@@ -755,6 +865,7 @@ async function runProfile(p) {
     await tap('arena_menu');
     await waitFor((s) => s.scene === 'main_menu', 'back to the menu', 60000);
     step('back to the main menu');
+    await deviceTest();
     res.ok = true;
   } catch (e) {
     res.error = String(e && e.message || e);
