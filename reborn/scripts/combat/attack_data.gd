@@ -5,8 +5,9 @@ extends RefCounted
 ## window, baked from that move (samurai_blades.json, by tools/bake_blades.mjs). The hit test sweeps that path
 ## (SwordSweep), so the hit follows the visible swing (GPT's M3 review), and the combat logic never reads the
 ## animation player. Other kinds: "projectile" (the Phantom Chain: thrown at its release event, its flight and
-## capture in `projectile` / `capture`), "pull" (Chain Pull: its drag in `pull`) and "step" (Shadow Step: a burst of
-## movement with a defensive window, in `step`). The Training Automaton's attacks are read the same way from their own
+## capture in `projectile` / `capture`), "pull" (Chain Pull: its drag in `pull`), "step" (Shadow Step: a burst of
+## movement with a defensive window, in `step`) and "seal" (Explosive Seal: a mark planted at its seal event, in
+## `seal`). The Training Automaton's attacks are read the same way from their own
 ## file (automaton.json, its blades baked from its own model).
 
 const DATA := "res://data/abilities/samurai.json"
@@ -18,7 +19,7 @@ var id := ""
 var name := ""
 var label := "" ## the short word on its button
 var button := "" ## the input that starts it ("attack", "heavy", "skill1"…; "cond": a Legacy Chain opportunity)
-## melee (a blade) | projectile | pull | step
+## melee (a blade) | projectile | pull | step | seal
 var kind := "melee"
 var startup := 0.1
 var active := 0.08
@@ -46,7 +47,8 @@ var pull := {}
 ## A confirmed hit throws a launchable target up: {height m, airtime s} (Rising Slash).
 var launch := {}
 ## A leap at an airborne target (Aerial Pursuit): he ends `leap.ahead` m short of where the target will be at the
-## strike, `leap.below` m under its height; it starts only within `within` m (flat).
+## strike, `leap.below` m under its height; it starts only within `within` m (flat). A conditional ability's `within`
+## is the farthest its target may stand when it starts (Phantom Execution: 3 m) — beyond, the press is refused.
 var air := false
 var leap := {}
 var within := 0.0
@@ -57,7 +59,10 @@ var spike := {}
 var aim_yaw := 0.0
 ## A step (Shadow Step): {distance m, defense: [from, to] s from the start of the movement — its defensive window}.
 var step := {}
-## A dash at the opportunity's target through startup (Shadow Counter): {max m, stop: m short of its centre, pace: m/s —
+## A mark planted at the seal event (Explosive Seal): {range: m (centre to centre), fuse: s from planting to its
+## detonation — which deals this action's damage, reaction and knockback}.
+var seal := {}
+## A dash at the opportunity's target through startup (Shadow Counter, Phantom Execution): {max m, stop: m short of its centre, pace: m/s —
 ## its startup lasts at least the dash's length over this (GPT's v1.5: max(0.15, d / 18) s)}.
 var dash := {}
 ## The automaton's telegraph: {to: the move's time it raises the weapon to, time: s it takes, lock: s into startup its
@@ -70,6 +75,14 @@ var anim := ""
 var anim_from := 0.0
 var anim_speed := 1.0
 var active_at := -1.0
+## How long the move blends in from what he was doing (s).
+var blend := 0.05
+## The camera's jolt when it lands (0..1; 0: by its push — 0.6 for a blow that pushes, else 0.22).
+var shake := 0.0
+## How long his stance blends back in after it (s; 0: the stance's own) — a finisher's ending pose eases out.
+var exit_blend := 0.0
+## Its own sounds by name (assets/audio/<name>.wav): {active, hit}; empty: the sword's.
+var sounds := {}
 ## The blade through the active window: a point near the guard and the tip, in the attacker's frame (+Z forward,
 ## +X his left, +Y up, origin between his feet), evenly spaced in time from the window's start to its end.
 var blade_base := PackedVector3Array()
@@ -176,6 +189,11 @@ static func from_dict(p_id: String, d: Dictionary) -> AttackData:
 	a.aim_yaw = float(d.get("aim_yaw", 0.0))
 	a.step = d.get("step", {}) as Dictionary
 	a.dash = d.get("dash", {}) as Dictionary
+	a.seal = d.get("seal", {}) as Dictionary
+	a.blend = float(d.get("blend", 0.05))
+	a.shake = float(d.get("shake", 0.0))
+	a.exit_blend = float(d.get("exit_blend", 0.0))
+	a.sounds = d.get("sounds", {}) as Dictionary
 	a.windup = d.get("windup", {}) as Dictionary
 	a.follow = d.get("follow", {}) as Dictionary
 	a.active_at = float(d.get("active_at", -1.0))
@@ -216,6 +234,7 @@ static func load_set(path: String = DATA, blades: String = BLADES) -> Dictionary
 			push_error("AttackData: no baked blade for %s (run tools/bake_blades.mjs)" % k)
 		out[String(k)] = a
 	out["_chains"] = data.get("chains", {})
+	out["_sequence"] = data.get("sequence", {})
 	out["_graph"] = data.get("graph", [])
 	_sets[path] = out
 	return out

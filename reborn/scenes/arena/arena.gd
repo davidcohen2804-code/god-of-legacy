@@ -57,6 +57,7 @@ func _ready() -> void:
 		d.player = player
 		d.rig = rig
 		d.automaton = automaton
+		d.combat = combat
 		d.caption = hud.prompt
 		add_child(d)
 
@@ -169,6 +170,17 @@ func _build_combat() -> void:
 	chain.combat = combat
 	chain.fighter = player
 	add_child(chain)
+	var seal := SealVisual.new()
+	seal.name = "ExplosiveSeal"
+	seal.combat = combat
+	seal.fighter = player
+	add_child(seal)
+	var execution := ExecutionVisual.new()
+	execution.name = "PhantomExecution"
+	execution.combat = combat
+	execution.fighter = player
+	execution.rig = rig
+	add_child(execution)
 
 
 ## (QA) an inspection viewpoint; the rig holds the camera in the game view.
@@ -262,6 +274,8 @@ func _on_qa_command(cmd: String, args: Array) -> void:
 				automaton.attack()
 			"spar":
 				automaton.spar = n < 2 or str(args[1]) != "0"
+			"heal":
+				automaton.heal()
 		QA.flag("auto_cmd", str(args[0]))
 	elif cmd == "arm" and args.size() >= 2:
 		# (tests) press `action` when the automaton's attack has run `at` s (its telegraph: a timed defence)

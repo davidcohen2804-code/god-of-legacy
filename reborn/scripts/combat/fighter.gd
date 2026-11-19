@@ -29,6 +29,9 @@ var invulnerable := false
 var combat_ready := false
 ## Set by the combat controller: the body follows `action_velocity` instead of the stick (a strike's step forward).
 var action_lock := false
+## The blend back into his stance after the action that just ended (s; 0: the stance's own) — set by the combat
+## controller for a finisher whose ending pose should ease out, used once.
+var exit_blend := 0.0
 var action_velocity := Vector3.ZERO
 ## A leap (Aerial Pursuit): the body follows `action_velocity` up and down too, without gravity.
 var action_air := false
@@ -203,11 +206,13 @@ func _physics_process(delta: float) -> void:
 ## The walk/run/sprint cycle from the ground speed, its playback matched to the speed (no sliding feet).
 func _locomotion() -> void:
 	var speed := ground_speed()
+	var out := exit_blend
+	exit_blend = 0.0
 	if speed < 0.35:
-		visual.play("Sword_Idle" if combat_ready else "Idle_Loop", 0.2)
+		visual.play("Sword_Idle" if combat_ready else "Idle_Loop", maxf(0.2, out))
 	elif sprinting and speed > run_speed + 0.6:
-		visual.play("Sprint_Loop", 0.15, clampf(speed / 7.6, 0.7, 1.4))
+		visual.play("Sprint_Loop", maxf(0.15, out), clampf(speed / 7.6, 0.7, 1.4))
 	elif speed < 2.6:
-		visual.play("Walk_Loop", 0.15, clampf(speed / 1.6, 0.6, 1.5))
+		visual.play("Walk_Loop", maxf(0.15, out), clampf(speed / 1.6, 0.6, 1.5))
 	else:
-		visual.play("Jog_Fwd_Loop", 0.15, clampf(speed / 4.6, 0.7, 1.35))
+		visual.play("Jog_Fwd_Loop", maxf(0.15, out), clampf(speed / 4.6, 0.7, 1.35))

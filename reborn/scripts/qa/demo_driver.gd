@@ -1,8 +1,14 @@
 class_name DemoDriver
 extends Node
-## The review recording (M4 Stage C: defensive counterplay): run with `-- --demo`, the game goes straight to the arena
-## and this node plays a fixed script of touches through the engine's own input — the same path a finger takes — so the
-## on-screen controls show the thumb on the stick and the taps on STEP, COUNTER and DODGE. The Samurai walks up to the
+## The review recordings: run with `-- --demo`, the game goes straight to the arena and this node plays a fixed script
+## of touches through the engine's own input — the same path a finger takes — so the on-screen controls show the thumb
+## on the stick and the taps. M4 Stage D (SCRIPT_D, the default — GPT's v1.5 / v1.6): Explosive Execution at real
+## speed — Basic 1 → 2 → 3 on the Training Automaton, SEAL as it shows, the mark and its detonation, EXECUTE as it
+## shows — then a missed strike (Basic 3 at empty air: no SEAL), a SEAL left to expire, an EXECUTE refused from 4 m (a
+## clearly captioned test command moves the automaton away) that then expires, an Execution whose target is moved out
+## of its path (captioned the same way) and misses; and the branch again at half speed. Between examples he steps back
+## and the automaton is put back on its mark with its health restored (the next example starts the same way).
+## M4 Stage C (SCRIPT_C, `-- --demo --demo-c`): defensive counterplay. The Samurai walks up to the
 ## Training Automaton (its sparring script off: the script starts each of its attacks, so every example begins the
 ## same way) and, at real speed: its telegraphed sweep (the raised, kindling sword and the amber arc), Shadow Step
 ## timed into the cut — the blade passes through his fading shadow — COUNTER appearing and pressed, the counter's dash
@@ -23,7 +29,7 @@ extends Node
 ## sparring script on or off; "drag": a second finger turns the camera; "caption": a line in the HUD for some seconds;
 ## "slowmo": the game's speed. The Samurai starts 7 m south of the dummy looking north; the automaton stands north-west
 ## of the dummy, at (-3.5, -2.5).
-const SCRIPT := [
+const SCRIPT_C := [
 	[0.2, "spar", false],
 	[0.4, "caption", "Shadow Counter: evade the automaton's telegraphed sweep, then answer it", 3.0],
 	[0.5, "go", Vector2(-3.5, 1.4), 0.85], # run up to it (the stick lets go 0.8 m short of the point)
@@ -57,7 +63,67 @@ const SCRIPT := [
 	[24.2, "end"],
 ]
 
+## Stage D's actions besides: "mash": Attack tapped as a quick thumb would — a strike's tap taken at once, the next
+## tapped while the strike cuts (held for it by the chain), never one too many — until `n` strikes have started;
+## "after_mash": a step `delay` s after the mash's last strike has ended; "when_cond": a step once an opportunity for
+## `ability` has been on a button `delay` s (within 6 s); "when_action": a step once his action `id` has run `at` s
+## (within 6 s); "reset": the automaton back on its mark facing him, its health restored; "auto_away": the automaton
+## placed `d` m from him, where it stands relative to him (a test command, captioned as such); "auto_side": it moved
+## `d` m sideways, across his line to it (likewise).
+const SCRIPT_D := [
+	[0.2, "spar", false],
+	[0.4, "caption", "Explosive Execution: three confirmed strikes → SEAL → its delayed detonation → EXECUTE", 3.0],
+	[0.5, "go", Vector2(-3.5, 1.4), 0.85], # run up to it (the stick lets go 0.8 m short of the point)
+	[2.2, "approach", 1.75, 0.35], # walk in to 1.75 m from it, facing it
+	[3.6, "when_cond", "explosive_seal", 0.0, [0.0, "caption", "BASIC 1 → 2 → 3, each confirmed on it: EXPLOSIVE SEAL", 1.2]],
+	[3.6, "when_cond", "explosive_seal", 0.1, [0.0, "tap", "cond1"]],
+	[3.6, "when_action", "explosive_seal", 0.12, [0.0, "caption", "The mark is planted — it bursts 650 ms later (24)", 1.3]],
+	[3.6, "when_cond", "phantom_execution", 0.0, [0.0, "caption", "PHANTOM EXECUTION — the dash, the cleave (45), the low finishing stance", 2.6]],
+	[3.6, "when_cond", "phantom_execution", 0.12, [0.0, "tap", "cond1"]],
+	[3.6, "mash", 3],
+	[7.6, "go", Vector2(-3.5, 1.2), 0.85], # he steps back...
+	[7.6, "caption", "A missed strike: Basic 3 swings at empty air — not confirmed, so no SEAL", 3.0],
+	[8.8, "reset"], # ...and the automaton is back on its mark, its health restored
+	[8.9, "approach", 1.75, 0.6],
+	[10.2, "mash", 2],
+	[10.2, "after_mash", 0.0, [0.0, "stick", Vector2(0, -0.7)]], # the thumb pulls back, away from it...
+	[10.2, "after_mash", 0.1, [0.0, "tap", "attack"]], # ...and Basic 3 cuts that way
+	[10.2, "after_mash", 0.45, [0.0, "stick_up"]],
+	[12.6, "go", Vector2(-3.5, 1.2), 0.85],
+	[12.6, "caption", "SEAL left unused: after 1.2 s it is gone — no mark, nothing follows", 3.2],
+	[13.8, "reset"],
+	[13.9, "approach", 1.75, 0.6],
+	[15.2, "mash", 3],
+	[18.0, "go", Vector2(-3.5, 1.2), 0.85],
+	[18.0, "caption", "Test command: after the detonation the automaton is moved 4 m away — EXECUTE is refused (Out of reach), then expires", 3.8],
+	[19.2, "reset"],
+	[19.3, "approach", 1.75, 0.6],
+	[20.6, "when_cond", "explosive_seal", 0.1, [0.0, "tap", "cond1"]],
+	[20.6, "when_cond", "phantom_execution", 0.05, [0.0, "auto_away", 4.0]],
+	[20.6, "when_cond", "phantom_execution", 0.3, [0.0, "tap", "cond1"]],
+	[20.6, "mash", 3],
+	[24.4, "go", Vector2(-3.5, 1.2), 0.85],
+	[24.4, "caption", "Test command: the automaton is moved out of the cleave's path in the Execution's startup — the strike misses", 3.8],
+	[25.6, "reset"],
+	[25.7, "approach", 1.75, 0.6],
+	[27.0, "when_cond", "explosive_seal", 0.1, [0.0, "tap", "cond1"]],
+	[27.0, "when_cond", "phantom_execution", 0.12, [0.0, "tap", "cond1"]],
+	[27.0, "when_action", "phantom_execution", 0.08, [0.0, "auto_side", 2.6]],
+	[27.0, "mash", 3],
+	[30.8, "go", Vector2(-3.5, 1.2), 0.85],
+	[30.8, "caption", "The whole branch again, at half speed", 2.4],
+	[32.0, "reset"],
+	[32.1, "approach", 1.75, 0.6],
+	[33.4, "slowmo", 0.5],
+	[33.4, "when_cond", "explosive_seal", 0.1, [0.0, "tap", "cond1"]],
+	[33.4, "when_cond", "phantom_execution", 0.12, [0.0, "tap", "cond1"]],
+	[33.4, "mash", 3],
+	[36.6, "slowmo", 1.0],
+	[38.0, "end"],
+]
+
 var touch: TouchControls
+var combat: CombatController
 var player: Fighter
 var rig: CameraRig
 var automaton: TrainingAutomaton
@@ -74,13 +140,33 @@ var _wait := {} ## a button to tap once it shows: key, delay, since (when it app
 var _on_attack: Array[Dictionary] = [] ## taps (key) or stick pushes (stick) at a moment of the automaton's attack: at
 var _attack_left := 0.0 ## an "attack" still trying (s)
 var _approach := {} ## walking in to the automaton: d, push
+var _script: Array = SCRIPT_D
+var _mash := {} ## n, from (strikes then), next (s to the next tap allowed)
+var _after: Array = [] ## the mash's after-steps: [delay, step]
+var _deferred: Array = [] ## [time, step]
+var _watch: Array[Dictionary] = [] ## when_cond / when_action: kind, id, at, step, since, limit
+var _home := Vector3.INF ## the automaton's mark
+
+
+func _ready() -> void:
+	if "--demo-c" in OS.get_cmdline_user_args():
+		_script = SCRIPT_C
 
 
 func _physics_process(delta: float) -> void:
 	_t += delta
-	while _i < SCRIPT.size() and _t >= float(SCRIPT[_i][0]):
-		_run(SCRIPT[_i])
+	if _home == Vector3.INF and automaton:
+		_home = automaton.global_position
+	while _i < _script.size() and _t >= float(_script[_i][0]):
+		_run(_script[_i])
 		_i += 1
+	_tick_mash(delta)
+	_tick_watch(delta)
+	for i in range(_deferred.size() - 1, -1, -1):
+		if _t >= float(_deferred[i][0]):
+			var st: Array = _deferred[i][1]
+			_deferred.remove_at(i)
+			_run(st)
 	if _goal != Vector3.INF:
 		var to := _goal - player.global_position
 		to.y = 0.0
@@ -186,9 +272,82 @@ func _run(step: Array) -> void:
 				caption.call(String(step[2]), float(step[3]))
 		"slowmo":
 			Engine.time_scale = float(step[2])
+		"mash":
+			_mash = {"n": int(step[2]), "from": int(combat.stats["strikes"]), "next": 0.0}
+			_after = []
+		"after_mash":
+			_after.append([float(step[2]), step[3]])
+		"when_cond", "when_action":
+			_watch.append({"kind": String(step[1]), "id": String(step[2]), "at": float(step[3]), "step": step[4],
+				"since": 0.0, "limit": 6.0})
+		"reset":
+			if automaton and _home != Vector3.INF:
+				automaton.place(_home)
+				var to := player.global_position - _home
+				automaton.facing = atan2(to.x, to.z)
+				automaton.heal()
+		"auto_away", "auto_side":
+			if automaton:
+				var dir := automaton.global_position - player.global_position
+				dir.y = 0.0
+				dir = dir.normalized() if dir.length() > 0.01 else -player.forward()
+				if String(step[1]) == "auto_away":
+					automaton.place(player.global_position + dir * float(step[2]))
+				else:
+					automaton.place(automaton.global_position + Vector3(dir.z, 0.0, -dir.x) * float(step[2]))
+				automaton.facing = atan2(-dir.x, -dir.z)
 		"end":
 			Engine.time_scale = 1.0
 			get_tree().quit()
+
+
+## The mash: Attack tapped when a strike would take it — free (it starts one) or while one cuts or recovers with none
+## held yet (the chain holds it for the next) — never in a startup (it would wait in the input buffer and come late),
+## and never one strike too many; then, once the last has ended, its after-steps.
+func _tick_mash(delta: float) -> void:
+	if _mash.is_empty() or combat == null:
+		return
+	_mash["next"] = float(_mash["next"]) - delta
+	var m := combat.melee
+	var started := int(combat.stats["strikes"]) - int(_mash["from"])
+	var asked := started + (1 if m.queued else 0)
+	if asked < int(_mash["n"]):
+		var takes := m.phase == MeleeState.Phase.FREE or ((m.phase == MeleeState.Phase.ACTIVE \
+			or m.phase == MeleeState.Phase.RECOVERY) and not m.queued)
+		if takes and float(_mash["next"]) <= 0.0:
+			_tap("attack")
+			_mash["next"] = 0.16 # (the tap's release first)
+	elif started >= int(_mash["n"]) and m.phase == MeleeState.Phase.FREE:
+		for e in _after:
+			_deferred.append([_t + float(e[0]), e[1]])
+		_after = []
+		_mash = {}
+
+
+## when_cond: an opportunity for `id` on a button for `at` s; when_action: his action `id` has run `at` s.
+func _tick_watch(delta: float) -> void:
+	if combat == null:
+		return
+	for i in range(_watch.size() - 1, -1, -1):
+		var w := _watch[i]
+		w["limit"] = float(w["limit"]) - delta
+		var ready := false
+		if String(w["kind"]) == "when_cond":
+			var shown := false
+			for o in combat.conditionals()["slots"]:
+				shown = shown or String((o as Dictionary).get("ability", "")) == String(w["id"])
+			if shown:
+				w["since"] = float(w["since"]) + delta
+				ready = float(w["since"]) >= float(w["at"])
+		else:
+			var a := combat.melee.current()
+			ready = a != null and a.id == String(w["id"]) and combat.melee.is_attacking() \
+				and combat.melee.elapsed() >= float(w["at"])
+		if ready:
+			_watch.remove_at(i)
+			_run(w["step"])
+		elif float(w["limit"]) <= 0.0:
+			_watch.remove_at(i)
 
 
 ## A short tap on a button (a second finger: the stick's thumb may stay down).

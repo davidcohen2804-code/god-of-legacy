@@ -26,6 +26,11 @@ extends Node
 ## keeps his facing — one blocked at once by a wall protects nothing (GPT's v1.5); Shadow Counter dashes at its attacker
 ## through its startup (longer for a longer dash: GPT's v1.5, max(0.15, d / 18) s), then strikes like any cut — a
 ## press from beyond its whole dash and its blade's reach is refused and its opportunity kept.
+## Explosive Execution (M4 Stage D, GPT's v1.2 / v1.5): Basic 1 → 2 → 3 confirmed in order on one target, each within
+## 900 ms of the last on the combat clock (StrikeSequence), is the authoritative event that opens Explosive Seal; the
+## Seal plants a mark at its seal event — only on a target alive, within reach, in clear line and sealable — which
+## detonates 650 ms later (the target's own time); a detonation that damages a target that survives it opens Phantom
+## Execution: a dash at it through its startup, then its cleave, which must connect like any cut.
 
 ## An action began (`step`: its place in the Attack chain, 0..2, or -1).
 signal strike_started(a: AttackData, step: int)
@@ -43,6 +48,11 @@ signal attack_evaded(attacker_id: int, defender_id: int, attack_id: String)
 ## An enemy's blow landed on him (`dir`: flat, from the attacker toward him).
 signal blow_taken(a: AttackData, attacker: Node3D, dir: Vector3)
 signal hp_changed(hp: int, max_hp: int)
+## Explosive Seal planted its mark on `target` (it detonates in `fuse` s), or missed (`why`: what the player is told).
+signal seal_planted(target: Node3D, fuse: float)
+signal seal_missed(target: Node3D, why: String)
+## A mark detonated on `target`, dealing `damage`.
+signal seal_detonated(target: Node3D, damage: int)
 
 const STOP_SHORT := 1.1 ## the step into a cut stops this close to the target's centre, m
 const STANCE_TIME := 4.0 ## the drawn-sword stance after an action, s
@@ -78,6 +88,13 @@ var training := true
 var evasions := 0
 var avoided := 0
 var blows := 0
+## The combat clock: game time held through his hit-stop — the Legacy Chain's windows and the strike sequence's gaps
+## run on it. (A mark's fuse runs on its target's own time instead: it is the target's, whatever he does — GPT's v1.6.)
+var clock := 0.0
+## Explosive Execution's entry: the basic strikes confirmed in order on one target (data: "sequence").
+var sequence := StrikeSequence.from_data()
+## Explosive Seal's marks not yet detonated: target instance id → {target, left: s to its detonation, action}.
+var marks := {}
 
 var _target: Node3D
 var _aim := Vector3.ZERO
@@ -171,6 +188,7 @@ func promote_waiting() -> bool:
 func interrupted(why: String = "interrupted") -> void:
 	legacy.interrupt(why)
 	_queued = {}
+	sequence.reset()
 	_let_go()
 
 
@@ -204,11 +222,16 @@ func tick(dt: float, stick_dir: Vector3) -> void:
 					from if from is Vector3 else Vector3.INF):
 				if melee.hit_confirmed(target.get_instance_id()):
 					_land(a, target)
+					if a.button == "attack" and sequence.confirm(a.id, target.get_instance_id(), clock):
+						legacy.event("sequence", target.get_instance_id()) # (Basic 3 completed it: Explosive Seal)
+						QA.flag("sequence", String(target.name))
 	_events(stick_dir)
 	_tick_shot(dt)
 	_tick_pull()
 	if melee.hitstop <= 0.0:
 		legacy.step(dt) # (the windows hold through hit-stop)
+		clock += dt
+	_tick_marks(dt) # (on each target's own time, not his; after the windows aged: one it opens starts whole)
 	_check_opportunities()
 	if legacy.events.size() > 64:
 		legacy.events = legacy.events.slice(-32) # (nothing drains them in play: keep the latest for the tests)
@@ -299,6 +322,11 @@ func evasion_span() -> Vector2:
 	if _span_action == null or _span_action.kind != "step" or melee.phase == MeleeState.Phase.HITSTUN:
 		return Vector2(-1, -1)
 	return HitResolver.overlap(_span_action.defense_window(), _span_e)
+
+
+## The target of the action running now (null when none).
+func current_target() -> Node3D:
+	return _target if _target and is_instance_valid(_target) and melee.is_attacking() else null
 
 
 ## Shadow Step's Shadow Origin (INF before its movement began).
@@ -430,6 +458,82 @@ func _dash_velocity(a: AttackData, dt: float) -> Vector3:
 	return to.normalized() * d / maxf(dt, 0.0001)
 
 
+## Why Explosive Seal could not plant its mark on `t` now ("" when it could): gone or defeated, not sealable (its data),
+## beyond its reach (centre to centre, flat), or no clear line from his chest to its chest.
+func _seal_fault(a: AttackData, t: Node3D) -> String:
+	if t == null or not is_instance_valid(t) or (t.has_method("is_alive") and not t.is_alive()):
+		return "No target"
+	var data: Variant = t.get("target_data")
+	if not (data is Dictionary and bool((data as Dictionary).get("sealable", false))):
+		return "Resists the seal"
+	if _flat(t.global_position - fighter.global_position).length() > float(a.seal.get("range", 2.2)) + 1e-6:
+		return "Out of reach"
+	if fighter.is_inside_tree():
+		var q := PhysicsRayQueryParameters3D.create(fighter.global_position + Vector3(0, 1.2, 0),
+			t.global_position + Vector3(0, 1.0, 0), ChainShot.WORLD_MASK)
+		if not fighter.get_world_3d().direct_space_state.intersect_ray(q).is_empty():
+			return "Blocked"
+	return ""
+
+
+## Explosive Seal's moment (its seal event): the mark is planted on its target if it can be — alive, within reach, in
+## clear line, sealable (its data) — else the Seal missed: nothing planted (the opportunity was spent on the press).
+func _plant_seal(a: AttackData) -> void:
+	var t := _target
+	var why := _seal_fault(a, t)
+	if why != "":
+		notice.emit(why if why == "Resists the seal" else "Seal missed")
+		QA.flag("seal", "missed:" + why)
+		seal_missed.emit(t, why)
+		return
+	var fuse := float(a.seal.get("fuse", 0.65))
+	# (the mark was planted at the seal event's moment, inside this tick: what is left of the fuse at the tick's end)
+	var at := a.startup
+	for e in a.events:
+		if String(e.get("name", "")) == "seal":
+			at = float(e.get("at", at))
+	var left := fuse - maxf(0.0, _span_e.y - at)
+	marks[t.get_instance_id()] = {"target": t, "left": left, "action": a, "fresh": true}
+	QA.flag("seal", "planted:" + String(t.name))
+	seal_planted.emit(t, fuse)
+
+
+## The marks' fuses, each on its target's own time (paused only while that target is held still by hit-stop — never by
+## anything he does: GPT's v1.6): each detonates `fuse` s after it was planted — or fades with its target (gone,
+## defeated) unexploded.
+func _tick_marks(dt: float) -> void:
+	for id in marks.keys():
+		var m: Dictionary = marks[id]
+		var t: Variant = m["target"]
+		if not is_instance_valid(t) or ((t as Node3D).has_method("is_alive") and not (t as Node3D).is_alive()):
+			marks.erase(id)
+			QA.flag("detonation", "faded")
+			continue
+		if bool(m.get("fresh", false)):
+			m["fresh"] = false # (planted this tick: its fuse already counts the part of the tick after the planting)
+			continue
+		if (t as Node3D).has_method("is_frozen") and (t as Node3D).is_frozen():
+			continue
+		m["left"] = float(m["left"]) - dt
+		if float(m["left"]) <= 1e-6:
+			marks.erase(id)
+			_detonate(t as Node3D, m["action"] as AttackData)
+
+
+## A mark detonates: the Seal's damage, reaction and push (away from him) on its target; the authoritative event
+## detonated — Phantom Execution opens against it if it survives.
+func _detonate(t: Node3D, a: AttackData) -> void:
+	var dir := _flat(t.global_position - fighter.global_position)
+	dir = dir.normalized() if dir.length() > 0.01 else fighter.forward()
+	if t.has_method("take_hit"):
+		t.take_hit(a.damage, a.reaction, a.knockback, dir)
+	_after_hit(a, t, dir, -1)
+	QA.flag("detonation", "%s:%d" % [t.name, a.damage])
+	seal_detonated.emit(t, a.damage)
+	if not (t.has_method("is_alive") and not t.is_alive()):
+		legacy.event("detonated", t.get_instance_id())
+
+
 ## The farthest a dashing action reaches its target `t` from where he stands: its whole dash, then its blade's reach
 ## (and its step into the cut) to the target's edge; -1 without a target (nothing is in reach).
 func _dash_reach(a: AttackData, t: Node3D) -> float:
@@ -541,7 +645,7 @@ func _after_hit(a: AttackData, target: Node3D, dir: Vector3, step: int, damage: 
 			strike_log[i]["damage"] += dmg
 			break
 	if rig:
-		rig.shake(0.6 if a.knockback > 0.0 else 0.22)
+		rig.shake(a.shake if a.shake > 0.0 else (0.6 if a.knockback > 0.0 else 0.22))
 	strike_hit.emit(a, step, target, dir)
 
 
@@ -557,7 +661,7 @@ func _events(stick_dir: Vector3) -> void:
 				else:
 					_target = _pick_target(stick_dir, a.aim_range if a.aim_range > 0.0 else assist_range)
 					_aim = _flat(stick_dir).normalized() if stick_dir.length() > 0.2 else Vector3.ZERO
-				fighter.visual.play(a.anim, 0.05, a.startup_speed(), true, a.anim_from)
+				fighter.visual.play(a.anim, a.blend, a.startup_speed(), true, a.anim_from)
 				if a.air:
 					_begin_leap(a)
 				if a.kind == "step":
@@ -583,12 +687,16 @@ func _events(stick_dir: Vector3) -> void:
 			"phase":
 				if String(e["phase"]) == "ACTIVE":
 					strike_active.emit(melee.current(), step)
+				elif String(e["phase"]) == "FREE" and melee.current() and melee.current().exit_blend > 0.0:
+					fighter.exit_blend = melee.current().exit_blend # (a finisher's ending pose eases out)
 			"event":
 				match String(e["name"]):
 					"release":
 						_release(melee.current())
 					"pull":
 						_begin_pull(melee.current())
+					"seal":
+						_plant_seal(melee.current())
 			"hit":
 				QA.flag("strike_hit", "%s:%d" % [String(e["id"]), int(e["damage"])])
 			"miss":
@@ -751,18 +859,30 @@ func _try_queued() -> void:
 		_queued = {}
 		return
 	if not a.dash.is_empty():
-		# (GPT's v1.5) refused only from beyond its whole dash and its blade's reach — the opportunity is kept; else its
-		# startup is as long as its dash needs: max(startup, d / pace)
+		# (GPT's v1.5) refused only from beyond its reach — its `within` (Phantom Execution: 3 m, centre to centre), else
+		# its whole dash and its blade's reach (Shadow Counter) — the opportunity is kept; else its startup is as long as
+		# its dash needs: max(startup, d / pace)
 		var dist := INF
 		if _cond_target and is_instance_valid(_cond_target):
 			dist = _flat(_cond_target.global_position - fighter.global_position).length()
-		if dist > _dash_reach(a, _cond_target):
+		if dist > (a.within if a.within > 0.0 else _dash_reach(a, _cond_target)):
 			notice.emit("Out of reach")
 			QA.flag("cond_refused", ability)
 			_queued = {}
 			return
 		var d := clampf(dist - float(a.dash.get("stop", STOP_SHORT)), 0.0, float(a.dash.get("max", 4.0)))
-		a = a.with_startup(maxf(a.startup, d / float(a.dash.get("pace", INF))))
+		var s := maxf(a.startup, d / float(a.dash.get("pace", INF)))
+		if s > a.startup + 1e-9:
+			a = a.with_startup(s)
+	if a.kind == "seal":
+		# a Seal that could not succeed at all (its target gone, beyond reach, behind something) is refused and its
+		# opportunity kept; one that fails at its planting moment has missed (spent)
+		var why := _seal_fault(a, _cond_target)
+		if why != "":
+			notice.emit(why)
+			QA.flag("cond_refused", ability)
+			_queued = {}
+			return
 	if melee.conditional_pressed(a, cancel):
 		legacy.consume(ability, target_id)
 		_queued = {}
@@ -890,7 +1010,18 @@ func state() -> Dictionary:
 		"blows": blows,
 		"evading": evading(),
 		"dash": snappedf(_dash_moved, 0.01),
+		"clock": snappedf(clock, 0.001),
+		"seq": sequence.progress(melee.chain_target),
+		"marks": _marks_state(),
 	}
+
+
+func _marks_state() -> Array:
+	var out := []
+	for m: Dictionary in marks.values():
+		out.append({"target": String((m["target"] as Node3D).name) if is_instance_valid(m["target"]) else "",
+			"left": snappedf(float(m["left"]), 0.001)})
+	return out
 
 
 static func _flat(v: Vector3) -> Vector3:

@@ -7,6 +7,11 @@ WAV, which Godot imports). M3 review (GPT): three distinct sword swings and impa
   evade       — Shadow Step's genuine evasion (M4 Stage C, GPT's v1.4: a distinctive sound): a soft airy rush as the
                 blade cuts through his shadow, and a glassy fracture — a few inharmonic partials struck at once,
                 falling a little in pitch and ringing out quickly.
+  seal        — Explosive Seal planted (M4 Stage D, GPT's v1.6: synthesized placeholders): a soft palm thump and a
+                glassy tone rising a little as the sigil forms.
+  seal_tick   — the mark's pulses: a short bright tick over a low hum (pitched up for each later pulse).
+  detonation  — the mark bursting: a sharp crack, a noise burst and a deep falling boom with a crackling tail.
+  execution_swing / execution_impact — Phantom Execution: a long, heavy whoosh; a deeper impact than any basic strike.
 Placeholder quality (synthesized, not recorded): to be replaced or layered in the audio pass.
 Usage: python3 make_sfx.py <out dir>"""
 import struct
@@ -123,3 +128,43 @@ def evade(dur):
 
 
 save('evade', evade(0.42), 0.7)
+
+
+def seal(dur):
+    n = int(SR * dur)
+    t = np.arange(n) / SR
+    f = 70 + 60 * np.exp(-t / 0.03)
+    x = 0.9 * np.sin(np.cumsum(2 * np.pi * f / SR)) * np.exp(-t / 0.06)
+    x += 0.5 * svf_band(rng.standard_normal(n), np.full(n, 900.0), 0.8) * np.exp(-t / 0.04)
+    for fr, a, d in [(880, 0.4, 0.22), (1324, 0.3, 0.18), (2210, 0.18, 0.12)]:
+        ff = fr * (1 + 0.04 * (1 - np.exp(-t / 0.12)))
+        x += a * np.sin(np.cumsum(2 * np.pi * ff / SR)) * np.exp(-t / d) * np.clip(t / 0.01, 0, 1)
+    return x * np.clip((dur - t) / 0.03, 0, 1)
+
+
+def seal_tick(dur):
+    n = int(SR * dur)
+    t = np.arange(n) / SR
+    x = 0.7 * np.sin(2 * np.pi * 2600 * t) * np.exp(-t / 0.012)
+    x += 0.5 * np.sin(2 * np.pi * 1300 * t) * np.exp(-t / 0.03)
+    x += 0.35 * np.sin(2 * np.pi * 110 * t) * np.exp(-t / 0.06)
+    return x * np.clip((dur - t) / 0.02, 0, 1)
+
+
+def detonation(dur):
+    n = int(SR * dur)
+    t = np.arange(n) / SR
+    x = 1.0 * rng.standard_normal(n) * np.exp(-t / 0.004)
+    x += 1.2 * svf_band(rng.standard_normal(n), np.full(n, 420.0), 0.7) * np.exp(-t / 0.08)
+    bf = 32 + 40 * np.exp(-t / 0.07)
+    x += 2.0 * np.sin(np.cumsum(2 * np.pi * bf / SR)) * np.exp(-t / 0.3) * np.clip(t / 0.005, 0, 1)
+    grains = (rng.random(n) < 0.015) * rng.standard_normal(n)
+    x += 0.8 * svf_band(grains, np.full(n, 3000.0), 1.2) * np.exp(-t / 0.25)
+    return x * np.clip((dur - t) / 0.05, 0, 1)
+
+
+save('seal', seal(0.4), 0.75)
+save('seal_tick', seal_tick(0.14), 0.55)
+save('detonation', detonation(0.9), 0.95)
+save('execution_swing', swing(0.42, 150, 760, 0.55, 0.3, whistle=0.015, body=1.1), 0.9)
+save('execution_impact', impact(0.85, 120, 36, 0.2, 470, 1.5, boom=2.4), 0.97)

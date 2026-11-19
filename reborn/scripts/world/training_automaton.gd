@@ -209,6 +209,14 @@ func is_alive() -> bool:
 	return hp > 0
 
 
+## (QA) its health whole again while it stands (a demonstration's next example starts the same way).
+func heal() -> void:
+	if is_alive():
+		hp = max_hp
+		hp_changed.emit(hp, max_hp)
+		QA.flag("automaton_healed", hp)
+
+
 func is_airborne() -> bool:
 	return state == "air"
 
@@ -316,6 +324,11 @@ func take_hit(damage: int, reaction: float, push: float, dir: Vector3, _sway: Ve
 ## Hold still for `t` s (hit-stop).
 func freeze_for(t: float) -> void:
 	_freeze = maxf(_freeze, t)
+
+
+## Is it held still by hit-stop now (its own time stands still: a mark's fuse on it waits)?
+func is_frozen() -> bool:
+	return _freeze > 0.0
 
 
 ## (QA) end a hold early (an inspection shot's long freeze).

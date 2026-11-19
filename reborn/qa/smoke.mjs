@@ -4,8 +4,12 @@
 // Playwright's WebKit on Linux is close to Safari but is not iOS Safari) — and the keyboard in desktop Chromium at
 // 16:9 (required). M3: the katana chain against the training dummy (each strike's damage once, the third's push), a
 // deliberate miss, and moving, dodging and attacking again; on the phones, attacking while the stick is held. M4: the
-// Training Automaton's reactions, Phantom Chain → Chain Pull, Rising Slash → Aerial Pursuit, and (Stage C) its
-// telegraphed sweep evaded with Shadow Step → Shadow Counter, and a plain roll that opens nothing.
+// Training Automaton's reactions, Phantom Chain → Chain Pull, Rising Slash → Aerial Pursuit, (Stage C) its
+// telegraphed sweep evaded with Shadow Step → Shadow Counter and a plain roll that opens nothing, and (Stage D) Basic
+// 1 → 2 → 3 on it → Explosive Seal → its detonation → Phantom Execution.
+// The phones' Legacy Chain checks run at half game speed and are labelled so: they exercise the touch interface under
+// software rendering at about a frame a second — not full-speed gameplay, whose windows the headless unit tests verify
+// at 30, 60 and 120 Hz.
 // Writes screenshots and results.json into OUT; exits 1 when the required profile fails.
 import { chromium, webkit, devices } from 'playwright';
 import fs from 'node:fs';
@@ -21,7 +25,9 @@ const PROFILES = [
   { name: 'chromium-16x9', kind: 'desktop', required: true, type: chromium, args: SWIFTSHADER,
     device: { viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1, hasTouch: true, isMobile: false } },
 ];
-const PROFILE_LIMIT = 20 * 60 * 1000; // a profile that hangs is stopped and reported, so the run always ends
+const PROFILE_LIMIT = 40 * 60 * 1000; // a profile that hangs is stopped and reported, so the run always ends
+// (what the phones' Legacy Chain checks are, said with each of them)
+const HALF = ' [at half game speed: the touch interface under software rendering at ~1 frame a second — not a full-speed gameplay check]';
 const T0 = Date.now();
 const say = (...a) => console.log(`[${((Date.now() - T0) / 1000).toFixed(1)}s]`, ...a);
 
@@ -286,7 +292,8 @@ async function runProfile(p) {
       return { s0, from, done };
     };
     // The chain against the dummy standing just in front: B1 → B2 → B3, each confirmed once, 10 + 12 + 18, the third
-    // pushing it about 0.5 m; then it slides back onto its mark.
+    // pushing it about 0.5 m; then it slides back onto its mark. (Stage D: the confirmed sequence opens SEAL against it —
+    // left unpressed here, it expires.)
     const chainTest = async (mash, tag) => {
       await place(0, 1.6, 180);
       await waitFor((s) => dm(s) && dm(s).alive && dm(s).off_mark < 0.05, 'the dummy on its mark', 30000);
@@ -305,7 +312,9 @@ async function runProfile(p) {
       if (pushed < 0.4 || pushed > 0.6) throw new Error(`${tag}: the third strike pushed the dummy ${pushed} m (want ~0.5)`);
       await shot('9_' + tag + '_chain');
       await waitFor((s) => dm(s) && dm(s).off_mark < 0.05, 'the dummy back on its mark', 30000);
-      return `${tag}: B1 → B2 → B3 = ${first3.map((e) => e[2]).join(' + ')} (each strike hit once; ${strikes.length - 3} extra press${strikes.length === 4 ? '' : 'es'} after), dummy ${hp0} → ${hp1} HP, pushed ${pushed} m by the third and back on its mark`;
+      const sealSeen = (await state()).flags.sequence !== undefined;
+      await waitFor((s) => cb(s) && !cb(s).conds.some((c) => c), tag + ': the unused SEAL to expire', 60000);
+      return `${tag}: B1 → B2 → B3 = ${first3.map((e) => e[2]).join(' + ')} (each strike hit once; ${strikes.length - 3} extra press${strikes.length === 4 ? '' : 'es'} after), dummy ${hp0} → ${hp1} HP, pushed ${pushed} m by the third and back on its mark${sealSeen ? '; the confirmed sequence opened SEAL, left to expire' : ''}`;
     };
     // Heavy (M4 stage A): one strike on its own button — one hit for 30, a push of about 0.5 m.
     const heavyTest = async (press, tag) => {
@@ -382,6 +391,46 @@ async function runProfile(p) {
         if (Date.now() > end) throw new Error(`the key ${key} did nothing: ` + JSON.stringify(cb(s)));
         await page.waitForTimeout(60);
       }
+    };
+
+    // M4 Stage D: Explosive Execution on the Training Automaton (GPT's v1.2 / v1.6). He stands 1.7 m in front of it,
+    // facing it; B1 → B2 → B3, each confirmed on it, opens SEAL → pressed (touch: the page taps it the moment it shows)
+    // → the mark planted → it detonates 650 ms later (24) → EXECUTE → pressed → the dash and the cleave (45). Every
+    // strike's damage comes from the game's own log; the automaton loses exactly what they dealt.
+    const executionTest = async (mash, pressSeal, pressExecute, stop, tag) => {
+      await cmd('auto', 'place', -3.5, -2.5, 180);
+      await cmd('auto', 'heal');
+      await place(-3.5, -4.2, 0); // 1.7 m in front of it, facing it
+      await waitFor((s) => au(s) && au(s).state === 'stand' && cb(s) && cb(s).phase === 'FREE' && !cb(s).conds.some((c) => c), tag + ': ready (the automaton standing, nothing open)', 120000);
+      const s0 = await state();
+      const hp0 = au(s0).hp, from = cb(s0).strikes;
+      await mash(3, tag + ' the three strikes on the automaton');
+      await waitFor((s) => cb(s) && (cb(s).conds[0] === 'explosive_seal' || cb(s).log.some((e) => e.id === 'explosive_seal')), tag + ': SEAL on its button', 60000);
+      await pressSeal();
+      try {
+        await waitFor((s) => String(s.flags.seal || '').startsWith('planted'), tag + ': the mark planted', 60000);
+      } finally {
+        await stop();
+      }
+      await waitFor((s) => String(s.flags.detonation || '').endsWith(':24'), tag + ': its detonation', 60000);
+      await waitFor((s) => cb(s) && (cb(s).conds[0] === 'phantom_execution' || cb(s).log.some((e) => e.id === 'phantom_execution')), tag + ': EXECUTE on its button', 60000);
+      await pressExecute();
+      try {
+        await waitFor((s) => cb(s) && cb(s).log.some((e) => e.id === 'phantom_execution' && e.hits === 1), tag + ': the Execution\'s cleave', 60000);
+      } finally {
+        await stop();
+      }
+      await shot('9_' + tag + '_executed');
+      const done = await waitFor((s) => cb(s) && cb(s).phase === 'FREE', tag + ': the Execution to end', 60000);
+      const strikes = since(done, from);
+      const first3 = strikes.slice(0, 3).map((e) => [e.step, e.hits, e.damage]);
+      const seal = strikes.find((e) => e.id === 'explosive_seal'), ex = strikes.find((e) => e.id === 'phantom_execution');
+      const dealt = strikes.reduce((a, e) => a + e.damage, 0);
+      if (JSON.stringify(first3) !== JSON.stringify([[1, 1, 10], [2, 1, 12], [3, 1, 18]]) || !seal || seal.damage !== 24 || !ex || ex.hits !== 1 || ex.damage !== 45) {
+        throw new Error(`${tag}: the branch's strikes were ${JSON.stringify(strikes)} (want B1 10, B2 12, B3 18, the detonation 24, the Execution 45)`);
+      }
+      if (hp0 - au(done).hp !== dealt) throw new Error(`${tag}: the automaton lost ${hp0 - au(done).hp} HP but the strikes dealt ${dealt}`);
+      return `${tag}: B1 → B2 → B3 on the automaton (10 + 12 + 18) → SEAL on its button → the mark planted → detonated 650 ms later (24) → EXECUTE → dashed ${cb(done).dash} m and the cleave landed (45): ${hp0} → ${au(done).hp} HP`;
     };
 
     // M4 Stage C: the automaton's telegraphed sweep (started by the page: 'auto attack'), Shadow Step pressed by the
@@ -578,9 +627,10 @@ async function runProfile(p) {
       // (the phones render about a frame a second here: at half speed a tap the moment a button shows still lands inside
       // its window — PURSUE's target must still be in the air when the press is taken)
       await cmd('speed', 0.5);
-      step(await chainPullTest(() => tapAt('btn_skill1'), tapWhenShown('btn_cond1'), stopTaps, 'touch'));
-      step(await risePursueTest(() => tapAt('btn_skill3'), tapWhenShown('btn_cond1'), stopTaps, 'touch'));
-      step(await counterTest(tapWhenShown('btn_cond1'), stopTaps, 'touch'));
+      step(await chainPullTest(() => tapAt('btn_skill1'), tapWhenShown('btn_cond1'), stopTaps, 'touch') + HALF);
+      step(await risePursueTest(() => tapAt('btn_skill3'), tapWhenShown('btn_cond1'), stopTaps, 'touch') + HALF);
+      step(await counterTest(tapWhenShown('btn_cond1'), stopTaps, 'touch') + HALF);
+      step(await executionTest(mashInPage('btn_attack'), tapWhenShown('btn_cond1'), tapWhenShown('btn_cond1'), stopTaps, 'touch') + HALF);
       await cmd('speed', 1);
       step(await missTest(mashInPage('btn_attack'), 'touch'));
       await place(-8, 8, 90);
@@ -672,6 +722,10 @@ async function runProfile(p) {
       step(await risePursueTest(() => page.keyboard.press('Digit3'),
         pressUntil('Digit4', (s) => cb(s).action === 'aerial_pursuit' || cb(s).log.some((e) => e.id === 'aerial_pursuit')), async () => {}, 'keyboard'));
       step(await counterTest(pressUntil('Digit4', (s) => cb(s).action === 'shadow_counter' || cb(s).log.some((e) => e.id === 'shadow_counter')), async () => {}, 'keyboard'));
+      step(await executionTest(mashBy(() => page.keyboard.press('KeyJ')),
+        pressUntil('Digit4', (s) => cb(s).action === 'explosive_seal' || cb(s).log.some((e) => e.id === 'explosive_seal')),
+        pressUntil('Digit4', (s) => cb(s).action === 'phantom_execution' || cb(s).log.some((e) => e.id === 'phantom_execution')),
+        async () => {}, 'keyboard'));
       step(await rollTest('keyboard'));
       step(await chainMissTest(() => page.keyboard.press('Digit1'), 'keyboard'));
       step(await missTest(mashBy(() => page.keyboard.press('KeyJ')), 'keyboard'));

@@ -41,8 +41,8 @@ func bind(c: CombatController) -> void:
 
 
 func _on_hit(attack: AttackData, _step: int, target: Node3D, dir: Vector3) -> void:
-	if target == null or not is_instance_valid(target):
-		return
+	if target == null or not is_instance_valid(target) or attack.kind == "seal":
+		return # (a mark's detonation is no blade biting: SealVisual shows it)
 	var r: Variant = target.get("hurt_radius")
 	var radius := float(r) if r != null else 0.4
 	var side := Vector3(dir.z, 0.0, -dir.x) * signf(attack.arc_to - attack.arc_from)

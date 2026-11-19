@@ -8,7 +8,8 @@ extends Node3D
 ##   jumps the framing.
 ## Every change is damped (no snapping, no cuts). A touch drag turns it at any time; easing toward a locked foe never
 ## overrides a drag. It pulls in (never closer than 3 m) in front of columns; it looks over the low walls. A landed
-## blow gives it a brief jolt (shake), stronger for a finisher.
+## blow gives it a brief jolt (shake), stronger for a finisher; a finisher may also narrow its view a little
+## (`fov_push`: degrees, eased in and out, never turning it — GPT's v1.6: at most 2° for Phantom Execution).
 
 enum Mode { EXPLORATION, COMBAT, COMBO }
 
@@ -32,6 +33,8 @@ var sensitivity := 1.0
 var cam: Camera3D
 ## Off while a test viewpoint holds the camera.
 var active := true
+## Degrees its view narrows by now (a finisher's push-in); eased toward, never a jump.
+var fov_push := 0.0
 
 var _pitch_offset := 0.0
 var _pos := Vector3.ZERO
@@ -41,6 +44,8 @@ var _height := 1.3
 var _drag_quiet := 1.0
 var _shake := 0.0
 var _shake_t := 0.0
+var _fov := 55.0
+var _push := 0.0
 
 
 func _ready() -> void:
@@ -106,7 +111,9 @@ func _process(delta: float) -> void:
 	_dist = lerpf(_dist, clampf(float(p["dist"]) + extra, DIST_MIN, DIST_MAX), k)
 	_pitch = lerpf(_pitch, clampf(float(p["pitch"]) + _pitch_offset, PITCH_MIN, PITCH_MAX), k)
 	_height = lerpf(_height, float(p["height"]), k)
-	cam.fov = lerpf(cam.fov, float(p["fov"]), k)
+	_fov = lerpf(_fov, float(p["fov"]), k)
+	_push = lerpf(_push, fov_push, 1.0 - exp(-delta * 14.0))
+	cam.fov = _fov - _push
 	_pos = _pos.lerp(aim + Vector3(0, _height, 0), 1.0 - exp(-delta * 9.0))
 
 	var b := Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, deg_to_rad(_pitch))

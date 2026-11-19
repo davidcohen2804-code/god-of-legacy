@@ -131,6 +131,11 @@ func freeze_for(t: float) -> void:
 	_freeze = maxf(_freeze, t)
 
 
+## Is it held still by hit-stop now (a mark's fuse on it waits)?
+func is_frozen() -> bool:
+	return _freeze > 0.0
+
+
 func _physics_process(delta: float) -> void:
 	if _freeze > 0.0:
 		_freeze -= delta
