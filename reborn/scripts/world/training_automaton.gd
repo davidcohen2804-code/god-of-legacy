@@ -9,7 +9,8 @@ extends CharacterBody3D
 ##     after the last blow it took and no sooner than its cadence allows, it attacks;
 ##   attack — its telegraphed sweep (data/abilities/automaton.json, run through the same combat state machine as the
 ##     Samurai's actions): through the 550 ms startup it raises its practice sword and holds it, trembling, as the
-##     sword and its eyes kindle amber and a faint amber arc on the flagstones marks where the cut will pass; it keeps
+##     sword and its eyes kindle amber and a thin amber arc on the flagstones marks where the cut will pass (brighter
+##     and hotter through the startup's last 150 ms, out at once after the cut: GPT's v1.5); it keeps
 ##     turning toward him until 300 ms in, then its direction is locked; it steps 0.3 m into the 130 ms cut (with
 ##     collision), whose blade — its baked path — is resolved against him each tick after he has moved (his
 ##     CombatController: hit, evaded through Shadow Step's defensive window, avoided by a roll, or nothing); then 400 ms
@@ -52,6 +53,8 @@ const FLASH_TIME := 0.1
 const WALK_SPEED := 1.3
 const DOWN_HEIGHT := 0.55 ## the hurt capsule's height while it lies on the floor
 const LUNGE_LEAD := 0.1 ## its step into the cut begins this long before the cut
+const ARC_URGENT := 0.15 ## the floor arc rises to full through the startup's last 0.15 s (GPT's v1.5)...
+const ARC_OUT := 0.06 ## ...and goes out within this after the cut
 
 ## What it is and resists (data/targets.json).
 var target_data := TargetData.of("training_automaton")
@@ -88,8 +91,12 @@ var attack_data: AttackData
 var attacks := 0
 ## How its last attack ended against its foe (see attack_resolved).
 var last_attack := ""
-## The telegraph's strength now (0..1; 1 through the cut) — the sword's and eyes' kindling, the arc on the floor.
+## The telegraph's strength now (0..1; 1 through the cut) — the sword's and eyes' kindling.
 var telegraph := 0.0
+## The floor arc's strength now (0..1; GPT's v1.5: it kindles to TelegraphArc.KINDLE through the windup, rises to 1
+## through the startup's last ARC_URGENT s — more urgent as the impact nears —, holds through the cut and goes out
+## within ARC_OUT s after it).
+var arc_strength := 0.0
 ## The arc on the flagstones where the cut will pass.
 var arc: TelegraphArc
 
@@ -484,13 +491,20 @@ func _do_attack(dt: float) -> void:
 			if t > rise:
 				at -= 0.01 * (0.5 + 0.5 * sin(_clock * 46.0)) # the raised weapon trembles
 			telegraph = pow(clampf(t / a.startup, 0.0, 1.0), 1.5)
+			var urgent := a.startup - ARC_URGENT
+			if t < urgent:
+				arc_strength = TelegraphArc.KINDLE * pow(clampf(t / maxf(urgent, 0.0001), 0.0, 1.0), 1.5)
+			else:
+				arc_strength = lerpf(TelegraphArc.KINDLE, 1.0, clampf((t - urgent) / ARC_URGENT, 0.0, 1.0))
 		MeleeState.Phase.ACTIVE:
 			_locked = true
 			at = a.move_time(clampf(_melee.t / maxf(_melee.active_length(), 0.0001), 0.0, 1.0))
 			telegraph = 1.0
+			arc_strength = 1.0
 		MeleeState.Phase.RECOVERY:
 			at = lerpf(a.move_time(1.0), float(a.follow.get("to", 0.8)), clampf(_melee.t / a.recovery, 0.0, 1.0))
 			telegraph = maxf(0.0, 1.0 - _melee.t / 0.15)
+			arc_strength = maxf(0.0, 1.0 - _melee.t / ARC_OUT)
 		_:
 			_finish_attack()
 			return
@@ -515,6 +529,7 @@ func _finish_attack() -> void:
 	if _outcome == "":
 		_resolved("missed")
 	telegraph = 0.0
+	arc_strength = 0.0
 	_show_telegraph()
 	_enter("stand")
 
@@ -526,13 +541,14 @@ func _leave_attack() -> void:
 		if _outcome == "":
 			_resolved("interrupted")
 	telegraph = 0.0
+	arc_strength = 0.0
 	_show_telegraph()
 
 
 func _show_telegraph() -> void:
 	visual.set_telegraph(telegraph, _melee.phase == MeleeState.Phase.ACTIVE)
 	if arc:
-		arc.show_at(_attack_from, facing, telegraph, _melee.phase == MeleeState.Phase.ACTIVE)
+		arc.show_at(_attack_from, facing, arc_strength)
 
 
 func _do_stand(dt: float) -> void:
@@ -801,6 +817,7 @@ func info() -> Dictionary:
 		"pushes": pushes, "captures": captures, "launches": launches, "frozen": _freeze > 0.0,
 		"spar": spar, "attacks": attacks, "last_attack": last_attack,
 		"attack_t": snappedf(attack_time(), 0.001), "locked": _locked, "telegraph": snappedf(telegraph, 0.01),
+		"arc": snappedf(arc_strength, 0.01),
 		"cadence": snappedf(_melee.cooldown_left(attack_data.id) if attack_data else 0.0, 0.01)}
 
 

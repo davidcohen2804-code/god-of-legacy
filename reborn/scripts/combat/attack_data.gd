@@ -57,7 +57,8 @@ var spike := {}
 var aim_yaw := 0.0
 ## A step (Shadow Step): {distance m, defense: [from, to] s from the start of the movement — its defensive window}.
 var step := {}
-## A dash at the opportunity's target through startup (Shadow Counter): {max m, stop: m short of its centre}.
+## A dash at the opportunity's target through startup (Shadow Counter): {max m, stop: m short of its centre, pace: m/s —
+## its startup lasts at least the dash's length over this (GPT's v1.5: max(0.15, d / 18) s)}.
 var dash := {}
 ## The automaton's telegraph: {to: the move's time it raises the weapon to, time: s it takes, lock: s into startup its
 ## direction locks, turn: rad/s until then}; and its follow-through through recovery: {to: the move's time}.
@@ -92,6 +93,33 @@ func move_time(f: float) -> float:
 	if active_at >= 0.0:
 		return active_at + f * active * anim_speed
 	return anim_from + (startup + f * active) * anim_speed
+
+
+## How fast its move plays through startup: from where it starts to where its active window begins (`active_at`) in the
+## startup's time — its own speed unless the startup was stretched (with_startup).
+func startup_speed() -> float:
+	if active_at < 0.0 or startup <= 0.0:
+		return anim_speed
+	return (active_at - anim_from) / startup
+
+
+## A copy of this action whose startup lasts `seconds`: its move plays the same stretch through it — slower or faster —
+## and meets its active window where its blade was baked (Shadow Counter's longer dash, GPT's v1.5).
+func with_startup(seconds: float) -> AttackData:
+	var c := copy()
+	if active_at < 0.0:
+		c.active_at = anim_from + startup * anim_speed
+	c.startup = seconds
+	return c
+
+
+## A shallow copy (its data and its baked blade).
+func copy() -> AttackData:
+	var c := AttackData.new()
+	for p in get_property_list():
+		if int(p["usage"]) & PROPERTY_USAGE_SCRIPT_VARIABLE:
+			c.set(String(p["name"]), get(String(p["name"])))
+	return c
 
 
 ## The start of Shadow Step's defensive window and its end, in seconds from the action's start (zero when none).

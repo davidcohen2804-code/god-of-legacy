@@ -25,15 +25,18 @@ extends RefCounted
 ## three parts — before the defensive window, inside it, after it — and the earliest contact decides:
 ##   inside the window, with `shadow` (finite, GPT's v1.4 rule B): the blade is tested against the capsule standing at
 ##     the Shadow Origin — where he stood when the step's movement began; touching it is a genuine evasion ("it would
-##     have struck him had he not stepped"). His moving body is in shadow meanwhile: not struck. A step that was
-##     blocked at once (`blocked`: no stationary shadow against a wall) earns no evasion: a blow reaching his body
-##     inside the window is only avoided;
+##     have struck him had he not stepped"). His moving body is in shadow meanwhile: not struck (GPT's v1.5: the
+##     window's full protection; normal contact again the moment it ends);
 ##   inside the window without a shadow (the literal rule): a blow reaching his moving body is evaded;
 ##   outside it: a blow reaching his moving body lands — or is avoided inside a roll's window.
+## A step blocked at once by geometry (`blocked`: GPT's v1.5 — no stationary invulnerability against a wall) has no
+## defensive window at all: no evasion, no protection — a blow reaching his body lands.
 static func resolve(a: AttackData, attacker: Vector3, facing: float, span: Vector2, body_from: Vector3,
 		body_to: Vector3, radius: float, height: float, evade: Vector2, iframes: Vector2,
 		shadow: Vector3 = Vector3.INF, blocked: bool = false) -> Dictionary:
 	var parts: Array[Vector3] = [] # (from, to, inside the window: 1 / 0)
+	if blocked:
+		evade = Vector2(-1, -1)
 	if evade.x < 0.0:
 		parts.append(Vector3(0.0, 1.0, 0.0))
 	else:
@@ -47,7 +50,7 @@ static func resolve(a: AttackData, attacker: Vector3, facing: float, span: Vecto
 		var b0 := body_from.lerp(body_to, part.x)
 		var b1 := body_from.lerp(body_to, part.y)
 		var in_window := part.z > 0.5
-		if in_window and shadow.is_finite() and not blocked:
+		if in_window and shadow.is_finite():
 			var g := SwordSweep.first_contact(a, attacker, facing, sub, shadow, radius, height)
 			if g >= 0.0:
 				return {"result": "evaded", "at": lerpf(part.x, part.y, g)}
@@ -57,7 +60,7 @@ static func resolve(a: AttackData, attacker: Vector3, facing: float, span: Vecto
 			continue
 		var at := lerpf(part.x, part.y, f)
 		if in_window:
-			return {"result": "avoided" if blocked else "evaded", "at": at}
+			return {"result": "evaded", "at": at}
 		return {"result": "avoided" if inside(at, iframes) else "hit", "at": at}
 	return {}
 

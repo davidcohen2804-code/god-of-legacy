@@ -6,6 +6,8 @@ extends Node3D
 ##     pose at that moment — for the 120 ms of the defensive window, then fades (the blade passing through it is the
 ##     genuine evasion); a puff of dark violet mist where he left;
 ##   - the burst: a trail of smaller puffs along his path, his body sunk into a dark violet while the window lasts;
+##   - a step blocked at once by a wall (it protects nothing: GPT's v1.5) leaves no afterimage and no violet: only the
+##     puff where he tried;
 ##   - a genuine evasion: the afterimage fractures — violet shards fly from it and a pale ring swells where the blade
 ##     passed (with its own sound, CombatSfx);
 ##   - Shadow Counter's dash trails the same mist.
@@ -92,7 +94,7 @@ func _process(delta: float) -> void:
 	var moving := (stepping or dashing) and not combat.is_frozen()
 	var at := fighter.global_position
 	if moving and not _moving:
-		if stepping:
+		if stepping and not combat.step_blocked():
 			_afterimage()
 		_puff(at + Vector3(0, 0.55, 0), 1.25) # where he left
 		_trail = 0.0

@@ -4,13 +4,15 @@ extends Node3D
 ## a restrained amber warning, so the cut can be dodged without knowing an invisible hitbox): a thin amber arc at the
 ## reach of its cut — the practice sword's baked path out to its tip, the step into the cut included — across the
 ## width the cut sweeps, over a faint fill, laid where the automaton stood when the attack began and turned with it
-## until its direction locks. It kindles through the windup, brightens as the cut passes, and fades with the
-## follow-through. It only shows what the attack does (the hit test is the blade's own path, not this shape); additive
-## and unshaded, no light of its own (light on a phone's GPU).
+## until its direction locks. It kindles through the windup, then (GPT's v1.5: more urgent as the impact nears) its
+## line brightens and warms toward white through the startup's last 150 ms, holds through the cut, and goes out at once
+## after it. It only shows what the attack does (the hit test is the blade's own path, not this shape); additive and
+## unshaded, no light of its own (light on a phone's GPU); a thin line, never a filled warning area.
 
 const BAND := 0.07 ## the arc's line, m wide
 const INNER := 0.45 ## the fill starts this far out (m): the automaton's own feet stay clear
 const SEGMENTS := 40
+const KINDLE := 0.4 ## its strength at the end of the windup's kindling, before the startup's last 150 ms
 
 var radius := 1.9 ## m from where it stood: the cut's reach plus its step
 var yaw_from := -75.0 ## degrees from its facing (+ = its left), the width the cut sweeps
@@ -53,15 +55,17 @@ func _ready() -> void:
 	visible = false
 
 
-## Show it laid at `at` facing `facing` (radians) at strength `k` (0..1; hidden at 0), brighter through the cut.
-func show_at(at: Vector3, facing: float, k: float, cutting: bool) -> void:
+## Show it laid at `at` facing `facing` (radians) at strength `k` (0..1; hidden at 0): up to KINDLE a faint amber line,
+## from KINDLE to 1 (the startup's last 150 ms, and the cut) brighter and hotter.
+func show_at(at: Vector3, facing: float, k: float) -> void:
 	if k <= 0.001:
 		visible = false
 		return
 	visible = true
 	global_transform = Transform3D(Basis(Vector3.UP, facing), at + Vector3(0, 0.025, 0))
-	_band_mat.albedo_color = Color(1.0, 0.6, 0.2, 0.8 if cutting else 0.5 * k)
-	_fill_mat.albedo_color = Color(1.0, 0.52, 0.14, 0.14 if cutting else 0.08 * k)
+	var hot := clampf((k - KINDLE) / (1.0 - KINDLE), 0.0, 1.0)
+	_band_mat.albedo_color = Color(1.0, lerpf(0.6, 0.78, hot), lerpf(0.2, 0.42, hot), lerpf(0.85 * k, 0.95, hot * hot))
+	_fill_mat.albedo_color = Color(1.0, 0.52, 0.14, 0.12 * k)
 
 
 func _material() -> StandardMaterial3D:

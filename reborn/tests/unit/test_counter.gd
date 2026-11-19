@@ -5,17 +5,21 @@ extends RefCounted
 ## straight by its velocity, or — where walls matter — by its own physics (60 Hz, on a floor).
 ## The automaton's sweep: GPT's 550 / 130 / 400 ms and 15 damage, its direction locked 300 ms into the startup, its
 ## cadence; its blow on a Samurai who stays (350 ms of hitstun, a 0.35 m push, his opportunities closed); a blow cuts its
-## attack off; a wall stops its step into the cut.
+## attack off; a wall stops its step into the cut; its floor arc (GPT's v1.5) rises to full through the startup's last
+## 150 ms and goes out within 60 ms of the cut.
 ## Shadow Step: 4 m in its 180 ms at 30, 60 and 120 Hz, along the stick or backward when it is idle, his facing kept, its
 ## defensive window the first 120 ms of the movement; a wall stops it.
 ## The evasion (rule B): the blade crossing his Shadow Origin inside the window — and only then — is a genuine evasion:
 ## attack_evaded once, Shadow Counter open 600 ms against that attacker; the window of presses that earn it is about
 ## 120 ms wide at every tick rate. A step too early (the window over before the blade comes) or too late (struck in the
-## startup), a step with no attack, an attack out of reach of where he stood, an attack cut off before its blade came,
-## a roll (it avoids: nothing opens) and a step blocked at once by a wall earn nothing.
+## startup), a step with no attack, an attack out of reach of where he stood, an attack cut off before its blade came
+## and a roll (it avoids: nothing opens) earn nothing; a step blocked at once by a wall protects nothing (GPT's v1.5: the
+## blow lands, the cooldown stands), while one stopped by a wall farther along keeps its window.
 ## Shadow Counter: it waits for the step's cancel point, dashes at most 4 m toward its attacker (stopping short, never
-## behind it), and its blade must connect (14); the opportunity closes when it runs out, when he is struck, or when its
-## attacker is defeated; a wall stops the dash and the strike then misses.
+## behind it) through a startup as long as the dash needs (GPT's v1.5: max(0.15, d / 18) s), and its blade must connect
+## (14); a press from beyond its whole dash and its blade's reach is refused and its opportunity kept; the opportunity
+## closes when it runs out, when he is struck, or when its attacker is defeated; a wall stops the dash and the strike
+## then misses.
 
 const DT := 1.0 / 60.0
 const D := 1.7 ## he stands this far in front of the automaton
@@ -201,6 +205,40 @@ func test_the_sweep_runs_its_phases_and_locks_its_direction() -> String:
 	if absf(active_from - 0.55) > DT + 0.001 or absf(recovery_from - 0.68) > DT + 0.001:
 		return "the cut ran %.3f–%.3f s (want 0.55–0.68)" % [active_from, recovery_from]
 	return "" if res == [["attack", "stand"], true, true] else "the attack: %s" % [res]
+
+
+func test_the_floor_arc_grows_urgent_and_goes_out_at_once() -> String:
+	var c := _samurai(Vector3(0, 0, 3.6)) # (beyond its reach: the cut runs its course)
+	var a := _automaton(c)
+	a.attack()
+	var rows := [] # [s into the attack, the arc's strength, shown]
+	var t := 0.0
+	while t < 1.1:
+		_frame(c, [a], DT)
+		t += DT
+		if a.state == "attack":
+			rows.append([a.attack_time(), a.arc_strength, a.arc.visible])
+	var hidden_after := a.arc.visible == false
+	_clear()
+	var last := 0.0
+	var mid := -1.0
+	for r in rows:
+		var at := float(r[0])
+		var k := float(r[1])
+		if at < 0.55 - 1e-6 and k < last - 1e-6:
+			return "the arc dimmed %.3f s into the startup (%.2f after %.2f)" % [at, k, last]
+		if at <= 0.40 + 1e-6 and k > TelegraphArc.KINDLE + 1e-3:
+			return "the arc at %.2f already %.3f s into the attack (want at most %.2f before the startup's last 150 ms)" % [k, at, TelegraphArc.KINDLE]
+		if at >= 0.46 and at <= 0.49 and mid < 0.0:
+			mid = k
+		if at >= 0.55 + 1e-6 and at <= 0.68 - 1e-6 and absf(k - 1.0) > 1e-3:
+			return "the arc at %.2f %.3f s into the attack, in the cut (want full)" % [k, at]
+		if at >= 0.68 + 0.06 + 1e-3 and (k > 0.0 or bool(r[2])):
+			return "the arc still shown (%.2f) %.3f s into the attack (want out within 60 ms of the cut's end, 0.68 s)" % [k, at]
+		last = k
+	if mid <= TelegraphArc.KINDLE + 0.05 or mid >= 0.99:
+		return "the arc midway through the startup's last 150 ms: %.2f (want rising from %.2f to 1)" % [mid, TelegraphArc.KINDLE]
+	return "" if hidden_after else "the arc stayed shown after the attack"
 
 
 func test_its_blow_lands_on_a_samurai_who_stays() -> String:
@@ -478,17 +516,44 @@ func test_a_roll_avoids_but_opens_nothing() -> String:
 	return "" if outcomes.has("avoided") else "no roll timing avoided the cut: %s" % [outcomes]
 
 
-func test_a_step_blocked_at_once_by_a_wall_earns_nothing() -> String:
+func test_a_step_blocked_at_once_by_a_wall_protects_nothing() -> String:
 	var c := _samurai()
 	var a := _automaton(c)
 	await _floor(c, [a])
 	_block(Vector3(0, 1.5, D + 0.6), Vector3(4, 3, 0.4)) # its face 0.06 m behind him
 	await _tree().physics_frame
-	var r := _exchange(c, a, 0.467, Vector3.ZERO, DT, "skill2", true, 1.0)
-	var res := [r, c.evasions, c.legacy.open.size(), c.hp]
+	a.attack()
+	var t := 0.0
+	var stepped := false
+	var shielded := false
+	while t < 1.0:
+		var now := ""
+		if not stepped and a.attack_time() + DT >= 0.467 - 1e-6:
+			stepped = true
+			now = "skill2"
+		_frame(c, [a], DT, Vector3.ZERO, true, now)
+		t += DT
+		shielded = shielded or c.evading()
+	var res := [a.last_attack, c.evasions, c.legacy.open.size(), c.hp, c.step_blocked(), shielded,
+		c.melee.cooldown_left("shadow_step") > 4.0]
 	_clear()
-	return "" if res == ["avoided", 0, 0, 200] else \
-		"a step straight into a wall behind him, timed into the cut: %s (want avoided, nothing opened)" % [res]
+	return "" if res == ["hit", 0, 0, 185, true, false, true] else \
+		"a step straight into a wall behind him, timed into the cut: %s (want hit — 185 —, nothing opened, the step blocked, never shielded, its cooldown running)" % [res]
+
+
+func test_a_step_stopped_farther_along_keeps_its_window() -> String:
+	var c := _samurai()
+	var a := _automaton(c)
+	await _floor(c, [a])
+	_block(Vector3(0, 1.5, D + 1.2), Vector3(4, 3, 0.4)) # its face 1.0 m behind him: the step's first 0.6 m are free
+	await _tree().physics_frame
+	var r := _exchange(c, a, 0.467, Vector3.ZERO, DT, "skill2", true, 1.0)
+	var z := c.fighter.global_position.z
+	var res := [r, c.evasions, _opened(c, a), c.hp, c.step_blocked()]
+	_clear()
+	if res != ["evaded", 1, true, 200, false]:
+		return "a step stopped by a wall 1 m behind him, timed into the cut: %s (want evaded, the counter open, unhurt, not blocked)" % [res]
+	return "" if z > D + 0.5 and z < D + 0.8 else "it ended at z %.2f (want stopped at the wall, about %.2f)" % [z, D + 0.66]
 
 
 # --- Shadow Counter --------------------------------------------------------------------------------------------------
@@ -532,6 +597,69 @@ func test_the_counter_dashes_and_strikes_its_attacker() -> String:
 		return "the dash went %.2f m (want up to 4 m, from 4.2 m away)" % float(res[2])
 	# he stops short and on his own side: never behind it
 	return "" if to.length() > 0.95 and to.x > 0.5 else "he ended %s from it (want short of it, on his side)" % to
+
+
+func test_the_counters_startup_grows_with_its_dash() -> String:
+	var base := AttackData.get_attack("shadow_counter")
+	var rows: Array[String] = []
+	for d: float in [1.0, 2.0, 3.0, 4.0]:
+		var c := _samurai(Vector3(0, 0, d + 1.1))
+		var a := _automaton(c)
+		c.legacy.event("evaded", a.get_instance_id()) # (its opportunity, as a genuine evasion opens it)
+		c.try_conditional(0)
+		var act := c.melee.action
+		if act == null or act.id != "shadow_counter":
+			_clear()
+			return "from %.1f m the counter did not start" % (d + 1.1)
+		var startup := act.startup
+		var meets := absf(act.move_time(0.0) - base.move_time(0.0)) < 1e-6 and absf(act.move_time(1.0) - base.move_time(1.0)) < 1e-6
+		var t := 0.0
+		var cut_at := -1.0
+		while t < 0.6:
+			_frame(c, [a], DT)
+			t += DT
+			if cut_at < 0.0 and c.melee.phase == MeleeState.Phase.ACTIVE:
+				cut_at = t
+		var dash := float(c.state()["dash"])
+		var hp := a.hp
+		_clear()
+		var want := maxf(0.15, d / 18.0)
+		rows.append("%.0f m: %.0f ms" % [d, startup * 1000.0])
+		if absf(startup - want) > 1e-5 or base.startup != 0.15:
+			return "a %.0f m dash: its startup %.4f s (want max(0.15, d / 18) = %.4f; the data's own kept at 0.15)" % [d, startup, want]
+		if not meets:
+			return "a %.0f m dash: its move no longer meets its active window where its blade was baked" % d
+		if cut_at < want - 1e-6 or cut_at > want + DT + 1e-6:
+			return "a %.0f m dash: the cut began %.3f s after the press (want %.3f)" % [d, cut_at, want]
+		if absf(dash - d) > 0.02 or hp != 136:
+			return "a %.0f m dash: it went %.2f m, the automaton at %d (want %.0f m, 136: 14 landed)" % [d, dash, hp, d]
+	print("[COUNTER] startup by dash: ", " | ".join(rows))
+	return ""
+
+
+func test_a_counter_from_beyond_its_reach_is_refused_and_kept() -> String:
+	var base := AttackData.get_attack("shadow_counter")
+	var c := _samurai()
+	var a := _automaton(c)
+	var far := float(base.dash["max"]) + base.reach + a.hurt_radius # the farthest its blade can reach its edge from
+	c.fighter.global_position = Vector3(0, 0, far + 0.2)
+	c.fighter.prev_position = c.fighter.global_position
+	c.legacy.event("evaded", a.get_instance_id())
+	var pressed := c.try_conditional(0)
+	_frame(c, [a], DT)
+	var refused := [pressed, c.melee.action == null, _notices.has("Out of reach"), _opened(c, a)]
+	# inside its reach, at its edge: it starts (and may miss — its blade still has to connect)
+	c.fighter.global_position = Vector3(0, 0, far - 0.1)
+	c.fighter.prev_position = c.fighter.global_position
+	c.try_conditional(0)
+	var act := c.melee.action
+	var started := act != null and act.id == "shadow_counter"
+	var startup := act.startup if started else -1.0
+	_clear()
+	if refused != [true, true, true, true]:
+		return "a press %.2f m away (beyond %.2f): %s (want taken, nothing started, 'Out of reach', its opportunity kept)" % [far + 0.2, far, refused]
+	return "" if started and absf(startup - 4.0 / 18.0) < 1e-5 else \
+		"a press %.2f m away (inside its reach): started %s, startup %.3f (want started, the whole dash's 222 ms)" % [far - 0.1, started, startup]
 
 
 func test_the_counter_waits_for_the_steps_cancel_point() -> String:

@@ -23,7 +23,9 @@ extends Node
 ## struck him inside Shadow Step's defensive window is a genuine evasion (attack_evaded: Shadow Counter opens against
 ## that attacker); one inside a roll's window is avoided (nothing opens); any other contact lands (damage, hitstun,
 ## his opportunities close). Shadow Step itself is a burst of movement along the stick (backward when it is idle) that
-## keeps his facing; Shadow Counter dashes at its attacker through its startup, then strikes like any cut.
+## keeps his facing — one blocked at once by a wall protects nothing (GPT's v1.5); Shadow Counter dashes at its attacker
+## through its startup (longer for a longer dash: GPT's v1.5, max(0.15, d / 18) s), then strikes like any cut — a
+## press from beyond its whole dash and its blade's reach is refused and its opportunity kept.
 
 ## An action began (`step`: its place in the Attack chain, 0..2, or -1).
 signal strike_started(a: AttackData, step: int)
@@ -46,7 +48,7 @@ const STOP_SHORT := 1.1 ## the step into a cut stops this close to the target's 
 const STANCE_TIME := 4.0 ## the drawn-sword stance after an action, s
 const PUSH_TIME := 0.2 ## a blow's push on him lasts this long, s
 ## A step is blocked at once when a test move of its first BLOCK_PROBE m (sliding along what it touches) gets him
-## less than half of that away (GPT's v1.4: no stationary shadow against a wall).
+## less than half of that away (GPT's v1.4 and v1.5: no stationary shadow against a wall — it protects nothing).
 const BLOCK_PROBE := 0.6
 
 ## The target assist (GPT's M3 review: 3.6 m, ±60°, at most 12 rad/s through startup; it turns, never moves him).
@@ -95,7 +97,8 @@ var _leap_to := Vector3.ZERO
 var _span_action: AttackData
 var _span_e := Vector2(-1, -1)
 ## Shadow Step's direction (flat, world space); its Shadow Origin — where he stood when its movement began (GPT's v1.4
-## rule B: through the defensive window a blow is tested against him there) — and whether it was blocked at once;
+## rule B: through the defensive window a blow is tested against him there) — and whether it was blocked at once (then
+## it has no defensive window: GPT's v1.5);
 ## Shadow Counter's dash length (m) and how far it has gone.
 var _step_dir := Vector3.ZERO
 var _shadow_at := Vector3.INF
@@ -214,7 +217,8 @@ func tick(dt: float, stick_dir: Vector3) -> void:
 	fighter.frozen = frozen
 	fighter.action_lock = melee.locks_movement()
 	if melee.is_attacking() and fighter.visual.anim and fighter.visual.current == a.anim:
-		fighter.visual.anim.speed_scale = 0.0 if frozen else a.anim_speed
+		var speed := a.startup_speed() if melee.phase == MeleeState.Phase.STARTUP else a.anim_speed
+		fighter.visual.anim.speed_scale = 0.0 if frozen else speed
 	elif melee.phase == MeleeState.Phase.HITSTUN and fighter.visual.anim:
 		fighter.visual.anim.speed_scale = 0.0 if frozen else 1.0
 	fighter.action_velocity = Vector3.ZERO
@@ -302,18 +306,23 @@ func shadow_origin() -> Vector3:
 	return _shadow_at
 
 
-## Is he inside Shadow Step's defensive window now?
+## Is he inside Shadow Step's defensive window now? (Never through a step blocked at once: it protects nothing.)
 func evading() -> bool:
 	var a := melee.current()
-	if a == null or a.kind != "step" or not melee.is_attacking():
+	if a == null or a.kind != "step" or not melee.is_attacking() or _shadow_blocked:
 		return false
 	var w := a.defense_window()
 	return melee.elapsed() >= w.x and melee.elapsed() <= w.y
 
 
+## Was the running (or last) Shadow Step blocked at once by geometry (no defensive window: GPT's v1.5)?
+func step_blocked() -> bool:
+	return _shadow_blocked
+
+
 ## Shadow Step's movement begins: its Shadow Origin is where he stands now; and is the step blocked at once — a test
 ## move of its first BLOCK_PROBE m along its direction, sliding along what it touches, gets him less than half of
-## that away (against a wall: then it earns no evasion, GPT's v1.4)?
+## that away (against a wall: then it has no defensive window — no evasion, no protection: GPT's v1.4 and v1.5)?
 func _shadow_origin() -> void:
 	_shadow_at = fighter.global_position
 	_shadow_blocked = false
@@ -419,6 +428,15 @@ func _dash_velocity(a: AttackData, dt: float) -> Vector3:
 	var d := minf(_dash_len * (_ease_out(k1) - _ease_out(k0)), room)
 	_dash_moved += d
 	return to.normalized() * d / maxf(dt, 0.0001)
+
+
+## The farthest a dashing action reaches its target `t` from where he stands: its whole dash, then its blade's reach
+## (and its step into the cut) to the target's edge; -1 without a target (nothing is in reach).
+func _dash_reach(a: AttackData, t: Node3D) -> float:
+	if t == null or not is_instance_valid(t):
+		return -1.0
+	var r: Variant = t.get("hurt_radius")
+	return float(a.dash.get("max", 4.0)) + a.reach + a.lunge + (float(r) if r != null else 0.0)
 
 
 ## Reeling from a blow: pushed `_push_dist` m away from the attacker over PUSH_TIME, easing out, with collision.
@@ -539,7 +557,7 @@ func _events(stick_dir: Vector3) -> void:
 				else:
 					_target = _pick_target(stick_dir, a.aim_range if a.aim_range > 0.0 else assist_range)
 					_aim = _flat(stick_dir).normalized() if stick_dir.length() > 0.2 else Vector3.ZERO
-				fighter.visual.play(a.anim, 0.05, a.anim_speed, true, a.anim_from)
+				fighter.visual.play(a.anim, 0.05, a.startup_speed(), true, a.anim_from)
 				if a.air:
 					_begin_leap(a)
 				if a.kind == "step":
@@ -732,6 +750,19 @@ func _try_queued() -> void:
 		QA.flag("cond_refused", ability)
 		_queued = {}
 		return
+	if not a.dash.is_empty():
+		# (GPT's v1.5) refused only from beyond its whole dash and its blade's reach — the opportunity is kept; else its
+		# startup is as long as its dash needs: max(startup, d / pace)
+		var dist := INF
+		if _cond_target and is_instance_valid(_cond_target):
+			dist = _flat(_cond_target.global_position - fighter.global_position).length()
+		if dist > _dash_reach(a, _cond_target):
+			notice.emit("Out of reach")
+			QA.flag("cond_refused", ability)
+			_queued = {}
+			return
+		var d := clampf(dist - float(a.dash.get("stop", STOP_SHORT)), 0.0, float(a.dash.get("max", 4.0)))
+		a = a.with_startup(maxf(a.startup, d / float(a.dash.get("pace", INF))))
 	if melee.conditional_pressed(a, cancel):
 		legacy.consume(ability, target_id)
 		_queued = {}
