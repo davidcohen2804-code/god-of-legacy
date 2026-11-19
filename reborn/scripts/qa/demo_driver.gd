@@ -199,21 +199,22 @@ const SCRIPT_EXPLORE := [
 	[23.0, "end"],
 ]
 
-## M4.2-A2 — the fading as the camera moves (`-- --demo --demo-columns`, the phone's shape): the two fighters near the
-## east of the courtyard, the Samurai facing its middle, so the camera behind him sweeps past the neighbouring columns
-## as a second finger turns it one way, then slowly the other, then back — first with the fading off, then the same
-## move with it on. At the end the log lists each column's fading and return (when) and the shortest time it held
+## M4.2-A2 — the fading as the camera moves (`-- --demo --demo-columns`, the phone's shape): the two fighters beside the
+## east column (A1's column shot: the Samurai 2.2 m inside the ring and 1.3 m to the column's side, facing the middle,
+## the automaton 2.5 m further in), so the camera behind him sweeps the column and its neighbours across the fight as a
+## second finger turns it one way, then slowly the other, then back — first with the fading off, then the same move
+## with it on. At the end the log lists each column's fading and return (when) and the shortest time it held
 ## either way (a flicker shows as a very short one).
 const SCRIPT_COLUMNS := [
 	[0.2, "spar", false],
 	[0.2, "fade", false],
-	[0.2, "place", Vector2(5.5, 0.0), -90.0, Vector2(3.0, 0.0)],
+	[0.2, "place", Vector2(8.19, 4.8), -112.5, Vector2(5.88, 3.84)],
 	[0.3, "caption", "The camera passing the columns — the fading OFF", 3.0],
 	[1.0, "drag", Vector2(-130, 0), 1.4],
 	[2.8, "drag", Vector2(260, 0), 4.6],
 	[7.8, "drag", Vector2(-130, 0), 1.2],
 	[9.6, "fade", true],
-	[9.6, "place", Vector2(5.5, 0.0), -90.0, Vector2(3.0, 0.0)],
+	[9.6, "place", Vector2(8.19, 4.8), -112.5, Vector2(5.88, 3.84)],
 	[9.7, "caption", "The same move — the fading ON (25 %)", 3.0],
 	[10.4, "drag", Vector2(-130, 0), 1.4],
 	[12.2, "drag", Vector2(260, 0), 4.6],
