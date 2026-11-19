@@ -38,10 +38,10 @@ var _back_t := -1.0
 ## The last push's distance (m) and the pushes so far, for the tests and the report.
 var last_push := 0.0
 var pushes := 0
-var _clock := 0.0 ## game time seen by this dummy
-var _num_at := -10.0 ## when the last damage number appeared
-var _num_i := 0
-var _num_right := Vector3.RIGHT ## the view's right on the ground, so numbers sit side by side across the screen
+var numbers := DamageNumbers.new()
+## What it is and resists (data/targets.json): a fixed post — never pulled or launched (GPT's v1.2: an optional,
+## stationary diagnostic target that does not leave its base).
+var target_data := TargetData.of("training_dummy")
 
 
 static func create() -> TrainingDummy:
@@ -116,13 +116,7 @@ func take_hit(damage: int, reaction: float, push: float, dir: Vector3, sway: Vec
 		_push_from = position
 		_push_to = position + dir * push
 		_push_t = 0.0
-	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
-	if cam:
-		var r := cam.global_transform.basis.x
-		r.y = 0.0
-		if r.length() > 0.01:
-			_num_right = r.normalized()
-	_damage_number(damage)
+	numbers.spawn(self, damage)
 	QA.flag("dummy_hit", "%d:%d" % [damage, hp])
 	if hp == 0:
 		_down = 0.0
@@ -179,7 +173,7 @@ func _physics_process(delta: float) -> void:
 	var glow := clampf(_flash / 0.06, 0.0, 1.0)
 	for m in _mats:
 		m.emission_energy_multiplier = 0.55 * glow # (a lift, not a white cut-out: the straw and rope stay readable)
-	_clock += delta
+	numbers.advance(delta)
 
 
 func _stand_up() -> void:
@@ -200,31 +194,6 @@ func state() -> Dictionary:
 	return {"hp": hp, "alive": is_alive(), "pos": [snappedf(position.x, 0.01), snappedf(position.z, 0.01)],
 		"off_mark": snappedf(position.distance_to(_home), 0.01), "last_push": snappedf(last_push, 0.01), "pushes": pushes,
 		"tilt": snappedf(rad_to_deg(_lean.length()), 0.1)}
-
-
-func _damage_number(damage: int) -> void:
-	var l := Label3D.new()
-	l.text = str(damage)
-	l.font = UiTheme.font("inter-latin-700-normal")
-	l.font_size = 96
-	l.pixel_size = 0.004
-	l.outline_size = 18
-	l.modulate = Color("#F2E9DD") if damage < 18 else Color("#D9B778")
-	l.outline_modulate = Color(0.07, 0.05, 0.1, 0.9)
-	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	l.no_depth_test = true
-	l.fixed_size = false
-	get_parent().add_child(l)
-	# blows in quick succession stack their numbers instead of covering each other
-	_num_i = (_num_i + 1) % 3 if _clock - _num_at < 0.6 else 0
-	_num_at = _clock
-	# (side by side: a number rising from below would run into the next one's place)
-	l.global_position = global_position + _num_right * [0.0, 0.55, -0.55][_num_i] + Vector3(0, 2.2 + 0.12 * _num_i, 0)
-	var tw := l.create_tween()
-	tw.set_parallel(true)
-	tw.tween_property(l, "global_position:y", l.global_position.y + 0.7, 0.75).set_ease(Tween.EASE_OUT)
-	tw.tween_property(l, "modulate:a", 0.0, 0.75).set_delay(0.25)
-	tw.chain().tween_callback(l.queue_free)
 
 
 func _mat(hex: String, rough: float) -> StandardMaterial3D:

@@ -2,8 +2,10 @@ extends SceneTree
 ## Headless tests (CI: godot --headless --path reborn -s res://tests/run_tests.gd).
 ## 1. Every script and scene in the project must load and compile.
 ## 2. The unit tests in res://tests/unit: each method named test_* returns "" when it passes, else what went wrong.
-## They run on the first frame, once the tree is up (the autoloads ready, nodes can join it), so a test may put real
-## nodes in the tree — and must take them out again.
+## They run from the first frame, once the tree is up (the autoloads ready, nodes can join it), so a test may put real
+## nodes in the tree — and must take them out again. A test may wait (await) for frames — for instance one physics
+## frame, so the physics server has taken in the bodies it just made — and is failed if it has not finished within
+## 10 s.
 
 var failures: Array[String] = []
 var _ran := false
@@ -15,10 +17,14 @@ func _initialize() -> void:
 
 
 func _process(_delta: float) -> bool:
-	if _ran:
-		return false
-	_ran = true
-	_run_units("res://tests/unit")
+	if not _ran:
+		_ran = true
+		_run_all()
+	return false
+
+
+func _run_all() -> void:
+	await _run_units("res://tests/unit")
 	if failures.is_empty():
 		print("[TESTS] all passed")
 		quit(0)
@@ -26,7 +32,6 @@ func _process(_delta: float) -> bool:
 		for f in failures:
 			printerr("[TESTS] FAIL ", f)
 		quit(1)
-	return false
 
 
 func _check_loads(dir: String) -> void:
@@ -70,7 +75,7 @@ func _run_units(dir: String) -> void:
 			var n: String = m["name"]
 			if not n.begins_with("test_"):
 				continue
-			var err: Variant = t.call(n)
+			var err: Variant = await _finish(t.call(n))
 			if typeof(err) != TYPE_STRING:
 				# (a script error aborts the test and returns nothing: that is a failure too)
 				failures.append("%s %s: did not finish (script error?)" % [path.get_file(), n])
@@ -78,3 +83,18 @@ func _run_units(dir: String) -> void:
 				failures.append("%s %s: %s" % [path.get_file(), n, err])
 			else:
 				print("[TESTS] pass ", path.get_file(), " ", n)
+
+
+## A test's result: what it returned — or, when it waits on frames, what it returns once it finishes (null when it
+## does not finish within 10 s, or a script error stopped it).
+func _finish(r: Variant) -> Variant:
+	if not (r is Object and is_instance_valid(r) and (r as Object).has_signal("completed")):
+		return r
+	var out := {"done": false, "value": null}
+	(r as Object).connect("completed", func(v: Variant) -> void:
+		out["done"] = true
+		out["value"] = v)
+	var start := Time.get_ticks_msec()
+	while not out["done"] and Time.get_ticks_msec() - start < 10000:
+		await process_frame
+	return out["value"]

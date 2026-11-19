@@ -48,6 +48,7 @@ var hit_scale := 1.0
 var art_scale := 1.0
 var _btn := {} ## name → {c, r_hit, r_min, r_art}
 var _cond := {}
+var _cooldown := {} ## name → [seconds left, total]
 var _touch := {} ## touch index → {role, key}
 var _stick_index := -1
 var _stick_knob := Vector2.ZERO
@@ -69,6 +70,15 @@ func _ready() -> void:
 func set_conditional(key: String, label: String, on: bool, seconds: float = 0.0) -> void:
 	_cond[key] = {"label": label, "on": on, "since": _t, "life": seconds}
 	_publish_rects()
+
+
+## A button's cooldown (told by the combat state each frame): a dark sweep over it and the seconds left while `left`
+## is above 0. The button stays pressable — the combat state refuses the press, the sweep shows why.
+func set_cooldown(key: String, left: float, total: float) -> void:
+	if left <= 0.0 or total <= 0.0:
+		_cooldown.erase(key)
+	else:
+		_cooldown[key] = [left, total]
 
 
 func is_shown(key: String) -> bool:
@@ -171,6 +181,9 @@ func _publish_rects() -> void:
 
 ## For the tests and the report: the sizing on this screen and the live touch state.
 func layout_info() -> Dictionary:
+	var cds := {}
+	for k in _cooldown:
+		cds[k] = snappedf(float(_cooldown[k][0]), 0.01)
 	var min_css := 0.0
 	for key in _btn:
 		if is_shown(key):
@@ -178,7 +191,7 @@ func layout_info() -> Dictionary:
 			min_css = dcss if min_css == 0.0 else minf(min_css, dcss)
 	return {"css_per_px": snappedf(css_per_px, 0.001), "hit_scale": snappedf(hit_scale, 0.001),
 		"art_scale": snappedf(art_scale, 0.001), "min_hit_css": snappedf(min_css, 0.1),
-		"stick": _stick_index != -1, "touches": _touch.size(), "enabled": enabled_actions.keys()}
+		"stick": _stick_index != -1, "touches": _touch.size(), "enabled": enabled_actions.keys(), "cooldowns": cds}
 
 
 func _input(event: InputEvent) -> void:
@@ -313,7 +326,23 @@ func _draw() -> void:
 				var left := clampf(1.0 - (_t - float(cd["since"])) / life, 0.0, 1.0)
 				draw_arc(c, r + 6.0, -PI * 0.5, -PI * 0.5 + TAU * left, 64, UiTheme.ACCENT, 3.0, true)
 		var label := String(_cond[key]["label"]) if cond else String(LABELS.get(key, key))
+		if _cooldown.has(key):
+			var cdv: Array = _cooldown[key]
+			_pie(c, r * 0.97, clampf(float(cdv[0]) / float(cdv[1]), 0.0, 1.0), _alpha(UiTheme.MIDNIGHT, 0.72))
+			label = "%.1f" % float(cdv[0]) if float(cdv[0]) < 10.0 else "%d" % int(cdv[0])
 		_text(c, label, int(clampf(r * 0.42, 13.0, 22.0)), _alpha(UiTheme.TEXT, 0.95 * a))
+
+
+## A filled sweep of `frac` of a full turn, clockwise from the top (a cooldown's remaining part).
+func _pie(c: Vector2, r: float, frac: float, col: Color) -> void:
+	if frac <= 0.0:
+		return
+	var pts := PackedVector2Array([c])
+	var n := maxi(3, int(48 * frac))
+	for i in n + 1:
+		var ang := -PI * 0.5 + TAU * frac * float(i) / n
+		pts.append(c + Vector2(cos(ang), sin(ang)) * r)
+	draw_colored_polygon(pts, col)
 
 
 static func _alpha(col: Color, a: float) -> Color:

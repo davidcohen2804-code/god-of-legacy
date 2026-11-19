@@ -39,9 +39,9 @@ close to Safari but is not iOS Safari; no physical phone is in the loop.
 | Touch controls | `scripts/ui/touch_controls.gd` | GPT's 1280×720 layout, safe area, ≥ 44 CSS px hit targets, multi-touch by id |
 | Player controller | `scripts/player/player_controller.gd` | camera-relative movement; jump, dodge and attack presses from the buffer, each tick before the body moves |
 | Body | `scripts/combat/fighter.gd` | walk / run / sprint, jump, dodge (ground only, 120 ms defensive window), gravity, facing; held by a strike (`action_lock`) or hit-stop (`frozen`) |
-| Character look and moves | `scripts/characters/character_visual.gd` | the Samurai, his katana on `hand_r`, the moves |
+| Character look and moves | `scripts/characters/character_visual.gd`, `automaton_visual.gd` | the Samurai, his katana on `hand_r`, the moves; the automaton dressed from its measurements (lacquered wood, bronze, stone, a practice sword) |
 | Camera controller | `scripts/camera/camera_rig.gd` | exploration / combat / combo, always 30–45° and 7–9 m, damped, drag, wall pull-in |
-| Arena | `scenes/arena/arena.gd`, `scripts/world/*` | the Fallen Moon Courtyard, the training dummy (150 HP, reactions, push, falls and stands up) |
+| Arena | `scenes/arena/arena.gd`, `scripts/world/*` | the Fallen Moon Courtyard; the training dummy (150 HP, a fixed diagnostic target: sways, falls and stands up); the Training Automaton (M4: 150 HP, a humanoid target — flinches, pushes, the chain's capture with diminishing returns, pulls stopped by solid things, launches on an exact arc, the juggle cap, knockdown and getting up; `data/targets.json` says what each target resists) |
 | HUD | `scripts/ui/combat_hud.gd` | player health, target health with a damage chip, a prompt line; developer notes only with `?qa=1` |
 | Combat demo | `scripts/qa/demo_driver.gd` (`-- --demo`) | scripted touches, recorded in CI with Godot's Movie Maker |
 | Combat state machine | `scripts/combat/melee_state.gd`, `attack_data.gd` | pure logic on the physics tick — every action from data (`data/abilities/samurai.json`): startup / active / recovery, hit-stop, the three-strike chain (only confirmed hits advance it), other actions (Heavy) from free and off cooldown, timed action events, cancel and interrupt rules |

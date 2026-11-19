@@ -134,6 +134,46 @@ async function runProfile(p) {
     await waitFor((s) => pl(s) && pl(s).view === 'game', 'the game view', 15000);
     if (p.name !== 'android-chromium') step('inspection views captured: front, side, right hand + katana, feet, the courtyard toward the arch');
 
+    // M4 Stage B: the Training Automaton — its look (front, side, back, the face) and its reactions, each held still for
+    // its shot: launched (high in the arc), down on its back, rising. At a quarter of the game's speed, so the slow
+    // software renderer catches each moment. (The phone profile, the slowest, skips the shots.)
+    const au = (s) => (s.live && s.live.automaton) || null;
+    const cmd = (...a) => page.evaluate((x) => window.__golCmd && window.__golCmd(...x), a);
+    {
+      const a0 = au(await waitFor((s) => au(s), 'the automaton', 15000));
+      if (a0.state !== 'stand' || a0.hp !== 150 || Math.abs(a0.pos[1]) > 0.01) throw new Error('the automaton is not standing on its mark: ' + JSON.stringify(a0));
+      step(`Training Automaton on its mark (${a0.pos.join(', ')}), ${a0.state}, ${a0.anim}, ${a0.hp} HP`);
+      if (p.name !== 'android-chromium') {
+        for (const v of ['auto_front', 'auto_side', 'auto_back', 'auto_face']) {
+          await cmd('cam', v);
+          await waitFor((s) => pl(s) && pl(s).view === v, 'the ' + v + ' view', 15000);
+          await page.waitForTimeout(900);
+          await shot('6_' + v);
+        }
+        await cmd('cam', 'auto_side');
+        await cmd('speed', 0.25);
+        const hold = async (pred, what, tag, settle) => {
+          await waitFor((s) => au(s) && pred(au(s)), what, 40000);
+          if (settle) await page.waitForTimeout(settle);
+          await cmd('auto', 'freeze', 60);
+          await waitFor((s) => au(s) && au(s).frozen, 'the automaton held still', 15000);
+          await page.waitForTimeout(700);
+          await shot('6_auto_' + tag);
+          await cmd('auto', 'thaw');
+        };
+        await cmd('auto', 'launch');
+        await hold((a) => a.state === 'air' && a.pos[1] > 1.7, 'the automaton high in the air', 'launched', 0);
+        await hold((a) => a.state === 'down', 'the automaton down', 'down', 1300);
+        await hold((a) => a.state === 'getup', 'the automaton rising', 'rising', 2000);
+        const a1 = au(await waitFor((s) => au(s) && au(s).state === 'stand', 'the automaton standing again', 60000));
+        await cmd('speed', 1);
+        await cmd('cam', 'game');
+        await waitFor((s) => pl(s) && pl(s).view === 'game', 'the game view', 15000);
+        if (Math.abs(a1.apex - 2.2) > 0.05 || Math.abs(a1.airtime - 0.9) > 0.05 || a1.launches !== 1) throw new Error('the launch: ' + JSON.stringify(a1));
+        step(`automaton: launched to ${a1.apex} m, ${a1.airtime} s in the air (held for the shots), down on its back, rose and stands again`);
+      }
+    }
+
     const cs = (s) => (s.live && s.live.camera) || null;
     const ctl = (s) => (s.live && s.live.controls) || null;
     // (stand the Samurai where a long run is free of the ruins: x, z, facing in degrees — 90 = east)

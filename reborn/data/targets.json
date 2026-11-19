@@ -1,0 +1,12 @@
+{
+ "_doc": "Combat targets (M4, GPT's v1.2 decisions): what each target is and what it resists, explicit in the data so a skill asks the target instead of guessing. size: small | fixed. pullable: the Phantom Chain captures it and Chain Pull can drag it; launchable: Rising Slash can launch it. A target that resists either takes the damage and a short stagger instead (stagger, s, at most 0.3). capture: the chain's hold and its diminishing returns — a capture within reset s of the previous one lasts the next factor of the full hold; past the last factor the target is immune until reset s after its last capture. juggle: after max_hits aerial follow-ups or max_time s in the air, whichever comes first, it cannot be launched again until it is back on its feet. down: s lying after a launch's landing; getup: s to rise; defeat_reset: s from defeat until it rises again whole; return_after: s without a blow before it walks back to its mark (when moved more than 1 m from it). The timings marked provisional in the M4 report await GPT's review.",
+ "training_automaton": {
+  "name": "Training Automaton", "hp": 150, "size": "small", "pullable": true, "launchable": true, "stagger": 0.3,
+  "capture": {"dr": [1.0, 0.5, 0.25], "reset": 12.0},
+  "juggle": {"max_hits": 3, "max_time": 1.5},
+  "down": 0.8, "getup": 1.22, "defeat_reset": 2.6, "return_after": 4.0
+ },
+ "training_dummy": {
+  "name": "Training dummy", "hp": 150, "size": "fixed", "pullable": false, "launchable": false, "stagger": 0.3
+ }
+}

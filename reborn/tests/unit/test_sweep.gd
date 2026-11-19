@@ -1,7 +1,8 @@
 extends RefCounted
 ## The katana's sweep test (SwordSweep): bearings around the attacker; a blade swept through a slice of its window
 ## hits what it passes and nothing it does not — reach, the arc's ends, a target standing higher or lower; a blade that
-## crosses a target between two ticks still hits it (no tunnelling); a target crossing the cut is hit once; and the
+## crosses a target between two ticks still hits it (no tunnelling); a target crossing the cut is hit once, and one
+## thrown through it within a single tick is hit too (its own movement through the tick is swept); and the
 ## whole chain, with the Samurai's real baked blades, gives the same hits at 30, 60 and 144 ticks a second.
 ## (Most cases use a made-up level blade from 0.35 m to its reach at 1 m height, so the geometry is exact: a target of
 ## radius 0.38 is touched when its axis comes within 0.41 m of the blade.)
@@ -159,6 +160,23 @@ func test_a_moving_target_is_hit_once() -> String:
 			s.events.clear()
 		if hits != 1:
 			return "a target crossing at %+.0f m/s was hit %d times" % [speed, hits]
+	return ""
+
+
+## A target thrown or dragged fast through the cut between two ticks (GPT's v1.2 review: the blade against where the
+## target ended alone is not continuous): tested along its own movement through the tick it is hit; where it ended
+## alone, it is not; and one crossing behind him while the blade is ahead is not hit at all.
+func test_a_target_moving_fast_through_the_cut_is_hit() -> String:
+	var a := _strike(-10, 10, 1.5)
+	# 4 m in one tick, crossing straight ahead of him while the blade passes there (yaw -10° to +10°)
+	var from := Vector3(-2.0, 0, 1.0)
+	var to := Vector3(2.0, 0, 1.0)
+	if SwordSweep.hits(a, Vector3.ZERO, 0.0, Vector2(0.0, 1.0), to, 0.38, 1.9):
+		return "(the case is wrong: where it ended is already within the blade's reach)"
+	if not SwordSweep.hits(a, Vector3.ZERO, 0.0, Vector2(0.0, 1.0), to, 0.38, 1.9, from):
+		return "a target crossing the cut within the tick was missed"
+	if SwordSweep.hits(a, Vector3.ZERO, 0.0, Vector2(0.0, 1.0), Vector3(2, 0, -1.0), 0.38, 1.9, Vector3(-2, 0, -1.0)):
+		return "a target crossing behind him was hit"
 	return ""
 
 

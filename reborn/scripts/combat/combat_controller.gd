@@ -95,8 +95,12 @@ func tick(dt: float, stick_dir: Vector3) -> void:
 			var target := t as Node3D
 			if target == null or (target.has_method("is_alive") and not target.is_alive()):
 				continue
+			# (a target that moves itself on the tick says where it stood when the tick began: its movement through
+			# the tick is swept too)
+			var from: Variant = target.get("prev_position")
 			if SwordSweep.hits(a, fighter.global_position, fighter.facing, melee.swept, target.global_position,
-					float(target.get("hurt_radius")), float(target.get("hurt_height"))):
+					float(target.get("hurt_radius")), float(target.get("hurt_height")),
+					from if from is Vector3 else Vector3.INF):
 				if melee.hit_confirmed(target.get_instance_id()):
 					_land(a, target)
 	_events(stick_dir)

@@ -33,7 +33,14 @@ static func create() -> CharacterVisual:
 
 
 func _build() -> void:
-	var model: Node3D = (load(DIR + "samurai.glb") as PackedScene).instantiate()
+	_load(DIR + "samurai.glb")
+	_dress()
+
+
+## The model, its animation player, skeleton and meshes, and the move names (shared by every character on the
+## standard rig).
+func _load(path: String) -> void:
+	var model: Node3D = (load(path) as PackedScene).instantiate()
 	add_child(model)
 	for n in model.find_children("*", "AnimationPlayer", true, false):
 		anim = n as AnimationPlayer
@@ -41,7 +48,19 @@ func _build() -> void:
 		skeleton = n as Skeleton3D
 	for n in model.find_children("*", "MeshInstance3D", true, false):
 		meshes.append(n as MeshInstance3D)
+	if anim:
+		for n in anim.get_animation_list():
+			_alias[String(n)] = String(n)
+			if not String(n).ends_with("_Loop"):
+				_alias[String(n) + "_Loop"] = String(n)
+		for n in LOOPS:
+			if has_move(n):
+				anim.get_animation(_alias[n]).loop_mode = Animation.LOOP_LINEAR
+		anim.playback_default_blend_time = 0.12
 
+
+## The Samurai's look: his material and his katana.
+func _dress() -> void:
 	# One opaque, stylised material over the whole atlas: charcoal armour, muted crimson, gold trim (metallic through
 	# the surface map), silver-ivory hair. Both faces drawn (the hair locks and thin cloth are single sheets).
 	body_material = StandardMaterial3D.new()
@@ -61,16 +80,6 @@ func _build() -> void:
 	for m in meshes:
 		m.material_override = body_material
 		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
-
-	if anim:
-		for n in anim.get_animation_list():
-			_alias[String(n)] = String(n)
-			if not String(n).ends_with("_Loop"):
-				_alias[String(n) + "_Loop"] = String(n)
-		for n in LOOPS:
-			if has_move(n):
-				anim.get_animation(_alias[n]).loop_mode = Animation.LOOP_LINEAR
-		anim.playback_default_blend_time = 0.12
 
 	if skeleton:
 		var hand := BoneAttachment3D.new()
@@ -113,6 +122,18 @@ func play(move: String, blend: float = 0.12, speed: float = 1.0, restart: bool =
 	if restart or from > 0.0:
 		anim.seek(from, true)
 	current = move
+
+
+## Hold a move at `at` seconds — a pose (a launched body in the air, a body dragged on a chain). Called every tick
+## while it is held; between calls it plays on at normal speed, so blends into and out of the pose run as usual.
+func pose(move: String, at: float, blend: float = 0.12) -> void:
+	if not has_move(move):
+		return
+	if move != current:
+		anim.play(_alias[move], blend)
+		current = move
+	anim.speed_scale = 1.0
+	anim.seek(at, false)
 
 
 ## The lowest point of the body's skeleton above its own origin (the feet's contact with the ground), in metres.

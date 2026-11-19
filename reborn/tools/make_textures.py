@@ -115,9 +115,24 @@ def earth(n=512):
     return Image.fromarray((np.clip(col, 0, 1) * 255).astype(np.uint8))
 
 
+def lacquer_wood(n=512):
+    """Dark lacquered wood for the Training Automaton (GPT v1.2): a deep red-brown with fine, slightly wavy grain
+    along the texture's vertical, tileable."""
+    yy, xx = np.meshgrid(np.arange(n) / n, np.arange(n) / n, indexing='ij')
+    warp = fbm(n, 3, 3, 81) - 0.5
+    rings = 0.5 + 0.5 * np.sin(2 * np.pi * (xx * 18 + warp * 2.4 + (fbm(n, 6, 2, 83) - 0.5) * 0.8))
+    grain = rings ** 3
+    fine = fbm(n, 32, 3, 85)
+    knots = np.clip((fbm(n, 5, 3, 87) - 0.62) * 4, 0, 1)
+    base = np.array([0.17, 0.085, 0.06])
+    col = base * (0.78 + 0.32 * grain[..., None] + 0.12 * fine[..., None]) * (1 - 0.35 * knots[..., None])
+    return Image.fromarray((np.clip(col, 0, 1) * 255).astype(np.uint8))
+
+
 save(flagstones(), ENV + '/flagstones.webp.bin', 86)
 save(wall_blocks(), ENV + '/wall_blocks.webp.bin', 86)
 save(earth(), ENV + '/earth.webp.bin', 82)
+save(lacquer_wood(), ENV + '/../characters/automaton/wood_albedo.webp.bin', 88)
 def _sstep(e0, e1, x):
     t = np.clip((x - e0) / (e1 - e0), 0, 1)
     return t * t * (3 - 2 * t)

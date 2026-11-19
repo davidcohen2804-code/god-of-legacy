@@ -6,9 +6,14 @@ extends RefCounted
 ## 6 cm thick) is tested against the target's upright capsule. Sweeping the whole slice between the previous and the
 ## current tick means a fast blade cannot pass through a target unseen between ticks, and the hit follows the visible
 ## swing — where the blade actually goes, high or low, near or far (GPT's M3 review) — not a simplified arc.
+## A target that moved during the tick is tested along its own movement too (GPT's v1.2 review: the blade against the
+## target's final position alone is not continuous): at each step of the blade the capsule stands where it was at
+## that moment of the tick, from where it stood when the tick began to where it ended — with more steps when it moved
+## far, so a body thrown or dragged fast cannot slip through a cut between two ticks.
 
 const STEPS := 48 ## blade positions per active window
 const BLADE_RADIUS := 0.03
+const TARGET_STEP := 0.1 ## at most this far (m) between two positions of a moving target
 
 
 ## The yaw (degrees, relative to the attacker's facing, + = his left) and distance of `point` from the attacker.
@@ -20,20 +25,24 @@ static func bearing(attacker: Vector3, facing: float, point: Vector3) -> Vector2
 
 
 ## Does `a`'s blade, swept from fraction span.x to span.y of its active window, touch the upright capsule standing at
-## `centre` (its base) with `radius` and `height`? The attacker stands at `attacker` facing `facing` (radians).
+## `centre` (its base) with `radius` and `height`? The attacker stands at `attacker` facing `facing` (radians). A target
+## that moved during this tick passes `centre_from`, where its base stood when the tick began.
 static func hits(a: AttackData, attacker: Vector3, facing: float, span: Vector2, centre: Vector3, radius: float,
-		height: float) -> bool:
+		height: float, centre_from: Vector3 = Vector3.INF) -> bool:
 	if span.x < 0.0 or a == null:
 		return false
+	var start := centre_from if centre_from.is_finite() else centre
 	var basis := Basis(Vector3.UP, facing)
-	var low := centre + Vector3(0, minf(radius, height * 0.5), 0)
-	var high := centre + Vector3(0, maxf(height - radius, height * 0.5), 0)
-	var n := maxi(1, ceili((span.y - span.x) * STEPS))
+	var low := Vector3(0, minf(radius, height * 0.5), 0)
+	var high := Vector3(0, maxf(height - radius, height * 0.5), 0)
+	var n := maxi(maxi(1, ceili((span.y - span.x) * STEPS)), ceili(start.distance_to(centre) / TARGET_STEP))
 	for i in n + 1:
-		var blade := a.blade_at(lerpf(span.x, span.y, float(i) / n))
+		var f := float(i) / n
+		var blade := a.blade_at(lerpf(span.x, span.y, f))
 		var p := attacker + basis * (blade[0] as Vector3)
 		var q := attacker + basis * (blade[1] as Vector3)
-		if segment_distance(p, q, low, high) <= radius + BLADE_RADIUS:
+		var c := start.lerp(centre, f)
+		if segment_distance(p, q, c + low, c + high) <= radius + BLADE_RADIUS:
 			return true
 	return false
 
