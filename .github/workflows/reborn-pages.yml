@@ -78,6 +78,16 @@ jobs:
           "$FF" -y -loglevel error -ss 17.6 -t 6.0 -i $MP4 -vf "fps=5,scale=480:-1,tile=6x5" -frames:v 1 build/web/qa/m4b_branch_slow_frames.jpg
           python3 reborn/tools/pack_png.py $MP4 $MP4.png
           ls -la build/web/qa
+      - name: The demo and its contact sheets as a run artifact (fetchable before the smoke test ends)
+        if: steps.demo.outcome == 'success'
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: demo
+          path: |
+            build/web/qa/m4b_*.mp4
+            build/web/qa/m4b_*.jpg
+          retention-days: 7
       - name: Browser smoke test in Playwright's own image (Chromium as an Android phone and at 16:9, WebKit as an iPhone, all in landscape)
         # Playwright's image carries its browsers and their system libraries: no apt install on the runner (a slow
         # mirror once hung the run, and a killed apt-get kept its lock).
