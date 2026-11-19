@@ -9,10 +9,10 @@ extends RefCounted
 const LIFE := 1.0 ## s a number shows (it fades through its last 0.75 s)
 const RISE := 0.75 ## s it rises for
 const RISE_BY := 0.7 ## m it rises
-const STEP := 0.6 ## m between two places beside the target, along the view's right
+const STEP := 0.8 ## m between two places beside the target, along the view's right
 const PLACES: Array[int] = [0, 1, -1, 2, -2]
-const CHAR_W := 0.24 ## m, a digit's width at the numbers' size (Inter Bold 96 px at 0.004 m a pixel, its outline included)
-const GAP := 0.06 ## m kept clear between two numbers' columns
+const CHAR_W := 0.27 ## m, a digit's width at the numbers' size (Inter Bold 96 px at 0.004 m a pixel, its outline included — measured in the recording)
+const GAP := 0.18 ## m kept clear between two numbers' columns: most of a digit, so two never read as one
 
 var _clock := 0.0 ## game time seen by the owner (advance())
 var _shown: Array[Dictionary] = [] ## the numbers still showing: {label, born (clock), at (where it appeared), width}

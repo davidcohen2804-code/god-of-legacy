@@ -161,7 +161,7 @@ func test_the_damage_numbers_stay_apart() -> String:
 					while t < float(a[0]) + DamageNumbers.LIFE:
 						var room := DamageNumbers.clearance(inv, DamageNumbers.rise_at(b[1], t - float(b[0])), float(b[2]),
 							DamageNumbers.rise_at(a[1], t - float(a[0])), float(a[2]))
-						if room < 0.0:
+						if room < 0.12: # (a clear space between them, about half a digit, all the while)
 							return "seen from %.0f°, %s and %s overlap %.2f s in (room %.2f m)" % [yaw,
 								c[i][1], c[j][1], t, room]
 						t += 0.05
@@ -251,3 +251,26 @@ func test_the_engine_errors_are_counted() -> String:
 	var s := l.snapshot()
 	return "" if int(s["errors"]) == 1 and int(s["warnings"]) == 1 and String(s["last"][0]).contains("device test counts") \
 		else "counted %s (want 1 error, 1 warning, its text kept)" % s
+
+
+# --- the hit bursts where the blade bit ------------------------------------------------------------------------------
+
+
+func test_a_hit_burst_starts_where_the_blade_bit() -> String:
+	var vfx := HitVfx.new()
+	_tree().root.add_child(vfx)
+	var at := Vector3(-3.2, 1.2, -2.1)
+	var seen: Array = []
+	vfx.child_entered_tree.connect(func(n: Node) -> void:
+		if n is CPUParticles3D:
+			seen.append([(n as Node3D).global_position, (n as CPUParticles3D).emitting]))
+	vfx._burst(at, Vector3.FORWARD, 10, 1.0)
+	var p: CPUParticles3D = null
+	for c in vfx.get_children():
+		if c is CPUParticles3D:
+			p = c
+	var res := [seen.size(), seen[0][0].distance_to(at) < 1e-4 if seen.size() > 0 else false,
+		not bool(seen[0][1]) if seen.size() > 0 else false, p != null and p.emitting]
+	vfx.free()
+	return "" if str(res) == str([1, true, true, true]) else \
+		"a burst joined the tree %s (want once, already where the blade bit, not yet emitting; then emitting): %s" % [res, seen]

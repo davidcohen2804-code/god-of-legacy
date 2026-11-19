@@ -100,6 +100,7 @@ func _dust(at: Vector3, dir: Vector3) -> void:
 
 func _particles(n: int, life: float, mat: Material) -> CPUParticles3D:
 	var p := CPUParticles3D.new()
+	p.emitting = false # (it bursts once it stands where it should: see _launch)
 	p.one_shot = true
 	p.amount = n
 	p.lifetime = life
@@ -110,16 +111,21 @@ func _particles(n: int, life: float, mat: Material) -> CPUParticles3D:
 	return p
 
 
+## A burst at `at`: placed there before it joins the tree, then started — a particle node that emits as it joins the
+## tree throws its particles (in world space) from where it stood then: until M4.1 every burst came out at this node's
+## origin, the dummy's base, instead of where the blade bit.
 func _launch(p: CPUParticles3D, at: Vector3) -> void:
+	p.position = to_local(at)
 	add_child(p)
-	p.global_position = at
 	p.emitting = true
 	# (hidden as its last particles fade — 80 % of their life: near the end of a burst the renderer drew every spark
-	# for one frame at full quad size, a white blob where the blade had bitten — then freed)
-	get_tree().create_timer(p.lifetime * 0.8).timeout.connect(func() -> void:
-		if is_instance_valid(p):
-			p.visible = false)
-	get_tree().create_timer(p.lifetime + 0.3).timeout.connect(p.queue_free)
+	# for one frame at full quad size, a white blob where the blade had bitten — then freed; on the burst's own tween,
+	# which goes with it when the arena is rebuilt — a scene-tree timer would outlive it and call into a freed node)
+	var tw := p.create_tween()
+	tw.tween_interval(p.lifetime * 0.8)
+	tw.tween_callback(p.hide)
+	tw.tween_interval(p.lifetime * 0.2 + 0.3)
+	tw.tween_callback(p.queue_free)
 
 
 static func _soft_texture() -> GradientTexture2D:

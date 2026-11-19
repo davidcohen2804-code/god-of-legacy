@@ -132,7 +132,7 @@ func report() -> String:
 	if web:
 		lost = "no" if int(p.get("lost", 0)) == 0 else "%d times (restored %d)" % [int(p.get("lost", 0)), int(p.get("restored", 0))]
 	out.append("Errors — JavaScript: %s · engine: %s (warnings %s) · WebGL context lost: %s" % [
-		_or(p.get("js")) if web else "Unavailable", _or(eng.get("errors")), _or(eng.get("warnings")), lost])
+		_count(p.get("js")) if web else "Unavailable", _count(eng.get("errors")), _count(eng.get("warnings")), lost])
 	for e in (p.get("jsLast", []) as Array):
 		out.append("  JS: " + String(e).left(130))
 	for e in (eng.get("last", []) as Array):
@@ -160,6 +160,11 @@ func _row(s: Dictionary, label: String) -> String:
 ## A value the page or the engine gave, or Unavailable.
 static func _or(x: Variant) -> String:
 	return "Unavailable" if x == null or str(x) == "" else str(x)
+
+
+## A count the page or the engine gave (JSON numbers arrive as floats), or Unavailable.
+static func _count(x: Variant) -> String:
+	return "Unavailable" if x == null else str(int(x))
 
 
 ## For the tests and QA.

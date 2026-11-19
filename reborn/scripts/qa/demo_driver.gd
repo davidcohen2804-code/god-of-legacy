@@ -416,7 +416,7 @@ func _tick_watch(delta: float) -> void:
 func _tap(key: String) -> void:
 	var b: Dictionary = touch._btn[key]
 	_touch(2, b["c"], true)
-	get_tree().create_timer(0.12).timeout.connect(_touch.bind(2, b["c"], false))
+	create_tween().tween_callback(_touch.bind(2, b["c"], false)).set_delay(0.12) # (gone with the driver if the arena is rebuilt)
 
 
 ## The thumb on the stick: pushed by v (x right, y up, 0..1), or lifted.
