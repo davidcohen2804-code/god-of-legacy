@@ -676,9 +676,10 @@ async function runProfile(p) {
     };
     const cameraComparison = async () => {
       await cmd('dummy', 'off');
+      await cmd('devtext', 'off'); // (the HUD as a player sees it: no developer's notes, no frame rate)
       await cmd('auto', 'spar', 0);
       await cmd('speed', 1);
-      await waitFor((s) => s.flags.dummy === false, 'the dummy put away', 15000);
+      await waitFor((s) => s.flags.dummy === false && s.flags.devtext === false, 'the dummy and the notes put away', 15000);
       const rows = [];
       // (the east column, standing 5 m: the Samurai 2.2 m inside it and 1.3 m to its side, facing the middle, the
       // automaton 2.5 m further in — the camera behind him sees the column in the foreground)
@@ -714,6 +715,8 @@ async function runProfile(p) {
         await cmd('auto', 'heal');
         await cmd('auto', 'place', sc.au[0], sc.au[1], sc.au[2]);
         await waitFor((s) => au(s) && Math.abs(au(s).pos[0] - sc.au[0]) < 0.05 && Math.abs(au(s).pos[2] - sc.au[1]) < 0.05, 'the automaton on its mark for ' + sc.tag, 15000);
+        // (standing: after a launch it lands on its back and takes a few seconds to rise)
+        await waitFor((s) => au(s) && au(s).state === 'stand', 'the automaton standing for ' + sc.tag, 60000);
         if (sc.launch) {
           await cmd('speed', 0.25);
           await cmd('auto', 'launch');
@@ -737,6 +740,7 @@ async function runProfile(p) {
       await cmd('auto', 'heal');
       await cmd('auto', 'place', -3.5, -2.5, 20.2);
       await cmd('dummy', 'on');
+      await cmd('devtext', 'on');
       await cmd('frame', 'facing');
       res.camera = rows;
       const fb = rows.filter((r) => r.fallback).map((r) => r.shot);

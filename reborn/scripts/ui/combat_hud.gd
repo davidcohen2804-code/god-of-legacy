@@ -63,6 +63,12 @@ func _ready() -> void:
 	add_child(_fps)
 
 
+## (QA, M4.2-A's comparison shots) the developer's notes and the frame rate off — the HUD as a player sees it — or back.
+func set_dev_text(on: bool) -> void:
+	_note.visible = on and QA.enabled and not Game.device_test
+	_fps.visible = on and (Game.show_fps or QA.enabled) and not Game.device_test
+
+
 func set_player_hp(value: int, total: int) -> void:
 	_player_fill.size.x = (PLAYER_W - 8.0) * clampf(float(value) / float(maxi(total, 1)), 0.0, 1.0)
 	_player_text.text = "%d / %d" % [value, total]

@@ -352,6 +352,10 @@ func _on_qa_command(cmd: String, args: Array) -> void:
 			rig.snap_behind(player.facing)
 		rig.settle()
 		QA.flag("framed", "%s:%s" % [CameraRig.variant, args[0] if not args.is_empty() else "foe"])
+	elif cmd == "devtext" and not args.is_empty():
+		# (M4.2-A's comparison) the HUD as a player sees it: no developer's notes, no frame rate
+		hud.set_dev_text(str(args[0]) != "off")
+		QA.flag("devtext", str(args[0]) != "off")
 	elif cmd == "dummy" and not args.is_empty():
 		# (M4.2-A's comparison) the straw dummy out of the shot, or back
 		dummy.visible = str(args[0]) != "off"
