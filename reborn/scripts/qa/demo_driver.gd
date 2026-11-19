@@ -152,6 +152,25 @@ const SCRIPT_M4 := [
 	[20.0, "end"],
 ]
 
+## M4.2 — how it plays (`-- --demo --demo-feel`, recorded at the Android phone's shape): free movement at real speed —
+## walking, running and sprinting at the stick's rim, a second finger turning the camera, a jump, a roll, a Shadow Step
+## in open space, the three strikes on the air and Heavy — then the integrated review's three branches (SCRIPT_M4).
+const FEEL_PRELUDE := [
+	[0.2, "spar", false],
+	[0.3, "caption", "How it plays at real speed — the white rings are the thumbs on the stick and on the buttons", 3.2],
+	[0.5, "go", Vector2(-5.0, 8.5), 0.45], # a walk to the west
+	[3.6, "go", Vector2(5.5, 8.5), 1.0], # a run east, sprinting once the thumb has held the rim 0.25 s
+	[6.0, "drag", Vector2(300, 0), 0.9], # a second finger turns the camera
+	[7.2, "tap", "jump"],
+	[8.3, "tap", "dodge"],
+	[9.4, "tap", "skill2"], # Shadow Step in open space (its cooldown is over before the review's)
+	[10.5, "caption", "Basic 1 → 2 → 3 on the air, then HEAVY", 2.2],
+	[10.6, "mash", 3],
+	[12.6, "tap", "heavy"],
+	[14.0, "go", Vector2(0.0, 7.0), 0.85], # back to where the review starts
+]
+const FEEL_REVIEW_AT := 16.0 ## s: SCRIPT_M4 starts here, after the prelude
+
 var touch: TouchControls
 var combat: CombatController
 var player: Fighter
@@ -190,8 +209,20 @@ func _ready() -> void:
 	var args := OS.get_cmdline_user_args()
 	if _named == "c" or (_named == "" and "--demo-c" in args):
 		_script = SCRIPT_C
-	elif _named == "m4" or (_named == "" and "--demo-m4" in args):
+	elif _named == "m4" or (_named == "" and ("--demo-m4" in args or "--demo-side" in args)):
 		_script = SCRIPT_M4
+	elif _named == "feel" or (_named == "" and "--demo-feel" in args):
+		_script = FEEL_PRELUDE + shifted(SCRIPT_M4, FEEL_REVIEW_AT)
+
+
+## A script's steps `by` s later (their own nested steps keep their relative delays).
+static func shifted(script: Array, by: float) -> Array:
+	var out := []
+	for st: Array in script:
+		var c := st.duplicate()
+		c[0] = float(c[0]) + by
+		out.append(c)
+	return out
 
 
 func _physics_process(delta: float) -> void:

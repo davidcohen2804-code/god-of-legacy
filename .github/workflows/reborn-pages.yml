@@ -91,6 +91,26 @@ jobs:
             "$FF" -y -loglevel error -i build/web/qa/m4_review.mp4 -vf "fps=2,scale=480:-1,tile=6x7" -frames:v 1 build/web/qa/m4_review_frames.jpg
             python3 reborn/tools/pack_png.py build/web/qa/m4_review.mp4 build/web/qa/m4_review.mp4.png
           fi
+          # (M4.2) how it plays: free movement, then the three branches, at real speed in the Android phone's shape
+          # (2.4 : 1) with the thumbs drawn; and the branches from the side at half speed
+          xvfb-run -a -s "-screen 0 1728x720x24" ~/godot/godot --path reborn --rendering-method gl_compatibility \
+            --rendering-driver opengl3 --resolution 1728x720 --write-movie "$RUNNER_TEMP/feel.avi" --fixed-fps 30 \
+            -- --demo --demo-feel > "$RUNNER_TEMP/feel.log" 2>&1 || true
+          tail -n 10 "$RUNNER_TEMP/feel.log"
+          if [ -s "$RUNNER_TEMP/feel.avi" ]; then
+            "$FF" -y -loglevel error -i "$RUNNER_TEMP/feel.avi" -c:v libx264 -pix_fmt yuv420p -crf 20 -preset veryfast \
+              -c:a aac -b:a 128k -movflags +faststart build/web/qa/m42_feel_phone.mp4
+            python3 reborn/tools/pack_png.py build/web/qa/m42_feel_phone.mp4 build/web/qa/m42_feel_phone.mp4.png
+          fi
+          xvfb-run -a -s "-screen 0 1280x720x24" ~/godot/godot --path reborn --rendering-method gl_compatibility \
+            --rendering-driver opengl3 --resolution 1280x720 --write-movie "$RUNNER_TEMP/side.avi" --fixed-fps 30 \
+            -- --demo --demo-side > "$RUNNER_TEMP/side.log" 2>&1 || true
+          tail -n 10 "$RUNNER_TEMP/side.log"
+          if [ -s "$RUNNER_TEMP/side.avi" ]; then
+            "$FF" -y -loglevel error -i "$RUNNER_TEMP/side.avi" -c:v libx264 -pix_fmt yuv420p -crf 20 -preset veryfast \
+              -c:a aac -b:a 128k -movflags +faststart build/web/qa/m42_side_half.mp4
+            python3 reborn/tools/pack_png.py build/web/qa/m42_side_half.mp4 build/web/qa/m42_side_half.mp4.png
+          fi
           ls -la build/web/qa
       - name: The demo and its contact sheets as a run artifact (fetchable before the smoke test ends)
         if: steps.demo.outcome == 'success'
@@ -103,6 +123,7 @@ jobs:
             build/web/qa/m4d_*.jpg
             build/web/qa/m4_review.mp4
             build/web/qa/m4_review_frames.jpg
+            build/web/qa/m42_*.mp4
           retention-days: 7
       - name: Browser smoke test in Playwright's own image (Chromium as an Android phone and at 16:9, WebKit as an iPhone, all in landscape)
         # Playwright's image carries its browsers and their system libraries: no apt install on the runner (a slow

@@ -81,6 +81,17 @@ func _ready() -> void:
 		if not Game.bench.is_empty():
 			d.use("m4", true)
 		add_child(d)
+	if Game.demo:
+		# (the recordings show the HUD as a player sees it, and the thumbs: a ring under every touch — M4.2)
+		hud.set_dev_text(false)
+		var marks := TouchMarkers.new()
+		marks.name = "TouchMarkers"
+		touch.get_parent().add_child(marks) # (after the controls: the touches reach it first and go on to them)
+		if "--demo-side" in OS.get_cmdline_user_args():
+			# (the review's side view at half speed: across the line between him and the automaton)
+			_view = "fight_side"
+			rig.active = false
+			Engine.time_scale = 0.5
 	Game.arena_ready()
 
 
@@ -242,6 +253,18 @@ func _place_camera() -> void:
 		"vista":
 			# a low view of the courtyard toward the arch and the moon (the establishing shot)
 			_look(Vector3(1.5, 1.6, 11.5), Vector3(0, 4.2, -14.0), 55.0)
+		"fight_side":
+			# (the review's side view, M4.2: across the line between him and the automaton, both in frame, up with them in
+			# the air; it keeps to the side it is on — it never swaps when one passes the other)
+			var a := automaton.global_position
+			var mid := (p + a) * 0.5
+			var line := a - p
+			line.y = 0.0
+			var across := line.cross(Vector3.UP).normalized() if line.length() > 0.2 else right
+			var dist := clampf(line.length() * 0.9 + 3.8, 4.4, 8.0)
+			if (mid + across * dist).distance_to(_cam.global_position) > (mid - across * dist).distance_to(_cam.global_position):
+				across = -across
+			_look(mid + across * dist + Vector3(0, 1.5, 0), mid + Vector3(0, 1.0, 0), 45.0)
 		"auto_front", "auto_side", "auto_back", "auto_face":
 			# the automaton (following it up in the air and down on the floor)
 			var a := automaton.global_position
