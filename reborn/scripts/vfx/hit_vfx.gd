@@ -114,6 +114,11 @@ func _launch(p: CPUParticles3D, at: Vector3) -> void:
 	add_child(p)
 	p.global_position = at
 	p.emitting = true
+	# (hidden as its last particles fade — 80 % of their life: near the end of a burst the renderer drew every spark
+	# for one frame at full quad size, a white blob where the blade had bitten — then freed)
+	get_tree().create_timer(p.lifetime * 0.8).timeout.connect(func() -> void:
+		if is_instance_valid(p):
+			p.visible = false)
 	get_tree().create_timer(p.lifetime + 0.3).timeout.connect(p.queue_free)
 
 

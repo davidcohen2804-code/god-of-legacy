@@ -8,9 +8,9 @@ extends Node3D
 ##   - the mark: an original seal glyph — two concentric rings and four short inward strokes, about 0.45 m across — over
 ##     the target's chest, facing the camera, additive; three pulses, quickening (PULSES: 0, 330 and 530 ms after it was
 ##     planted), then through the last CONTRACT s it contracts and brightens: the cue that it is about to burst;
-##   - the detonation: a compact burst at the mark — a bright core flash under 0.12 s, a crimson-violet ring opening to
-##     about 1.3 m over 0.3 s, a few sparks — the target stays visible through it; a mark whose target falls before its
-##     detonation fades out unexploded.
+##   - the detonation: a compact burst at the mark — a small core flash (at most half a metre, under 0.12 s), a
+##     crimson-violet ring opening to about 1.3 m over 0.3 s, a few sparks — the target stays visible through it; a mark
+##     whose target falls before its detonation fades out unexploded.
 ## Unshaded and additive, small pools; nothing covers the screen.
 
 const PULSES := [0.0, 0.33, 0.53] ## s after the mark was planted (GPT's v1.6)
@@ -207,8 +207,8 @@ func _age_burst(delta: float) -> void:
 		_core_age += delta
 		var k := clampf(_core_age / CORE_LIFE, 0.0, 1.0)
 		_core.visible = k < 1.0
-		_core.scale = Vector3.ONE * lerpf(0.3, 0.85, 1.0 - (1.0 - k) * (1.0 - k))
-		_core_mat.albedo_color = Color(HOT, 0.95 * (1.0 - k))
+		_core.scale = Vector3.ONE * lerpf(0.2, 0.5, 1.0 - (1.0 - k) * (1.0 - k))
+		_core_mat.albedo_color = Color(COLOR.lerp(HOT, 0.6), 0.75 * (1.0 - k))
 	if _ring_age < RING_LIFE:
 		_ring_age += delta
 		var k := clampf(_ring_age / RING_LIFE, 0.0, 1.0)

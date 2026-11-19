@@ -3,8 +3,9 @@ extends Node3D
 ## How Phantom Execution looks (GPT's v1.5 / v1.6: its power comes from the preparation pose, a readable dash, the
 ## precise slash, a controlled camera and a concentrated impact — its beginning, contact and ending never hidden behind
 ## effects). It decides nothing; it only follows the combat controller:
-##   - the dash: three faint violet afterimages left along his path through the startup (his pose baked at GHOSTS s),
-##     each fading over GHOST_FADE s;
+##   - the dash: faint violet afterimages left along his path through the startup — one each GHOST_STEP m he has
+##     travelled, at most three (his pose baked there), each fading over GHOST_FADE s — so a short dash leaves none over
+##     his preparation pose, and a long one marks where it went;
 ##   - the camera: its view narrows by at most PUSH degrees through the startup, holds through the cut and widens back
 ##     through the recovery — eased, never turning it;
 ##   - the contact: a thin bright streak along the katana tip's own path through the cut for STREAK_LIFE s, and a
@@ -12,9 +13,10 @@ extends Node3D
 ##     pose stays clear.
 
 const ID := "phantom_execution"
-const GHOSTS := [0.05, 0.1, 0.15] ## s into the startup
+const GHOST_STEP := 0.35 ## m travelled between two afterimages
+const GHOSTS := 3
 const GHOST := Color(0.62, 0.48, 1.0)
-const GHOST_ALPHA := 0.3
+const GHOST_ALPHA := 0.24
 const GHOST_FADE := 0.2
 const PUSH := 2.0 ## degrees (GPT's v1.6: at most 2° until tested on a phone)
 const STREAK_LIFE := 0.12
@@ -29,6 +31,7 @@ var ghosts_left := 0
 var contacts := 0
 
 var _next_ghost := 0
+var _ghost_from := Vector3.ZERO ## where he was when the last afterimage was left (or the dash began)
 var _ghosts: Array[Dictionary] = [] ## {nodes: [MeshInstance3D], mat, age}
 var _streak: MeshInstance3D
 var _streak_mat: StandardMaterial3D
@@ -61,7 +64,8 @@ func _ready() -> void:
 	if combat:
 		combat.strike_started.connect(func(a: AttackData, _s: int) -> void:
 			if a.id == ID:
-				_next_ghost = 0)
+				_next_ghost = 0
+				_ghost_from = fighter.global_position)
 		combat.strike_hit.connect(_on_hit)
 
 
@@ -72,9 +76,12 @@ func _process(delta: float) -> void:
 	var running := a != null and a.id == ID and combat.melee.is_attacking()
 	# the afterimages through the startup's dash
 	if running and combat.melee.phase == MeleeState.Phase.STARTUP and not combat.is_frozen():
-		while _next_ghost < GHOSTS.size() and combat.melee.t >= float(GHOSTS[_next_ghost]):
+		var moved := fighter.global_position - _ghost_from
+		moved.y = 0.0
+		if _next_ghost < GHOSTS and moved.length() >= GHOST_STEP:
 			_leave_ghost()
 			_next_ghost += 1
+			_ghost_from = fighter.global_position
 	_age_ghosts(delta)
 	# the camera's push-in: in through the startup, held through the cut, out through the recovery
 	if rig:

@@ -76,14 +76,14 @@ const SCRIPT_C := [
 ## `d` m sideways, across his line to it (likewise).
 const SCRIPT_D := [
 	[0.2, "spar", false],
-	[0.4, "caption", "Explosive Execution: three confirmed strikes → SEAL → its delayed detonation → EXECUTE", 3.0],
+	[0.4, "caption", "Explosive Execution: 3 confirmed strikes → SEAL → detonation → EXECUTE", 3.0],
 	[0.5, "go", Vector2(-3.5, 1.4), 0.85], # run up to it (the stick lets go 0.8 m short of the point)
 	[2.2, "approach", 1.75, 0.35], # walk in to 1.75 m from it, facing it
 	[3.6, "when_cond", "explosive_seal", 0.0, [0.0, "caption", "BASIC 1 → 2 → 3, each confirmed on it: EXPLOSIVE SEAL", 1.2]],
 	[3.6, "when_cond", "explosive_seal", 0.1, [0.0, "tap", "cond1"]],
 	[3.6, "when_action", "explosive_seal", 0.12, [0.0, "caption", "The mark is planted — it bursts 650 ms later (24)", 1.3]],
 	[3.6, "when_cond", "phantom_execution", 0.0, [0.0, "caption", "PHANTOM EXECUTION — the dash, the cleave (45), the low finishing stance", 2.6]],
-	[3.6, "when_cond", "phantom_execution", 0.12, [0.0, "tap", "cond1"]],
+	[3.6, "when_cond", "phantom_execution", 0.3, [0.0, "tap", "cond1"]],
 	[3.6, "mash", 3],
 	[7.6, "go", Vector2(-3.5, 1.2), 0.85], # he steps back...
 	[7.6, "caption", "A missed strike: Basic 3 swings at empty air — not confirmed, so no SEAL", 3.0],
@@ -99,7 +99,7 @@ const SCRIPT_D := [
 	[13.9, "approach", 1.75, 0.6],
 	[15.2, "mash", 3],
 	[18.0, "go", Vector2(-3.5, 1.2), 0.85],
-	[18.0, "caption", "Test command: after the detonation the automaton is moved 4 m away — EXECUTE is refused (Out of reach), then expires", 3.8],
+	[18.0, "caption", "Test command: moved 4 m away — EXECUTE is refused, then it expires", 3.8],
 	[19.2, "reset"],
 	[19.3, "approach", 1.75, 0.6],
 	[20.6, "when_cond", "explosive_seal", 0.1, [0.0, "tap", "cond1"]],
@@ -107,11 +107,11 @@ const SCRIPT_D := [
 	[20.6, "when_cond", "phantom_execution", 0.3, [0.0, "tap", "cond1"]],
 	[20.6, "mash", 3],
 	[24.4, "go", Vector2(-3.5, 1.2), 0.85],
-	[24.4, "caption", "Test command: the automaton is moved out of the cleave's path in the Execution's startup — the strike misses", 3.8],
+	[24.4, "caption", "Test command: moved out of the cleave's path — the Execution misses", 3.8],
 	[25.6, "reset"],
 	[25.7, "approach", 1.75, 0.6],
 	[27.0, "when_cond", "explosive_seal", 0.1, [0.0, "tap", "cond1"]],
-	[27.0, "when_cond", "phantom_execution", 0.12, [0.0, "tap", "cond1"]],
+	[27.0, "when_cond", "phantom_execution", 0.3, [0.0, "tap", "cond1"]],
 	[27.0, "when_action", "phantom_execution", 0.08, [0.0, "auto_side", 2.6]],
 	[27.0, "mash", 3],
 	[30.8, "go", Vector2(-3.5, 1.2), 0.85],
@@ -120,7 +120,7 @@ const SCRIPT_D := [
 	[32.1, "approach", 1.75, 0.6],
 	[33.4, "slowmo", 0.5],
 	[33.4, "when_cond", "explosive_seal", 0.1, [0.0, "tap", "cond1"]],
-	[33.4, "when_cond", "phantom_execution", 0.12, [0.0, "tap", "cond1"]],
+	[33.4, "when_cond", "phantom_execution", 0.3, [0.0, "tap", "cond1"]],
 	[33.4, "mash", 3],
 	[36.6, "slowmo", 1.0],
 	[38.0, "end"],
@@ -128,7 +128,7 @@ const SCRIPT_D := [
 
 const SCRIPT_M4 := [
 	[0.2, "spar", false],
-	[0.4, "caption", "M4 — the three Legacy Chain branches, each opened only by a confirmed combat event", 3.2],
+	[0.4, "caption", "M4 — three Legacy Chain branches, each opened by a confirmed event", 3.2],
 	[0.5, "go", Vector2(-10.4, 0.6), 0.85], # run west, past the dummy
 	[3.2, "go", Vector2(-9.4, -0.9), 0.3], # walk to his place
 	[4.2, "point", Vector2(1.0, -0.3), 0.25], # face the automaton, about 6 m away
@@ -137,15 +137,15 @@ const SCRIPT_M4 := [
 	[5.3, "tap_shown", "cond1", 0.25], # PULL
 	[6.5, "tap", "skill3"],
 	[6.6, "tap_shown", "cond1", 0.1], # PURSUE (it waits for Rising Slash's 50 %)
-	[9.6, "caption", "2 · DEFENSIVE COUNTERPLAY — its telegraphed sweep, Shadow Step through it, Shadow Counter", 3.6],
+	[9.6, "caption", "2 · DEFENSIVE COUNTERPLAY — its sweep → Shadow Step → Shadow Counter", 3.6],
 	[9.6, "approach", 1.75, 0.35],
 	[11.2, "attack"],
 	[11.2, "tap_on_attack", "skill2", 0.43],
 	[11.8, "tap_shown", "cond1", 0.15], # COUNTER
-	[13.6, "caption", "3 · EXPLOSIVE EXECUTION — three confirmed strikes → SEAL → its detonation → EXECUTE", 3.6],
+	[13.6, "caption", "3 · EXPLOSIVE EXECUTION — 3 strikes → SEAL → detonation → EXECUTE", 3.6],
 	[13.6, "approach", 1.75, 0.35],
 	[15.0, "when_cond", "explosive_seal", 0.1, [0.0, "tap", "cond1"]],
-	[15.0, "when_cond", "phantom_execution", 0.12, [0.0, "tap", "cond1"]],
+	[15.0, "when_cond", "phantom_execution", 0.3, [0.0, "tap", "cond1"]],
 	[15.0, "mash", 3],
 	[20.0, "end"],
 ]
