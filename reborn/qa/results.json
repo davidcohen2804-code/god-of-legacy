@@ -1,12 +1,12 @@
 {
-  "when": "2026-11-19T19:08:42.440Z",
+  "when": "2026-11-19T21:26:45.557Z",
   "results": [
     {
       "profile": "android-chromium",
       "required": true,
       "ok": true,
       "steps": [
-        "main menu loaded in 1106 ms",
+        "main menu loaded in 1089 ms",
         "settings open and close",
         "character select reached by tapping Play",
         "locked Warrior refused (selection stays Samurai, toast: Warrior is locked — coming later)",
@@ -15,70 +15,73 @@
         "Training Automaton on its mark (-3.5, 0, -2.5), stand, Sword_Idle, 150 HP",
         "controls: 8 on screen, smallest hit target 48.0 CSS px (≥ 44), none overlapping or off screen; scale 1.292",
         "joystick: Jog_Fwd_Loop at 5.2 m/s, held at its rim → sprinting (Sprint_Loop); let go → stopped (Idle_Loop) after 21.7 m",
-        "two fingers: camera turned 50° while the Samurai kept walking (1.9 m/s, 2 touches; 4.5 m)",
+        "two fingers: camera turned 50° while the Samurai kept walking (1.9 m/s, 2 touches; 4.3 m)",
         "a camera drag that crosses the joystick stays a camera drag (the stick does not take it)",
         "JUMP: in the air (y 0.85 m), landed",
         "DODGE: rolled",
         "STEP (Shadow Step) in open space: 4.0 m backward in one burst; no attack — nothing opened",
-        "touch: B1 → B2 → B3 = 10 + 12 + 18 (each strike hit once; 1 extra press after), dummy 150 → 100 HP, pushed 0.5 m by the third and back on its mark; the confirmed sequence opened SEAL, left to expire",
-        "touch: HEAVY — one hit for 30 (dummy 100 → 70), pushed 0.5 m",
+        "touch: B1 → B2 → B3 = 10 + 12 + 18 (each strike hit once; 0 extra presses after), dummy 150 → 110 HP, pushed 0.5 m by the third and back on its mark; the confirmed sequence opened SEAL, left to expire",
+        "touch: HEAVY — one hit for 30 (dummy 110 → 80), pushed 0.5 m",
         "touch: CHAIN from 6 m → the automaton held (8), PULL on its button → dragged 4.4 m in 0.317 s to 1.6 m in front of him (6): 150 → 136 HP [at half game speed: the touch interface under software rendering at ~1 frame a second — not a full-speed gameplay check]",
-        "touch: RISE launched it (16) → PURSUE leapt (0.44:1.47 m: forward, height) and struck it in the air (14) → 136 → 106 HP; both landed [at half game speed: the touch interface under software rendering at ~1 frame a second — not a full-speed gameplay check]",
+        "touch: RISE launched it (16) → PURSUE leapt (0.44:1.49 m: forward, height) and struck it in the air (14) → 136 → 106 HP; both landed [at half game speed: the touch interface under software rendering at ~1 frame a second — not a full-speed gameplay check]",
         "touch: the sweep (550 ms telegraph) → STEP pressed 0.46 s into it → the blade crossed his shadow: evaded once, COUNTER on its button → the counter dashed 4 m and its cut landed (14): 106 → 92 HP; he took no damage [at half game speed: the touch interface under software rendering at ~1 frame a second — not a full-speed gameplay check]",
         "touch: B1 → B2 → B3 on the automaton (10 + 12 + 18) → SEAL on its button → the mark planted → detonated 650 ms later (24) → EXECUTE → dashed 0.78 m and the cleave landed (45): 150 → 31 HP [at half game speed: the touch interface under software rendering at ~1 frame a second — not a full-speed gameplay check]",
-        "touch: a deliberate miss dealt nothing (dummy stays 70 HP) and the next strike was the first again",
-        "ATTACK while running on the stick: the strike played (Sword_Regular_A), the stick stayed held, and he ran on afterwards (5.2 m/s, Jog_Fwd_Loop)",
-        "camera comparison (M4.2-A): 24 shots — A, B and C on the open floor, beside a column (fading off, 25 %, 15 %), the automaton launched, 5.5 m apart, off to one side, backing to the south wall; Samurai open_A 87.7 · open_B 102.4 · open_C 102.4 · column_A 87.7 · column_A_fade25 87.7 · column_A_fade15 87.7 · column_B 102.4 · column_B_fade25 102.4 · column_B_fade15 102.4 · column_C 102.4 · column_C_fade25 102.4 · column_C_fade15 102.4 · launch_A 82.2 · launch_B 95.5 · launch_C 73.9 · far_A 82.9 · far_B 105.9 · far_C 84.5 · side_A 86.5 · side_B 101.7 · side_C 88 · wall_A 87.7 · wall_B 102.4 · wall_C 102.4 CSS px; C's emergency extension in: c_launch_C, c_far_C, c_side_C",
+        "touch: a deliberate miss dealt nothing (dummy stays 80 HP) and the next strike was the first again",
+        "ATTACK while running on the stick: the strike played (Jog_Fwd_Loop), the stick stayed held, and he ran on afterwards (5.2 m/s, Jog_Fwd_Loop)",
+        "camera A2 (B with and without its corrections, fading at 25 %, the icons' controls): 16 shots — open_plain 102.4/94.7 · open_fixed 102.3/94.6 · column_plain 102.4/94.7 · column_fixed 102.3/94.6 · launch_plain 95.5/112.1 foe in HUD · launch_fixed 84.8/97.9 lift 0.61 · far_plain 105.9/83.2 foe in HUD · far_fixed 105.8/83.1 foe in HUD · side_plain 101.7/96.8 foe in HUD turned 12° · side_fixed 101.9/96 foe in HUD turned 12° · wall_plain 102.4/94.7 · wall_fixed 102.3/94.6 · hud_bright 102.3/94.6 · hud_dark 102.3/94.6 · explore_A 56.4/undefined · explore_B 69.3/undefined",
         "back to the main menu",
-        "device test (?device=1): straight into the arena, no menu; the overlay reads \"HIGH · 100 % 3D (2265×945) | 1 FPS · 878.0 ms | warming up — not measured\"; the page's language he-IL — MENU top left, TEST top right (not mirrored)",
+        "device test (?device=1): straight into the arena, no menu; the overlay reads \"HIGH · 100 % 3D (2265×945) | 1 FPS · 853.7 ms | warming up — not measured\"; the page's language he-IL — MENU top left, TEST top right (not mirrored)",
         "device test: the panel opens and pauses the game, all of it on the screen (1456×539 of 1725×720); its report has 13 lines, all shown; fullscreen offered",
-        "device test presets LOW: 3D 1133×473 of 2265×945 (scale 0.5), 1 image buffer(s) at that size, 0 shadow map(s) of the preset's size, textures 35.4 MB · MEDIUM: 3D 1699×709 of 2265×945 (scale 0.75), 1 image buffer(s) at that size, 1 shadow map(s) of the preset's size, textures 40.5 MB · HIGH: 3D 2265×945 of 2265×945 (scale 1), 0 image buffer(s) at that size, 1 shadow map(s) of the preset's size, textures 31.4 MB · LOW: 3D 1133×473 of 2265×945 (scale 0.5), 1 image buffer(s) at that size, 0 shadow map(s) of the preset's size, textures 35.4 MB · HIGH: 3D 2265×945 of 2265×945 (scale 1), 0 image buffer(s) at that size, 0 shadow map(s) of the preset's size, textures 31.4 MB — the same memory at a preset again (no growth)",
+        "device test presets LOW: 3D 1133×473 of 2265×945 (scale 0.5), 1 image buffer(s) at that size, 0 shadow map(s) of the preset's size, textures 35.5 MB · MEDIUM: 3D 1699×709 of 2265×945 (scale 0.75), 1 image buffer(s) at that size, 1 shadow map(s) of the preset's size, textures 40.6 MB · HIGH: 3D 2265×945 of 2265×945 (scale 1), 0 image buffer(s) at that size, 1 shadow map(s) of the preset's size, textures 31.4 MB · LOW: 3D 1133×473 of 2265×945 (scale 0.5), 1 image buffer(s) at that size, 0 shadow map(s) of the preset's size, textures 35.5 MB · HIGH: 3D 2265×945 of 2265×945 (scale 1), 0 image buffer(s) at that size, 0 shadow map(s) of the preset's size, textures 31.4 MB — the same memory at a preset again (no growth)",
         "device test RESTART: the arena rebuilt — the automaton whole (150), the Samurai back on his mark [0,0,7], the preset kept (2)"
       ],
       "errors": [],
       "log": [
+        "[log] [QA] command auto [\"attack\"]",
+        "[log] [shot] before 9_touch_countered, page blits so far 562",
+        "[log] [shot] after 9_touch_countered",
+        "[log] [QA] command auto [\"place\", -3.5, -2.5, 180]",
+        "[log] [QA] command auto [\"heal\"]",
+        "[log] [QA] command place [-3.5, -4.2, 0]",
+        "[log] [shot] before 9_touch_executed, page blits so far 638",
+        "[log] [shot] after 9_touch_executed",
+        "[log] [QA] command speed [1]",
+        "[log] [QA] command place [6, 6, 0]",
+        "[log] [QA] command place [-8, 8, 90]",
+        "[log] [shot] before 9_touch_move_attack, page blits so far 701",
+        "[log] [shot] after 9_touch_move_attack",
+        "[log] [QA] command dummy [\"off\"]",
+        "[log] [QA] command devtext [\"off\"]",
+        "[log] [QA] command auto [\"spar\", 0]",
+        "[log] [QA] command speed [1]",
+        "[log] [QA] command fade [1, 0.25]",
+        "[log] [QA] command place [0, 4, 180]",
+        "[log] [QA] command auto [\"thaw\"]",
+        "[log] [QA] command auto [\"heal\"]",
+        "[log] [QA] command auto [\"place\", 0, 1.5, 0]",
+        "[log] [QA] command auto [\"freeze\", 120]",
+        "[log] [QA] command camfx [0, 0, 0]",
+        "[log] [QA] command frame [\"foe\"]",
+        "[log] [shot] before a2_open_plain, page blits so far 747",
+        "[log] [shot] after a2_open_plain",
+        "[log] [QA] command camfx [0.35, 1, 1]",
+        "[log] [QA] command frame [\"foe\"]",
+        "[log] [shot] before a2_open_fixed, page blits so far 773",
+        "[log] [shot] after a2_open_fixed",
+        "[log] [QA] command auto [\"thaw\"]",
+        "[log] [QA] command place [8.19, 4.8, -112.5]",
+        "[log] [QA] command auto [\"thaw\"]",
         "[log] [QA] command auto [\"heal\"]",
         "[log] [QA] command auto [\"place\", 5.88, 3.84, 67.5]",
         "[log] [QA] command auto [\"freeze\", 120]",
-        "[log] [QA] command camvar [\"A\"]",
-        "[log] [QA] command fade [0, 0.25]",
+        "[log] [QA] command camfx [0, 0, 0]",
         "[log] [QA] command frame [\"foe\"]",
-        "[log] [shot] before c_column_A, page blits so far 839",
-        "[log] [shot] after c_column_A",
-        "[log] [QA] command fade [1, 0.25]",
+        "[log] [shot] before a2_column_plain, page blits so far 809",
+        "[log] [shot] after a2_column_plain",
+        "[log] [QA] command camfx [0.35, 1, 1]",
         "[log] [QA] command frame [\"foe\"]",
-        "[log] [shot] before c_column_A_fade25, page blits so far 861",
-        "[log] [shot] after c_column_A_fade25",
-        "[log] [QA] command fade [1, 0.15]",
-        "[log] [QA] command frame [\"foe\"]",
-        "[log] [shot] before c_column_A_fade15, page blits so far 884",
-        "[log] [shot] after c_column_A_fade15",
-        "[log] [QA] command camvar [\"B\"]",
-        "[log] [QA] command fade [0, 0.25]",
-        "[log] [QA] command frame [\"foe\"]",
-        "[log] [shot] before c_column_B, page blits so far 905",
-        "[log] [shot] after c_column_B",
-        "[log] [QA] command fade [1, 0.25]",
-        "[log] [QA] command frame [\"foe\"]",
-        "[log] [shot] before c_column_B_fade25, page blits so far 926",
-        "[log] [shot] after c_column_B_fade25",
-        "[log] [QA] command fade [1, 0.15]",
-        "[log] [QA] command frame [\"foe\"]",
-        "[log] [shot] before c_column_B_fade15, page blits so far 949",
-        "[log] [shot] after c_column_B_fade15",
-        "[log] [QA] command camvar [\"C\"]",
-        "[log] [QA] command fade [0, 0.25]",
-        "[log] [QA] command frame [\"foe\"]",
-        "[log] [shot] before c_column_C, page blits so far 971",
-        "[log] [shot] after c_column_C",
-        "[log] [QA] command fade [1, 0.25]",
-        "[log] [QA] command frame [\"foe\"]",
-        "[log] [shot] before c_column_C_fade25, page blits so far 994",
-        "[log] [shot] after c_column_C_fade25",
-        "[log] [QA] command fade [1, 0.15]",
-        "[log] [QA] command frame [\"foe\"]",
-        "[log] [shot] before c_column_C_fade15, page blits so far 1015",
-        "[log] [shot] after c_column_C_fade15",
+        "[log] [shot] before a2_column_fixed, page blits so far 835",
+        "[log] [shot] after a2_column_fixed",
         "[log] [QA] command auto [\"thaw\"]",
         "[log] [QA] command place [0, 4, 180]",
         "[log] [QA] command auto [\"thaw\"]",
@@ -88,87 +91,84 @@
         "[log] [QA] command auto [\"launch\"]",
         "[log] [QA] command auto [\"freeze\", 120]",
         "[log] [QA] command speed [1]",
-        "[log] [QA] command camvar [\"A\"]",
-        "[log] [QA] command fade [0, 0.25]",
+        "[log] [QA] command camfx [0, 0, 0]",
         "[log] [QA] command frame [\"foe\"]",
-        "[log] [shot] before c_launch_A, page blits so far 1062",
-        "[log] [shot] after c_launch_A",
-        "[log] [QA] command camvar [\"B\"]",
-        "[log] [QA] command fade [0, 0.25]",
+        "[log] [shot] before a2_launch_plain, page blits so far 880",
+        "[log] [shot] after a2_launch_plain",
+        "[log] [QA] command camfx [0.35, 1, 1]",
         "[log] [QA] command frame [\"foe\"]",
-        "[log] [shot] before c_launch_B, page blits so far 1086",
-        "[log] [shot] after c_launch_B",
-        "[log] [QA] command camvar [\"C\"]",
-        "[log] [QA] command fade [0, 0.25]",
-        "[log] [QA] command frame [\"foe\"]",
-        "[log] [shot] before c_launch_C, page blits so far 1109",
-        "[log] [shot] after c_launch_C",
+        "[log] [shot] before a2_launch_fixed, page blits so far 904",
+        "[log] [shot] after a2_launch_fixed",
         "[log] [QA] command auto [\"thaw\"]",
         "[log] [QA] command place [0, 4.5, 180]",
         "[log] [QA] command auto [\"thaw\"]",
         "[log] [QA] command auto [\"heal\"]",
         "[log] [QA] command auto [\"place\", 0, -1, 0]",
         "[log] [QA] command auto [\"freeze\", 120]",
-        "[log] [QA] command camvar [\"A\"]",
-        "[log] [QA] command fade [0, 0.25]",
+        "[log] [QA] command camfx [0, 0, 0]",
         "[log] [QA] command frame [\"foe\"]",
-        "[log] [shot] before c_far_A, page blits so far 1152",
-        "[log] [shot] after c_far_A",
-        "[log] [QA] command camvar [\"B\"]",
-        "[log] [QA] command fade [0, 0.25]",
+        "[log] [shot] before a2_far_plain, page blits so far 948",
+        "[log] [shot] after a2_far_plain",
+        "[log] [QA] command camfx [0.35, 1, 1]",
         "[log] [QA] command frame [\"foe\"]",
-        "[log] [shot] before c_far_B, page blits so far 1176",
-        "[log] [shot] after c_far_B",
-        "[log] [QA] command camvar [\"C\"]",
-        "[log] [QA] command fade [0, 0.25]",
-        "[log] [QA] command frame [\"foe\"]",
-        "[log] [shot] before c_far_C, page blits so far 1200",
-        "[log] [shot] after c_far_C",
+        "[log] [shot] before a2_far_fixed, page blits so far 972",
+        "[log] [shot] after a2_far_fixed",
         "[log] [QA] command auto [\"thaw\"]",
         "[log] [QA] command place [0, 4, 180]",
         "[log] [QA] command auto [\"thaw\"]",
         "[log] [QA] command auto [\"heal\"]",
         "[log] [QA] command auto [\"place\", 2.6, 2, -52.43]",
         "[log] [QA] command auto [\"freeze\", 120]",
-        "[log] [QA] command camvar [\"A\"]",
-        "[log] [QA] command fade [0, 0.25]",
+        "[log] [QA] command camfx [0, 0, 0]",
         "[log] [QA] command frame [\"facing\"]",
-        "[log] [shot] before c_side_A, page blits so far 1234",
-        "[log] [shot] after c_side_A",
-        "[log] [QA] command camvar [\"B\"]",
-        "[log] [QA] command fade [0, 0.25]",
+        "[log] [shot] before a2_side_plain, page blits so far 1006",
+        "[log] [shot] after a2_side_plain",
+        "[log] [QA] command camfx [0.35, 1, 1]",
         "[log] [QA] command frame [\"facing\"]",
-        "[log] [shot] before c_side_B, page blits so far 1256",
-        "[log] [shot] after c_side_B",
-        "[log] [QA] command camvar [\"C\"]",
-        "[log] [QA] command fade [0, 0.25]",
-        "[log] [QA] command frame [\"facing\"]",
-        "[log] [shot] before c_side_C, page blits so far 1280",
-        "[log] [shot] after c_side_C",
+        "[log] [shot] before a2_side_fixed, page blits so far 1033",
+        "[log] [shot] after a2_side_fixed",
         "[log] [QA] command auto [\"thaw\"]",
         "[log] [QA] command place [0, 12, 180]",
         "[log] [QA] command auto [\"thaw\"]",
         "[log] [QA] command auto [\"heal\"]",
         "[log] [QA] command auto [\"place\", 0, 9.5, 0]",
         "[log] [QA] command auto [\"freeze\", 120]",
-        "[log] [QA] command camvar [\"A\"]",
-        "[log] [QA] command fade [0, 0.25]",
+        "[log] [QA] command camfx [0, 0, 0]",
         "[log] [QA] command frame [\"foe\"]",
-        "[log] [shot] before c_wall_A, page blits so far 1316",
-        "[log] [shot] after c_wall_A",
-        "[log] [QA] command camvar [\"B\"]",
-        "[log] [QA] command fade [0, 0.25]",
+        "[log] [shot] before a2_wall_plain, page blits so far 1068",
+        "[log] [shot] after a2_wall_plain",
+        "[log] [QA] command camfx [0.35, 1, 1]",
         "[log] [QA] command frame [\"foe\"]",
-        "[log] [shot] before c_wall_B, page blits so far 1339",
-        "[log] [shot] after c_wall_B",
-        "[log] [QA] command camvar [\"C\"]",
-        "[log] [QA] command fade [0, 0.25]",
-        "[log] [QA] command frame [\"foe\"]",
-        "[log] [shot] before c_wall_C, page blits so far 1362",
-        "[log] [shot] after c_wall_C",
+        "[log] [shot] before a2_wall_fixed, page blits so far 1094",
+        "[log] [shot] after a2_wall_fixed",
         "[log] [QA] command auto [\"thaw\"]",
-        "[log] [QA] command fade [0, 0.25]",
-        "[log] [QA] command camvar [\"A\"]",
+        "[log] [QA] command camfx [0.35, 1, 1]",
+        "[log] [QA] command place [0, 4, 180]",
+        "[log] [QA] command auto [\"place\", 0, 1.5, 0]",
+        "[log] [QA] command hudpreview [\"COUNTER\", \"EXECUTE\", 1]",
+        "[log] [QA] command frame [\"foe\"]",
+        "[log] [shot] before a2_hud_bright, page blits so far 1121",
+        "[log] [shot] after a2_hud_bright",
+        "[log] [QA] command place [0, 12, 180]",
+        "[log] [QA] command auto [\"place\", 0, 9.5, 0]",
+        "[log] [QA] command hudpreview [\"COUNTER\", \"EXECUTE\", 1]",
+        "[log] [QA] command frame [\"foe\"]",
+        "[log] [shot] before a2_hud_dark, page blits so far 1148",
+        "[log] [shot] after a2_hud_dark",
+        "[log] [QA] command hudpreview [\"off\"]",
+        "[log] [QA] command expvar [\"A\"]",
+        "[log] [QA] command place [0, 9, 180]",
+        "[log] [QA] command auto [\"place\", 0, -4, 0]",
+        "[log] [QA] command frame [\"facing\"]",
+        "[log] [shot] before a2_explore_A, page blits so far 1172",
+        "[log] [shot] after a2_explore_A",
+        "[log] [QA] command expvar [\"B\"]",
+        "[log] [QA] command place [0, 9, 180]",
+        "[log] [QA] command auto [\"place\", 0, -4, 0]",
+        "[log] [QA] command frame [\"facing\"]",
+        "[log] [shot] before a2_explore_B, page blits so far 1197",
+        "[log] [shot] after a2_explore_B",
+        "[log] [QA] command expvar [\"A\"]",
         "[log] [QA] command auto [\"heal\"]",
         "[log] [QA] command auto [\"place\", -3.5, -2.5, 20.2]",
         "[log] [QA] command dummy [\"on\"]",
@@ -188,17 +188,17 @@
         "[log] [blit] #6 (0,0,2265,945,0,0,2265,945,16384,9728) read=fbo draw=default",
         "[log] [shot] before d1_overlay, page blits so far 10",
         "[log] [shot] after d1_overlay",
-        "[log] [shot] before d2_panel, page blits so far 39",
+        "[log] [shot] before d2_panel, page blits so far 37",
         "[log] [shot] after d2_panel",
-        "[log] [shot] before d3_low, page blits so far 64",
+        "[log] [shot] before d3_low, page blits so far 62",
         "[log] [shot] after d3_low",
-        "[log] [shot] before d4_high, page blits so far 148",
+        "[log] [shot] before d4_high, page blits so far 126",
         "[log] [shot] after d4_high",
         "[log] [QA] command place [3, 3, 90]",
         "[log] [QA] command auto [\"hit\", 30]",
         "[log] [QA] scene=arena"
       ],
-      "loadMs": 1106,
+      "loadMs": 1089,
       "fps": 3,
       "player": {
         "action_lock": false,
@@ -235,8 +235,55 @@
             "jump"
           ],
           "hit_scale": 1.292,
+          "icons": 7,
+          "label_css": 11,
+          "labels": {
+            "attack": [
+              1428.6,
+              575.7,
+              50,
+              33
+            ],
+            "dodge": [
+              1204.8,
+              648.6,
+              84,
+              33
+            ],
+            "heavy": [
+              1574.1,
+              624.3,
+              82,
+              33
+            ],
+            "jump": [
+              1096,
+              546.8,
+              69,
+              33
+            ],
+            "skill1": [
+              1260,
+              418.3,
+              77,
+              33
+            ],
+            "skill2": [
+              1422.6,
+              340.8,
+              62,
+              33
+            ],
+            "skill3": [
+              1569.3,
+              418.3,
+              53,
+              33
+            ]
+          },
           "min_hit_css": 48,
           "stick": false,
+          "style": "icons",
           "touches": 0
         },
         "viewport": [
@@ -246,368 +293,1148 @@
       },
       "camera": [
         {
-          "shot": "c_open_A",
-          "variant": "A",
-          "distance": 7.2,
-          "camera_to_player": 7.54,
-          "fallback": false,
-          "samurai_css": 87.7,
-          "samurai_in_hud": false,
-          "samurai_off": false,
-          "foe_css": 82.9,
-          "foe_in_hud": false,
-          "foe_off": false,
-          "faded": 0,
-          "draws": 203
-        },
-        {
-          "shot": "c_open_B",
+          "shot": "a2_open_plain",
           "variant": "B",
           "distance": 6.6,
           "camera_to_player": 6.92,
-          "fallback": false,
           "samurai_css": 102.4,
           "samurai_in_hud": false,
           "samurai_off": false,
           "foe_css": 94.7,
           "foe_in_hud": false,
           "foe_off": false,
-          "faded": 0,
-          "draws": 190
+          "player_box": [
+            807,
+            340.1,
+            111.1,
+            204.8
+          ],
+          "foe_box": [
+            826,
+            157.7,
+            73,
+            189.4
+          ],
+          "areas": [
+            [
+              0,
+              0,
+              1725,
+              110
+            ],
+            [
+              79.8,
+              418.5,
+              202.3,
+              202.3
+            ],
+            [
+              1080,
+              235.7,
+              588.2,
+              457.8
+            ]
+          ],
+          "css_per_px": 0.5,
+          "faded": 2,
+          "draws": 204,
+          "lift": 0,
+          "air_pull": 0,
+          "pitch": 35.7,
+          "assist_turned": 0,
+          "shoulder": 0,
+          "air": false,
+          "assist": false,
+          "mode": "COMBAT",
+          "explore": "A"
         },
         {
-          "shot": "c_open_C",
-          "variant": "C",
+          "shot": "a2_open_fixed",
+          "variant": "B",
           "distance": 6.6,
-          "camera_to_player": 6.92,
-          "fallback": false,
-          "samurai_css": 102.4,
+          "camera_to_player": 6.93,
+          "samurai_css": 102.3,
           "samurai_in_hud": false,
           "samurai_off": false,
-          "foe_css": 94.7,
+          "foe_css": 94.6,
           "foe_in_hud": false,
           "foe_off": false,
-          "faded": 0,
-          "draws": 190
+          "player_box": [
+            813.7,
+            339.9,
+            110.9,
+            204.7
+          ],
+          "foe_box": [
+            811.2,
+            158.4,
+            72.9,
+            189.2
+          ],
+          "areas": [
+            [
+              0,
+              0,
+              1725,
+              110
+            ],
+            [
+              79.8,
+              418.5,
+              202.3,
+              202.3
+            ],
+            [
+              1080,
+              235.7,
+              588.2,
+              457.8
+            ]
+          ],
+          "css_per_px": 0.5,
+          "faded": 2,
+          "draws": 206,
+          "lift": 0,
+          "air_pull": 0,
+          "pitch": 35.7,
+          "assist_turned": 0,
+          "shoulder": 0.35,
+          "air": true,
+          "assist": true,
+          "mode": "COMBAT",
+          "explore": "A"
         },
         {
-          "shot": "c_column_A",
-          "variant": "A",
-          "distance": 7.2,
-          "camera_to_player": 7.54,
-          "fallback": false,
-          "samurai_css": 87.7,
-          "samurai_in_hud": false,
-          "samurai_off": false,
-          "foe_css": 82.9,
-          "foe_in_hud": false,
-          "foe_off": false,
-          "faded": 0,
-          "draws": 228
-        },
-        {
-          "shot": "c_column_A_fade25",
-          "variant": "A",
-          "distance": 7.2,
-          "camera_to_player": 7.54,
-          "fallback": false,
-          "samurai_css": 87.7,
-          "samurai_in_hud": false,
-          "samurai_off": false,
-          "foe_css": 82.9,
-          "foe_in_hud": false,
-          "foe_off": false,
-          "faded": 1,
-          "draws": 223
-        },
-        {
-          "shot": "c_column_A_fade15",
-          "variant": "A",
-          "distance": 7.2,
-          "camera_to_player": 7.54,
-          "fallback": false,
-          "samurai_css": 87.7,
-          "samurai_in_hud": false,
-          "samurai_off": false,
-          "foe_css": 82.9,
-          "foe_in_hud": false,
-          "foe_off": false,
-          "faded": 1,
-          "draws": 223
-        },
-        {
-          "shot": "c_column_B",
+          "shot": "a2_column_plain",
           "variant": "B",
           "distance": 6.6,
           "camera_to_player": 6.92,
-          "fallback": false,
           "samurai_css": 102.4,
           "samurai_in_hud": false,
           "samurai_off": false,
           "foe_css": 94.7,
           "foe_in_hud": false,
           "foe_off": false,
-          "faded": 0,
-          "draws": 217
+          "player_box": [
+            807,
+            340.1,
+            111.1,
+            204.8
+          ],
+          "foe_box": [
+            826,
+            157.7,
+            72.9,
+            189.4
+          ],
+          "areas": [
+            [
+              0,
+              0,
+              1725,
+              110
+            ],
+            [
+              79.8,
+              418.5,
+              202.3,
+              202.3
+            ],
+            [
+              1080,
+              235.7,
+              588.2,
+              457.8
+            ]
+          ],
+          "css_per_px": 0.5,
+          "faded": 1,
+          "draws": 226,
+          "lift": 0,
+          "air_pull": 0,
+          "pitch": 35.7,
+          "assist_turned": 0,
+          "shoulder": 0,
+          "air": false,
+          "assist": false,
+          "mode": "COMBAT",
+          "explore": "A"
         },
         {
-          "shot": "c_column_B_fade25",
+          "shot": "a2_column_fixed",
           "variant": "B",
           "distance": 6.6,
-          "camera_to_player": 6.92,
-          "fallback": false,
-          "samurai_css": 102.4,
+          "camera_to_player": 6.93,
+          "samurai_css": 102.3,
           "samurai_in_hud": false,
           "samurai_off": false,
-          "foe_css": 94.7,
+          "foe_css": 94.6,
           "foe_in_hud": false,
           "foe_off": false,
+          "player_box": [
+            813.7,
+            339.9,
+            110.9,
+            204.7
+          ],
+          "foe_box": [
+            811.2,
+            158.3,
+            72.9,
+            189.2
+          ],
+          "areas": [
+            [
+              0,
+              0,
+              1725,
+              110
+            ],
+            [
+              79.8,
+              418.5,
+              202.3,
+              202.3
+            ],
+            [
+              1080,
+              235.7,
+              588.2,
+              457.8
+            ]
+          ],
+          "css_per_px": 0.5,
           "faded": 1,
-          "draws": 212
+          "draws": 227,
+          "lift": 0,
+          "air_pull": 0,
+          "pitch": 35.7,
+          "assist_turned": 0,
+          "shoulder": 0.35,
+          "air": true,
+          "assist": true,
+          "mode": "COMBAT",
+          "explore": "A"
         },
         {
-          "shot": "c_column_B_fade15",
-          "variant": "B",
-          "distance": 6.6,
-          "camera_to_player": 6.92,
-          "fallback": false,
-          "samurai_css": 102.4,
-          "samurai_in_hud": false,
-          "samurai_off": false,
-          "foe_css": 94.7,
-          "foe_in_hud": false,
-          "foe_off": false,
-          "faded": 1,
-          "draws": 212
-        },
-        {
-          "shot": "c_column_C",
-          "variant": "C",
-          "distance": 6.6,
-          "camera_to_player": 6.92,
-          "fallback": false,
-          "samurai_css": 102.4,
-          "samurai_in_hud": false,
-          "samurai_off": false,
-          "foe_css": 94.7,
-          "foe_in_hud": false,
-          "foe_off": false,
-          "faded": 0,
-          "draws": 217
-        },
-        {
-          "shot": "c_column_C_fade25",
-          "variant": "C",
-          "distance": 6.6,
-          "camera_to_player": 6.92,
-          "fallback": false,
-          "samurai_css": 102.4,
-          "samurai_in_hud": false,
-          "samurai_off": false,
-          "foe_css": 94.7,
-          "foe_in_hud": false,
-          "foe_off": false,
-          "faded": 1,
-          "draws": 212
-        },
-        {
-          "shot": "c_column_C_fade15",
-          "variant": "C",
-          "distance": 6.6,
-          "camera_to_player": 6.92,
-          "fallback": false,
-          "samurai_css": 102.4,
-          "samurai_in_hud": false,
-          "samurai_off": false,
-          "foe_css": 94.7,
-          "foe_in_hud": false,
-          "foe_off": false,
-          "faded": 1,
-          "draws": 212
-        },
-        {
-          "shot": "c_launch_A",
-          "variant": "A",
-          "distance": 7.2,
-          "camera_to_player": 7.82,
-          "fallback": false,
-          "samurai_css": 82.2,
-          "samurai_in_hud": false,
-          "samurai_off": false,
-          "foe_css": 97.4,
-          "foe_in_hud": true,
-          "foe_off": false,
-          "faded": 0,
-          "draws": 206
-        },
-        {
-          "shot": "c_launch_B",
+          "shot": "a2_launch_plain",
           "variant": "B",
           "distance": 6.6,
           "camera_to_player": 7.21,
-          "fallback": false,
           "samurai_css": 95.5,
           "samurai_in_hud": false,
           "samurai_off": false,
           "foe_css": 112.1,
           "foe_in_hud": true,
           "foe_off": false,
-          "faded": 0,
-          "draws": 200
+          "player_box": [
+            809,
+            389.4,
+            106.9,
+            190.9
+          ],
+          "foe_box": [
+            822.6,
+            15.4,
+            79.9,
+            224.2
+          ],
+          "areas": [
+            [
+              0,
+              0,
+              1725,
+              110
+            ],
+            [
+              79.8,
+              418.5,
+              202.3,
+              202.3
+            ],
+            [
+              1080,
+              235.7,
+              588.2,
+              457.8
+            ]
+          ],
+          "css_per_px": 0.5,
+          "faded": 2,
+          "draws": 214,
+          "lift": 0,
+          "air_pull": 0,
+          "pitch": 35.7,
+          "assist_turned": 0,
+          "shoulder": 0,
+          "air": false,
+          "assist": false,
+          "mode": "COMBAT",
+          "explore": "A"
         },
         {
-          "shot": "c_launch_C",
-          "variant": "C",
-          "distance": 8.7,
-          "camera_to_player": 9.26,
-          "fallback": true,
-          "samurai_css": 73.9,
+          "shot": "a2_launch_fixed",
+          "variant": "B",
+          "distance": 6.95,
+          "camera_to_player": 7.97,
+          "samurai_css": 84.8,
           "samurai_in_hud": false,
           "samurai_off": false,
-          "foe_css": 84.9,
-          "foe_in_hud": true,
+          "foe_css": 97.9,
+          "foe_in_hud": false,
           "foe_off": false,
-          "faded": 0,
-          "draws": 222
+          "player_box": [
+            820,
+            454.6,
+            95.7,
+            169.6
+          ],
+          "foe_box": [
+            812.8,
+            111.5,
+            72,
+            195.8
+          ],
+          "areas": [
+            [
+              0,
+              0,
+              1725,
+              110
+            ],
+            [
+              79.8,
+              418.5,
+              202.3,
+              202.3
+            ],
+            [
+              1080,
+              235.7,
+              588.2,
+              457.8
+            ]
+          ],
+          "css_per_px": 0.5,
+          "faded": 1,
+          "draws": 234,
+          "lift": 0.61,
+          "air_pull": 0.35,
+          "pitch": 34.2,
+          "assist_turned": 0,
+          "shoulder": 0.35,
+          "air": true,
+          "assist": true,
+          "mode": "COMBAT",
+          "explore": "A"
         },
         {
-          "shot": "c_far_A",
-          "variant": "A",
-          "distance": 7.83,
-          "camera_to_player": 7.65,
-          "fallback": false,
-          "samurai_css": 82.9,
-          "samurai_in_hud": false,
-          "samurai_off": false,
-          "foe_css": 69.3,
-          "foe_in_hud": true,
-          "foe_off": false,
-          "faded": 0,
-          "draws": 206
-        },
-        {
-          "shot": "c_far_B",
+          "shot": "a2_far_plain",
           "variant": "B",
           "distance": 6.6,
           "camera_to_player": 6.44,
-          "fallback": false,
           "samurai_css": 105.9,
           "samurai_in_hud": false,
           "samurai_off": false,
           "foe_css": 83.2,
           "foe_in_hud": true,
           "foe_off": false,
-          "faded": 0,
-          "draws": 190
+          "player_box": [
+            800.4,
+            417.8,
+            124.2,
+            211.7
+          ],
+          "foe_box": [
+            833,
+            67.3,
+            59,
+            166.3
+          ],
+          "areas": [
+            [
+              0,
+              0,
+              1725,
+              110
+            ],
+            [
+              79.8,
+              418.5,
+              202.3,
+              202.3
+            ],
+            [
+              1080,
+              235.7,
+              588.2,
+              457.8
+            ]
+          ],
+          "css_per_px": 0.5,
+          "faded": 2,
+          "draws": 204,
+          "lift": 0,
+          "air_pull": 0,
+          "pitch": 35.7,
+          "assist_turned": 0,
+          "shoulder": 0,
+          "air": false,
+          "assist": false,
+          "mode": "COMBAT",
+          "explore": "A"
         },
         {
-          "shot": "c_far_C",
-          "variant": "C",
-          "distance": 8.25,
-          "camera_to_player": 8.03,
-          "fallback": true,
-          "samurai_css": 84.5,
+          "shot": "a2_far_fixed",
+          "variant": "B",
+          "distance": 6.6,
+          "camera_to_player": 6.44,
+          "samurai_css": 105.8,
           "samurai_in_hud": false,
           "samurai_off": false,
-          "foe_css": 70.1,
-          "foe_in_hud": false,
-          "foe_off": false,
-          "faded": 0,
-          "draws": 206
-        },
-        {
-          "shot": "c_side_A",
-          "variant": "A",
-          "distance": 7.27,
-          "camera_to_player": 7.72,
-          "fallback": false,
-          "samurai_css": 86.5,
-          "samurai_in_hud": false,
-          "samurai_off": false,
-          "foe_css": 83.8,
+          "foe_css": 83.1,
           "foe_in_hud": true,
           "foe_off": false,
-          "faded": 0,
-          "draws": 202
+          "player_box": [
+            816.9,
+            417,
+            124,
+            211.7
+          ],
+          "foe_box": [
+            806.6,
+            68.2,
+            59,
+            166.2
+          ],
+          "areas": [
+            [
+              0,
+              0,
+              1725,
+              110
+            ],
+            [
+              79.8,
+              418.5,
+              202.3,
+              202.3
+            ],
+            [
+              1080,
+              235.7,
+              588.2,
+              457.8
+            ]
+          ],
+          "css_per_px": 0.5,
+          "faded": 2,
+          "draws": 203,
+          "lift": 0,
+          "air_pull": 0,
+          "pitch": 35.7,
+          "assist_turned": 0,
+          "shoulder": 0.35,
+          "air": true,
+          "assist": true,
+          "mode": "COMBAT",
+          "explore": "A"
         },
         {
-          "shot": "c_side_B",
+          "shot": "a2_side_plain",
           "variant": "B",
           "distance": 6.6,
           "camera_to_player": 7.04,
-          "fallback": false,
           "samurai_css": 101.7,
           "samurai_in_hud": false,
           "samurai_off": false,
           "foe_css": 96.8,
           "foe_in_hud": true,
           "foe_off": false,
-          "faded": 0,
-          "draws": 191
+          "player_box": [
+            703.6,
+            328.7,
+            116.7,
+            203.5
+          ],
+          "foe_box": [
+            1044.2,
+            177.2,
+            103.2,
+            193.6
+          ],
+          "areas": [
+            [
+              0,
+              0,
+              1725,
+              110
+            ],
+            [
+              79.8,
+              418.5,
+              202.3,
+              202.3
+            ],
+            [
+              1080,
+              235.7,
+              588.2,
+              457.8
+            ]
+          ],
+          "css_per_px": 0.5,
+          "faded": 2,
+          "draws": 205,
+          "lift": 0,
+          "air_pull": 0,
+          "pitch": 35.7,
+          "assist_turned": 12,
+          "shoulder": 0,
+          "air": false,
+          "assist": false,
+          "mode": "COMBAT",
+          "explore": "A"
         },
         {
-          "shot": "c_side_C",
-          "variant": "C",
-          "distance": 7.65,
-          "camera_to_player": 8.07,
-          "fallback": true,
-          "samurai_css": 88,
+          "shot": "a2_side_fixed",
+          "variant": "B",
+          "distance": 6.6,
+          "camera_to_player": 7.02,
+          "samurai_css": 101.9,
           "samurai_in_hud": false,
           "samurai_off": false,
-          "foe_css": 84.9,
+          "foe_css": 96,
           "foe_in_hud": true,
           "foe_off": false,
-          "faded": 0,
-          "draws": 202
+          "player_box": [
+            708.4,
+            332.3,
+            116.4,
+            203.8
+          ],
+          "foe_box": [
+            1030.8,
+            171,
+            99.6,
+            192
+          ],
+          "areas": [
+            [
+              0,
+              0,
+              1725,
+              110
+            ],
+            [
+              79.8,
+              418.5,
+              202.3,
+              202.3
+            ],
+            [
+              1080,
+              235.7,
+              588.2,
+              457.8
+            ]
+          ],
+          "css_per_px": 0.5,
+          "faded": 2,
+          "draws": 203,
+          "lift": 0,
+          "air_pull": 0,
+          "pitch": 35.7,
+          "assist_turned": 12,
+          "shoulder": 0.35,
+          "air": true,
+          "assist": true,
+          "mode": "COMBAT",
+          "explore": "A"
         },
         {
-          "shot": "c_wall_A",
-          "variant": "A",
-          "distance": 7.2,
-          "camera_to_player": 7.54,
-          "fallback": false,
-          "samurai_css": 87.7,
-          "samurai_in_hud": false,
-          "samurai_off": false,
-          "foe_css": 82.9,
-          "foe_in_hud": false,
-          "foe_off": false,
-          "faded": 0,
-          "draws": 233
-        },
-        {
-          "shot": "c_wall_B",
+          "shot": "a2_wall_plain",
           "variant": "B",
           "distance": 6.6,
           "camera_to_player": 6.92,
-          "fallback": false,
           "samurai_css": 102.4,
           "samurai_in_hud": false,
           "samurai_off": false,
           "foe_css": 94.7,
           "foe_in_hud": false,
           "foe_off": false,
-          "faded": 0,
-          "draws": 224
+          "player_box": [
+            807,
+            340.1,
+            111.1,
+            204.8
+          ],
+          "foe_box": [
+            826,
+            157.7,
+            73,
+            189.4
+          ],
+          "areas": [
+            [
+              0,
+              0,
+              1725,
+              110
+            ],
+            [
+              79.8,
+              418.5,
+              202.3,
+              202.3
+            ],
+            [
+              1080,
+              235.7,
+              588.2,
+              457.8
+            ]
+          ],
+          "css_per_px": 0.5,
+          "faded": 1,
+          "draws": 235,
+          "lift": 0,
+          "air_pull": 0,
+          "pitch": 35.7,
+          "assist_turned": 0,
+          "shoulder": 0,
+          "air": false,
+          "assist": false,
+          "mode": "COMBAT",
+          "explore": "A"
         },
         {
-          "shot": "c_wall_C",
-          "variant": "C",
+          "shot": "a2_wall_fixed",
+          "variant": "B",
           "distance": 6.6,
-          "camera_to_player": 6.92,
-          "fallback": false,
-          "samurai_css": 102.4,
+          "camera_to_player": 6.93,
+          "samurai_css": 102.3,
           "samurai_in_hud": false,
           "samurai_off": false,
-          "foe_css": 94.7,
+          "foe_css": 94.6,
           "foe_in_hud": false,
           "foe_off": false,
-          "faded": 0,
-          "draws": 224
+          "player_box": [
+            813.7,
+            339.9,
+            110.9,
+            204.7
+          ],
+          "foe_box": [
+            811.2,
+            158.4,
+            72.9,
+            189.2
+          ],
+          "areas": [
+            [
+              0,
+              0,
+              1725,
+              110
+            ],
+            [
+              79.8,
+              418.5,
+              202.3,
+              202.3
+            ],
+            [
+              1080,
+              235.7,
+              588.2,
+              457.8
+            ]
+          ],
+          "css_per_px": 0.5,
+          "faded": 1,
+          "draws": 237,
+          "lift": 0,
+          "air_pull": 0,
+          "pitch": 35.7,
+          "assist_turned": 0,
+          "shoulder": 0.35,
+          "air": true,
+          "assist": true,
+          "mode": "COMBAT",
+          "explore": "A"
+        },
+        {
+          "shot": "a2_hud_bright",
+          "variant": "B",
+          "distance": 6.6,
+          "camera_to_player": 6.93,
+          "samurai_css": 102.3,
+          "samurai_in_hud": false,
+          "samurai_off": false,
+          "foe_css": 94.6,
+          "foe_in_hud": false,
+          "foe_off": false,
+          "player_box": [
+            813.7,
+            339.9,
+            110.9,
+            204.7
+          ],
+          "foe_box": [
+            811.2,
+            158.4,
+            72.9,
+            189.2
+          ],
+          "areas": [
+            [
+              0,
+              0,
+              1725,
+              110
+            ],
+            [
+              79.8,
+              418.5,
+              202.3,
+              202.3
+            ],
+            [
+              1080,
+              235.7,
+              588.2,
+              457.8
+            ]
+          ],
+          "css_per_px": 0.5,
+          "faded": 2,
+          "draws": 242,
+          "lift": 0,
+          "air_pull": 0,
+          "pitch": 35.7,
+          "assist_turned": 0,
+          "shoulder": 0.35,
+          "air": true,
+          "assist": true,
+          "mode": "COMBAT",
+          "explore": "A",
+          "labels": {
+            "attack": [
+              1428.6,
+              575.7,
+              50,
+              33
+            ],
+            "dodge": [
+              1204.8,
+              648.6,
+              84,
+              33
+            ],
+            "heavy": [
+              1574.1,
+              624.3,
+              82,
+              33
+            ],
+            "jump": [
+              1096,
+              546.8,
+              69,
+              33
+            ],
+            "skill1": [
+              1260,
+              418.3,
+              77,
+              33
+            ],
+            "skill2": [
+              1422.6,
+              340.8,
+              62,
+              33
+            ],
+            "skill3": [
+              1569.3,
+              418.3,
+              53,
+              33
+            ]
+          },
+          "rects": {
+            "arena_menu": [
+              28,
+              24,
+              165,
+              67
+            ],
+            "btn_attack": [
+              1381.22875976562,
+              434.385620117188,
+              144.745758056641,
+              144.745758056641
+            ],
+            "btn_cond1": [
+              1140.09753417969,
+              103.35595703125,
+              211.711761474609,
+              96
+            ],
+            "btn_cond2": [
+              1503.69934082031,
+              103.35595703125,
+              205.711761474609,
+              96
+            ],
+            "btn_dodge": [
+              1198.82202148438,
+              555.686462402344,
+              96,
+              96
+            ],
+            "btn_heavy": [
+              1567.14831542969,
+              536.300842285156,
+              96,
+              96
+            ],
+            "btn_jump": [
+              1082.50854492188,
+              458.758483886719,
+              96,
+              96
+            ],
+            "btn_more": [
+              1357.80932617188,
+              103.35595703125,
+              139.889999389648,
+              96
+            ],
+            "btn_skill1": [
+              1249.40673828125,
+              321.949157714844,
+              98.2203369140625,
+              98.2203369140625
+            ],
+            "btn_skill2": [
+              1404.49145507812,
+              244.406799316406,
+              98.2203369140625,
+              98.2203369140625
+            ],
+            "btn_skill3": [
+              1546.65258789062,
+              321.949157714844,
+              98.2203369140625,
+              98.2203369140625
+            ],
+            "btn_stick": [
+              85.2966003417969,
+              424.046600341797,
+              191.271179199219,
+              191.271179199219
+            ],
+            "camera_zone": [
+              517.5,
+              144,
+              379.5,
+              158.399993896484
+            ],
+            "stick_zone": [
+              37.4788055419922,
+              376.228820800781,
+              286.906768798828,
+              286.906768798828
+            ]
+          },
+          "label_css": 11
+        },
+        {
+          "shot": "a2_hud_dark",
+          "variant": "B",
+          "distance": 6.6,
+          "camera_to_player": 6.93,
+          "samurai_css": 102.3,
+          "samurai_in_hud": false,
+          "samurai_off": false,
+          "foe_css": 94.6,
+          "foe_in_hud": false,
+          "foe_off": false,
+          "player_box": [
+            813.7,
+            339.9,
+            110.9,
+            204.7
+          ],
+          "foe_box": [
+            811.2,
+            158.4,
+            72.9,
+            189.2
+          ],
+          "areas": [
+            [
+              0,
+              0,
+              1725,
+              110
+            ],
+            [
+              79.8,
+              418.5,
+              202.3,
+              202.3
+            ],
+            [
+              1080,
+              235.7,
+              588.2,
+              457.8
+            ]
+          ],
+          "css_per_px": 0.5,
+          "faded": 1,
+          "draws": 273,
+          "lift": 0,
+          "air_pull": 0,
+          "pitch": 35.7,
+          "assist_turned": 0,
+          "shoulder": 0.35,
+          "air": true,
+          "assist": true,
+          "mode": "COMBAT",
+          "explore": "A",
+          "labels": {
+            "attack": [
+              1428.6,
+              575.7,
+              50,
+              33
+            ],
+            "dodge": [
+              1204.8,
+              648.6,
+              84,
+              33
+            ],
+            "heavy": [
+              1574.1,
+              624.3,
+              82,
+              33
+            ],
+            "jump": [
+              1096,
+              546.8,
+              69,
+              33
+            ],
+            "skill1": [
+              1260,
+              418.3,
+              77,
+              33
+            ],
+            "skill2": [
+              1422.6,
+              340.8,
+              62,
+              33
+            ],
+            "skill3": [
+              1569.3,
+              418.3,
+              53,
+              33
+            ]
+          },
+          "rects": {
+            "arena_menu": [
+              28,
+              24,
+              165,
+              67
+            ],
+            "btn_attack": [
+              1381.22875976562,
+              434.385620117188,
+              144.745758056641,
+              144.745758056641
+            ],
+            "btn_cond1": [
+              1140.09753417969,
+              103.35595703125,
+              211.711761474609,
+              96
+            ],
+            "btn_cond2": [
+              1503.69934082031,
+              103.35595703125,
+              205.711761474609,
+              96
+            ],
+            "btn_dodge": [
+              1198.82202148438,
+              555.686462402344,
+              96,
+              96
+            ],
+            "btn_heavy": [
+              1567.14831542969,
+              536.300842285156,
+              96,
+              96
+            ],
+            "btn_jump": [
+              1082.50854492188,
+              458.758483886719,
+              96,
+              96
+            ],
+            "btn_more": [
+              1357.80932617188,
+              103.35595703125,
+              139.889999389648,
+              96
+            ],
+            "btn_skill1": [
+              1249.40673828125,
+              321.949157714844,
+              98.2203369140625,
+              98.2203369140625
+            ],
+            "btn_skill2": [
+              1404.49145507812,
+              244.406799316406,
+              98.2203369140625,
+              98.2203369140625
+            ],
+            "btn_skill3": [
+              1546.65258789062,
+              321.949157714844,
+              98.2203369140625,
+              98.2203369140625
+            ],
+            "btn_stick": [
+              85.2966003417969,
+              424.046600341797,
+              191.271179199219,
+              191.271179199219
+            ],
+            "camera_zone": [
+              517.5,
+              144,
+              379.5,
+              158.399993896484
+            ],
+            "stick_zone": [
+              37.4788055419922,
+              376.228820800781,
+              286.906768798828,
+              286.906768798828
+            ]
+          },
+          "label_css": 11
+        },
+        {
+          "shot": "a2_explore_A",
+          "variant": "B",
+          "distance": 8,
+          "camera_to_player": 8.89,
+          "samurai_css": 56.4,
+          "samurai_in_hud": false,
+          "samurai_off": false,
+          "player_box": [
+            831.9,
+            325.4,
+            61.2,
+            112.9
+          ],
+          "areas": [
+            [
+              0,
+              0,
+              1725,
+              110
+            ],
+            [
+              79.8,
+              418.5,
+              202.3,
+              202.3
+            ],
+            [
+              1080,
+              235.7,
+              588.2,
+              457.8
+            ]
+          ],
+          "css_per_px": 0.5,
+          "faded": 2,
+          "draws": 273,
+          "lift": 0,
+          "air_pull": 0,
+          "pitch": 39.7,
+          "assist_turned": 0,
+          "shoulder": 0.35,
+          "air": true,
+          "assist": true,
+          "mode": "EXPLORATION",
+          "explore": "A"
+        },
+        {
+          "shot": "a2_explore_B",
+          "variant": "B",
+          "distance": 7.35,
+          "camera_to_player": 8.23,
+          "samurai_css": 69.3,
+          "samurai_in_hud": false,
+          "samurai_off": false,
+          "player_box": [
+            825.2,
+            317.2,
+            74.6,
+            138.7
+          ],
+          "areas": [
+            [
+              0,
+              0,
+              1725,
+              110
+            ],
+            [
+              79.8,
+              418.5,
+              202.3,
+              202.3
+            ],
+            [
+              1080,
+              235.7,
+              588.2,
+              457.8
+            ]
+          ],
+          "css_per_px": 0.5,
+          "faded": 2,
+          "draws": 235,
+          "lift": 0,
+          "air_pull": 0,
+          "pitch": 38.7,
+          "assist_turned": 0,
+          "shoulder": 0.35,
+          "air": true,
+          "assist": true,
+          "mode": "EXPLORATION",
+          "explore": "B"
         }
       ],
       "device": {
-        "report": "DEVICE TEST — REBORN build ef1d330 (2026-11-19T18:06:26Z) · Godot 4.7.2-stable (official)\nBrowser: Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.7390.37 Mobile Safari/537.36\nScreen 863×360 CSS px · pixel ratio 2.62 · canvas 2265×945 · 3D 2265×945 (100 %) · GPU: ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver) / Google Inc. (Google)\nErrors — JavaScript: 0 · engine: 0 (warnings 0) · WebGL context lost: no\nFrame times: the actual intervals between rendered frames, in ms. Left out: 2 s of warm-up after each start, restart and preset change; paused, hidden-tab and loading time. Severe stalls (a frame over 1 s, the game running and shown) are measured with the rest and counted: 26, 41.2 s in all.\nPLAY\n  LOW — not measured\n  MEDIUM — not measured\n  HIGH · 41.4 s, 28 frames, avg 0.7 FPS · p50 1526.7 · p95 1749.9 · p99 2967.3 · worst 2967.3 ms · over 33 ms 100.0 % · over 50 ms 100.0 % · severe stalls 26 (41.2 s) · 6 warm-up frames left out\nBENCHMARK — the same scripted encounter, 60 s per preset (at most 180 s each)\n  LOW — not measured\n  MEDIUM — not measured\n  HIGH — not measured",
+        "report": "DEVICE TEST — REBORN build 506a699 (2026-11-19T20:25:58Z) · Godot 4.7.2-stable (official)\nBrowser: Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.7390.37 Mobile Safari/537.36\nScreen 863×360 CSS px · pixel ratio 2.62 · canvas 2265×945 · 3D 2265×945 (100 %) · GPU: ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver) / Google Inc. (Google)\nErrors — JavaScript: 0 · engine: 0 (warnings 0) · WebGL context lost: no\nFrame times: the actual intervals between rendered frames, in ms. Left out: 2 s of warm-up after each start, restart and preset change; paused, hidden-tab and loading time. Severe stalls (a frame over 1 s, the game running and shown) are measured with the rest and counted: 24, 41.6 s in all.\nPLAY\n  LOW — not measured\n  MEDIUM — not measured\n  HIGH · 41.9 s, 27 frames, avg 0.6 FPS · p50 1577.7 · p95 3056.9 · p99 3103.2 · worst 3103.2 ms · over 33 ms 100.0 % · over 50 ms 100.0 % · severe stalls 24 (41.6 s) · 6 warm-up frames left out\nBENCHMARK — the same scripted encounter, 60 s per preset (at most 180 s each)\n  LOW — not measured\n  MEDIUM — not measured\n  HIGH — not measured",
         "fullscreen": true
       },
       "presets": [
@@ -621,7 +1448,7 @@
             2265,
             945
           ],
-          "texMB": 35.4,
+          "texMB": 35.5,
           "color": 1,
           "shadow": 0
         },
@@ -635,7 +1462,7 @@
             2265,
             945
           ],
-          "texMB": 40.5,
+          "texMB": 40.6,
           "color": 1,
           "shadow": 1
         },
@@ -663,7 +1490,7 @@
             2265,
             945
           ],
-          "texMB": 35.4,
+          "texMB": 35.5,
           "color": 1,
           "shadow": 0
         },
@@ -682,27 +1509,27 @@
           "shadow": 0
         }
       ],
-      "blits": 231
+      "blits": 211
     },
     {
       "profile": "iphone-webkit",
       "required": false,
       "ok": true,
       "steps": [
-        "main menu loaded in 2955 ms",
+        "main menu loaded in 2729 ms",
         "settings open and close",
         "character select reached by tapping Play",
         "locked Warrior refused (selection stays Samurai, toast: Warrior is locked — coming later)",
         "arena entered with the Samurai, 4 fps (software rendering)",
-        "Samurai on the floor (y 0, lowest foot bone 0.031 m), playing Idle_Loop, katana 0.122 m from the hand bone",
+        "Samurai on the floor (y 0, lowest foot bone 0.032 m), playing Idle_Loop, katana 0.122 m from the hand bone",
         "inspection views captured: front, side, right hand + katana, feet, the courtyard toward the arch",
         "Training Automaton on its mark (-3.5, 0, -2.5), stand, Sword_Idle, 150 HP",
         "automaton: launched to 2.2 m, 0.904 s in the air (held for the shots), down on its back, rose and stands again",
         "controls: 8 on screen, smallest hit target 48.0 CSS px (≥ 44), none overlapping or off screen; scale 1.292",
-        "joystick: Jog_Fwd_Loop at 4.53 m/s, held at its rim → sprinting (Sprint_Loop); let go → stopped (Idle_Loop) after 7.0 m",
-        "two fingers: camera turned 58° while the Samurai kept walking (1.9 m/s, 2 touches; 1.4 m)",
+        "joystick: Jog_Fwd_Loop at 5.2 m/s, held at its rim → sprinting (Sprint_Loop); let go → stopped (Idle_Loop) after 5.6 m",
+        "two fingers: camera turned 58° while the Samurai kept walking (1.9 m/s, 2 touches; 1.1 m)",
         "a camera drag that crosses the joystick stays a camera drag (the stick does not take it)",
-        "JUMP: in the air (y 0.85 m), landed",
+        "JUMP: in the air (y 1.28 m), landed",
         "DODGE: rolled",
         "STEP (Shadow Step) in open space: 4.0 m backward in one burst; no attack — nothing opened",
         "touch: B1 → B2 → B3 = 10 + 12 + 18 (each strike hit once; 1 extra press after), dummy 150 → 100 HP, pushed 0.5 m by the third and back on its mark; the confirmed sequence opened SEAL, left to expire",
@@ -713,11 +1540,11 @@
         "touch: B1 → B2 → B3 on the automaton (10 + 12 + 18) → SEAL on its button → the mark planted → detonated 650 ms later (24) → EXECUTE → dashed 0.78 m and the cleave landed (45): 150 → 31 HP [at half game speed: the touch interface under software rendering at ~1 frame a second — not a full-speed gameplay check]",
         "touch: a deliberate miss dealt nothing (dummy stays 70 HP) and the next strike was the first again",
         "ATTACK while running on the stick: the strike played (Sword_Regular_A), the stick stayed held, and he ran on afterwards (1.7 m/s, Walk_Loop)",
-        "camera comparison (M4.2-A): 24 shots — A, B and C on the open floor, beside a column (fading off, 25 %, 15 %), the automaton launched, 5.5 m apart, off to one side, backing to the south wall; Samurai open_A 77.7 · open_B 90.7 · open_C 90.7 · column_A 77.7 · column_A_fade25 77.7 · column_A_fade15 77.7 · column_B 90.7 · column_B_fade25 90.7 · column_B_fade15 90.7 · column_C 90.7 · column_C_fade25 90.7 · column_C_fade15 90.7 · launch_A 71.1 · launch_B 82.8 · launch_C 64.7 · far_A 72.2 · far_B 91.8 · far_C 70.2 · side_A 76.8 · side_B 90.4 · side_C 69.1 · wall_A 77.7 · wall_B 90.7 · wall_C 90.7 CSS px; C's emergency extension in: c_launch_C, c_far_C, c_side_C",
+        "camera A2 (B with and without its corrections, fading at 25 %, the icons' controls): 16 shots — open_plain 87.6/86.7 · open_fixed 87.6/86.7 · column_plain 87.6/86.7 · column_fixed 87.6/86.7 · launch_plain 79.2/111.6 foe in HUD · launch_fixed 65.7/87.4 foe in HUD lift 0.78 · far_plain 87.6/78.9 foe in HUD · far_fixed 87.6/78.8 foe in HUD · side_plain 87.4/88 foe in HUD turned 12° · side_fixed 87.5/87.5 foe in HUD turned 12° · wall_plain 87.6/86.7 · wall_fixed 87.6/86.7 · hud_bright 87.6/86.7 · hud_dark 87.6/86.7 · explore_A 48.8/undefined · explore_B 60/undefined",
         "back to the main menu",
-        "device test (?device=1): straight into the arena, no menu; the overlay reads \"HIGH · 100 % 3D (2250×1020) | 3 FPS · 234.0 ms | 10 s: p50 232.0 · p95 246.0 ms\"; the page's language en-US — MENU top left, TEST top right (not mirrored)",
+        "device test (?device=1): straight into the arena, no menu; the overlay reads \"HIGH · 100 % 3D (2250×1020) | 4 FPS · 246.0 ms | 10 s: p50 244.0 · p95 255.0 ms\"; the page's language en-US — MENU top left, TEST top right (not mirrored)",
         "device test: the panel opens and pauses the game, all of it on the screen (1456×518 of 1588×720); its report has 13 lines, all shown; fullscreen not offered (the browser cannot)",
-        "device test presets LOW: 3D 1125×510 of 2250×1020 (scale 0.5), 1 image buffer(s) at that size, 0 shadow map(s) of the preset's size, textures 37.3 MB · MEDIUM: 3D 1688×765 of 2250×1020 (scale 0.75), 1 image buffer(s) at that size, 1 shadow map(s) of the preset's size, textures 42.8 MB · HIGH: 3D 2250×1020 of 2250×1020 (scale 1), 0 image buffer(s) at that size, 1 shadow map(s) of the preset's size, textures 32.9 MB · LOW: 3D 1125×510 of 2250×1020 (scale 0.5), 1 image buffer(s) at that size, 0 shadow map(s) of the preset's size, textures 37.3 MB · HIGH: 3D 2250×1020 of 2250×1020 (scale 1), 0 image buffer(s) at that size, 0 shadow map(s) of the preset's size, textures 32.9 MB — the same memory at a preset again (no growth)",
+        "device test presets LOW: 3D 1125×510 of 2250×1020 (scale 0.5), 1 image buffer(s) at that size, 0 shadow map(s) of the preset's size, textures 37.4 MB · MEDIUM: 3D 1688×765 of 2250×1020 (scale 0.75), 1 image buffer(s) at that size, 1 shadow map(s) of the preset's size, textures 42.9 MB · HIGH: 3D 2250×1020 of 2250×1020 (scale 1), 0 image buffer(s) at that size, 1 shadow map(s) of the preset's size, textures 33 MB · LOW: 3D 1125×510 of 2250×1020 (scale 0.5), 1 image buffer(s) at that size, 0 shadow map(s) of the preset's size, textures 37.4 MB · HIGH: 3D 2250×1020 of 2250×1020 (scale 1), 0 image buffer(s) at that size, 0 shadow map(s) of the preset's size, textures 33 MB — the same memory at a preset again (no growth)",
         "device test RESTART: the arena rebuilt — the automaton whole (150), the Samurai back on his mark [0,0,7], the preset kept (2)"
       ],
       "errors": [
@@ -755,32 +1582,35 @@
         "WebGL: INVALID_OPERATION: glBlitFramebuffer: Read and write color attachments cannot be the same image. (No more validation messages will be reported)"
       ],
       "log": [
-        "[log] [QA] command camvar [\"B\"]",
-        "[log] [QA] command fade [0, 0.25]",
-        "[log] [QA] command frame [\"foe\"]",
-        "[log] [shot] before c_column_B, page blits so far 626",
-        "[log] [shot] after c_column_B",
+        "[log] [QA] command speed [1]",
         "[log] [QA] command fade [1, 0.25]",
+        "[log] [QA] command place [0, 4, 180]",
+        "[log] [QA] command auto [\"thaw\"]",
+        "[log] [QA] command auto [\"heal\"]",
+        "[log] [QA] command auto [\"place\", 0, 1.5, 0]",
+        "[log] [QA] command auto [\"freeze\", 120]",
+        "[log] [QA] command camfx [0, 0, 0]",
         "[log] [QA] command frame [\"foe\"]",
-        "[log] [shot] before c_column_B_fade25, page blits so far 632",
-        "[log] [shot] after c_column_B_fade25",
-        "[log] [QA] command fade [1, 0.15]",
+        "[log] [shot] before a2_open_plain, page blits so far 586",
+        "[log] [shot] after a2_open_plain",
+        "[log] [QA] command camfx [0.35, 1, 1]",
         "[log] [QA] command frame [\"foe\"]",
-        "[log] [shot] before c_column_B_fade15, page blits so far 639",
-        "[log] [shot] after c_column_B_fade15",
-        "[log] [QA] command camvar [\"C\"]",
-        "[log] [QA] command fade [0, 0.25]",
+        "[log] [shot] before a2_open_fixed, page blits so far 594",
+        "[log] [shot] after a2_open_fixed",
+        "[log] [QA] command auto [\"thaw\"]",
+        "[log] [QA] command place [8.19, 4.8, -112.5]",
+        "[log] [QA] command auto [\"thaw\"]",
+        "[log] [QA] command auto [\"heal\"]",
+        "[log] [QA] command auto [\"place\", 5.88, 3.84, 67.5]",
+        "[log] [QA] command auto [\"freeze\", 120]",
+        "[log] [QA] command camfx [0, 0, 0]",
         "[log] [QA] command frame [\"foe\"]",
-        "[log] [shot] before c_column_C, page blits so far 647",
-        "[log] [shot] after c_column_C",
-        "[log] [QA] command fade [1, 0.25]",
+        "[log] [shot] before a2_column_plain, page blits so far 610",
+        "[log] [shot] after a2_column_plain",
+        "[log] [QA] command camfx [0.35, 1, 1]",
         "[log] [QA] command frame [\"foe\"]",
-        "[log] [shot] before c_column_C_fade25, page blits so far 655",
-        "[log] [shot] after c_column_C_fade25",
-        "[log] [QA] command fade [1, 0.15]",
-        "[log] [QA] command frame [\"foe\"]",
-        "[log] [shot] before c_column_C_fade15, page blits so far 662",
-        "[log] [shot] after c_column_C_fade15",
+        "[log] [shot] before a2_column_fixed, page blits so far 619",
+        "[log] [shot] after a2_column_fixed",
         "[log] [QA] command auto [\"thaw\"]",
         "[log] [QA] command place [0, 4, 180]",
         "[log] [QA] command auto [\"thaw\"]",
@@ -790,87 +1620,84 @@
         "[log] [QA] command auto [\"launch\"]",
         "[log] [QA] command auto [\"freeze\", 120]",
         "[log] [QA] command speed [1]",
-        "[log] [QA] command camvar [\"A\"]",
-        "[log] [QA] command fade [0, 0.25]",
+        "[log] [QA] command camfx [0, 0, 0]",
         "[log] [QA] command frame [\"foe\"]",
-        "[log] [shot] before c_launch_A, page blits so far 691",
-        "[log] [shot] after c_launch_A",
-        "[log] [QA] command camvar [\"B\"]",
-        "[log] [QA] command fade [0, 0.25]",
+        "[log] [shot] before a2_launch_plain, page blits so far 648",
+        "[log] [shot] after a2_launch_plain",
+        "[log] [QA] command camfx [0.35, 1, 1]",
         "[log] [QA] command frame [\"foe\"]",
-        "[log] [shot] before c_launch_B, page blits so far 699",
-        "[log] [shot] after c_launch_B",
-        "[log] [QA] command camvar [\"C\"]",
-        "[log] [QA] command fade [0, 0.25]",
-        "[log] [QA] command frame [\"foe\"]",
-        "[log] [shot] before c_launch_C, page blits so far 706",
-        "[log] [shot] after c_launch_C",
+        "[log] [shot] before a2_launch_fixed, page blits so far 657",
+        "[log] [shot] after a2_launch_fixed",
         "[log] [QA] command auto [\"thaw\"]",
         "[log] [QA] command place [0, 4.5, 180]",
         "[log] [QA] command auto [\"thaw\"]",
         "[log] [QA] command auto [\"heal\"]",
         "[log] [QA] command auto [\"place\", 0, -1, 0]",
         "[log] [QA] command auto [\"freeze\", 120]",
-        "[log] [QA] command camvar [\"A\"]",
-        "[log] [QA] command fade [0, 0.25]",
+        "[log] [QA] command camfx [0, 0, 0]",
         "[log] [QA] command frame [\"foe\"]",
-        "[log] [shot] before c_far_A, page blits so far 731",
-        "[log] [shot] after c_far_A",
-        "[log] [QA] command camvar [\"B\"]",
-        "[log] [QA] command fade [0, 0.25]",
+        "[log] [shot] before a2_far_plain, page blits so far 682",
+        "[log] [shot] after a2_far_plain",
+        "[log] [QA] command camfx [0.35, 1, 1]",
         "[log] [QA] command frame [\"foe\"]",
-        "[log] [shot] before c_far_B, page blits so far 739",
-        "[log] [shot] after c_far_B",
-        "[log] [QA] command camvar [\"C\"]",
-        "[log] [QA] command fade [0, 0.25]",
-        "[log] [QA] command frame [\"foe\"]",
-        "[log] [shot] before c_far_C, page blits so far 747",
-        "[log] [shot] after c_far_C",
+        "[log] [shot] before a2_far_fixed, page blits so far 690",
+        "[log] [shot] after a2_far_fixed",
         "[log] [QA] command auto [\"thaw\"]",
         "[log] [QA] command place [0, 4, 180]",
         "[log] [QA] command auto [\"thaw\"]",
         "[log] [QA] command auto [\"heal\"]",
         "[log] [QA] command auto [\"place\", 2.6, 2, -52.43]",
         "[log] [QA] command auto [\"freeze\", 120]",
-        "[log] [QA] command camvar [\"A\"]",
-        "[log] [QA] command fade [0, 0.25]",
+        "[log] [QA] command camfx [0, 0, 0]",
         "[log] [QA] command frame [\"facing\"]",
-        "[log] [shot] before c_side_A, page blits so far 763",
-        "[log] [shot] after c_side_A",
-        "[log] [QA] command camvar [\"B\"]",
-        "[log] [QA] command fade [0, 0.25]",
+        "[log] [shot] before a2_side_plain, page blits so far 708",
+        "[log] [shot] after a2_side_plain",
+        "[log] [QA] command camfx [0.35, 1, 1]",
         "[log] [QA] command frame [\"facing\"]",
-        "[log] [shot] before c_side_B, page blits so far 770",
-        "[log] [shot] after c_side_B",
-        "[log] [QA] command camvar [\"C\"]",
-        "[log] [QA] command fade [0, 0.25]",
-        "[log] [QA] command frame [\"facing\"]",
-        "[log] [shot] before c_side_C, page blits so far 778",
-        "[log] [shot] after c_side_C",
+        "[log] [shot] before a2_side_fixed, page blits so far 718",
+        "[log] [shot] after a2_side_fixed",
         "[log] [QA] command auto [\"thaw\"]",
         "[log] [QA] command place [0, 12, 180]",
         "[log] [QA] command auto [\"thaw\"]",
         "[log] [QA] command auto [\"heal\"]",
         "[log] [QA] command auto [\"place\", 0, 9.5, 0]",
         "[log] [QA] command auto [\"freeze\", 120]",
-        "[log] [QA] command camvar [\"A\"]",
-        "[log] [QA] command fade [0, 0.25]",
+        "[log] [QA] command camfx [0, 0, 0]",
         "[log] [QA] command frame [\"foe\"]",
-        "[log] [shot] before c_wall_A, page blits so far 794",
-        "[log] [shot] after c_wall_A",
-        "[log] [QA] command camvar [\"B\"]",
-        "[log] [QA] command fade [0, 0.25]",
+        "[log] [shot] before a2_wall_plain, page blits so far 736",
+        "[log] [shot] after a2_wall_plain",
+        "[log] [QA] command camfx [0.35, 1, 1]",
         "[log] [QA] command frame [\"foe\"]",
-        "[log] [shot] before c_wall_B, page blits so far 801",
-        "[log] [shot] after c_wall_B",
-        "[log] [QA] command camvar [\"C\"]",
-        "[log] [QA] command fade [0, 0.25]",
-        "[log] [QA] command frame [\"foe\"]",
-        "[log] [shot] before c_wall_C, page blits so far 809",
-        "[log] [shot] after c_wall_C",
+        "[log] [shot] before a2_wall_fixed, page blits so far 744",
+        "[log] [shot] after a2_wall_fixed",
         "[log] [QA] command auto [\"thaw\"]",
-        "[log] [QA] command fade [0, 0.25]",
-        "[log] [QA] command camvar [\"A\"]",
+        "[log] [QA] command camfx [0.35, 1, 1]",
+        "[log] [QA] command place [0, 4, 180]",
+        "[log] [QA] command auto [\"place\", 0, 1.5, 0]",
+        "[log] [QA] command hudpreview [\"COUNTER\", \"EXECUTE\", 1]",
+        "[log] [QA] command frame [\"foe\"]",
+        "[log] [shot] before a2_hud_bright, page blits so far 758",
+        "[log] [shot] after a2_hud_bright",
+        "[log] [QA] command place [0, 12, 180]",
+        "[log] [QA] command auto [\"place\", 0, 9.5, 0]",
+        "[log] [QA] command hudpreview [\"COUNTER\", \"EXECUTE\", 1]",
+        "[log] [QA] command frame [\"foe\"]",
+        "[log] [shot] before a2_hud_dark, page blits so far 769",
+        "[log] [shot] after a2_hud_dark",
+        "[log] [QA] command hudpreview [\"off\"]",
+        "[log] [QA] command expvar [\"A\"]",
+        "[log] [QA] command place [0, 9, 180]",
+        "[log] [QA] command auto [\"place\", 0, -4, 0]",
+        "[log] [QA] command frame [\"facing\"]",
+        "[log] [shot] before a2_explore_A, page blits so far 779",
+        "[log] [shot] after a2_explore_A",
+        "[log] [QA] command expvar [\"B\"]",
+        "[log] [QA] command place [0, 9, 180]",
+        "[log] [QA] command auto [\"place\", 0, -4, 0]",
+        "[log] [QA] command frame [\"facing\"]",
+        "[log] [shot] before a2_explore_B, page blits so far 787",
+        "[log] [shot] after a2_explore_B",
+        "[log] [QA] command expvar [\"A\"]",
         "[log] [QA] command auto [\"heal\"]",
         "[log] [QA] command auto [\"place\", -3.5, -2.5, 20.2]",
         "[log] [QA] command dummy [\"on\"]",
@@ -906,24 +1733,24 @@
         "[error] WebGL: INVALID_OPERATION: glBlitFramebuffer: Read and write color attachments cannot be the same image.",
         "[error] WebGL: INVALID_OPERATION: glBlitFramebuffer: Read and write color attachments cannot be the same image.",
         "[error] WebGL: INVALID_OPERATION: glBlitFramebuffer: Read and write color attachments cannot be the same image. (No more validation messages will be reported)",
-        "[log] [shot] before d2_panel, page blits so far 25",
+        "[log] [shot] before d2_panel, page blits so far 24",
         "[log] [shot] after d2_panel",
-        "[log] [shot] before d3_low, page blits so far 75",
+        "[log] [shot] before d3_low, page blits so far 82",
         "[log] [shot] after d3_low",
-        "[log] [shot] before d4_high, page blits so far 140",
+        "[log] [shot] before d4_high, page blits so far 148",
         "[log] [shot] after d4_high",
         "[log] [QA] command place [3, 3, 90]",
         "[log] [QA] command auto [\"hit\", 30]",
         "[log] [QA] scene=arena"
       ],
-      "loadMs": 2955,
+      "loadMs": 2729,
       "fps": 4,
       "player": {
         "action_lock": false,
         "anim": "Idle_Loop",
         "dodges": 0,
         "facing": 180,
-        "feet": 0.031,
+        "feet": 0.032,
         "invulnerable": false,
         "katana_to_hand": 0.122,
         "on_floor": true,
@@ -953,8 +1780,55 @@
             "jump"
           ],
           "hit_scale": 1.292,
+          "icons": 7,
+          "label_css": 10.4,
+          "labels": {
+            "attack": [
+              1291.6,
+              575.7,
+              50,
+              33
+            ],
+            "dodge": [
+              1067.8,
+              648.6,
+              84,
+              33
+            ],
+            "heavy": [
+              1437.1,
+              624.3,
+              82,
+              33
+            ],
+            "jump": [
+              959,
+              546.8,
+              69,
+              33
+            ],
+            "skill1": [
+              1123,
+              418.3,
+              77,
+              33
+            ],
+            "skill2": [
+              1285.6,
+              340.8,
+              62,
+              33
+            ],
+            "skill3": [
+              1432.3,
+              418.3,
+              53,
+              33
+            ]
+          },
           "min_hit_css": 48,
           "stick": false,
+          "style": "icons",
           "touches": 0
         },
         "viewport": [
@@ -964,368 +1838,1148 @@
       },
       "camera": [
         {
-          "shot": "c_open_A",
-          "variant": "A",
-          "distance": 7.2,
-          "camera_to_player": 7.61,
-          "fallback": false,
-          "samurai_css": 77.7,
-          "samurai_in_hud": false,
-          "samurai_off": false,
-          "foe_css": 76.6,
-          "foe_in_hud": false,
-          "foe_off": false,
-          "faded": 0,
-          "draws": 188
-        },
-        {
-          "shot": "c_open_B",
+          "shot": "a2_open_plain",
           "variant": "B",
           "distance": 6.6,
-          "camera_to_player": 7,
-          "fallback": false,
-          "samurai_css": 90.7,
+          "camera_to_player": 7.04,
+          "samurai_css": 87.6,
           "samurai_in_hud": false,
           "samurai_off": false,
-          "foe_css": 87.7,
+          "foe_css": 86.7,
           "foe_in_hud": false,
           "foe_off": false,
-          "faded": 0,
-          "draws": 177
-        },
-        {
-          "shot": "c_open_C",
-          "variant": "C",
-          "distance": 6.6,
-          "camera_to_player": 7,
-          "fallback": false,
-          "samurai_css": 90.7,
-          "samurai_in_hud": false,
-          "samurai_off": false,
-          "foe_css": 87.7,
-          "foe_in_hud": false,
-          "foe_off": false,
-          "faded": 0,
-          "draws": 177
-        },
-        {
-          "shot": "c_column_A",
-          "variant": "A",
-          "distance": 7.2,
-          "camera_to_player": 7.61,
-          "fallback": false,
-          "samurai_css": 77.7,
-          "samurai_in_hud": false,
-          "samurai_off": false,
-          "foe_css": 76.6,
-          "foe_in_hud": false,
-          "foe_off": false,
-          "faded": 0,
-          "draws": 215
-        },
-        {
-          "shot": "c_column_A_fade25",
-          "variant": "A",
-          "distance": 7.2,
-          "camera_to_player": 7.61,
-          "fallback": false,
-          "samurai_css": 77.7,
-          "samurai_in_hud": false,
-          "samurai_off": false,
-          "foe_css": 76.6,
-          "foe_in_hud": false,
-          "foe_off": false,
+          "player_box": [
+            738.4,
+            353,
+            111.2,
+            185.4
+          ],
+          "foe_box": [
+            756.8,
+            141.7,
+            74.5,
+            183.7
+          ],
+          "areas": [
+            [
+              0,
+              0,
+              1588,
+              110
+            ],
+            [
+              79.8,
+              418.5,
+              202.3,
+              202.3
+            ],
+            [
+              943,
+              235.7,
+              588.2,
+              457.8
+            ]
+          ],
+          "css_per_px": 0.472,
           "faded": 1,
-          "draws": 210
+          "draws": 189,
+          "lift": 0,
+          "air_pull": 0,
+          "pitch": 41,
+          "assist_turned": 0,
+          "shoulder": 0,
+          "air": false,
+          "assist": false,
+          "mode": "COMBAT",
+          "explore": "A"
         },
         {
-          "shot": "c_column_A_fade15",
-          "variant": "A",
-          "distance": 7.2,
-          "camera_to_player": 7.61,
-          "fallback": false,
-          "samurai_css": 77.7,
-          "samurai_in_hud": false,
-          "samurai_off": false,
-          "foe_css": 76.6,
-          "foe_in_hud": false,
-          "foe_off": false,
-          "faded": 1,
-          "draws": 210
-        },
-        {
-          "shot": "c_column_B",
+          "shot": "a2_open_fixed",
           "variant": "B",
           "distance": 6.6,
-          "camera_to_player": 7,
-          "fallback": false,
-          "samurai_css": 90.7,
+          "camera_to_player": 7.05,
+          "samurai_css": 87.6,
           "samurai_in_hud": false,
           "samurai_off": false,
-          "foe_css": 87.7,
+          "foe_css": 86.7,
           "foe_in_hud": false,
           "foe_off": false,
+          "player_box": [
+            745.7,
+            352.7,
+            111,
+            185.4
+          ],
+          "foe_box": [
+            740.5,
+            142.5,
+            74.4,
+            183.6
+          ],
+          "areas": [
+            [
+              0,
+              0,
+              1588,
+              110
+            ],
+            [
+              79.8,
+              418.5,
+              202.3,
+              202.3
+            ],
+            [
+              943,
+              235.7,
+              588.2,
+              457.8
+            ]
+          ],
+          "css_per_px": 0.472,
           "faded": 1,
-          "draws": 199
+          "draws": 191,
+          "lift": 0,
+          "air_pull": 0,
+          "pitch": 41,
+          "assist_turned": 0,
+          "shoulder": 0.35,
+          "air": true,
+          "assist": true,
+          "mode": "COMBAT",
+          "explore": "A"
         },
         {
-          "shot": "c_column_B_fade25",
+          "shot": "a2_column_plain",
           "variant": "B",
           "distance": 6.6,
-          "camera_to_player": 7,
-          "fallback": false,
-          "samurai_css": 90.7,
+          "camera_to_player": 7.04,
+          "samurai_css": 87.6,
           "samurai_in_hud": false,
           "samurai_off": false,
-          "foe_css": 87.7,
+          "foe_css": 86.7,
           "foe_in_hud": false,
           "foe_off": false,
+          "player_box": [
+            738.4,
+            353,
+            111.2,
+            185.4
+          ],
+          "foe_box": [
+            756.8,
+            141.7,
+            74.5,
+            183.7
+          ],
+          "areas": [
+            [
+              0,
+              0,
+              1588,
+              110
+            ],
+            [
+              79.8,
+              418.5,
+              202.3,
+              202.3
+            ],
+            [
+              943,
+              235.7,
+              588.2,
+              457.8
+            ]
+          ],
+          "css_per_px": 0.472,
           "faded": 1,
-          "draws": 199
+          "draws": 211,
+          "lift": 0,
+          "air_pull": 0,
+          "pitch": 41,
+          "assist_turned": 0,
+          "shoulder": 0,
+          "air": false,
+          "assist": false,
+          "mode": "COMBAT",
+          "explore": "A"
         },
         {
-          "shot": "c_column_B_fade15",
+          "shot": "a2_column_fixed",
           "variant": "B",
           "distance": 6.6,
-          "camera_to_player": 7,
-          "fallback": false,
-          "samurai_css": 90.7,
+          "camera_to_player": 7.05,
+          "samurai_css": 87.6,
           "samurai_in_hud": false,
           "samurai_off": false,
-          "foe_css": 87.7,
+          "foe_css": 86.7,
           "foe_in_hud": false,
           "foe_off": false,
+          "player_box": [
+            745.7,
+            352.7,
+            111,
+            185.4
+          ],
+          "foe_box": [
+            740.5,
+            142.4,
+            74.4,
+            183.6
+          ],
+          "areas": [
+            [
+              0,
+              0,
+              1588,
+              110
+            ],
+            [
+              79.8,
+              418.5,
+              202.3,
+              202.3
+            ],
+            [
+              943,
+              235.7,
+              588.2,
+              457.8
+            ]
+          ],
+          "css_per_px": 0.472,
           "faded": 1,
-          "draws": 199
+          "draws": 208,
+          "lift": 0,
+          "air_pull": 0,
+          "pitch": 41,
+          "assist_turned": 0,
+          "shoulder": 0.35,
+          "air": true,
+          "assist": true,
+          "mode": "COMBAT",
+          "explore": "A"
         },
         {
-          "shot": "c_column_C",
-          "variant": "C",
-          "distance": 6.6,
-          "camera_to_player": 7,
-          "fallback": false,
-          "samurai_css": 90.7,
-          "samurai_in_hud": false,
-          "samurai_off": false,
-          "foe_css": 87.7,
-          "foe_in_hud": false,
-          "foe_off": false,
-          "faded": 0,
-          "draws": 204
-        },
-        {
-          "shot": "c_column_C_fade25",
-          "variant": "C",
-          "distance": 6.6,
-          "camera_to_player": 7,
-          "fallback": false,
-          "samurai_css": 90.7,
-          "samurai_in_hud": false,
-          "samurai_off": false,
-          "foe_css": 87.7,
-          "foe_in_hud": false,
-          "foe_off": false,
-          "faded": 1,
-          "draws": 199
-        },
-        {
-          "shot": "c_column_C_fade15",
-          "variant": "C",
-          "distance": 6.6,
-          "camera_to_player": 7,
-          "fallback": false,
-          "samurai_css": 90.7,
-          "samurai_in_hud": false,
-          "samurai_off": false,
-          "foe_css": 87.7,
-          "foe_in_hud": false,
-          "foe_off": false,
-          "faded": 1,
-          "draws": 199
-        },
-        {
-          "shot": "c_launch_A",
-          "variant": "A",
-          "distance": 7.23,
-          "camera_to_player": 8,
-          "fallback": false,
-          "samurai_css": 71.1,
-          "samurai_in_hud": false,
-          "samurai_off": false,
-          "foe_css": 94.5,
-          "foe_in_hud": true,
-          "foe_off": false,
-          "faded": 0,
-          "draws": 191
-        },
-        {
-          "shot": "c_launch_B",
+          "shot": "a2_launch_plain",
           "variant": "B",
           "distance": 6.6,
-          "camera_to_player": 7.36,
-          "fallback": false,
-          "samurai_css": 82.8,
+          "camera_to_player": 7.43,
+          "samurai_css": 79.2,
           "samurai_in_hud": false,
           "samurai_off": false,
-          "foe_css": 109.9,
+          "foe_css": 111.6,
           "foe_in_hud": true,
           "foe_off": true,
-          "faded": 0,
-          "draws": 186
+          "player_box": [
+            741.3,
+            410.5,
+            105.3,
+            167.8
+          ],
+          "foe_box": [
+            751.3,
+            -47.5,
+            85.3,
+            236.3
+          ],
+          "areas": [
+            [
+              0,
+              0,
+              1588,
+              110
+            ],
+            [
+              79.8,
+              418.5,
+              202.3,
+              202.3
+            ],
+            [
+              943,
+              235.7,
+              588.2,
+              457.8
+            ]
+          ],
+          "css_per_px": 0.472,
+          "faded": 2,
+          "draws": 196,
+          "lift": 0,
+          "air_pull": 0,
+          "pitch": 41,
+          "assist_turned": 0,
+          "shoulder": 0,
+          "air": false,
+          "assist": false,
+          "mode": "COMBAT",
+          "explore": "A"
         },
         {
-          "shot": "c_launch_C",
-          "variant": "C",
-          "distance": 8.7,
-          "camera_to_player": 9.42,
-          "fallback": true,
-          "samurai_css": 64.7,
+          "shot": "a2_launch_fixed",
+          "variant": "B",
+          "distance": 7.4,
+          "camera_to_player": 8.79,
+          "samurai_css": 65.7,
           "samurai_in_hud": false,
           "samurai_off": false,
-          "foe_css": 81.7,
+          "foe_css": 87.4,
           "foe_in_hud": true,
           "foe_off": false,
+          "player_box": [
+            755.4,
+            476.7,
+            86.8,
+            139.2
+          ],
+          "foe_box": [
+            745.4,
+            95.5,
+            70.4,
+            185.2
+          ],
+          "areas": [
+            [
+              0,
+              0,
+              1588,
+              110
+            ],
+            [
+              79.8,
+              418.5,
+              202.3,
+              202.3
+            ],
+            [
+              943,
+              235.7,
+              588.2,
+              457.8
+            ]
+          ],
+          "css_per_px": 0.472,
           "faded": 0,
-          "draws": 205
+          "draws": 218,
+          "lift": 0.78,
+          "air_pull": 0.8,
+          "pitch": 39,
+          "assist_turned": 0,
+          "shoulder": 0.35,
+          "air": true,
+          "assist": true,
+          "mode": "COMBAT",
+          "explore": "A"
         },
         {
-          "shot": "c_far_A",
-          "variant": "A",
-          "distance": 7.83,
-          "camera_to_player": 7.76,
-          "fallback": false,
-          "samurai_css": 72.2,
-          "samurai_in_hud": false,
-          "samurai_off": false,
-          "foe_css": 65.3,
-          "foe_in_hud": true,
-          "foe_off": false,
-          "faded": 0,
-          "draws": 189
-        },
-        {
-          "shot": "c_far_B",
+          "shot": "a2_far_plain",
           "variant": "B",
           "distance": 6.6,
-          "camera_to_player": 6.55,
-          "fallback": false,
-          "samurai_css": 91.8,
+          "camera_to_player": 6.6,
+          "samurai_css": 87.6,
           "samurai_in_hud": false,
           "samurai_off": false,
-          "foe_css": 78.7,
+          "foe_css": 78.9,
           "foe_in_hud": true,
           "foe_off": false,
-          "faded": 0,
-          "draws": 177
+          "player_box": [
+            732.3,
+            441.5,
+            123.4,
+            185.5
+          ],
+          "foe_box": [
+            763.6,
+            32.2,
+            60.8,
+            167
+          ],
+          "areas": [
+            [
+              0,
+              0,
+              1588,
+              110
+            ],
+            [
+              79.8,
+              418.5,
+              202.3,
+              202.3
+            ],
+            [
+              943,
+              235.7,
+              588.2,
+              457.8
+            ]
+          ],
+          "css_per_px": 0.472,
+          "faded": 2,
+          "draws": 190,
+          "lift": 0,
+          "air_pull": 0,
+          "pitch": 41,
+          "assist_turned": 0,
+          "shoulder": 0,
+          "air": false,
+          "assist": false,
+          "mode": "COMBAT",
+          "explore": "A"
         },
         {
-          "shot": "c_far_C",
-          "variant": "C",
-          "distance": 8.7,
-          "camera_to_player": 8.59,
-          "fallback": true,
-          "samurai_css": 70.2,
-          "samurai_in_hud": false,
-          "samurai_off": false,
-          "foe_css": 63.1,
-          "foe_in_hud": true,
-          "foe_off": false,
-          "faded": 0,
-          "draws": 191
-        },
-        {
-          "shot": "c_side_A",
-          "variant": "A",
-          "distance": 7.27,
-          "camera_to_player": 7.79,
-          "fallback": false,
-          "samurai_css": 76.8,
-          "samurai_in_hud": false,
-          "samurai_off": false,
-          "foe_css": 77,
-          "foe_in_hud": true,
-          "foe_off": false,
-          "faded": 0,
-          "draws": 187
-        },
-        {
-          "shot": "c_side_B",
+          "shot": "a2_far_fixed",
           "variant": "B",
           "distance": 6.6,
-          "camera_to_player": 7.11,
-          "fallback": false,
-          "samurai_css": 90.4,
+          "camera_to_player": 6.61,
+          "samurai_css": 87.6,
           "samurai_in_hud": false,
           "samurai_off": false,
-          "foe_css": 89.2,
+          "foe_css": 78.8,
           "foe_in_hud": true,
           "foe_off": false,
-          "faded": 0,
-          "draws": 180
+          "player_box": [
+            749.9,
+            440.6,
+            123.1,
+            185.6
+          ],
+          "foe_box": [
+            734.3,
+            33.4,
+            60.8,
+            166.9
+          ],
+          "areas": [
+            [
+              0,
+              0,
+              1588,
+              110
+            ],
+            [
+              79.8,
+              418.5,
+              202.3,
+              202.3
+            ],
+            [
+              943,
+              235.7,
+              588.2,
+              457.8
+            ]
+          ],
+          "css_per_px": 0.472,
+          "faded": 2,
+          "draws": 190,
+          "lift": 0,
+          "air_pull": 0,
+          "pitch": 41,
+          "assist_turned": 0,
+          "shoulder": 0.35,
+          "air": true,
+          "assist": true,
+          "mode": "COMBAT",
+          "explore": "A"
         },
         {
-          "shot": "c_side_C",
-          "variant": "C",
-          "distance": 8.7,
-          "camera_to_player": 9.18,
-          "fallback": true,
-          "samurai_css": 69.1,
-          "samurai_in_hud": false,
-          "samurai_off": false,
-          "foe_css": 69.3,
-          "foe_in_hud": true,
-          "foe_off": false,
-          "faded": 0,
-          "draws": 192
-        },
-        {
-          "shot": "c_wall_A",
-          "variant": "A",
-          "distance": 7.2,
-          "camera_to_player": 7.61,
-          "fallback": false,
-          "samurai_css": 77.7,
-          "samurai_in_hud": false,
-          "samurai_off": false,
-          "foe_css": 76.6,
-          "foe_in_hud": false,
-          "foe_off": false,
-          "faded": 0,
-          "draws": 220
-        },
-        {
-          "shot": "c_wall_B",
+          "shot": "a2_side_plain",
           "variant": "B",
           "distance": 6.6,
-          "camera_to_player": 7,
-          "fallback": false,
-          "samurai_css": 90.7,
+          "camera_to_player": 7.15,
+          "samurai_css": 87.4,
           "samurai_in_hud": false,
           "samurai_off": false,
-          "foe_css": 87.7,
-          "foe_in_hud": false,
+          "foe_css": 88,
+          "foe_in_hud": true,
           "foe_off": false,
-          "faded": 0,
-          "draws": 207
+          "player_box": [
+            634.7,
+            339.9,
+            117.8,
+            185.1
+          ],
+          "foe_box": [
+            975.6,
+            165,
+            108.5,
+            186.4
+          ],
+          "areas": [
+            [
+              0,
+              0,
+              1588,
+              110
+            ],
+            [
+              79.8,
+              418.5,
+              202.3,
+              202.3
+            ],
+            [
+              943,
+              235.7,
+              588.2,
+              457.8
+            ]
+          ],
+          "css_per_px": 0.472,
+          "faded": 1,
+          "draws": 192,
+          "lift": 0,
+          "air_pull": 0,
+          "pitch": 41,
+          "assist_turned": 12,
+          "shoulder": 0,
+          "air": false,
+          "assist": false,
+          "mode": "COMBAT",
+          "explore": "A"
         },
         {
-          "shot": "c_wall_C",
-          "variant": "C",
+          "shot": "a2_side_fixed",
+          "variant": "B",
           "distance": 6.6,
-          "camera_to_player": 7,
-          "fallback": false,
-          "samurai_css": 90.7,
+          "camera_to_player": 7.12,
+          "samurai_css": 87.5,
           "samurai_in_hud": false,
           "samurai_off": false,
-          "foe_css": 87.7,
+          "foe_css": 87.5,
+          "foe_in_hud": true,
+          "foe_off": false,
+          "player_box": [
+            640,
+            344.4,
+            117.3,
+            185.2
+          ],
+          "foe_box": [
+            961.4,
+            157,
+            104.4,
+            185.3
+          ],
+          "areas": [
+            [
+              0,
+              0,
+              1588,
+              110
+            ],
+            [
+              79.8,
+              418.5,
+              202.3,
+              202.3
+            ],
+            [
+              943,
+              235.7,
+              588.2,
+              457.8
+            ]
+          ],
+          "css_per_px": 0.472,
+          "faded": 1,
+          "draws": 186,
+          "lift": 0,
+          "air_pull": 0,
+          "pitch": 41,
+          "assist_turned": 12,
+          "shoulder": 0.35,
+          "air": true,
+          "assist": true,
+          "mode": "COMBAT",
+          "explore": "A"
+        },
+        {
+          "shot": "a2_wall_plain",
+          "variant": "B",
+          "distance": 6.6,
+          "camera_to_player": 7.04,
+          "samurai_css": 87.6,
+          "samurai_in_hud": false,
+          "samurai_off": false,
+          "foe_css": 86.7,
           "foe_in_hud": false,
           "foe_off": false,
-          "faded": 0,
-          "draws": 207
+          "player_box": [
+            738.4,
+            353,
+            111.2,
+            185.4
+          ],
+          "foe_box": [
+            756.8,
+            141.7,
+            74.5,
+            183.7
+          ],
+          "areas": [
+            [
+              0,
+              0,
+              1588,
+              110
+            ],
+            [
+              79.8,
+              418.5,
+              202.3,
+              202.3
+            ],
+            [
+              943,
+              235.7,
+              588.2,
+              457.8
+            ]
+          ],
+          "css_per_px": 0.472,
+          "faded": 1,
+          "draws": 218,
+          "lift": 0,
+          "air_pull": 0,
+          "pitch": 41,
+          "assist_turned": 0,
+          "shoulder": 0,
+          "air": false,
+          "assist": false,
+          "mode": "COMBAT",
+          "explore": "A"
+        },
+        {
+          "shot": "a2_wall_fixed",
+          "variant": "B",
+          "distance": 6.6,
+          "camera_to_player": 7.05,
+          "samurai_css": 87.6,
+          "samurai_in_hud": false,
+          "samurai_off": false,
+          "foe_css": 86.7,
+          "foe_in_hud": false,
+          "foe_off": false,
+          "player_box": [
+            745.7,
+            352.7,
+            111,
+            185.4
+          ],
+          "foe_box": [
+            740.5,
+            142.5,
+            74.4,
+            183.6
+          ],
+          "areas": [
+            [
+              0,
+              0,
+              1588,
+              110
+            ],
+            [
+              79.8,
+              418.5,
+              202.3,
+              202.3
+            ],
+            [
+              943,
+              235.7,
+              588.2,
+              457.8
+            ]
+          ],
+          "css_per_px": 0.472,
+          "faded": 1,
+          "draws": 221,
+          "lift": 0,
+          "air_pull": 0,
+          "pitch": 41,
+          "assist_turned": 0,
+          "shoulder": 0.35,
+          "air": true,
+          "assist": true,
+          "mode": "COMBAT",
+          "explore": "A"
+        },
+        {
+          "shot": "a2_hud_bright",
+          "variant": "B",
+          "distance": 6.6,
+          "camera_to_player": 7.05,
+          "samurai_css": 87.6,
+          "samurai_in_hud": false,
+          "samurai_off": false,
+          "foe_css": 86.7,
+          "foe_in_hud": false,
+          "foe_off": false,
+          "player_box": [
+            745.7,
+            352.7,
+            111,
+            185.4
+          ],
+          "foe_box": [
+            740.5,
+            142.5,
+            74.4,
+            183.6
+          ],
+          "areas": [
+            [
+              0,
+              0,
+              1588,
+              110
+            ],
+            [
+              79.8,
+              418.5,
+              202.3,
+              202.3
+            ],
+            [
+              943,
+              235.7,
+              588.2,
+              457.8
+            ]
+          ],
+          "css_per_px": 0.472,
+          "faded": 1,
+          "draws": 227,
+          "lift": 0,
+          "air_pull": 0,
+          "pitch": 41,
+          "assist_turned": 0,
+          "shoulder": 0.35,
+          "air": true,
+          "assist": true,
+          "mode": "COMBAT",
+          "explore": "A",
+          "labels": {
+            "attack": [
+              1291.6,
+              575.7,
+              50,
+              33
+            ],
+            "dodge": [
+              1067.8,
+              648.6,
+              84,
+              33
+            ],
+            "heavy": [
+              1437.1,
+              624.3,
+              82,
+              33
+            ],
+            "jump": [
+              959,
+              546.8,
+              69,
+              33
+            ],
+            "skill1": [
+              1123,
+              418.3,
+              77,
+              33
+            ],
+            "skill2": [
+              1285.6,
+              340.8,
+              62,
+              33
+            ],
+            "skill3": [
+              1432.3,
+              418.3,
+              53,
+              33
+            ]
+          },
+          "rects": {
+            "arena_menu": [
+              28,
+              24,
+              165,
+              67
+            ],
+            "btn_attack": [
+              1244.22875976562,
+              434.385620117188,
+              144.745758056641,
+              144.745758056641
+            ],
+            "btn_cond1": [
+              994.627014160156,
+              100.532424926758,
+              217.358810424805,
+              101.64705657959
+            ],
+            "btn_cond2": [
+              1369.52270507812,
+              100.532424926758,
+              211.358810424805,
+              101.64705657959
+            ],
+            "btn_dodge": [
+              1058.99853515625,
+              552.862915039062,
+              101.64705657959,
+              101.64705657959
+            ],
+            "btn_heavy": [
+              1427.32482910156,
+              533.477294921875,
+              101.64705657959,
+              101.64705657959
+            ],
+            "btn_jump": [
+              942.684936523438,
+              455.934967041016,
+              101.64705657959,
+              101.64705657959
+            ],
+            "btn_more": [
+              1217.98583984375,
+              100.532470703125,
+              145.536956787109,
+              101.646965026855
+            ],
+            "btn_skill1": [
+              1110.69348144531,
+              320.235809326172,
+              101.64705657959,
+              101.64705657959
+            ],
+            "btn_skill2": [
+              1265.77819824219,
+              242.693435668945,
+              101.64705657959,
+              101.64705657959
+            ],
+            "btn_skill3": [
+              1407.93920898438,
+              320.235809326172,
+              101.64705657959,
+              101.64705657959
+            ],
+            "btn_stick": [
+              85.2966003417969,
+              424.046600341797,
+              191.271179199219,
+              191.271179199219
+            ],
+            "camera_zone": [
+              476.399993896484,
+              144,
+              349.359985351562,
+              158.399993896484
+            ],
+            "stick_zone": [
+              37.4788055419922,
+              376.228820800781,
+              286.906768798828,
+              286.906768798828
+            ]
+          },
+          "label_css": 10.4
+        },
+        {
+          "shot": "a2_hud_dark",
+          "variant": "B",
+          "distance": 6.6,
+          "camera_to_player": 7.05,
+          "samurai_css": 87.6,
+          "samurai_in_hud": false,
+          "samurai_off": false,
+          "foe_css": 86.7,
+          "foe_in_hud": false,
+          "foe_off": false,
+          "player_box": [
+            745.7,
+            352.7,
+            111,
+            185.4
+          ],
+          "foe_box": [
+            740.5,
+            142.5,
+            74.4,
+            183.6
+          ],
+          "areas": [
+            [
+              0,
+              0,
+              1588,
+              110
+            ],
+            [
+              79.8,
+              418.5,
+              202.3,
+              202.3
+            ],
+            [
+              943,
+              235.7,
+              588.2,
+              457.8
+            ]
+          ],
+          "css_per_px": 0.472,
+          "faded": 1,
+          "draws": 257,
+          "lift": 0,
+          "air_pull": 0,
+          "pitch": 41,
+          "assist_turned": 0,
+          "shoulder": 0.35,
+          "air": true,
+          "assist": true,
+          "mode": "COMBAT",
+          "explore": "A",
+          "labels": {
+            "attack": [
+              1291.6,
+              575.7,
+              50,
+              33
+            ],
+            "dodge": [
+              1067.8,
+              648.6,
+              84,
+              33
+            ],
+            "heavy": [
+              1437.1,
+              624.3,
+              82,
+              33
+            ],
+            "jump": [
+              959,
+              546.8,
+              69,
+              33
+            ],
+            "skill1": [
+              1123,
+              418.3,
+              77,
+              33
+            ],
+            "skill2": [
+              1285.6,
+              340.8,
+              62,
+              33
+            ],
+            "skill3": [
+              1432.3,
+              418.3,
+              53,
+              33
+            ]
+          },
+          "rects": {
+            "arena_menu": [
+              28,
+              24,
+              165,
+              67
+            ],
+            "btn_attack": [
+              1244.22875976562,
+              434.385620117188,
+              144.745758056641,
+              144.745758056641
+            ],
+            "btn_cond1": [
+              994.627014160156,
+              100.532424926758,
+              217.358810424805,
+              101.64705657959
+            ],
+            "btn_cond2": [
+              1369.52270507812,
+              100.532424926758,
+              211.358810424805,
+              101.64705657959
+            ],
+            "btn_dodge": [
+              1058.99853515625,
+              552.862915039062,
+              101.64705657959,
+              101.64705657959
+            ],
+            "btn_heavy": [
+              1427.32482910156,
+              533.477294921875,
+              101.64705657959,
+              101.64705657959
+            ],
+            "btn_jump": [
+              942.684936523438,
+              455.934967041016,
+              101.64705657959,
+              101.64705657959
+            ],
+            "btn_more": [
+              1217.98583984375,
+              100.532470703125,
+              145.536956787109,
+              101.646965026855
+            ],
+            "btn_skill1": [
+              1110.69348144531,
+              320.235809326172,
+              101.64705657959,
+              101.64705657959
+            ],
+            "btn_skill2": [
+              1265.77819824219,
+              242.693435668945,
+              101.64705657959,
+              101.64705657959
+            ],
+            "btn_skill3": [
+              1407.93920898438,
+              320.235809326172,
+              101.64705657959,
+              101.64705657959
+            ],
+            "btn_stick": [
+              85.2966003417969,
+              424.046600341797,
+              191.271179199219,
+              191.271179199219
+            ],
+            "camera_zone": [
+              476.399993896484,
+              144,
+              349.359985351562,
+              158.399993896484
+            ],
+            "stick_zone": [
+              37.4788055419922,
+              376.228820800781,
+              286.906768798828,
+              286.906768798828
+            ]
+          },
+          "label_css": 10.4
+        },
+        {
+          "shot": "a2_explore_A",
+          "variant": "B",
+          "distance": 8,
+          "camera_to_player": 8.97,
+          "samurai_css": 48.8,
+          "samurai_in_hud": false,
+          "samurai_off": false,
+          "player_box": [
+            763.3,
+            328,
+            61.5,
+            103.2
+          ],
+          "areas": [
+            [
+              0,
+              0,
+              1588,
+              110
+            ],
+            [
+              79.8,
+              418.5,
+              202.3,
+              202.3
+            ],
+            [
+              943,
+              235.7,
+              588.2,
+              457.8
+            ]
+          ],
+          "css_per_px": 0.472,
+          "faded": 2,
+          "draws": 227,
+          "lift": 0,
+          "air_pull": 0,
+          "pitch": 45,
+          "assist_turned": 0,
+          "shoulder": 0.35,
+          "air": true,
+          "assist": true,
+          "mode": "EXPLORATION",
+          "explore": "A"
+        },
+        {
+          "shot": "a2_explore_B",
+          "variant": "B",
+          "distance": 7.35,
+          "camera_to_player": 8.31,
+          "samurai_css": 60,
+          "samurai_in_hud": false,
+          "samurai_off": false,
+          "player_box": [
+            756.5,
+            320.3,
+            75,
+            127.1
+          ],
+          "areas": [
+            [
+              0,
+              0,
+              1588,
+              110
+            ],
+            [
+              79.8,
+              418.5,
+              202.3,
+              202.3
+            ],
+            [
+              943,
+              235.7,
+              588.2,
+              457.8
+            ]
+          ],
+          "css_per_px": 0.472,
+          "faded": 2,
+          "draws": 197,
+          "lift": 0,
+          "air_pull": 0,
+          "pitch": 44,
+          "assist_turned": 0,
+          "shoulder": 0.35,
+          "air": true,
+          "assist": true,
+          "mode": "EXPLORATION",
+          "explore": "B"
         }
       ],
       "device": {
-        "report": "DEVICE TEST — REBORN build ef1d330 (2026-11-19T18:06:26Z) · Godot 4.7.2-stable (official)\nBrowser: Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1\nScreen 750×340 CSS px · pixel ratio 3.00 · canvas 2250×1020 · 3D 2250×1020 (100 %) · GPU: Apple GPU / Apple Inc.\nErrors — JavaScript: 0 · engine: 0 (warnings 0) · WebGL context lost: no\nFrame times: the actual intervals between rendered frames, in ms. Left out: 2 s of warm-up after each start, restart and preset change; paused, hidden-tab and loading time. Severe stalls (a frame over 1 s, the game running and shown) are measured with the rest and counted: 0, 0.0 s in all.\nPLAY\n  LOW — not measured\n  MEDIUM — not measured\n  HIGH · 4.1 s, 15 frames, avg 3.6 FPS · p50 234.0 · p95 873.0 · p99 873.0 · worst 873.0 ms · over 33 ms 100.0 % · over 50 ms 100.0 % · severe stalls 0 (0.0 s) · 3 warm-up frames left out\nBENCHMARK — the same scripted encounter, 60 s per preset (at most 180 s each)\n  LOW — not measured\n  MEDIUM — not measured\n  HIGH — not measured",
+        "report": "DEVICE TEST — REBORN build 506a699 (2026-11-19T20:25:58Z) · Godot 4.7.2-stable (official)\nBrowser: Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1\nScreen 750×340 CSS px · pixel ratio 3.00 · canvas 2250×1020 · 3D 2250×1020 (100 %) · GPU: Apple GPU / Apple Inc.\nErrors — JavaScript: 0 · engine: 0 (warnings 0) · WebGL context lost: no\nFrame times: the actual intervals between rendered frames, in ms. Left out: 2 s of warm-up after each start, restart and preset change; paused, hidden-tab and loading time. Severe stalls (a frame over 1 s, the game running and shown) are measured with the rest and counted: 0, 0.0 s in all.\nPLAY\n  LOW — not measured\n  MEDIUM — not measured\n  HIGH · 4.5 s, 16 frames, avg 3.6 FPS · p50 243.0 · p95 869.0 · p99 869.0 · worst 869.0 ms · over 33 ms 100.0 % · over 50 ms 100.0 % · severe stalls 0 (0.0 s) · 2 warm-up frames left out\nBENCHMARK — the same scripted encounter, 60 s per preset (at most 180 s each)\n  LOW — not measured\n  MEDIUM — not measured\n  HIGH — not measured",
         "fullscreen": false
       },
       "presets": [
@@ -1339,7 +2993,7 @@
             2250,
             1020
           ],
-          "texMB": 37.3,
+          "texMB": 37.4,
           "color": 1,
           "shadow": 0
         },
@@ -1353,7 +3007,7 @@
             2250,
             1020
           ],
-          "texMB": 42.8,
+          "texMB": 42.9,
           "color": 1,
           "shadow": 1
         },
@@ -1367,7 +3021,7 @@
             2250,
             1020
           ],
-          "texMB": 32.9,
+          "texMB": 33,
           "color": 0,
           "shadow": 1
         },
@@ -1381,7 +3035,7 @@
             2250,
             1020
           ],
-          "texMB": 37.3,
+          "texMB": 37.4,
           "color": 1,
           "shadow": 0
         },
@@ -1395,50 +3049,50 @@
             2250,
             1020
           ],
-          "texMB": 32.9,
+          "texMB": 33,
           "color": 0,
           "shadow": 0
         }
       ],
-      "blits": 230
+      "blits": 237
     },
     {
       "profile": "chromium-16x9",
       "required": true,
       "ok": true,
       "steps": [
-        "main menu loaded in 1135 ms",
+        "main menu loaded in 1098 ms",
         "settings open and close",
         "character select reached by tapping Play",
         "locked Warrior refused (selection stays Samurai, toast: Warrior is locked — coming later)",
-        "arena entered with the Samurai, 1 fps (software rendering)",
+        "arena entered with the Samurai, 6 fps (software rendering)",
         "Samurai on the floor (y 0, lowest foot bone 0.032 m), playing Idle_Loop, katana 0.122 m from the hand bone",
         "inspection views captured: front, side, right hand + katana, feet, the courtyard toward the arch",
         "Training Automaton on its mark (-3.5, 0, -2.5), stand, Sword_Idle, 150 HP",
         "automaton: launched to 2.2 m, 0.904 s in the air (held for the shots), down on its back, rose and stands again",
-        "walk/run/sprint: Jog_Fwd_Loop at 5.2 m/s, Sprint_Loop at 7.8 m/s (sprinting), stopped → Idle_Loop; moved 14.2 m",
-        "jump: in the air (y 1.28 m, Jump_Start), landed (Idle_Loop)",
+        "walk/run/sprint: Jog_Fwd_Loop at 5.2 m/s, Sprint_Loop at 7.8 m/s (sprinting), stopped → Idle_Loop; moved 14.0 m",
+        "jump: in the air (y 1.17 m, Jump_Start), landed (Idle_Loop)",
         "dodge: rolled 3.6 m",
-        "camera turned 69°; elevation 33°, distance 8.55 m (COMBAT)",
+        "camera turned 70°; elevation 32°, distance 6.61 m (COMBAT)",
         "rapid reversal: running at facing 90° → turned round to -85.7° and ran back at 5.2 m/s",
         "jump → land → move: off again at 4.53 m/s (Jog_Fwd_Loop)",
         "keyboard: B1 → B2 → B3 = 10 + 12 + 18 (each strike hit once; 0 extra presses after), dummy 150 → 110 HP, pushed 0.5 m by the third and back on its mark; the confirmed sequence opened SEAL, left to expire",
         "keyboard: HEAVY — one hit for 30 (dummy 110 → 80), pushed 0.5 m",
         "keyboard: CHAIN from 6 m → the automaton held (8), PULL on its button → dragged 4.4 m in 0.317 s to 1.6 m in front of him (6): 150 → 136 HP",
-        "keyboard: RISE launched it (16) → PURSUE leapt (0.44:1.30 m: forward, height) and struck it in the air (14) → 136 → 106 HP; both landed",
+        "keyboard: RISE launched it (16) → PURSUE leapt (0.44:1.55 m: forward, height) and struck it in the air (14) → 136 → 106 HP; both landed",
         "keyboard: the sweep (550 ms telegraph) → STEP pressed 0.46 s into it → the blade crossed his shadow: evaded once, COUNTER on its button → the counter dashed 4 m and its cut landed (14): 106 → 92 HP; he took no damage",
         "keyboard: B1 → B2 → B3 on the automaton (10 + 12 + 18) → SEAL on its button → the mark planted → detonated 650 ms later (24) → EXECUTE → dashed 1.04 m and the cleave landed (45): 150 → 41 HP",
         "keyboard: a plain DODGE 0.5 s into the sweep: avoided — no evasion, no COUNTER",
         "keyboard: CHAIN at the empty courtyard — flew its 9 m and missed: nothing held, no PULL, no damage",
         "keyboard: a deliberate miss dealt nothing (dummy stays 80 HP) and the next strike was the first again",
         "attack → move (Jog_Fwd_Loop at 5.2 m/s once the strike ended), dodge, attack again: no stuck state",
-        "the fading's cost beside the column (A; software rendering — compare only): LOW off: p50 216.7 ms, mean 216.7 ms over 37 frames, 0 faded, 127 draws · LOW 25 %: p50 233.3 ms, mean 221.6 ms over 37 frames, 1 faded, 127 draws · HIGH off: p50 750 ms, mean 695.4 ms over 12 frames, 0 faded, 230 draws · HIGH 25 %: p50 783.3 ms, mean 720.2 ms over 12 frames, 1 faded, 225 draws",
+        "the fading's cost beside the column (A; software rendering — compare only): LOW off: p50 216.7 ms, mean 216.5 ms over 37 frames, 0 faded, 141 draws · LOW 25 %: p50 216.7 ms, mean 218 ms over 37 frames, 1 faded, 141 draws · HIGH off: p50 766.7 ms, mean 700.9 ms over 12 frames, 0 faded, 244 draws · HIGH 25 %: p50 766.6 ms, mean 698.2 ms over 12 frames, 1 faded, 239 draws",
         "back to the main menu",
-        "device test (?device=1): straight into the arena, no menu; the overlay reads \"HIGH · 100 % 3D (1280×720) | 2 FPS · 687.9 ms | 10 s: p50 687.9 · p95 690.7 ms\"; the page's language en-US@posix — MENU top left, TEST top right (not mirrored)",
+        "device test (?device=1): straight into the arena, no menu; the overlay reads \"HIGH · 100 % 3D (1280×720) | 1 FPS · 707.2 ms | 10 s: p50 707.2 · p95 707.2 ms\"; the page's language en-US@posix — MENU top left, TEST top right (not mirrored)",
         "device test: the panel opens and pauses the game, all of it on the screen (1191×560 of 1280×720); its report has 13 lines, all shown; fullscreen offered",
-        "device test presets LOW: 3D 640×360 of 1280×720 (scale 0.5), 1 image buffer(s) at that size, 0 shadow map(s) of the preset's size, textures 23.6 MB · MEDIUM: 3D 960×540 of 1280×720 (scale 0.75), 1 image buffer(s) at that size, 1 shadow map(s) of the preset's size, textures 25.8 MB · HIGH: 3D 1280×720 of 1280×720 (scale 1), 0 image buffer(s) at that size, 1 shadow map(s) of the preset's size, textures 21.8 MB · LOW: 3D 640×360 of 1280×720 (scale 0.5), 1 image buffer(s) at that size, 0 shadow map(s) of the preset's size, textures 23.6 MB · HIGH: 3D 1280×720 of 1280×720 (scale 1), 0 image buffer(s) at that size, 0 shadow map(s) of the preset's size, textures 21.8 MB — the same memory at a preset again (no growth)",
+        "device test presets LOW: 3D 640×360 of 1280×720 (scale 0.5), 1 image buffer(s) at that size, 0 shadow map(s) of the preset's size, textures 23.5 MB · MEDIUM: 3D 960×540 of 1280×720 (scale 0.75), 1 image buffer(s) at that size, 1 shadow map(s) of the preset's size, textures 25.7 MB · HIGH: 3D 1280×720 of 1280×720 (scale 1), 0 image buffer(s) at that size, 1 shadow map(s) of the preset's size, textures 21.7 MB · LOW: 3D 640×360 of 1280×720 (scale 0.5), 1 image buffer(s) at that size, 0 shadow map(s) of the preset's size, textures 23.5 MB · HIGH: 3D 1280×720 of 1280×720 (scale 1), 0 image buffer(s) at that size, 0 shadow map(s) of the preset's size, textures 21.7 MB — the same memory at a preset again (no growth)",
         "device test RESTART: the arena rebuilt — the automaton whole (150), the Samurai back on his mark [0,0,7], the preset kept (2)",
-        "device test BENCHMARK: the scripted encounter played itself at Low, Medium and High (up to 3 strikes a run), each measured; the report: LOW · 12.2 s, 48 frames, avg 3.9 FPS · p50 216.4 · p95 705.2 · p99 758.0 · worst 758.0 ms · over 33 ms 100.0 % · over 50 ms 100.0 % · severe stalls 0 (0.0 s) · 4 warm-up frames left out | MEDIUM · 12.1 s, 31 frames, avg 2.6 FPS · p50 382.2 · p95 447.1 · p99 524.0 · worst 524.0 ms · over 33 ms 100.0 % · over 50 ms 100.0 % · severe stalls 0 (0.0 s) · 7 warm-up frames left out | HIGH · 12.1 s, 17 frames, avg 1.4 FPS · p50 693.0 · p95 891.8 · p99 891.8 · worst 891.8 ms · over 33 ms 100.0 % · over 50 ms 100.0 % · severe stalls 0 (0.0 s) · 7 warm-up frames left out"
+        "device test BENCHMARK: the scripted encounter played itself at Low, Medium and High (up to 2 strikes a run), each measured; the report: LOW · 12.0 s, 45 frames, avg 3.7 FPS · p50 223.8 · p95 718.1 · p99 822.4 · worst 822.4 ms · over 33 ms 100.0 % · over 50 ms 100.0 % · severe stalls 0 (0.0 s) · 4 warm-up frames left out | MEDIUM · 12.4 s, 31 frames, avg 2.5 FPS · p50 391.5 · p95 475.4 · p99 508.4 · worst 508.4 ms · over 33 ms 100.0 % · over 50 ms 100.0 % · severe stalls 0 (0.0 s) · 7 warm-up frames left out | HIGH · 12.3 s, 17 frames, avg 1.4 FPS · p50 704.5 · p95 896.4 · p99 896.4 · worst 896.4 ms · over 33 ms 100.0 % · over 50 ms 100.0 % · severe stalls 0 (0.0 s) · 7 warm-up frames left out"
       ],
       "errors": [],
       "log": [
@@ -1452,13 +3106,13 @@
         "[log] [blit] #4 (0,0,1280,720,0,0,1280,720,16384,9728) read=fbo draw=default",
         "[log] [blit] #5 (0,0,1280,720,0,0,1280,720,16384,9728) read=fbo draw=default",
         "[log] [blit] #6 (0,0,1280,720,0,0,1280,720,16384,9728) read=fbo draw=default",
-        "[log] [shot] before 1_menu, page blits so far 22",
+        "[log] [shot] before 1_menu, page blits so far 23",
         "[log] [shot] after 1_menu",
         "[log] [QA] command quality [2]",
-        "[log] [shot] before 2_settings, page blits so far 62",
+        "[log] [shot] before 2_settings, page blits so far 65",
         "[log] [shot] after 2_settings",
         "[log] [QA] scene=character_select",
-        "[log] [shot] before 3_select, page blits so far 113",
+        "[log] [shot] before 3_select, page blits so far 112",
         "[log] [shot] after 3_select",
         "[log] [shot] before 4_locked, page blits so far 145",
         "[log] [shot] after 4_locked",
@@ -1469,36 +3123,36 @@
         "[log] [shot] before 6_front, page blits so far 214",
         "[log] [shot] after 6_front",
         "[log] [QA] command cam [\"side\"]",
-        "[log] [shot] before 6_side, page blits so far 233",
+        "[log] [shot] before 6_side, page blits so far 231",
         "[log] [shot] after 6_side",
         "[log] [QA] command cam [\"hand\"]",
-        "[log] [shot] before 6_hand, page blits so far 250",
+        "[log] [shot] before 6_hand, page blits so far 249",
         "[log] [shot] after 6_hand",
         "[log] [QA] command cam [\"feet\"]",
         "[log] [shot] before 6_feet, page blits so far 267",
         "[log] [shot] after 6_feet",
         "[log] [QA] command cam [\"vista\"]",
-        "[log] [shot] before 6_vista, page blits so far 286",
+        "[log] [shot] before 6_vista, page blits so far 285",
         "[log] [shot] after 6_vista",
         "[log] [QA] command cam [\"game\"]",
         "[log] [QA] command auto [\"spar\", 0]",
         "[log] [QA] command cam [\"auto_front\"]",
-        "[log] [shot] before 6_auto_front, page blits so far 308",
+        "[log] [shot] before 6_auto_front, page blits so far 309",
         "[log] [shot] after 6_auto_front",
         "[log] [QA] command cam [\"auto_side\"]",
-        "[log] [shot] before 6_auto_side, page blits so far 326",
+        "[log] [shot] before 6_auto_side, page blits so far 327",
         "[log] [shot] after 6_auto_side",
         "[log] [QA] command cam [\"auto_back\"]",
         "[log] [shot] before 6_auto_back, page blits so far 345",
         "[log] [shot] after 6_auto_back",
         "[log] [QA] command cam [\"auto_face\"]",
-        "[log] [shot] before 6_auto_face, page blits so far 364",
+        "[log] [shot] before 6_auto_face, page blits so far 363",
         "[log] [shot] after 6_auto_face",
         "[log] [QA] command cam [\"auto_side\"]",
         "[log] [QA] command speed [0.25]",
         "[log] [QA] command auto [\"launch\"]",
         "[log] [QA] command auto [\"freeze\", 60]",
-        "[log] [shot] before 6_auto_launched, page blits so far 399",
+        "[log] [shot] before 6_auto_launched, page blits so far 402",
         "[log] [shot] after 6_auto_launched",
         "[log] [QA] command auto [\"thaw\"]",
         "[log] [QA] command auto [\"freeze\", 60]",
@@ -1506,38 +3160,38 @@
         "[log] [shot] after 6_auto_down",
         "[log] [QA] command auto [\"thaw\"]",
         "[log] [QA] command auto [\"freeze\", 60]",
-        "[log] [shot] before 6_auto_rising, page blits so far 474",
+        "[log] [shot] before 6_auto_rising, page blits so far 473",
         "[log] [shot] after 6_auto_rising",
         "[log] [QA] command auto [\"thaw\"]",
         "[log] [QA] command speed [1]",
         "[log] [QA] command cam [\"game\"]",
         "[log] [QA] command place [-8, 8, 90]",
-        "[log] [shot] before 7_run, page blits so far 524",
+        "[log] [shot] before 7_run, page blits so far 523",
         "[log] [shot] after 7_run",
         "[log] [shot] before 7_sprint, page blits so far 541",
         "[log] [shot] after 7_sprint",
-        "[log] [shot] before 7_jump, page blits so far 560",
+        "[log] [shot] before 7_jump, page blits so far 559",
         "[log] [shot] after 7_jump",
-        "[log] [shot] before 7_camera, page blits so far 590",
+        "[log] [shot] before 7_camera, page blits so far 589",
         "[log] [shot] after 7_camera",
         "[log] [QA] command place [-8, 8, 90]",
         "[log] [QA] command place [0, 1.6, 180]",
-        "[log] [shot] before 9_keyboard_chain, page blits so far 648",
+        "[log] [shot] before 9_keyboard_chain, page blits so far 649",
         "[log] [shot] after 9_keyboard_chain",
         "[log] [QA] command place [0, 1.6, 180]",
-        "[log] [shot] before 9_keyboard_heavy, page blits so far 678",
+        "[log] [shot] before 9_keyboard_heavy, page blits so far 680",
         "[log] [shot] after 9_keyboard_heavy",
         "[log] [QA] command auto [\"place\", -3.5, -2.5, 180]",
         "[log] [QA] command place [-3.5, -8.5, 0]",
-        "[log] [shot] before 9_keyboard_pulled, page blits so far 710",
+        "[log] [shot] before 9_keyboard_pulled, page blits so far 712",
         "[log] [shot] after 9_keyboard_pulled",
-        "[log] [shot] before 9_keyboard_pursuit, page blits so far 734",
+        "[log] [shot] before 9_keyboard_pursuit, page blits so far 735",
         "[log] [shot] after 9_keyboard_pursuit",
         "[log] [QA] command auto [\"place\", -3.5, -2.5, 180]",
         "[log] [QA] command place [-3.5, -4.2, 0]",
         "[log] [QA] command arm [\"skill2\", 0.46]",
         "[log] [QA] command auto [\"attack\"]",
-        "[log] [shot] before 9_keyboard_countered, page blits so far 766",
+        "[log] [shot] before 9_keyboard_countered, page blits so far 767",
         "[log] [shot] after 9_keyboard_countered",
         "[log] [QA] command auto [\"place\", -3.5, -2.5, 180]",
         "[log] [QA] command auto [\"heal\"]",
@@ -1586,11 +3240,11 @@
         "[log] [blit] #6 (0,0,1280,720,0,0,1280,720,16384,9728) read=fbo draw=default",
         "[log] [shot] before d1_overlay, page blits so far 13",
         "[log] [shot] after d1_overlay",
-        "[log] [shot] before d2_panel, page blits so far 42",
+        "[log] [shot] before d2_panel, page blits so far 40",
         "[log] [shot] after d2_panel",
-        "[log] [shot] before d3_low, page blits so far 80",
+        "[log] [shot] before d3_low, page blits so far 79",
         "[log] [shot] after d3_low",
-        "[log] [shot] before d4_high, page blits so far 174",
+        "[log] [shot] before d4_high, page blits so far 175",
         "[log] [shot] after d4_high",
         "[log] [QA] command place [3, 3, 90]",
         "[log] [QA] command auto [\"hit\", 30]",
@@ -1599,11 +3253,11 @@
         "[log] [QA] scene=arena",
         "[log] [QA] scene=arena",
         "[log] [QA] scene=arena",
-        "[log] [shot] before d5_benchmark, page blits so far 503",
+        "[log] [shot] before d5_benchmark, page blits so far 504",
         "[log] [shot] after d5_benchmark"
       ],
-      "loadMs": 1135,
-      "fps": 1,
+      "loadMs": 1098,
+      "fps": 6,
       "player": {
         "action_lock": false,
         "anim": "Idle_Loop",
@@ -1629,42 +3283,42 @@
           "fade": "off",
           "frames": 37,
           "p50_ms": 216.7,
-          "mean_ms": 216.7,
+          "mean_ms": 216.5,
           "faded": 0,
-          "draws": 127
+          "draws": 141
         },
         {
           "preset": "LOW",
           "fade": "25 %",
           "frames": 37,
-          "p50_ms": 233.3,
-          "mean_ms": 221.6,
+          "p50_ms": 216.7,
+          "mean_ms": 218,
           "faded": 1,
-          "draws": 127
+          "draws": 141
         },
         {
           "preset": "HIGH",
           "fade": "off",
           "frames": 12,
-          "p50_ms": 750,
-          "mean_ms": 695.4,
+          "p50_ms": 766.7,
+          "mean_ms": 700.9,
           "faded": 0,
-          "draws": 230
+          "draws": 244
         },
         {
           "preset": "HIGH",
           "fade": "25 %",
           "frames": 12,
-          "p50_ms": 783.3,
-          "mean_ms": 720.2,
+          "p50_ms": 766.6,
+          "mean_ms": 698.2,
           "faded": 1,
-          "draws": 225
+          "draws": 239
         }
       ],
       "device": {
-        "report": "DEVICE TEST — REBORN build ef1d330 (2026-11-19T18:06:26Z) · Godot 4.7.2-stable (official)\nBrowser: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/141.0.7390.37 Safari/537.36\nScreen 1280×720 CSS px · pixel ratio 1.00 · canvas 1280×720 · 3D 1280×720 (100 %) · GPU: ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver) / Google Inc. (Google)\nErrors — JavaScript: 0 · engine: 0 (warnings 0) · WebGL context lost: no\nFrame times: the actual intervals between rendered frames, in ms. Left out: 2 s of warm-up after each start, restart and preset change; paused, hidden-tab and loading time. Severe stalls (a frame over 1 s, the game running and shown) are measured with the rest and counted: 1, 1.3 s in all.\nPLAY\n  LOW — not measured\n  MEDIUM — not measured\n  HIGH · 20.0 s, 30 frames, avg 1.5 FPS · p50 691.0 · p95 720.4 · p99 1263.2 · worst 1263.2 ms · over 33 ms 100.0 % · over 50 ms 100.0 % · severe stalls 1 (1.3 s) · 7 warm-up frames left out\nBENCHMARK — the same scripted encounter, 12 s per preset (at most 36 s each)\n  LOW — not measured\n  MEDIUM — not measured\n  HIGH — not measured",
+        "report": "DEVICE TEST — REBORN build 506a699 (2026-11-19T20:25:58Z) · Godot 4.7.2-stable (official)\nBrowser: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/141.0.7390.37 Safari/537.36\nScreen 1280×720 CSS px · pixel ratio 1.00 · canvas 1280×720 · 3D 1280×720 (100 %) · GPU: ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver) / Google Inc. (Google)\nErrors — JavaScript: 0 · engine: 0 (warnings 0) · WebGL context lost: no\nFrame times: the actual intervals between rendered frames, in ms. Left out: 2 s of warm-up after each start, restart and preset change; paused, hidden-tab and loading time. Severe stalls (a frame over 1 s, the game running and shown) are measured with the rest and counted: 1, 1.4 s in all.\nPLAY\n  LOW — not measured\n  MEDIUM — not measured\n  HIGH · 19.3 s, 28 frames, avg 1.5 FPS · p50 709.3 · p95 743.0 · p99 1439.2 · worst 1439.2 ms · over 33 ms 100.0 % · over 50 ms 100.0 % · severe stalls 1 (1.4 s) · 7 warm-up frames left out\nBENCHMARK — the same scripted encounter, 12 s per preset (at most 36 s each)\n  LOW — not measured\n  MEDIUM — not measured\n  HIGH — not measured",
         "fullscreen": true,
-        "benchmark": "DEVICE TEST — REBORN build ef1d330 (2026-11-19T18:06:26Z) · Godot 4.7.2-stable (official)\nBrowser: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/141.0.7390.37 Safari/537.36\nScreen 1280×720 CSS px · pixel ratio 1.00 · canvas 1280×720 · 3D 1280×720 (100 %) · GPU: ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver) / Google Inc. (Google)\nErrors — JavaScript: 0 · engine: 0 (warnings 0) · WebGL context lost: no\nFrame times: the actual intervals between rendered frames, in ms. Left out: 2 s of warm-up after each start, restart and preset change; paused, hidden-tab and loading time. Severe stalls (a frame over 1 s, the game running and shown) are measured with the rest and counted: 3, 4.0 s in all.\nPLAY\n  LOW — not measured\n  MEDIUM — not measured\n  HIGH · 32.7 s, 47 frames, avg 1.4 FPS · p50 691.0 · p95 1263.2 · p99 1415.2 · worst 1415.2 ms · over 33 ms 100.0 % · over 50 ms 100.0 % · severe stalls 3 (4.0 s) · 14 warm-up frames left out\nBENCHMARK — the same scripted encounter, 12 s per preset (at most 36 s each)\n  LOW · 12.2 s, 48 frames, avg 3.9 FPS · p50 216.4 · p95 705.2 · p99 758.0 · worst 758.0 ms · over 33 ms 100.0 % · over 50 ms 100.0 % · severe stalls 0 (0.0 s) · 4 warm-up frames left out\n  MEDIUM · 12.1 s, 31 frames, avg 2.6 FPS · p50 382.2 · p95 447.1 · p99 524.0 · worst 524.0 ms · over 33 ms 100.0 % · over 50 ms 100.0 % · severe stalls 0 (0.0 s) · 7 warm-up frames left out\n  HIGH · 12.1 s, 17 frames, avg 1.4 FPS · p50 693.0 · p95 891.8 · p99 891.8 · worst 891.8 ms · over 33 ms 100.0 % · over 50 ms 100.0 % · severe stalls 0 (0.0 s) · 7 warm-up frames left out"
+        "benchmark": "DEVICE TEST — REBORN build 506a699 (2026-11-19T20:25:58Z) · Godot 4.7.2-stable (official)\nBrowser: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/141.0.7390.37 Safari/537.36\nScreen 1280×720 CSS px · pixel ratio 1.00 · canvas 1280×720 · 3D 1280×720 (100 %) · GPU: ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver) / Google Inc. (Google)\nErrors — JavaScript: 0 · engine: 0 (warnings 0) · WebGL context lost: no\nFrame times: the actual intervals between rendered frames, in ms. Left out: 2 s of warm-up after each start, restart and preset change; paused, hidden-tab and loading time. Severe stalls (a frame over 1 s, the game running and shown) are measured with the rest and counted: 3, 4.3 s in all.\nPLAY\n  LOW — not measured\n  MEDIUM — not measured\n  HIGH · 32.9 s, 46 frames, avg 1.4 FPS · p50 706.5 · p95 1410.1 · p99 1439.2 · worst 1439.2 ms · over 33 ms 100.0 % · over 50 ms 100.0 % · severe stalls 3 (4.3 s) · 14 warm-up frames left out\nBENCHMARK — the same scripted encounter, 12 s per preset (at most 36 s each)\n  LOW · 12.0 s, 45 frames, avg 3.7 FPS · p50 223.8 · p95 718.1 · p99 822.4 · worst 822.4 ms · over 33 ms 100.0 % · over 50 ms 100.0 % · severe stalls 0 (0.0 s) · 4 warm-up frames left out\n  MEDIUM · 12.4 s, 31 frames, avg 2.5 FPS · p50 391.5 · p95 475.4 · p99 508.4 · worst 508.4 ms · over 33 ms 100.0 % · over 50 ms 100.0 % · severe stalls 0 (0.0 s) · 7 warm-up frames left out\n  HIGH · 12.3 s, 17 frames, avg 1.4 FPS · p50 704.5 · p95 896.4 · p99 896.4 · worst 896.4 ms · over 33 ms 100.0 % · over 50 ms 100.0 % · severe stalls 0 (0.0 s) · 7 warm-up frames left out"
       },
       "presets": [
         {
@@ -1677,7 +3331,7 @@
             1280,
             720
           ],
-          "texMB": 23.6,
+          "texMB": 23.5,
           "color": 1,
           "shadow": 0
         },
@@ -1691,7 +3345,7 @@
             1280,
             720
           ],
-          "texMB": 25.8,
+          "texMB": 25.7,
           "color": 1,
           "shadow": 1
         },
@@ -1705,7 +3359,7 @@
             1280,
             720
           ],
-          "texMB": 21.8,
+          "texMB": 21.7,
           "color": 0,
           "shadow": 1
         },
@@ -1719,7 +3373,7 @@
             1280,
             720
           ],
-          "texMB": 23.6,
+          "texMB": 23.5,
           "color": 1,
           "shadow": 0
         },
@@ -1733,12 +3387,12 @@
             1280,
             720
           ],
-          "texMB": 21.8,
+          "texMB": 21.7,
           "color": 0,
           "shadow": 0
         }
       ],
-      "blits": 519
+      "blits": 527
     }
   ]
 }
