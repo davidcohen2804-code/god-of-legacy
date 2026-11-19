@@ -295,7 +295,7 @@ func test_the_whole_branch_at_any_tick_rate() -> String:
 
 func test_the_three_strikes_leave_the_seal_in_reach() -> String:
 	# GPT's v1.6: Basic 3 pushes its target 0.5 m — the branch must not routinely fail from its own knockback
-	for d: float in [1.3, 1.7, 1.9]:
+	for d: float in [1.2, 1.45, 1.7]: # (from where Basic 1 reaches it)
 		var c := _samurai(Vector3(0, 0, d))
 		var a := _automaton(c)
 		var r := _branch(c, a, DT, 1.4, true, false, func(_t: float, rec: Dictionary) -> void:
