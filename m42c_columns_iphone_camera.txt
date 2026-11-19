@@ -1,0 +1,6 @@
+[CAMERA] 9.6 s: the camera 6.85–7.01 m from him; its largest move in one frame 0.117 m; off its place 0.00 m at most
+[CAMERA] the assist started 0 times
+[CAMERA] 16.4 s: the camera 6.85–7.70 m from him; its largest move in one frame 0.217 m; off its place 1.59 m at most
+[COLUMNS] group 1: faded 1 times, back 0 times, shortest hold - s
+[COLUMNS] groups that changed: 1 of 9
+[COLUMNS] 0.25 s: group 1 fades
