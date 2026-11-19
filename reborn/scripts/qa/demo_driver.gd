@@ -8,6 +8,10 @@ extends Node
 ## clearly captioned test command moves the automaton away) that then expires, an Execution whose target is moved out
 ## of its path (captioned the same way) and misses; and the branch again at half speed. Between examples he steps back
 ## and the automaton is put back on its mark with its health restored (the next example starts the same way).
+## The integrated M4 review (SCRIPT_M4, `-- --demo --demo-m4`): the three Legacy Chain branches one after another at
+## real speed against the same Training Automaton, nothing reset between them — Phantom Control (CHAIN → PULL → RISE →
+## PURSUE), Defensive Counterplay (its sweep, STEP through it, COUNTER) and Explosive Execution (Basic 1 → 2 → 3 → SEAL
+## → its detonation → EXECUTE, which defeats it: 150 − 44 − 14 − 40 − 24 leaves 28).
 ## M4 Stage C (SCRIPT_C, `-- --demo --demo-c`): defensive counterplay. The Samurai walks up to the
 ## Training Automaton (its sparring script off: the script starts each of its attacks, so every example begins the
 ## same way) and, at real speed: its telegraphed sweep (the raised, kindling sword and the amber arc), Shadow Step
@@ -122,6 +126,30 @@ const SCRIPT_D := [
 	[38.0, "end"],
 ]
 
+const SCRIPT_M4 := [
+	[0.2, "spar", false],
+	[0.4, "caption", "M4 — the three Legacy Chain branches, each opened only by a confirmed combat event", 3.2],
+	[0.5, "go", Vector2(-10.4, 0.6), 0.85], # run west, past the dummy
+	[3.2, "go", Vector2(-9.4, -0.9), 0.3], # walk to his place
+	[4.2, "point", Vector2(1.0, -0.3), 0.25], # face the automaton, about 6 m away
+	[4.8, "caption", "1 · PHANTOM CONTROL — chain → pull → rising slash → aerial pursuit", 3.6],
+	[4.9, "tap", "skill1"],
+	[5.3, "tap_shown", "cond1", 0.25], # PULL
+	[6.5, "tap", "skill3"],
+	[6.6, "tap_shown", "cond1", 0.1], # PURSUE (it waits for Rising Slash's 50 %)
+	[9.6, "caption", "2 · DEFENSIVE COUNTERPLAY — its telegraphed sweep, Shadow Step through it, Shadow Counter", 3.6],
+	[9.6, "approach", 1.75, 0.35],
+	[11.2, "attack"],
+	[11.2, "tap_on_attack", "skill2", 0.43],
+	[11.8, "tap_shown", "cond1", 0.15], # COUNTER
+	[13.6, "caption", "3 · EXPLOSIVE EXECUTION — three confirmed strikes → SEAL → its detonation → EXECUTE", 3.6],
+	[13.6, "approach", 1.75, 0.35],
+	[15.0, "when_cond", "explosive_seal", 0.1, [0.0, "tap", "cond1"]],
+	[15.0, "when_cond", "phantom_execution", 0.12, [0.0, "tap", "cond1"]],
+	[15.0, "mash", 3],
+	[20.0, "end"],
+]
+
 var touch: TouchControls
 var combat: CombatController
 var player: Fighter
@@ -151,6 +179,8 @@ var _home := Vector3.INF ## the automaton's mark
 func _ready() -> void:
 	if "--demo-c" in OS.get_cmdline_user_args():
 		_script = SCRIPT_C
+	elif "--demo-m4" in OS.get_cmdline_user_args():
+		_script = SCRIPT_M4
 
 
 func _physics_process(delta: float) -> void:

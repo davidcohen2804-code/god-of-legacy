@@ -55,7 +55,7 @@ jobs:
         # a fixed frame rate makes the clip smooth however slowly the runner renders.
         id: demo
         continue-on-error: true
-        timeout-minutes: 25
+        timeout-minutes: 35
         run: |
           mkdir -p build/web/qa
           xvfb-run -a -s "-screen 0 1280x720x24" ~/godot/godot --path reborn --rendering-method gl_compatibility \
@@ -78,6 +78,17 @@ jobs:
           "$FF" -y -loglevel error -ss 20.5 -t 9.6 -i $MP4 -vf "fps=3,scale=480:-1,tile=6x5" -frames:v 1 build/web/qa/m4d_failed_b_frames.jpg
           "$FF" -y -loglevel error -ss 33.4 -t 6.4 -i $MP4 -vf "fps=5.5,scale=480:-1,tile=6x6" -frames:v 1 build/web/qa/m4d_slow_frames.jpg
           python3 reborn/tools/pack_png.py $MP4 $MP4.png
+          # the integrated M4 review: the three Legacy Chain branches one after another at real speed (overview at 2 fps)
+          xvfb-run -a -s "-screen 0 1280x720x24" ~/godot/godot --path reborn --rendering-method gl_compatibility \
+            --rendering-driver opengl3 --resolution 1280x720 --write-movie "$RUNNER_TEMP/m4.avi" --fixed-fps 30 \
+            -- --demo --demo-m4 > "$RUNNER_TEMP/m4.log" 2>&1 || true
+          tail -n 15 "$RUNNER_TEMP/m4.log"
+          if [ -s "$RUNNER_TEMP/m4.avi" ]; then
+            "$FF" -y -loglevel error -i "$RUNNER_TEMP/m4.avi" -c:v libx264 -pix_fmt yuv420p -crf 24 -preset veryfast \
+              -c:a aac -b:a 128k -movflags +faststart build/web/qa/m4_review.mp4
+            "$FF" -y -loglevel error -i build/web/qa/m4_review.mp4 -vf "fps=2,scale=480:-1,tile=6x7" -frames:v 1 build/web/qa/m4_review_frames.jpg
+            python3 reborn/tools/pack_png.py build/web/qa/m4_review.mp4 build/web/qa/m4_review.mp4.png
+          fi
           ls -la build/web/qa
       - name: The demo and its contact sheets as a run artifact (fetchable before the smoke test ends)
         if: steps.demo.outcome == 'success'
@@ -88,6 +99,8 @@ jobs:
           path: |
             build/web/qa/m4d_*.mp4
             build/web/qa/m4d_*.jpg
+            build/web/qa/m4_review.mp4
+            build/web/qa/m4_review_frames.jpg
           retention-days: 7
       - name: Browser smoke test in Playwright's own image (Chromium as an Android phone and at 16:9, WebKit as an iPhone, all in landscape)
         # Playwright's image carries its browsers and their system libraries: no apt install on the runner (a slow
