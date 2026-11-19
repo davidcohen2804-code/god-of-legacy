@@ -1,11 +1,7 @@
-[COLUMNS] group 0: faded 2 times, back 1 times, shortest hold 0.87 s
 [COLUMNS] group 2: faded 1 times, back 1 times, shortest hold 0.70 s
 [COLUMNS] group 3: faded 1 times, back 1 times, shortest hold 0.70 s
-[COLUMNS] groups that changed: 3 of 9
+[COLUMNS] groups that changed: 2 of 9
 [COLUMNS] 0.05 s: group 2 fades
 [COLUMNS] 0.05 s: group 3 fades
 [COLUMNS] 0.75 s: group 2 comes back
 [COLUMNS] 0.75 s: group 3 comes back
-[COLUMNS] 14.78 s: group 0 fades
-[COLUMNS] 15.65 s: group 0 comes back
-[COLUMNS] 18.15 s: group 0 fades
