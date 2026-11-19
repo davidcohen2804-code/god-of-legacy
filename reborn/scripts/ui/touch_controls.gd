@@ -648,15 +648,9 @@ func _draw_more(b: Dictionary) -> void:
 	var h := float(b["r_art"]) if icons else float(b["r_art"]) * 0.7 # half the pill's height
 	var half := float(b["half"]) if icons else h * 1.05 # half the distance between its end circles
 	var fill := _alpha(UiTheme.PLUM, 0.92 if _flash.has("more") else 0.74)
-	var l := c - Vector2(half, 0)
-	var rr := c + Vector2(half, 0)
-	draw_rect(Rect2(l - Vector2(0, h), Vector2(half * 2.0, h * 2.0)), fill)
-	draw_circle(l, h, fill)
-	draw_circle(rr, h, fill)
-	draw_line(l - Vector2(0, h), rr - Vector2(0, h), UiTheme.ACCENT, 2.0, true)
-	draw_line(l + Vector2(0, h), rr + Vector2(0, h), UiTheme.ACCENT, 2.0, true)
-	draw_arc(l, h, PI * 0.5, PI * 1.5, 20, UiTheme.ACCENT, 2.0, true)
-	draw_arc(rr, h, -PI * 0.5, PI * 0.5, 20, UiTheme.ACCENT, 2.0, true)
+	# (one shape: a rectangle and two discs, each see-through, were darker where they overlapped)
+	draw_colored_polygon(_stadium(c, half, h), fill)
+	_outline(c, half, h, 1.0, UiTheme.ACCENT, 2.0)
 	if icons:
 		_word(c, "+%d" % _waiting, int(roundf(label_px)), UiTheme.TEXT, 1.0)
 	else:
