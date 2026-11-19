@@ -137,8 +137,8 @@ func report() -> String:
 		out.append("  JS: " + String(e).left(130))
 	for e in (eng.get("last", []) as Array):
 		out.append("  engine: " + String(e).left(130))
-	out.append("Frame times: the actual intervals between rendered frames, in ms. Left out: %d s of warm-up after each start, restart and preset change; paused, hidden-tab and loading time; %d suspensions over 1 s." % [
-		int(FrameStats.WARMUP), Game.stats.stalls])
+	out.append("Frame times: the actual intervals between rendered frames, in ms. Left out: %d s of warm-up after each start, restart and preset change; paused, hidden-tab and loading time; %d suspensions over %s s." % [
+		int(FrameStats.WARMUP), Game.stats.stalls, String.num(Game.stats.stall / 1000.0)])
 	for group: String in ["play", "bench"]:
 		var title := "PLAY" if group == "play" else "BENCHMARK — the same scripted encounter, %d s per preset" % int(Game.bench_seconds)
 		if group == "bench" and not Game.bench.is_empty():

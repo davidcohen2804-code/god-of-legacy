@@ -10,7 +10,8 @@
 // graphics preset (the reviewed look); then the device-test page (?device=1): straight into the arena, its overlay,
 // the panel pausing the game, the three presets changing the 3D image and the shadow map for real (the page's own
 // WebGL allocations), the video memory back where it was, RESTART bringing both fighters back — and, on desktop, the
-// benchmark (shortened to 12 s a preset here).
+// benchmark (shortened to 12 s a preset here, a suspension only past 10 s: software rendering draws about a frame a
+// second at High).
 // The phones' Legacy Chain checks run at half game speed and are labelled so: they exercise the touch interface under
 // software rendering at about a frame a second — not full-speed gameplay, whose windows the headless unit tests verify
 // at 30, 60 and 120 Hz.
@@ -109,13 +110,18 @@ async function runProfile(p) {
       const pl0 = (s) => (s && s.live && s.live.player) || null;
       const mark = () => page.evaluate(() => (window.__glAllocs || []).length);
       const allocs = (from) => page.evaluate((f) => (window.__glAllocs || []).slice(f), from);
-      await page.goto(BASE + '&device=1' + (p.kind === 'desktop' ? '&bench=12' : ''), { waitUntil: 'load', timeout: 120000 });
+      // (the desktop runs the benchmark: 12 s a preset, and a suspension only past 10 s — software rendering draws about
+      // a frame a second at High, which a phone's 1 s threshold would leave out frame after frame, never finishing)
+      await page.goto(BASE + '&device=1' + (p.kind === 'desktop' ? '&bench=12&stall=10000' : ''), { waitUntil: 'load', timeout: 120000 });
       const s0 = await waitFor((s) => s.scene === 'arena' && dv(s) && pl0(s), 'the device test in the arena', 300000);
       if ((s0.events || []).some((e) => e.startsWith('entered=') || e.startsWith('pressed='))) {
         throw new Error('the device test went through the menus: ' + s0.events.join(' '));
       }
-      await page.waitForTimeout(3500);
-      let st = await state();
+      // (its three lines from the panel's first update on — the arena's first frames can take seconds here)
+      let st = await waitFor((s) => dv(s) && dv(s).lines.split('\n').length === 3 && s.rects && s.rects.device_test,
+        'the overlay\'s three lines and the TEST button', 120000);
+      await page.waitForTimeout(1500);
+      st = await state();
       const lines = dv(st).lines.split('\n');
       if (lines.length !== 3 || !st.rects.device_test) throw new Error('the overlay: ' + JSON.stringify(dv(st)));
       await shot('d1_overlay');

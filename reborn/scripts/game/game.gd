@@ -46,7 +46,8 @@ var probe := {}
 var logger: DeviceLogger
 ## The benchmark while it runs: {i: the preset measured now, back: the player's own preset}; {} otherwise.
 var bench := {}
-## Its valid seconds per preset: BENCH_SECONDS (a browser test run with ?qa=1 may shorten it: &bench=N).
+## Its valid seconds per preset: BENCH_SECONDS (a browser test run with ?qa=1 may shorten it: &bench=N, and raise
+## the suspension threshold: &stall=N ms).
 var bench_seconds := BENCH_SECONDS
 ## The benchmark's results are to be shown when the arena is back.
 var report_due := false
@@ -90,6 +91,8 @@ func _ready() -> void:
 		device_test = q.contains("device=1")
 		if q.contains("qa=1") and q.contains("bench="):
 			bench_seconds = clampf(float(q.get_slice("bench=", 1).get_slice("&", 0)), 3.0, BENCH_SECONDS)
+		if q.contains("qa=1") and q.contains("stall="):
+			stats.stall = clampf(float(q.get_slice("stall=", 1).get_slice("&", 0)), FrameStats.STALL, 60000.0)
 	apply_quality()
 	if device_test:
 		DeviceProbe.install()

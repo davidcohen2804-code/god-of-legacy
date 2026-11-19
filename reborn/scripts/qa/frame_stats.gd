@@ -12,8 +12,11 @@ const WARMUP := 2.0 ## s
 const WINDOW := 10.0 ## s of the rolling view
 const STALL := 1000.0 ## ms: an interval this long is a suspension (counted apart), not a frame
 
+## The suspension threshold in use (ms): STALL; a browser test run with ?qa=1 may raise it (&stall=N) — software
+## rendering draws about one frame a second.
+var stall := STALL
 var key := "" ## the set measured now
-var stalls := 0 ## intervals over STALL ms, left out
+var stalls := 0 ## intervals over the threshold, left out
 var _sets := {} ## key → {ms: Array[float], valid: s, excluded: frames}
 var _hold := 0.0 ## s of warm-up left
 var _skip := false ## the next interval spans a change (a build, a preset, a hidden tab): left out, whatever its length
@@ -56,7 +59,7 @@ func frame(ms: float, valid: bool) -> void:
 		if valid:
 			_sets[key]["excluded"] = int(_sets[key]["excluded"]) + 1
 		return
-	if ms > STALL:
+	if ms > stall:
 		stalls += 1
 		return
 	if not valid:
