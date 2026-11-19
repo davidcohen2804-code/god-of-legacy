@@ -34,26 +34,27 @@ const SCRIPT := [
 	[4.35, "caption", "SHADOW STEP — the blade passes through his fading shadow: COUNTER", 1.5],
 	[4.35, "tap_shown", "cond1", 0.15],
 	[4.95, "caption", "SHADOW COUNTER — he dashes back at it; the cut must connect (14)", 1.8],
-	[7.1, "caption", "Failed evasion 1 — too late: struck in the step's startup", 2.2],
-	[7.1, "attack"],
-	[7.1, "tap_on_attack", "skill2", 0.53],
-	[10.2, "caption", "Failed evasion 2 — a plain roll: no shadow, no COUNTER", 2.2],
-	[10.2, "attack"],
-	[10.2, "stick_on_attack", Vector2(1, 0), 0.48], # the thumb pushes right (east, along the cut's sweep)...
-	[10.2, "tap_on_attack", "dodge", 0.54], # ...and DODGE rolls that way as the blade comes
-	[11.3, "stick_up"],
-	[11.5, "approach", 1.75, 0.35],
-	[13.3, "caption", "Failed evasion 3 — too early: his shadow fades before the blade arrives", 2.2],
-	[13.3, "attack"],
-	[13.3, "tap_on_attack", "skill2", 0.25],
-	[14.6, "approach", 1.75, 0.35],
-	[16.7, "caption", "The evasion and the counter again, at half speed", 2.4],
-	[16.8, "slowmo", 0.5],
-	[17.0, "attack"],
-	[17.0, "tap_on_attack", "skill2", 0.43],
-	[17.6, "tap_shown", "cond1", 0.15],
-	[19.6, "slowmo", 1.0],
-	[21.2, "end"],
+	# (STEP's cooldown is 5 s: each example that uses it comes at least 5 s after the last)
+	[9.2, "caption", "Failed evasion 1 — too late: struck in the step's startup", 2.2],
+	[9.3, "attack"],
+	[9.3, "tap_on_attack", "skill2", 0.53],
+	[12.3, "caption", "Failed evasion 2 — a plain roll: no shadow, no COUNTER", 2.2],
+	[12.4, "attack"],
+	[12.4, "stick_on_attack", Vector2(0.45, 0), 0.48], # the thumb leans right (east, along the cut's sweep)...
+	[12.4, "tap_on_attack", "dodge", 0.54], # ...and DODGE rolls that way as the blade comes
+	[12.4, "stick_on_attack", Vector2.ZERO, 0.75], # (the thumb lifts)
+	[13.6, "approach", 1.75, 0.6], # back to it at a run
+	[15.4, "caption", "Failed evasion 3 — too early: his shadow fades before the blade arrives", 2.2],
+	[15.5, "attack"],
+	[15.5, "tap_on_attack", "skill2", 0.25],
+	[16.8, "approach", 1.75, 0.6],
+	[20.1, "caption", "The evasion and the counter again, at half speed", 2.4],
+	[20.3, "slowmo", 0.5],
+	[20.6, "attack"],
+	[20.6, "tap_on_attack", "skill2", 0.43],
+	[21.1, "tap_shown", "cond1", 0.15],
+	[22.6, "slowmo", 1.0],
+	[24.2, "end"],
 ]
 
 var touch: TouchControls
@@ -107,7 +108,8 @@ func _physics_process(delta: float) -> void:
 			_on_attack.remove_at(i)
 			if e.has("stick"):
 				_goal = Vector3.INF
-				_stick(e["stick"], true)
+				var v: Vector2 = e["stick"]
+				_stick(v, v != Vector2.ZERO) # (a zero push lifts the thumb)
 			else:
 				_tap(String(e["key"]))
 	if not _approach.is_empty() and automaton:

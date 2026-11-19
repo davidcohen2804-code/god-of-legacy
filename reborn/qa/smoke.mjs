@@ -400,8 +400,7 @@ async function runProfile(p) {
       await cmd('arm', 'skill2', 0.46);
       await cmd('auto', 'attack');
       await waitFor((s) => cb(s) && cb(s).evasions > ev0 && cb(s).conds[0] === 'shadow_counter', tag + ': the evasion and COUNTER on its button', 60000);
-      await shot('9_' + tag + '_evaded');
-      await pressCounter();
+      await pressCounter(); // (at once: a screenshot first takes longer here than the window's 600 ms of game time)
       try {
         await waitFor((s) => cb(s) && cb(s).log.some((e) => e.id === 'shadow_counter' && e.hits === 1), tag + ': the counter\'s cut', 60000);
       } finally {
