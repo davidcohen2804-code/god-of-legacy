@@ -427,6 +427,7 @@ func _on_qa_command(cmd: String, args: Array) -> void:
 		# ("facing"), settled at once in its framing
 		rig.focus = _pick_target(1.0)
 		rig.mode = CameraRig.Mode.COMBAT if rig.focus else CameraRig.Mode.EXPLORATION
+		rig.reset_view() # (the framing as it starts: no pitch left from an earlier drag)
 		if (args.is_empty() or str(args[0]) == "foe") and rig.focus:
 			var to := rig.focus.global_position - player.global_position
 			rig.yaw = atan2(-to.x, -to.z)
@@ -491,7 +492,8 @@ func _framing_state() -> Dictionary:
 		"draws": RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME),
 		"shoulder": CameraRig.shoulder, "air": CameraRig.air_framing, "assist": CameraRig.assist,
 		"lift": snappedf(rig.lift, 0.01), "air_pull": snappedf(rig.air_pull, 0.01),
-		"assist_turned": snappedf(rig.assist_turned, 0.1), "assists": rig.assists, "explore": CameraRig.explore,
+		"assist_turned": snappedf(rig.assist_turned, 0.1), "assists": rig.assists, "assisting": rig.is_assisting(),
+		"explore": CameraRig.explore,
 		"mode": CameraRig.Mode.keys()[rig.mode], "pitch": snappedf(rig.elevation(), 0.1),
 		"target": String((targets.current as Node).name) if targets.current else "", "target_rank": targets.rank}
 

@@ -702,16 +702,18 @@ async function runProfile(p) {
         foe_css: f.foe ? f.foe.h_css : null, foe_in_hud: f.foe ? f.foe.in_hud : null, foe_off: f.foe ? f.foe.off_screen : null,
         player_box: f.player.box, foe_box: f.foe ? f.foe.box : null, areas: f.areas, css_per_px: f.css_per_px,
         faded: f.fade.faded, draws: f.draws, lift: f.lift, air_pull: f.air_pull, pitch: f.pitch,
-        assist_turned: f.assist_turned, shoulder: f.shoulder, air: f.air, assist: f.assist, mode: f.mode, explore: f.explore });
-      const one = async (sc, fixed) => {
-        const tag = `a2_${sc.tag}_${fixed ? 'fixed' : 'plain'}`;
-        await cmd('camfx', fixed ? 0.35 : 0, fixed ? 1 : 0, fixed ? 1 : 0);
-        await waitFor((s) => s.flags.camfx === (fixed ? '0.35:true:true' : '0.0:false:false'), 'the corrections ' + tag, 15000);
+        assist_turned: f.assist_turned, assists: f.assists, shoulder: f.shoulder, air: f.air, assist: f.assist, mode: f.mode, explore: f.explore });
+      const one = async (sc, fixed, sh = 0.35) => {
+        const tag = `a2_${sc.tag}_${fixed ? 'fixed' : 'plain'}${fixed && sh !== 0.35 ? Math.round(sh * 100) : ''}`;
+        await cmd('camfx', fixed ? sh : 0, fixed ? 1 : 0, fixed ? 1 : 0);
+        await waitFor((s) => s.flags.camfx === (fixed ? `${sh}:true:true` : '0.0:false:false'), 'the corrections ' + tag, 15000);
+        const n0 = fr(await state()).assists;
         await cmd('frame', sc.how);
         await waitFor((s) => s.flags.framed === `B:${sc.how}`, 'the framing ' + tag, 15000);
         if (fixed && sc.settle) {
-          // (the assist acts over time: until it has turned all it may, or the automaton is clear of the cluster)
-          await waitFor((s) => fr(s) && (fr(s).assist_turned >= 11.9 || (fr(s).assists > 0 && fr(s).foe && !fr(s).foe.in_hud)), 'the assist to turn for ' + tag, 60000).catch(() => null);
+          // (the assist acts over time: until it has started and stopped — its 12° turned, or the automaton out of the
+          // cluster's box)
+          await waitFor((s) => fr(s) && fr(s).assists > n0 && !fr(s).assisting, 'the assist to turn for ' + tag, 60000).catch(() => null);
         }
         await frames(4);
         const f = fr(await state());
@@ -739,6 +741,7 @@ async function runProfile(p) {
         }
         await one(sc, false);
         await one(sc, true);
+        if (sc.tag === 'open') await one(sc, true, 0.5); // (the shoulder at its 0.5 m most)
         await cmd('auto', 'thaw');
       }
       await cmd('camfx', 0.35, 1, 1);

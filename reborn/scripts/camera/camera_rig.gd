@@ -132,6 +132,19 @@ func settle() -> void:
 		_update(0.0, true)
 
 
+## (QA: identical shots) the framing as it starts — no pitch dragged in, the assist's count afresh.
+func reset_view() -> void:
+	_pitch_offset = 0.0
+	assist_turned = 0.0
+	_assisting = false
+	_assist_v = 0.0
+
+
+## (QA) whether the assist is turning the camera now (or about to: started, its turn not used up).
+func is_assisting() -> bool:
+	return (_assisting and assist_turned < ASSIST_MAX) or _assist_v > 0.5
+
+
 ## Pixels of drag from the input system.
 func turn(drag: Vector2) -> void:
 	if drag == Vector2.ZERO:
