@@ -183,7 +183,14 @@ func test_the_glyphs_contrast_is_gpts() -> String:
 	var want := [[0.0, 0.5], [0.85, 1.0], [1.0, 1.0], [1.0, 1.0, 0.56]]
 	if str(rows) != str(want):
 		return "the glyph (hot, alpha[, size]) at rest, a peak, 40 ms into its flare, its last moment: %s (want %s)" % [rows, want]
-	return "" if early.z > rest.z and early.z < 1.0 else "20 ms into its flare its alpha is %.2f (want between rest and full)" % early.z
+	if not (early.z > rest.z and early.z < 1.0):
+		return "20 ms into its flare its alpha is %.2f (want between rest and full)" % early.z
+	# (its colour its own at full alpha — plain transparency, not added light, which washed the pink out over the lit
+	# chest — and the flare's pink not white)
+	var m := SealVisual.glyph_material()
+	var hot := SealVisual.GLYPH_HOT
+	return "" if m.blend_mode == BaseMaterial3D.BLEND_MODE_MIX and m.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA \
+		and hot.r - hot.g > 0.3 else "the glyph's blend %d, its hot %s (want plain transparency, a pink)" % [m.blend_mode, hot]
 
 
 # --- the conditional buttons' cue and chime --------------------------------------------------------------------------

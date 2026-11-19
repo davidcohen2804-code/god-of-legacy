@@ -292,6 +292,7 @@ func _button(text: String, w: float) -> Button:
 	b.text = text
 	b.custom_minimum_size = Vector2(w, 76)
 	b.focus_mode = Control.FOCUS_NONE
+	b.add_theme_font_size_override("font_size", 24) # (the panel keeps a margin on a 16:9 screen: at 28 it filled it edge to edge)
 	return b
 
 

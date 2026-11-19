@@ -6,7 +6,8 @@ extends Node3D
 ##     palm to the target's chest, arriving as the mark is planted (120 ms); a Seal that misses lets it fizzle where it
 ##     is — no glyph, no flash of success;
 ##   - the mark: an original seal glyph — two concentric rings and four short inward strokes, about 0.45 m across — over
-##     the target's chest, facing the camera, additive; three pulses, quickening (PULSES: 0, 330 and 530 ms after it was
+##     the target's chest, facing the camera, in plain transparency (not added light: added to the lit chest under it,
+##     its pink came out near-white — M4.1); three pulses, quickening (PULSES: 0, 330 and 530 ms after it was
 ##     planted), then through the last CONTRACT s it contracts and brightens: the cue that it is about to burst. Its
 ##     contrast (GPT's v1.7): dim at rest (REST_ALPHA), each pulse's peak at full alpha and PEAK_HOT of the way to the hot
 ##     pale pink (GLYPH_HOT); in the last CONTRACT s it is at full hot and full alpha within FLARE s, held while it
@@ -22,9 +23,9 @@ const CONTRACT := 0.12 ## the last s before the detonation: it contracts and bri
 const STREAK := 0.08 ## the streak's flight, s, ending when the mark is planted
 const COLOR := Color(0.86, 0.16, 0.52)
 const HOT := Color(1.0, 0.66, 0.9) ## the streak's and the detonation's hot pale pink (as approved in M4)
-## The glyph's pulses and its last flare (GPT's v1.7: a pale hot pink, never an all-white symbol): deeper than HOT in
-## value because the courtyard's Filmic tone mapping lifts mid-tones — at HOT the thin rings showed near-white.
-const GLYPH_HOT := Color(1.0, 0.45, 0.75)
+## The glyph's pulses and its last flare (GPT's v1.7: a pale hot pink, never an all-white symbol). The glyph is drawn in
+## plain transparency, so at full alpha this is the colour seen — after the courtyard's tone mapping about #FFB2EE.
+const GLYPH_HOT := Color(1.0, 0.55, 0.85)
 const REST_ALPHA := 0.5 ## between the pulses (GPT's v1.7)
 const PEAK_HOT := 0.85 ## a pulse's peak: this much of the way to GLYPH_HOT, at full alpha
 const FLARE := 0.04 ## s into the last CONTRACT s by which it is at full hot and full alpha
@@ -129,11 +130,7 @@ func _on_planted(target: Node3D, _fuse: float) -> void:
 	var id := target.get_instance_id()
 	if _glyphs.has(id):
 		(_glyphs[id]["node"] as Node).queue_free()
-	var mat := _additive(Color(COLOR, 0.0))
-	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	mat.billboard_keep_scale = true
-	mat.no_depth_test = true # (a mark on the target: it reads in front of the arm or the sword that crosses it)
-	mat.render_priority = 2
+	var mat := glyph_material()
 	var g := _instance(_glyph_mesh, mat)
 	g.visible = true
 	_glyphs[id] = {"node": g, "mat": mat, "target": target, "born": 0.0, "fade": -1.0}
@@ -320,6 +317,23 @@ func _ring_band(r0: float, r1: float, n: int) -> Mesh:
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	_band(st, r0, r1, n)
 	return st.commit()
+
+
+## The glyph's material: unshaded, in plain transparency — at full alpha its own colour over whatever is behind it
+## (added light washed its pink out to near-white over the automaton's lit chest) — toward the camera, in front of the
+## arm or the sword that crosses the target's chest.
+static func glyph_material() -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.blend_mode = BaseMaterial3D.BLEND_MODE_MIX
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	m.billboard_keep_scale = true
+	m.no_depth_test = true
+	m.render_priority = 2
+	m.albedo_color = Color(COLOR, 0.0)
+	return m
 
 
 func _additive(c: Color) -> StandardMaterial3D:

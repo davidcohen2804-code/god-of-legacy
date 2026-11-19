@@ -51,7 +51,7 @@ func _ready() -> void:
 	add_child(_prompt)
 	_note = UiTheme.label("", 16, UiTheme.TEXT_DIM)
 	_note.position = Vector2(212, 62)
-	_note.visible = QA.enabled
+	_note.visible = QA.enabled and not Game.device_test # (the device test's overlay takes the top band: as David sees it)
 	add_child(_note)
 	_fps = UiTheme.label("", 22, UiTheme.GOLD, true)
 	_fps.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
