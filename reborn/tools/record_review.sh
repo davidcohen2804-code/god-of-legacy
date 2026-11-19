@@ -33,13 +33,13 @@ encode() { # the .avi, the .mp4 (and its PNG pack: a page carries it through an 
 
 # (Movie Maker records at the project's base size, 1280 × 720, unless the window's size is overridden: a wider window
 # is cut down to 16 : 9 round its middle — the stick and the buttons at the sides fall outside. The phone's shape needs
-# the override, for this recording only.)
+# the override, for this recording only. `--phone`: the controls laid out as on the Android phone.)
 printf '[display]\n\nwindow/size/window_width_override=1728\nwindow/size/window_height_override=720\n' > reborn/override.cfg
-record feel 1728 720 --demo --demo-feel
+record feel 1728 720 --demo --demo-feel --phone
 grep "\[CAMERA\]" "$T/feel.log" | tee "$OUT/m42_feel_camera.txt" || true
 # (M4.2-A2) the exploration framing A, then B, each walking in across the 9 m; the columns fading as the camera passes
-record explore 1728 720 --demo --demo-explore
-record columns 1728 720 --demo --demo-columns
+record explore 1728 720 --demo --demo-explore --phone
+record columns 1728 720 --demo --demo-columns --phone
 grep "\[COLUMNS\]" "$T/columns.log" | tee "$OUT/m42_columns_fades.txt" || true
 rm -f reborn/override.cfg
 record side 1280 720 --demo --demo-side

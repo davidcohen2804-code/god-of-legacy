@@ -93,6 +93,11 @@ func _ready() -> void:
 		var marks := TouchMarkers.new()
 		marks.name = "TouchMarkers"
 		touch.get_parent().add_child(marks) # (after the controls: the touches reach it first and go on to them)
+		if "--phone" in OS.get_cmdline_user_args():
+			# (the phone-shaped recordings: the controls laid out as on the Android phone — 360 CSS px tall, so 0.5 CSS px
+			# a canvas px — not as on a desktop screen, where they come out smaller)
+			touch.css_override = 360.0 / 720.0
+			touch._layout()
 		if "--demo-side" in OS.get_cmdline_user_args():
 			# (the review's side view at half speed: across the line between him and the automaton)
 			_view = "fight_side"
