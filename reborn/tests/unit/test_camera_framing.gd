@@ -235,3 +235,26 @@ func test_b_turns_a_little_when_the_target_enters_the_cluster() -> String:
 	if count < 1 or turned <= 1.0 or turned > CameraRig.ASSIST_MAX + 0.01:
 		return "it turned %.2f° (%d times) with the target in the cluster (want some, %.0f° at most)" % [turned, count, CameraRig.ASSIST_MAX]
 	return "" if during < 0.01 else "it turned %.2f° within its pause after a drag (want none)" % during
+
+
+func test_a_column_beside_the_camera_does_not_fade() -> String:
+	# (M4.2-A2: a box reaching behind the camera is cut at the camera, not taken as covering the screen — a column
+	# beside it, out of view, faded unseen and its shadow went with it)
+	var d := _rig("A", Vector3(0, 0, 1.5))
+	var rig: CameraRig = d["rig"]
+	var fader := OcclusionFader.new()
+	fader.rig = rig
+	_tree().root.add_child(fader)
+	var cam := rig.cam.global_transform
+	var side := _column(Vector3(cam.origin.x, 0, cam.origin.z) + cam.basis.x.slide(Vector3.UP).normalized() * 1.6)
+	fader.add_group([side])
+	var was := OcclusionFader.enabled
+	OcclusionFader.enabled = true
+	for i in 10:
+		fader._process(0.05)
+	var a := float((fader.info()["alphas"] as Array)[0])
+	OcclusionFader.enabled = was
+	for n: Node in [side, fader]:
+		n.free()
+	_done(d)
+	return "" if a == 1.0 else "a column 1.6 m beside the camera, out of its view, faded to %.2f (want 1)" % a

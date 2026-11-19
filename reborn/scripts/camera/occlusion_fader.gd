@@ -18,6 +18,7 @@ const HOLD := 0.25 ## s a group stays faded once it stops obstructing
 const GROW := 0.08 ## share of its screen box's size added each side while faded
 const MIDDLE := 0.7 ## the share of the screen's width that counts as its middle
 const NEARER := 0.3 ## m nearer than a fighter before a group counts as in front of it
+const CLIP := 0.05 ## m: a box reaching behind the camera is cut this far in front of it
 
 var rig: CameraRig
 var _groups: Array[Dictionary] = []
@@ -130,27 +131,40 @@ static func _fighter_box(cam: Camera3D, n: Node3D) -> Dictionary:
 	return {"rect": box, "depth": depth}
 
 
-## A group's box on the screen and its nearest depth; a box reaching behind the camera covers the whole screen.
-static func _project(cam: Camera3D, box: AABB, view: Vector2) -> Dictionary:
-	var inv := cam.global_transform.affine_inverse()
-	var rect := Rect2()
+## A group's box on the screen and its nearest depth. A box reaching behind the camera is cut where it crosses
+## CLIP m in front of it — its part in front projected, edges included (M4.2-A2: a column beside the camera, or the
+## arch's wide box with the camera turned from it, no longer counts as covering the whole screen — it faded, unseen,
+## and its shadow went with it).
+static func _project(cam: Camera3D, box: AABB, _view: Vector2) -> Dictionary:
+	var xf := cam.global_transform
+	var inv := xf.affine_inverse()
+	var local: Array[Vector3] = []
 	var near := INF
-	var first := true
-	var behind := false
 	var ahead := false
 	for i in 8:
-		var p := box.get_endpoint(i)
-		var depth := -(inv * p).z
-		near = minf(near, depth)
-		if depth <= 0.05:
-			behind = true
-			continue
-		ahead = true
-		var at := cam.unproject_position(p)
-		rect = Rect2(at, Vector2.ZERO) if first else rect.expand(at)
-		first = false
+		var q := inv * box.get_endpoint(i)
+		local.append(q)
+		near = minf(near, -q.z)
+		if -q.z > CLIP:
+			ahead = true
 	if not ahead:
 		return {}
-	if behind:
-		return {"rect": Rect2(Vector2.ZERO, view), "near": maxf(near, 0.0)}
-	return {"rect": rect, "near": near}
+	var rect := Rect2()
+	var first := true
+	for i in 8:
+		if -local[i].z > CLIP:
+			var at := cam.unproject_position(xf * local[i])
+			rect = Rect2(at, Vector2.ZERO) if first else rect.expand(at)
+			first = false
+		for bit: int in [1, 2, 4]: # (its 12 edges: the corners one axis apart)
+			var j := i | bit
+			if j == i:
+				continue
+			var di := -local[i].z
+			var dj := -local[j].z
+			if (di > CLIP) != (dj > CLIP):
+				var cut := local[i].lerp(local[j], (CLIP - di) / (dj - di))
+				var at2 := cam.unproject_position(xf * cut)
+				rect = Rect2(at2, Vector2.ZERO) if first else rect.expand(at2)
+				first = false
+	return {"rect": rect, "near": maxf(near, 0.0)}
