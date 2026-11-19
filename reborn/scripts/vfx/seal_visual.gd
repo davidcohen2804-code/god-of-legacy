@@ -9,7 +9,8 @@ extends Node3D
 ##     the target's chest, facing the camera, additive; three pulses, quickening (PULSES: 0, 330 and 530 ms after it was
 ##     planted), then through the last CONTRACT s it contracts and brightens: the cue that it is about to burst. Its
 ##     contrast (GPT's v1.7): dim at rest (REST_ALPHA), each pulse's peak at full alpha and PEAK_HOT of the way to the hot
-##     pale pink; in the last CONTRACT s it is at full hot and full alpha within FLARE s, held while it contracts;
+##     pale pink (GLYPH_HOT); in the last CONTRACT s it is at full hot and full alpha within FLARE s, held while it
+##     contracts;
 ##   - the detonation: a compact burst at the mark — a small core flash (at most half a metre, under 0.12 s), a
 ##     crimson-violet ring opening to about 1.3 m over 0.3 s, a few sparks — the target stays visible through it; a mark
 ##     whose target falls before its detonation fades out unexploded.
@@ -20,9 +21,12 @@ const PULSE := 0.12 ## each pulse's swell, s
 const CONTRACT := 0.12 ## the last s before the detonation: it contracts and brightens
 const STREAK := 0.08 ## the streak's flight, s, ending when the mark is planted
 const COLOR := Color(0.86, 0.16, 0.52)
-const HOT := Color(1.0, 0.55, 0.85) ## a pale hot pink — never white: the mark keeps its colour (GPT's v1.7)
+const HOT := Color(1.0, 0.66, 0.9) ## the streak's and the detonation's hot pale pink (as approved in M4)
+## The glyph's pulses and its last flare (GPT's v1.7: a pale hot pink, never an all-white symbol): deeper than HOT in
+## value because the courtyard's Filmic tone mapping lifts mid-tones — at HOT the thin rings showed near-white.
+const GLYPH_HOT := Color(1.0, 0.45, 0.75)
 const REST_ALPHA := 0.5 ## between the pulses (GPT's v1.7)
-const PEAK_HOT := 0.85 ## a pulse's peak: this much of the way to HOT, at full alpha
+const PEAK_HOT := 0.85 ## a pulse's peak: this much of the way to GLYPH_HOT, at full alpha
 const FLARE := 0.04 ## s into the last CONTRACT s by which it is at full hot and full alpha
 const SHRINK := 0.55 ## its size at the detonation
 const CHEST := 0.68 ## the glyph's height, as a fraction of the target's hurt height
@@ -169,10 +173,11 @@ func _update_glyphs(delta: float) -> void:
 		var e := fuse - left
 		var look := glyph_look(e, left)
 		node.scale = Vector3.ONE * lerpf(0.4, 1.0, clampf(float(g["born"]) / 0.08, 0.0, 1.0)) * look.x # (it opens as the streak lands)
-		mat.albedo_color = Color(COLOR.lerp(HOT, look.y), look.z)
+		mat.albedo_color = Color(COLOR.lerp(GLYPH_HOT, look.y), look.z)
 
 
-## The glyph `e` s after its mark was planted, `left` s before its detonation: (size factor, how far toward HOT, alpha).
+## The glyph `e` s after its mark was planted, `left` s before its detonation: (size factor, how far toward GLYPH_HOT,
+## alpha).
 static func glyph_look(e: float, left: float) -> Vector3:
 	var glow := 0.0
 	for p: float in PULSES:
