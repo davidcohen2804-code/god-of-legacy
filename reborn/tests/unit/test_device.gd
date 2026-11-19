@@ -107,8 +107,8 @@ func test_the_camera_starts_settled() -> String:
 	for i in 15:
 		rig._process(1.0 / 60.0)
 		moved = maxf(moved, rig.cam.global_transform.origin.distance_to(t0.origin))
-		turned = maxf(turned, rad_to_deg(rig.cam.global_transform.basis.get_rotation_quaternion().angle_to(
-			t0.basis.get_rotation_quaternion())))
+		var b := rig.cam.global_transform.basis # (its axes' angles: a quaternion's acos is too coarse this near 0)
+		turned = maxf(turned, rad_to_deg(maxf(b.z.angle_to(t0.basis.z), b.x.angle_to(t0.basis.x))))
 		zoomed = maxf(zoomed, absf(rig.cam.fov - fov0))
 	var h := t0.origin.y
 	for n: Node in [rig, foe, player]:
@@ -117,7 +117,7 @@ func test_the_camera_starts_settled() -> String:
 		return "(the case is wrong: the camera began %.2f m up)" % before.y
 	if h < 3.0 or absf(fov0 - 44.0) > 0.01:
 		return "settled, the camera is %.2f m up with a %.1f° view (want the combat framing: above 3 m, 44°)" % [h, fov0]
-	return "" if moved < 0.01 and turned < 0.05 and zoomed < 0.01 else \
+	return "" if moved < 0.01 and turned < 0.02 and zoomed < 0.01 else \
 		"over the next 15 frames it still moved %.3f m, turned %.2f°, zoomed %.2f° (want none)" % [moved, turned, zoomed]
 
 
