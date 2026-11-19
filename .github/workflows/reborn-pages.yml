@@ -68,12 +68,14 @@ jobs:
           FF=$("$RUNNER_TEMP/ff/bin/python" -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())")
           # (with its sound: Movie Maker records the game's own mix)
           "$FF" -y -loglevel error -i "$RUNNER_TEMP/demo.avi" -c:v libx264 -pix_fmt yuv420p -crf 24 -preset veryfast \
-            -c:a aac -b:a 128k -movflags +faststart build/web/qa/m3_combat_demo.mp4
-          MP4=build/web/qa/m3_combat_demo.mp4
-          # an overview (one frame a second), the first chain at 10 frames a second, the slow-motion chain at 5
-          "$FF" -y -loglevel error -i $MP4 -vf "fps=1,scale=480:-1,tile=5x5" -frames:v 1 build/web/qa/m3_combat_demo_frames.jpg
-          "$FF" -y -loglevel error -ss 2.1 -t 1.6 -i $MP4 -vf "fps=10,scale=480:-1,tile=4x4" -frames:v 1 build/web/qa/m3_chain_frames.jpg
-          "$FF" -y -loglevel error -ss 4.5 -t 4.0 -i $MP4 -vf "fps=5,scale=480:-1,tile=5x4" -frames:v 1 build/web/qa/m3_chain_slow_frames.jpg
+            -c:a aac -b:a 128k -movflags +faststart build/web/qa/m4b_demo.mp4
+          MP4=build/web/qa/m4b_demo.mp4
+          # an overview (one frame a second); the branch at real speed (chain → pull → rise → pursuit) at 10 frames a
+          # second; the two failed attempts at 4; the branch at half speed at 5
+          "$FF" -y -loglevel error -i $MP4 -vf "fps=1,scale=480:-1,tile=6x5" -frames:v 1 build/web/qa/m4b_demo_frames.jpg
+          "$FF" -y -loglevel error -ss 4.8 -t 3.0 -i $MP4 -vf "fps=10,scale=480:-1,tile=6x5" -frames:v 1 build/web/qa/m4b_branch_frames.jpg
+          "$FF" -y -loglevel error -ss 10.8 -t 3.0 -i $MP4 -vf "fps=4,scale=480:-1,tile=4x3" -frames:v 1 build/web/qa/m4b_failed_frames.jpg
+          "$FF" -y -loglevel error -ss 17.6 -t 6.0 -i $MP4 -vf "fps=5,scale=480:-1,tile=6x5" -frames:v 1 build/web/qa/m4b_branch_slow_frames.jpg
           python3 reborn/tools/pack_png.py $MP4 $MP4.png
           ls -la build/web/qa
       - name: Browser smoke test in Playwright's own image (Chromium as an Android phone and at 16:9, WebKit as an iPhone, all in landscape)
