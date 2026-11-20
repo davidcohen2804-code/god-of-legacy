@@ -1,4 +1,0 @@
-[CAMERA] 0.03 s: the exploration framing, 10.12 m from the automaton
-[CAMERA] 2.77 s: the combat framing, 8.94 m from the automaton
-[CAMERA] 13.80 s: the exploration framing, 10.52 m from the automaton
-[CAMERA] the assist started 0 times
