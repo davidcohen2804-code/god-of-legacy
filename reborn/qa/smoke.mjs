@@ -32,15 +32,20 @@ const PROFILES = [
   { name: 'chromium-16x9', kind: 'desktop', required: true, type: chromium, args: SWIFTSHADER,
     device: { viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1, hasTouch: true, isMobile: false } },
 ];
-const PROFILE_LIMIT = 40 * 60 * 1000; // a profile that hangs is stopped and reported, so the run always ends
+// A profile that hangs is stopped (its browser closed, so it does not run on beside the next profile) and reported with
+// the steps it had passed, so the run always ends. 60 min: the Android profile takes about 35 min on a usual test
+// machine (its camera captures alone about 15 min at a frame a second) and about 50 min on a slow one.
+const PROFILE_LIMIT = 60 * 60 * 1000;
 // (what the phones' Legacy Chain checks are, said with each of them)
 const HALF = ' [at half game speed: the touch interface under software rendering at ~1 frame a second — not a full-speed gameplay check]';
 const T0 = Date.now();
 const say = (...a) => console.log(`[${((Date.now() - T0) / 1000).toFixed(1)}s]`, ...a);
 
-async function runProfile(p) {
+async function runProfile(p, ctl = {}) {
   const res = { profile: p.name, required: p.required, ok: false, steps: [], errors: [], log: [] };
+  ctl.res = res; // (the time limit reports what it has passed and closes its browser)
   const browser = await p.type.launch({ args: p.args || [] });
+  ctl.browser = browser;
   let page = null;
   try {
     const ctx = await browser.newContext({ ...p.device, ...(p.locale ? { locale: p.locale } : {}) });
@@ -112,8 +117,9 @@ async function runProfile(p) {
       const pl0 = (s) => (s && s.live && s.live.player) || null;
       const mark = () => page.evaluate(() => (window.__glAllocs || []).length);
       const allocs = (from) => page.evaluate((f) => (window.__glAllocs || []).slice(f), from);
-      // (the desktop runs the benchmark: 12 s a preset)
-      await page.goto(BASE + '&device=1' + (p.kind === 'desktop' ? '&bench=12' : ''), { waitUntil: 'load', timeout: 120000 });
+      // (the desktop runs the benchmark: 20 s a preset — under software rendering the game runs slower than real time
+      // (8 physics steps a frame at most), and on a slow test machine 12 s did not reach the encounter's first strike)
+      await page.goto(BASE + '&device=1' + (p.kind === 'desktop' ? '&bench=20' : ''), { waitUntil: 'load', timeout: 120000 });
       const s0 = await waitFor((s) => s.scene === 'arena' && dv(s) && pl0(s), 'the device test in the arena', 300000);
       if ((s0.events || []).some((e) => e.startsWith('entered=') || e.startsWith('pressed='))) {
         throw new Error('the device test went through the menus: ' + s0.events.join(' '));
@@ -189,7 +195,7 @@ async function runProfile(p) {
       step(`device test RESTART: the arena rebuilt — the automaton whole (${rs.live.automaton.hp}), the Samurai back on his mark ${JSON.stringify(pl0(rs).pos)}, the preset kept (${rs.live.render.quality})`);
 
       if (p.kind === 'desktop') {
-        // the benchmark: the same scripted encounter at each preset (12 s a preset here, at a few frames a second in
+        // the benchmark: the same scripted encounter at each preset (20 s a preset here, at a few frames a second in
         // software rendering; 60 s on a phone)
         await tap('device_test');
         await waitFor((s) => dv(s) && dv(s).open, 'the panel', 30000);
@@ -1052,6 +1058,7 @@ async function runProfile(p) {
     await deviceTest();
     res.ok = true;
   } catch (e) {
+    if (ctl.stopped) return res; // (stopped at its time limit: already reported)
     res.error = String(e && e.message || e);
     say(p.name, 'FAIL', res.error);
     try { await page.screenshot({ path: `${OUT}/${p.name}_fail.png` }); } catch (e2) { /* (the page may be gone) */ }
@@ -1066,7 +1073,18 @@ async function runProfile(p) {
 const results = [];
 for (const p of PROFILES) {
   say('profile', p.name, 'start');
-  const r = await Promise.race([runProfile(p), new Promise((res) => setTimeout(() => res({ profile: p.name, required: p.required, ok: false, steps: [], errors: [], log: [], error: 'profile time limit reached' }), PROFILE_LIMIT))]);
+  const ctl = {};
+  let timer = null;
+  let r = await Promise.race([runProfile(p, ctl), new Promise((res) => { timer = setTimeout(() => res(null), PROFILE_LIMIT); })]);
+  clearTimeout(timer);
+  if (r === null) {
+    // the time limit: what it passed so far kept, its browser closed before the next profile starts
+    ctl.stopped = true;
+    const was = ctl.res || { steps: [], errors: [], log: [] };
+    r = { ...was, profile: p.name, required: p.required, ok: false, steps: [...was.steps], errors: [...was.errors],
+      log: was.log.slice(-160), error: `profile time limit reached (${PROFILE_LIMIT / 60000} min)` };
+    if (ctl.browser) await ctl.browser.close().catch(() => {});
+  }
   results.push(r);
   console.log(`${r.ok ? 'PASS' : 'FAIL'} ${r.profile}${r.error ? ' — ' + r.error : ''}`);
   for (const s of r.steps) console.log('   ✓ ' + s);
