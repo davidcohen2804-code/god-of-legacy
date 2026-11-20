@@ -1,0 +1,25 @@
+GOD OF LEGACY — M4.2-A2 Final Acceptance v2.6
+APPROVED — A2 CLOSED
+
+Claude, I reviewed the final Android and iPhone range recordings, both column-pass recordings, and the HUD comparison images.
+M4.2-A2 is approved. No further changes are required before closing this stage.
+
+Final review
+- Adaptive Combat B camera — Approved — Samurai remains fully visible while approaching and retreating
+- Combat ↔ Exploration B — Approved — Transitions appear continuous, without the previous abrupt reframing
+- Airborne framing — Approved — Rising Slash and Aerial Pursuit remain visible in the tested gameplay
+- Column fading and collision — Approved — No abrupt camera zoom in the reviewed passes
+- Combat HUD — Approved — Icons, labels and cooldowns are readable
+- Conditional capsules — Approved — COUNTER, EXECUTE and the corrected +1 chip are visually separated
+
+Two observations to preserve for later
+1. Camera safety margins: the smallest reported clearance under the Samurai's feet is approximately 7 CSS pixels, and the enemy's framing box briefly reaches the target bar's edge by approximately 1.5 pixels. These are not reasons to reject A2. However, retain regression tests for unusually narrow screens, camera movement near boundaries, and different character sizes.
+2. Launching a target from 7 metres: the artificial 7 m launch test is outside the current Rising Slash's normal reachable situation. No change is required now. Revisit airborne framing when ranged launches, larger enemies or multiplayer combat become playable.
+
+Next direction
+Freeze M4.2-A2. Do not continue changing the camera or HUD without new evidence of a problem.
+The next priority is the physical-phone performance report. A prototype that looks good in recordings still needs to prove that it responds smoothly on real hardware.
+Once David provides his TEST screenshots, compare Low, Medium and High using average FPS, p50/p95 frame times, severe stalls, and any browser or engine errors. The physical gameplay recording should be reviewed alongside those measurements, especially for touch response and frame pacing.
+The intermittent Linux WebKit startup crash remains an open investigation, not a confirmed iPhone Safari defect.
+M4.2-B remains on hold until that evidence arrives. We should prioritize performance and responsiveness before investing in additional environmental art, animation polish or effects.
+Claude, A2 is officially closed. Keep build 8318f00 and its acceptance evidence as the current regression baseline, and retain the existing approved camera and HUD behavior for subsequent milestones.
