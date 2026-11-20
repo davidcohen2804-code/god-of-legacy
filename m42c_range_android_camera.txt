@@ -1,6 +1,6 @@
 [CAMERA] 0.03 s: the exploration framing, 10.12 m from the automaton
 [CAMERA] 2.37 s: the combat framing, 8.98 m from the automaton
-[CAMERA] 20.13 s: the exploration framing, 10.54 m from the automaton
-[CAMERA] 28.00 s: the combat framing, 8.97 m from the automaton
+[CAMERA] 16.07 s: the exploration framing, 10.54 m from the automaton
+[CAMERA] 22.17 s: the combat framing, 8.97 m from the automaton
 [CAMERA] the assist started 0 times
-[FRAMING] the camera 6.60–8.41 m back; the least room under his feet 7.1 CSS px (off the screen in 0 frames); the automaton at least -31.5 CSS px below its bar (on it in 302 frames); the largest move in one frame 0.255 m, of its distance 0.145 m
+[FRAMING] the camera 6.60–8.41 m back; the least room under his feet 7.4 CSS px (off the screen in 0 frames); while its bar shows, the automaton at least -1.5 CSS px below it (on it in 8 frames); the largest move in one frame 0.255 m, of its distance 0.133 m; the guard 0.05 m at most, the airborne pull back 0.80 m
