@@ -86,6 +86,7 @@ func _ready() -> void:
 		d.rig = rig
 		d.automaton = automaton
 		d.fader = fader
+		d.hud = hud
 		d.combat = combat
 		d.caption = hud.prompt
 		if not Game.bench.is_empty():

@@ -263,28 +263,23 @@ const SCRIPT_ACCEPT := [
 
 ## M4.2-A2's close (GPT's v2.5), recorded at both phones' shapes (`-- --demo --demo-range`): the distance between them
 ## changing continuously — a walk in from 12 m (exploration B, the combat framing from 9 m, the camera drawing in as
-## they close, to B's 6.6 m from 5.5 m apart), Rising Slash and the aerial pursuit at close range; then he steps back
-## to 7 m and a test command (captioned) launches the automaton where it stands; a walk out past 10.5 m (the camera
-## drawing back, then exploration B) and back in to 5 m. The log: each change of framing and how far apart they stood;
-## through the whole clip, the camera's distance, the least room under his feet, the least between the target and its
-## bar, the largest move of the camera and of its distance in one frame.
+## they close, to B's 6.6 m from 5.5 m apart), Rising Slash and the aerial pursuit, then a walk out past 10.5 m (the
+## camera drawing back, then exploration B) and back in to 5 m. The log: each change of framing and how far apart they
+## stood; through the whole clip, the camera's distance, the least room under his feet, the least between the target and
+## its bar while the bar shows, the largest move of the camera and of its distance in one frame, the guard's and the
+## airborne pull back's most.
 const SCRIPT_RANGE := [
 	[0.2, "spar", false],
 	[0.2, "place", Vector2(2.0, 8.5), -153.4, Vector2(-3.5, -2.5)], # 12.3 m from it, facing it
 	[0.3, "caption", "A walk in from 12 m: exploration B, then the combat framing from 9 m, drawing in as they close", 4.0],
 	[0.6, "approach", 2.0, 0.4],
-	[7.6, "caption", "Close: Rising Slash, then the aerial pursuit", 2.6],
+	[7.6, "caption", "Rising Slash, then the aerial pursuit", 2.6],
 	[7.7, "tap", "skill3"],
 	[7.8, "tap_shown", "cond1", 0.1], # PURSUE (it waits for Rising Slash's 50 %)
-	[11.0, "caption", "Farther apart: he steps back to 7 m; a test command launches the automaton where it stands", 4.0],
-	[11.0, "reset"], # (the automaton back on its mark, standing)
-	[11.1, "go", Vector2(-0.01, 4.47), 0.4], # 7.8 m from it (the thumb lets go 0.8 m short: about 7 m)
-	[14.4, "point", Vector2(-0.447, -0.894), 0.3], # facing it
-	[15.2, "auto_launch"],
-	[18.0, "caption", "A walk out past 10.5 m: the camera draws back, then exploration B; and back in", 4.0],
-	[18.0, "go", Vector2(3.0, 10.5), 0.4], # away from it, to about 14 m
-	[25.4, "approach", 5.0, 0.4], # back in to 5 m
-	[32.0, "end"],
+	[11.0, "caption", "A walk out past 10.5 m: the camera draws back, then exploration B; and back in", 4.0],
+	[11.0, "go", Vector2(3.0, 10.5), 0.4], # away from it, to about 14 m
+	[19.6, "approach", 5.0, 0.4], # back in to 5 m
+	[26.5, "end"],
 ]
 
 var touch: TouchControls
@@ -294,6 +289,7 @@ var rig: CameraRig
 var automaton: TrainingAutomaton
 var caption: Callable
 var fader: OcclusionFader ## (the columns' script: their fading's timeline)
+var hud: CombatHud ## (SCRIPT_RANGE's log: whether the target's bar is on the screen)
 var _cam_log := {} ## (the column pass) the camera's distance to him, least and most; its largest move in a frame; its
 ## most moved out of the stone — from the moment the move begins
 var _cam_last := Vector3.INF
@@ -359,7 +355,10 @@ func _track_range() -> void:
 	var p := rig.cam.global_position
 	var d := rig.distance()
 	if _range_log.is_empty():
-		_range_log = {"near": d, "far": d, "feet": INF, "bar": INF, "off": 0, "on_bar": 0, "move": 0.0, "dd": 0.0}
+		_range_log = {"near": d, "far": d, "feet": INF, "bar": INF, "off": 0, "on_bar": 0, "move": 0.0, "dd": 0.0,
+			"guard": 0.0, "air": 0.0}
+	_range_log["guard"] = maxf(float(_range_log["guard"]), rig.guard)
+	_range_log["air"] = maxf(float(_range_log["air"]), rig.air_pull)
 	_range_log["near"] = minf(float(_range_log["near"]), d)
 	_range_log["far"] = maxf(float(_range_log["far"]), d)
 	var me: Dictionary = rig.screen_box(player, 1.0)
@@ -370,7 +369,7 @@ func _track_range() -> void:
 		if room < 0.0:
 			_range_log["off"] = int(_range_log["off"]) + 1
 	var it: Dictionary = rig.screen_box(automaton, 1.0)
-	if not it.is_empty() and rig.bar_rect.size != Vector2.ZERO:
+	if not it.is_empty() and rig.bar_rect.size != Vector2.ZERO and hud and hud.target_shown():
 		var a: Array = it["box"]
 		var box := Rect2(float(a[0]), float(a[1]), float(a[2]), float(a[3]))
 		if box.end.x > rig.bar_rect.position.x and box.position.x < rig.bar_rect.end.x:
@@ -575,10 +574,6 @@ func _run(step: Array) -> void:
 				else:
 					automaton.place(automaton.global_position + Vector3(dir.z, 0.0, -dir.x) * float(step[2]))
 				automaton.facing = atan2(-dir.x, -dir.z)
-		"auto_launch":
-			# (a test command, captioned as such: the automaton launched where it stands, as QA's "auto launch")
-			if automaton:
-				automaton.launch(2.2, 0.9)
 		"behind":
 			rig.snap_behind(player.facing)
 		"expvar":
@@ -602,9 +597,9 @@ func _run(step: Array) -> void:
 			print("[CAMERA] the assist started %d times" % rig.assists)
 			_report_camera()
 			if not _range_log.is_empty():
-				print("[FRAMING] the camera %.2f–%.2f m back; the least room under his feet %.1f CSS px (off the screen in %d frames); the automaton at least %.1f CSS px below its bar (on it in %d frames); the largest move in one frame %.3f m, of its distance %.3f m" % [
+				print("[FRAMING] the camera %.2f–%.2f m back; the least room under his feet %.1f CSS px (off the screen in %d frames); while its bar shows, the automaton at least %.1f CSS px below it (on it in %d frames); the largest move in one frame %.3f m, of its distance %.3f m; the guard %.2f m at most, the airborne pull back %.2f m" % [
 					_range_log["near"], _range_log["far"], _range_log["feet"], _range_log["off"], _range_log["bar"],
-					_range_log["on_bar"], _range_log["move"], _range_log["dd"]])
+					_range_log["on_bar"], _range_log["move"], _range_log["dd"], _range_log["guard"], _range_log["air"]])
 			if not _fades.is_empty():
 				_report_fades()
 			Engine.time_scale = 1.0

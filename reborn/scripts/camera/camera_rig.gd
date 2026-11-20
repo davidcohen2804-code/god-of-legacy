@@ -48,8 +48,8 @@ const AIR_PITCH := -30.0
 const AIR_EXTRA := 0.8 ## m (provisional: "a brief, modest distance increase")
 ## (GPT's v2.5) B farther back as the two part: min(FAR_MAX, C_NEAR + FAR_PULL × (s − FAR_FROM)), s their distance
 ## across the ground — his whole body, feet included, and the target both stay on the screen to the combat framing's
-## 10.5 m. Then, only if still needed, up to GUARD_MAX m more (never past DIST_MAX): his feet off the screen's bottom
-## edge, the target off the target's name and bar (`bar_rect`, BAR_CLEAR px round it).
+## 10.5 m. Then, in grounded combat and only if still needed, up to GUARD_MAX m more (never past DIST_MAX): his feet
+## off the screen's bottom edge, the target off the target's name and bar (`bar_rect`, BAR_CLEAR px round it).
 const FAR_FROM := 5.5 ## m apart
 const FAR_PULL := 0.4 ## m farther per metre apart
 const FAR_MAX := 8.6 ## m
@@ -430,8 +430,9 @@ func _update(delta: float, snap: bool) -> void:
 				target.global_position.z - focus.global_position.z).length()
 			far_pull = clampf((s - FAR_FROM) * FAR_PULL, 0.0, FAR_MAX - C_NEAR)
 			want += far_pull
-			guard = _guard(b, _pos, _fov, want)
-			want += guard
+			if lift <= 0.05: # (grounded: a target in the air has the airborne framing's own pull back)
+				guard = _guard(b, _pos, _fov, want)
+				want += guard
 		if fixes and air_framing and lift > 0.05:
 			air_pull = _air_pull(b, _pos, _fov, want)
 			want += air_pull

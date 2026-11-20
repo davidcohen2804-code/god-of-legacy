@@ -105,6 +105,11 @@ func target_rect() -> Rect2:
 	return Rect2(size.x * 0.5 - BAR_W * 0.5, 10.0, BAR_W, 24.0 + BAR_H)
 
 
+## (QA) whether the target's name and bar are on the screen now.
+func target_shown() -> bool:
+	return _target_box.modulate.a > 0.05
+
+
 ## The target is gone (defeated): the bar fades now, without lingering (GPT's v2.1: clear when dead).
 func clear_target() -> void:
 	_near = false

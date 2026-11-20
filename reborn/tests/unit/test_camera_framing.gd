@@ -50,11 +50,12 @@ func test_framing_a_is_the_baseline() -> String:
 
 
 func test_framing_b_is_closer() -> String:
-	var d := _rig("B", Vector3(0, 0, -3))
+	# (6.6 m while they stand within 5.5 m of each other; farther apart it draws back — GPT's v2.5, tested below)
+	var d := _rig("B", Vector3(0, 0, -1)) # (5 m apart)
 	var rig: CameraRig = d["rig"]
 	var got := [snappedf(rig.distance(), 0.01), snappedf(rig.cam.fov, 0.01), snappedf(rig.elevation(), 0.01)]
 	_done(d)
-	return "" if str(got) == str([6.6, 42.0, 32.0]) else "B settled at %s (want 6.6 m, 42°, 32° whatever the gap)" % [got]
+	return "" if str(got) == str([6.6, 42.0, 32.0]) else "B settled at %s 5 m apart (want 6.6 m, 42°, 32°)" % [got]
 
 
 func test_the_projection_is_the_cameras() -> String:

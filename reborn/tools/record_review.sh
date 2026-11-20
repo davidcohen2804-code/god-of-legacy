@@ -45,9 +45,9 @@ phone() { # name, width, the game's own arguments...  (720 tall: the Android pho
 }
 
 # (M4.2-A2's close, GPT's v2.4 / v2.5) at both phones' shapes: the distance between them changing continuously — the
-# walk in from 12 m across the 9 m, Rising Slash and the aerial pursuit close, a launch 7 m apart, the walk out past
-# 10.5 m and back in — and the column pass with the fading on and the camera's new rule. Their logs: the framing's
-# changes and numbers, the camera through the column pass.
+# walk in from 12 m across the 9 m, Rising Slash and the aerial pursuit, the walk out past 10.5 m and back in — and the
+# column pass with the fading on and the camera's new rule. Their logs: the framing's changes and numbers, the camera
+# through the column pass.
 phone range_android 1728 --demo --demo-range --phone
 phone range_iphone 1588 --demo --demo-range --iphone
 phone columns_android 1728 --demo --demo-columns-on --phone
